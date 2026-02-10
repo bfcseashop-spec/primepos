@@ -17,7 +17,8 @@ import {
   Plus, Search, AlertTriangle, Package, Pill, TrendingUp, DollarSign,
   Box, Droplets, FlaskConical, MoreHorizontal, Eye, Pencil, Trash2,
   Calculator, Users, Globe, ShieldAlert, CheckCircle2, X,
-  List, LayoutGrid, RefreshCw, Tag, FolderPlus
+  List, LayoutGrid, RefreshCw, Tag, FolderPlus, Printer, Barcode,
+  PackageX, PackageCheck, Filter
 } from "lucide-react";
 import type { Medicine } from "@shared/schema";
 
@@ -52,6 +53,8 @@ export default function MedicinesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [form, setForm] = useState(defaultForm);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [customCategories, setCustomCategories] = useState<string[]>(() => {
     try {
@@ -196,16 +199,74 @@ export default function MedicinesPage() {
     setEditMed(med);
   };
 
-  const filtered = medicines.filter(m =>
-    m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (m.genericName?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-    (m.category?.toLowerCase().includes(searchTerm.toLowerCase()) || false)
-  );
+  const filtered = medicines.filter(m => {
+    const matchesSearch = searchTerm === "" ||
+      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.genericName?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (m.category?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (m.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (m.batchNo?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
 
-  const lowStock = medicines.filter(m => m.stockCount < (m.stockAlert || 10) && m.isActive);
+    const matchesCategory = categoryFilter === "all" || m.category === categoryFilter;
+
+    const isLowItem = m.stockCount < (m.stockAlert || 10) && m.stockCount > 0;
+    const isOutItem = m.stockCount === 0;
+    const isInItem = m.stockCount >= (m.stockAlert || 10);
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "in_stock" && isInItem) ||
+      (statusFilter === "low_stock" && isLowItem) ||
+      (statusFilter === "out_of_stock" && isOutItem);
+
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
+  const lowStock = medicines.filter(m => m.stockCount < (m.stockAlert || 10) && m.stockCount > 0 && m.isActive);
+  const outOfStock = medicines.filter(m => m.stockCount === 0);
+  const inStock = medicines.filter(m => m.stockCount >= (m.stockAlert || 10));
   const totalMeds = medicines.length;
-  const activeMeds = medicines.filter(m => m.isActive).length;
-  const totalValue = medicines.reduce((sum, m) => sum + Number(m.totalPurchasePrice || 0), 0);
+  const totalPurchaseValue = medicines.reduce((sum, m) => sum + Number(m.totalPurchasePrice || 0), 0);
+  const totalSalesValue = medicines.reduce((sum, m) => sum + (Number(m.sellingPriceLocal || 0) * m.stockCount), 0);
+  const usedCategories = Array.from(new Set(medicines.map(m => m.category).filter(Boolean))) as string[];
+
+  const handlePrint = (med: Medicine) => {
+    const printWindow = window.open("", "_blank", "width=400,height=600");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html><head><title>Medicine Label - ${med.name}</title>
+      <style>body{font-family:Arial,sans-serif;padding:20px;} .label{border:2px solid #000;padding:16px;max-width:350px;margin:0 auto;}
+      h2{margin:0 0 8px;font-size:18px;} .row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid #eee;}
+      .row:last-child{border:none;} .lbl{color:#666;} .val{font-weight:bold;}</style></head>
+      <body><div class="label"><h2>${med.name}</h2>
+      ${med.genericName ? `<p style="color:#666;margin:0 0 8px;font-size:12px;font-style:italic">${med.genericName}</p>` : ""}
+      <div class="row"><span class="lbl">Category:</span><span class="val">${med.category || "-"}</span></div>
+      <div class="row"><span class="lbl">Batch:</span><span class="val">${med.batchNo || "-"}</span></div>
+      <div class="row"><span class="lbl">Expiry:</span><span class="val">${med.expiryDate || "-"}</span></div>
+      <div class="row"><span class="lbl">Price (Local):</span><span class="val">$${Number(med.sellingPriceLocal || 0).toFixed(2)}</span></div>
+      <div class="row"><span class="lbl">Price (Foreign):</span><span class="val">$${Number(med.sellingPriceForeigner || 0).toFixed(2)}</span></div>
+      <div class="row"><span class="lbl">Manufacturer:</span><span class="val">${med.manufacturer || "-"}</span></div>
+      </div><script>window.print();</script></body></html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleBarcode = (med: Medicine) => {
+    const barcodeWindow = window.open("", "_blank", "width=400,height=300");
+    if (!barcodeWindow) return;
+    const code = med.batchNo || `MED-${String(med.id).padStart(6, "0")}`;
+    barcodeWindow.document.write(`
+      <html><head><title>Barcode - ${med.name}</title>
+      <style>body{font-family:monospace;text-align:center;padding:40px;}
+      .barcode{font-family:'Libre Barcode 128',monospace;font-size:72px;letter-spacing:2px;}
+      .code-text{font-size:14px;margin-top:8px;letter-spacing:3px;} .name{font-size:16px;font-weight:bold;margin-bottom:16px;}
+      @import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap');</style></head>
+      <body><div class="name">${med.name}</div><div class="barcode">${code}</div>
+      <div class="code-text">${code}</div>
+      <div style="margin-top:8px;font-size:12px;color:#666">$${Number(med.sellingPriceLocal || 0).toFixed(2)}</div>
+      <script>setTimeout(()=>window.print(),500);</script></body></html>
+    `);
+    barcodeWindow.document.close();
+  };
 
   const getUnitBadge = (unit: string) => {
     const colors: Record<string, string> = {
@@ -291,6 +352,12 @@ export default function MedicinesPage() {
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
             <Pencil className="h-4 w-4 text-amber-500" /> Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handlePrint(row); }} data-testid={`action-print-${row.id}`} className="gap-2">
+            <Printer className="h-4 w-4 text-purple-500" /> Print Label
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleBarcode(row); }} data-testid={`action-barcode-${row.id}`} className="gap-2">
+            <Barcode className="h-4 w-4 text-teal-500" /> Barcode
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (confirm("Delete this medicine?")) deleteMutation.mutate(row.id); }} className="text-red-600 gap-2" data-testid={`action-delete-${row.id}`}>
             <Trash2 className="h-4 w-4" /> Delete
@@ -471,7 +538,6 @@ export default function MedicinesPage() {
               size="sm"
               onClick={() => setViewMode("list")}
               data-testid="button-list-view"
-              className="toggle-elevate"
             >
               <List className="h-4 w-4 mr-1" /> List View
             </Button>
@@ -480,7 +546,6 @@ export default function MedicinesPage() {
               size="sm"
               onClick={() => setViewMode("grid")}
               data-testid="button-grid-view"
-              className="toggle-elevate"
             >
               <LayoutGrid className="h-4 w-4 mr-1" /> Grid View
             </Button>
@@ -666,48 +731,70 @@ export default function MedicinesPage() {
       </Dialog>
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        <div className="grid grid-cols-4 gap-3" data-testid="medicine-stats">
-          <Card className="border-l-4 border-l-blue-500">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="medicine-stats">
+          <Card>
             <CardContent className="p-3 flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/50">
                 <Pill className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Medicines</p>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Items</p>
                 <p className="text-xl font-bold" data-testid="stat-total-meds">{totalMeds}</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-l-4 border-l-green-500">
+          <Card>
             <CardContent className="p-3 flex items-center gap-3">
               <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950/50">
-                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <PackageCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Active</p>
-                <p className="text-xl font-bold text-green-600 dark:text-green-400" data-testid="stat-active-meds">{activeMeds}</p>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">In Stock</p>
+                <p className="text-xl font-bold text-green-600 dark:text-green-400" data-testid="stat-in-stock">{inStock.length}</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-l-4 border-l-emerald-500">
+          <Card>
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-950/50">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Low Stock</p>
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400" data-testid="stat-low-stock">{lowStock.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-red-100 dark:bg-red-950/50">
+                <PackageX className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Out of Stock</p>
+                <p className="text-xl font-bold text-red-600 dark:text-red-400" data-testid="stat-out-stock">{outOfStock.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
             <CardContent className="p-3 flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/50">
                 <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Value</p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-total-value">${totalValue.toFixed(2)}</p>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Purchase Value</p>
+                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-purchase-value">${totalPurchaseValue.toFixed(2)}</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-l-4 border-l-red-500">
+          <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-red-100 dark:bg-red-950/50">
-                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-950/50">
+                <TrendingUp className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Low Stock</p>
-                <p className="text-xl font-bold text-red-600 dark:text-red-400" data-testid="stat-low-stock">{lowStock.length}</p>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Sales Value</p>
+                <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400" data-testid="stat-sales-value">${totalSalesValue.toFixed(2)}</p>
               </div>
             </CardContent>
           </Card>
@@ -735,21 +822,59 @@ export default function MedicinesPage() {
         )}
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-            <div className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-sm font-semibold">All Medicines</CardTitle>
-              <Badge variant="secondary" className="text-[10px]">{filtered.length}</Badge>
+          <CardHeader className="p-4 pb-3 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-semibold">All Medicines</CardTitle>
+                <Badge variant="secondary" className="text-[10px]">{filtered.length}</Badge>
+              </div>
             </div>
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search medicines..."
-                className="pl-8 h-8 text-sm"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                data-testid="input-search-medicines"
-              />
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, generic, batch, manufacturer..."
+                  className="pl-8 text-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  data-testid="input-search-medicines"
+                />
+              </div>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[170px]" data-testid="select-filter-category">
+                  <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {allCategories.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[160px]" data-testid="select-filter-status">
+                  <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="in_stock">In Stock</SelectItem>
+                  <SelectItem value="low_stock">Low Stock</SelectItem>
+                  <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                </SelectContent>
+              </Select>
+              {(categoryFilter !== "all" || statusFilter !== "all" || searchTerm) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setCategoryFilter("all"); setStatusFilter("all"); setSearchTerm(""); }}
+                  data-testid="button-clear-filters"
+                >
+                  <X className="h-3.5 w-3.5 mr-1" /> Clear
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className={viewMode === "grid" ? "p-4" : "p-0"}>
@@ -783,6 +908,12 @@ export default function MedicinesPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEdit(med)} className="gap-2">
                                 <Pencil className="h-4 w-4 text-amber-500" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handlePrint(med)} className="gap-2">
+                                <Printer className="h-4 w-4 text-purple-500" /> Print Label
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleBarcode(med)} className="gap-2">
+                                <Barcode className="h-4 w-4 text-teal-500" /> Barcode
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { if (confirm("Delete this medicine?")) deleteMutation.mutate(med.id); }} className="text-red-600 gap-2">
                                 <Trash2 className="h-4 w-4" /> Delete
