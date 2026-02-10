@@ -168,6 +168,9 @@ export const expenses = pgTable("expenses", {
   paymentMethod: text("payment_method").default("cash"),
   date: date("date").notNull(),
   notes: text("notes"),
+  status: text("status").default("pending"),
+  approvedBy: text("approved_by"),
+  receiptUrl: text("receipt_url"),
 });
 
 export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true });

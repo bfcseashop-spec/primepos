@@ -537,6 +537,25 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/expenses/:id", async (req, res) => {
+    try {
+      const expense = await storage.updateExpense(Number(req.params.id), req.body);
+      if (!expense) return res.status(404).json({ message: "Expense not found" });
+      res.json(expense);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/expenses/:id", async (req, res) => {
+    try {
+      await storage.deleteExpense(Number(req.params.id));
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
   // Bank Transactions
   app.get("/api/bank-transactions", async (_req, res) => {
     try {
