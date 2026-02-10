@@ -454,11 +454,10 @@ export default function OpdPage() {
                   <SelectItem value="Cash Pay">Cash Pay</SelectItem>
                   <SelectItem value="ABA">ABA</SelectItem>
                   <SelectItem value="Acleda">Acleda</SelectItem>
-                  <SelectItem value="Card Pay">Card Pay</SelectItem>
-                  <SelectItem value="Wechat Pay">Wechat Pay</SelectItem>
                   <SelectItem value="Other Bank">Other Bank</SelectItem>
+                  <SelectItem value="Card Pay">Card Pay</SelectItem>
+                  <SelectItem value="WeChat Pay">WeChat Pay</SelectItem>
                   <SelectItem value="GPay">GPay</SelectItem>
-                  <SelectItem value="Others Pay">Others Pay</SelectItem>
                 </SelectContent>
               </Select>
             </div>

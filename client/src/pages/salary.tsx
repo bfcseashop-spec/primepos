@@ -27,7 +27,7 @@ export default function SalaryPage() {
   const [editingSalary, setEditingSalary] = useState<Salary | null>(null);
   const [form, setForm] = useState({
     staffName: "", role: "", department: "", baseSalary: "", allowances: "0",
-    deductions: "0", netSalary: "", paymentMethod: "bank_transfer",
+    deductions: "0", netSalary: "", paymentMethod: "cash",
     paymentDate: "", month: months[new Date().getMonth()], year: String(currentYear),
     status: "pending", notes: "",
   });
@@ -63,7 +63,7 @@ export default function SalaryPage() {
   });
 
   const resetForm = () => {
-    setForm({ staffName: "", role: "", department: "", baseSalary: "", allowances: "0", deductions: "0", netSalary: "", paymentMethod: "bank_transfer", paymentDate: "", month: months[new Date().getMonth()], year: String(currentYear), status: "pending", notes: "" });
+    setForm({ staffName: "", role: "", department: "", baseSalary: "", allowances: "0", deductions: "0", netSalary: "", paymentMethod: "cash", paymentDate: "", month: months[new Date().getMonth()], year: String(currentYear), status: "pending", notes: "" });
   };
 
   const calculateNet = () => {
@@ -194,7 +194,7 @@ export default function SalaryPage() {
                                 staffName: sal.staffName, role: sal.role || "", department: sal.department || "",
                                 baseSalary: sal.baseSalary, allowances: sal.allowances || "0",
                                 deductions: sal.deductions || "0", netSalary: sal.netSalary,
-                                paymentMethod: sal.paymentMethod || "bank_transfer",
+                                paymentMethod: sal.paymentMethod || "cash",
                                 paymentDate: sal.paymentDate, month: sal.month, year: sal.year,
                                 status: sal.status, notes: sal.notes || "",
                               });
@@ -293,9 +293,13 @@ export default function SalaryPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="check">Check</SelectItem>
+                      <SelectItem value="cash">Cash Pay</SelectItem>
+                      <SelectItem value="aba">ABA</SelectItem>
+                      <SelectItem value="acleda">Acleda</SelectItem>
+                      <SelectItem value="other_bank">Other Bank</SelectItem>
+                      <SelectItem value="card">Card Pay</SelectItem>
+                      <SelectItem value="wechat">WeChat Pay</SelectItem>
+                      <SelectItem value="gpay">GPay</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

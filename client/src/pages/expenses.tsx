@@ -129,9 +129,13 @@ export default function ExpensesPage() {
                   <Select name="paymentMethod" defaultValue="cash">
                     <SelectTrigger data-testid="select-expense-method"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="card">Card</SelectItem>
-                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="cash">Cash Pay</SelectItem>
+                      <SelectItem value="aba">ABA</SelectItem>
+                      <SelectItem value="acleda">Acleda</SelectItem>
+                      <SelectItem value="other_bank">Other Bank</SelectItem>
+                      <SelectItem value="card">Card Pay</SelectItem>
+                      <SelectItem value="wechat">WeChat Pay</SelectItem>
+                      <SelectItem value="gpay">GPay</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
