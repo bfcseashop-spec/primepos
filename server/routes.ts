@@ -6,7 +6,7 @@ import {
   insertServiceSchema, insertMedicineSchema, insertExpenseSchema,
   insertBankTransactionSchema, insertInvestmentSchema,
   insertUserSchema, insertRoleSchema, insertIntegrationSchema,
-  insertClinicSettingsSchema, insertLabTestSchema
+  insertClinicSettingsSchema, insertLabTestSchema, insertAppointmentSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -658,6 +658,45 @@ export async function registerRoutes(
         }
       }
       await storage.deleteLabTest(Number(req.params.id));
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Appointments
+  app.get("/api/appointments", async (_req, res) => {
+    try {
+      const result = await storage.getAppointments();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/appointments", async (req, res) => {
+    try {
+      const data = validateBody(insertAppointmentSchema, req.body);
+      const appointment = await storage.createAppointment(data);
+      res.status(201).json(appointment);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/appointments/:id", async (req, res) => {
+    try {
+      const updated = await storage.updateAppointment(Number(req.params.id), req.body);
+      if (!updated) return res.status(404).json({ message: "Not found" });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/appointments/:id", async (req, res) => {
+    try {
+      await storage.deleteAppointment(Number(req.params.id));
       res.json({ message: "Deleted" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });

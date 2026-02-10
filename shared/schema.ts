@@ -116,6 +116,27 @@ export const insertOpdVisitSchema = createInsertSchema(opdVisits).omit({ id: tru
 export type InsertOpdVisit = z.infer<typeof insertOpdVisitSchema>;
 export type OpdVisit = typeof opdVisits.$inferSelect;
 
+export const appointments = pgTable("appointments", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  patientType: text("patient_type").default("Out Patient"),
+  department: text("department"),
+  doctorName: text("doctor_name"),
+  consultationMode: text("consultation_mode"),
+  appointmentDate: text("appointment_date"),
+  startTime: text("start_time"),
+  endTime: text("end_time"),
+  reason: text("reason"),
+  notes: text("notes"),
+  paymentMode: text("payment_mode"),
+  status: text("status").notNull().default("scheduled"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true });
+export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
+export type Appointment = typeof appointments.$inferSelect;
+
 export const bills = pgTable("bills", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   billNo: text("bill_no").notNull().unique(),

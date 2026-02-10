@@ -2,7 +2,7 @@ import { eq, desc, sql, and, gte, lte, count, sum } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, roles, patients, services, medicines, opdVisits, bills,
-  expenses, bankTransactions, investments, integrations, clinicSettings, labTests,
+  expenses, bankTransactions, investments, integrations, clinicSettings, labTests, appointments,
   type InsertUser, type User, type InsertRole, type Role,
   type InsertPatient, type Patient, type InsertService, type Service,
   type InsertMedicine, type Medicine, type InsertOpdVisit, type OpdVisit,
@@ -11,7 +11,8 @@ import {
   type InsertInvestment, type Investment,
   type InsertIntegration, type Integration,
   type InsertClinicSettings, type ClinicSettings,
-  type InsertLabTest, type LabTest
+  type InsertLabTest, type LabTest,
+  type InsertAppointment, type Appointment
 } from "@shared/schema";
 
 export interface IStorage {
@@ -74,6 +75,11 @@ export interface IStorage {
   updateLabTest(id: number, data: Partial<InsertLabTest>): Promise<LabTest | undefined>;
   deleteLabTest(id: number): Promise<void>;
   getNextLabTestCode(): Promise<string>;
+
+  getAppointments(): Promise<any[]>;
+  createAppointment(appointment: InsertAppointment): Promise<Appointment>;
+  updateAppointment(id: number, data: Partial<InsertAppointment>): Promise<Appointment | undefined>;
+  deleteAppointment(id: number): Promise<void>;
 
   getDashboardStats(): Promise<any>;
   getRecentVisits(): Promise<any[]>;
@@ -503,6 +509,30 @@ export class DatabaseStorage implements IStorage {
     const [result] = await db.select({ maxId: sql<number>`COALESCE(MAX(id), 0)` }).from(labTests);
     const num = (result.maxId || 0) + 1;
     return `LAB-${String(num).padStart(4, '0')}`;
+  }
+
+  async getAppointments(): Promise<any[]> {
+    const result = await db.select().from(appointments).orderBy(desc(appointments.createdAt));
+    const patientList = await db.select().from(patients);
+    const patientMap = new Map(patientList.map(p => [p.id, p]));
+    return result.map(a => ({
+      ...a,
+      patientName: patientMap.get(a.patientId)?.name || "Unknown",
+    }));
+  }
+
+  async createAppointment(appointment: InsertAppointment): Promise<Appointment> {
+    const [created] = await db.insert(appointments).values(appointment).returning();
+    return created;
+  }
+
+  async updateAppointment(id: number, data: Partial<InsertAppointment>): Promise<Appointment | undefined> {
+    const [updated] = await db.update(appointments).set(data).where(eq(appointments.id, id)).returning();
+    return updated;
+  }
+
+  async deleteAppointment(id: number): Promise<void> {
+    await db.delete(appointments).where(eq(appointments.id, id));
   }
 }
 

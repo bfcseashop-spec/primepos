@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,15 +20,17 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, MapPin, User as UserIcon } from "lucide-react";
+import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, User as UserIcon } from "lucide-react";
 import { useLocation } from "wouter";
-import type { Patient, OpdVisit } from "@shared/schema";
+import type { Patient } from "@shared/schema";
 
 export default function OpdPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
   const { data: patients = [], isLoading: patientsLoading } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
@@ -47,10 +53,50 @@ export default function OpdPage() {
     },
   });
 
+  const createAppointmentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/appointments", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      setAppointmentDialogOpen(false);
+      setSelectedPatient(null);
+      toast({ title: "Appointment created successfully" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
     queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
     toast({ title: "Data refreshed" });
+  };
+
+  const openAppointmentDialog = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setAppointmentDialogOpen(true);
+  };
+
+  const handleCreateAppointment = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    createAppointmentMutation.mutate({
+      patientId: selectedPatient?.id,
+      patientType: form.get("patientType") || selectedPatient?.patientType || "Out Patient",
+      department: form.get("department") || null,
+      doctorName: form.get("doctorName") || null,
+      consultationMode: form.get("consultationMode") || null,
+      appointmentDate: form.get("appointmentDate") || null,
+      startTime: form.get("startTime") || null,
+      endTime: form.get("endTime") || null,
+      reason: form.get("reason") || null,
+      notes: form.get("notes") || null,
+      paymentMode: form.get("paymentMode") || null,
+      status: "scheduled",
+    });
   };
 
   const getLastVisit = (patientId: number) => {
@@ -108,7 +154,7 @@ export default function OpdPage() {
     }},
     { header: "Actions", accessor: (row: any) => (
       <div className="flex gap-1">
-        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); }} data-testid={`button-add-appointment-list-${row.id}`}>
+        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); openAppointmentDialog(row); }} data-testid={`button-add-appointment-list-${row.id}`}>
           <CalendarPlus className="h-3 w-3 mr-1" /> Appointment
         </Button>
       </div>
@@ -256,6 +302,7 @@ export default function OpdPage() {
                       <div className="border-t px-4 py-2.5">
                         <button
                           className="w-full text-center text-xs font-medium text-primary hover:underline cursor-pointer"
+                          onClick={() => openAppointmentDialog(patient)}
                           data-testid={`button-add-appointment-${patient.id}`}
                         >
                           Add Appointment
@@ -275,6 +322,155 @@ export default function OpdPage() {
           </Card>
         )}
       </div>
+
+      <Dialog open={appointmentDialogOpen} onOpenChange={(open) => { setAppointmentDialogOpen(open); if (!open) setSelectedPatient(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle data-testid="text-appointment-dialog-title">New Appointment</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateAppointment} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Select Patient</Label>
+                <Select
+                  name="patientId"
+                  value={selectedPatient ? String(selectedPatient.id) : ""}
+                  onValueChange={(val) => {
+                    const p = patients.find(pt => pt.id === Number(val));
+                    if (p) setSelectedPatient(p);
+                  }}
+                >
+                  <SelectTrigger data-testid="select-appointment-patient">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {patients.map(p => (
+                      <SelectItem key={p.id} value={String(p.id)}>{getDisplayName(p)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Patient Type</Label>
+                <Select name="patientType" defaultValue={selectedPatient?.patientType || "Out Patient"}>
+                  <SelectTrigger data-testid="select-appointment-patient-type">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Out Patient">Out Patient</SelectItem>
+                    <SelectItem value="In Patient">In Patient</SelectItem>
+                    <SelectItem value="Emergency">Emergency</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Select Department <span className="text-destructive">*</span></Label>
+                <Select name="department" required>
+                  <SelectTrigger data-testid="select-appointment-department">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="General Medicine">General Medicine</SelectItem>
+                    <SelectItem value="Cardiology">Cardiology</SelectItem>
+                    <SelectItem value="Orthopedics">Orthopedics</SelectItem>
+                    <SelectItem value="Pediatrics">Pediatrics</SelectItem>
+                    <SelectItem value="Gynecology">Gynecology</SelectItem>
+                    <SelectItem value="Dermatology">Dermatology</SelectItem>
+                    <SelectItem value="ENT">ENT</SelectItem>
+                    <SelectItem value="Ophthalmology">Ophthalmology</SelectItem>
+                    <SelectItem value="Neurology">Neurology</SelectItem>
+                    <SelectItem value="Dentistry">Dentistry</SelectItem>
+                    <SelectItem value="Radiology">Radiology</SelectItem>
+                    <SelectItem value="Pathology">Pathology</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Select Doctor <span className="text-destructive">*</span></Label>
+                <Select name="doctorName" required>
+                  <SelectTrigger data-testid="select-appointment-doctor">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Dr. Sarah Mitchell">Dr. Sarah Mitchell</SelectItem>
+                    <SelectItem value="Dr. Michael Jones">Dr. Michael Jones</SelectItem>
+                    <SelectItem value="Dr. Emily Chen">Dr. Emily Chen</SelectItem>
+                    <SelectItem value="Dr. James Wilson">Dr. James Wilson</SelectItem>
+                    <SelectItem value="Dr. Lisa Park">Dr. Lisa Park</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label>Preferred Mode of Consultation <span className="text-destructive">*</span></Label>
+              <Select name="consultationMode" required>
+                <SelectTrigger data-testid="select-appointment-consultation-mode">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="In-Person">In-Person</SelectItem>
+                  <SelectItem value="Video Call">Video Call</SelectItem>
+                  <SelectItem value="Phone Call">Phone Call</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Date</Label>
+                <Input type="date" name="appointmentDate" data-testid="input-appointment-date" />
+              </div>
+              <div>
+                <Label>Start Time</Label>
+                <Input type="time" name="startTime" data-testid="input-appointment-start-time" />
+              </div>
+              <div>
+                <Label>End Time</Label>
+                <Input type="time" name="endTime" data-testid="input-appointment-end-time" />
+              </div>
+            </div>
+
+            <div>
+              <Label>Reason</Label>
+              <Input name="reason" placeholder="Reason for appointment" data-testid="input-appointment-reason" />
+            </div>
+
+            <div>
+              <Label>Quick Notes</Label>
+              <Textarea name="notes" placeholder="Additional Information" rows={3} data-testid="input-appointment-notes" />
+            </div>
+
+            <div>
+              <Label>Mode of Payment</Label>
+              <Select name="paymentMode">
+                <SelectTrigger data-testid="select-appointment-payment">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="Card">Card</SelectItem>
+                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="Insurance">Insurance</SelectItem>
+                  <SelectItem value="Mobile Payment">Mobile Payment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => { setAppointmentDialogOpen(false); setSelectedPatient(null); }} data-testid="button-cancel-appointment">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createAppointmentMutation.isPending} data-testid="button-submit-appointment">
+                {createAppointmentMutation.isPending ? "Adding..." : "Add Appointment"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
