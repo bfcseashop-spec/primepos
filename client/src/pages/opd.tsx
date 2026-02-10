@@ -14,12 +14,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, UserPlus } from "lucide-react";
+import { useLocation } from "wouter";
 import type { Patient, OpdVisit } from "@shared/schema";
 
 export default function OpdPage() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [visitDialogOpen, setVisitDialogOpen] = useState(false);
-  const [patientDialogOpen, setPatientDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: visits = [], isLoading: visitsLoading } = useQuery<any[]>({
@@ -28,21 +29,6 @@ export default function OpdPage() {
 
   const { data: patients = [] } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
-  });
-
-  const createPatientMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/patients", data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
-      setPatientDialogOpen(false);
-      toast({ title: "Patient registered successfully" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
   });
 
   const createVisitMutation = useMutation({
@@ -76,21 +62,6 @@ export default function OpdPage() {
     v.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     v.visitId?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const handleCreatePatient = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    createPatientMutation.mutate({
-      patientId: `PAT-${Date.now()}`,
-      name: form.get("name"),
-      age: form.get("age") ? Number(form.get("age")) : null,
-      gender: form.get("gender") || null,
-      phone: form.get("phone") || null,
-      email: form.get("email") || null,
-      address: form.get("address") || null,
-      bloodGroup: form.get("bloodGroup") || null,
-    });
-  };
 
   const handleCreateVisit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -145,67 +116,9 @@ export default function OpdPage() {
         description="Manage outpatient department visits"
         actions={
           <div className="flex gap-2 flex-wrap">
-            <Dialog open={patientDialogOpen} onOpenChange={setPatientDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" data-testid="button-register-patient">
-                  <UserPlus className="h-4 w-4 mr-1" /> Register Patient
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Register New Patient</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleCreatePatient} className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2">
-                      <Label htmlFor="name">Full Name *</Label>
-                      <Input id="name" name="name" required data-testid="input-patient-name" />
-                    </div>
-                    <div>
-                      <Label htmlFor="age">Age</Label>
-                      <Input id="age" name="age" type="number" data-testid="input-patient-age" />
-                    </div>
-                    <div>
-                      <Label htmlFor="gender">Gender</Label>
-                      <Select name="gender">
-                        <SelectTrigger data-testid="select-patient-gender"><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input id="phone" name="phone" data-testid="input-patient-phone" />
-                    </div>
-                    <div>
-                      <Label htmlFor="bloodGroup">Blood Group</Label>
-                      <Select name="bloodGroup">
-                        <SelectTrigger data-testid="select-blood-group"><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bg => (
-                            <SelectItem key={bg} value={bg}>{bg}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="col-span-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" name="email" type="email" data-testid="input-patient-email" />
-                    </div>
-                    <div className="col-span-2">
-                      <Label htmlFor="address">Address</Label>
-                      <Textarea id="address" name="address" rows={2} data-testid="input-patient-address" />
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={createPatientMutation.isPending} data-testid="button-submit-patient">
-                    {createPatientMutation.isPending ? "Registering..." : "Register Patient"}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <Button variant="outline" onClick={() => navigate("/register-patient")} data-testid="button-register-patient">
+              <UserPlus className="h-4 w-4 mr-1" /> Register Patient
+            </Button>
 
             <Dialog open={visitDialogOpen} onOpenChange={setVisitDialogOpen}>
               <DialogTrigger asChild>

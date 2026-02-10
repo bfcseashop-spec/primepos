@@ -20,12 +20,14 @@ import IntegrationsPage from "@/pages/integrations";
 import ReportsPage from "@/pages/reports";
 import SettingsPage from "@/pages/settings";
 import LabTestsPage from "@/pages/lab-tests";
+import RegisterPatientPage from "@/pages/register-patient";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/opd" component={OpdPage} />
+      <Route path="/register-patient" component={RegisterPatientPage} />
       <Route path="/billing" component={BillingPage} />
       <Route path="/services" component={ServicesPage} />
       <Route path="/lab-tests" component={LabTestsPage} />

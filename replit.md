@@ -49,6 +49,7 @@ shared/
 - Seed data auto-populated on first run
 
 ## Recent Changes
+- 2026-02-10: Added full-page Patient Registration (/register-patient) with photo upload, personal info (first/last name, DOB, gender, blood type), address/city, patient type, emergency contact, medical history, allergies
 - 2026-02-10: Enhanced Lab Test Management with multi-select Category/Sample Type, status workflow (Processing/Complete/Sample Missing/Cancel), live processing timer, Refer Name column
 - 2026-02-10: Enhanced Lab Test Management with unique test IDs (LAB-0001), patient selection, report file upload/download/print (PDF/Excel/CSV), referrer name tracking, created date
 - 2026-02-10: Added Lab Test Management module with full CRUD, barcode, category filter, search, summary stats

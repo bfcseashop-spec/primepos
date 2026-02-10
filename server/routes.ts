@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import {
@@ -18,6 +18,30 @@ const uploadsDir = path.join(process.cwd(), "uploads", "lab-reports");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+
+const patientPhotosDir = path.join(process.cwd(), "uploads", "patient-photos");
+if (!fs.existsSync(patientPhotosDir)) {
+  fs.mkdirSync(patientPhotosDir, { recursive: true });
+}
+
+const photoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, patientPhotosDir),
+    filename: (_req, file, cb) => {
+      const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+      cb(null, uniqueName);
+    },
+  }),
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only JPG, PNG, GIF image files are allowed"));
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 
 const reportUpload = multer({
   storage: multer.diskStorage({
@@ -112,6 +136,20 @@ export async function registerRoutes(
       res.status(400).json({ message: err.message });
     }
   });
+
+  app.post("/api/patients/upload-photo", photoUpload.single('photo'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No photo file provided" });
+      }
+      const photoUrl = `/uploads/patient-photos/${req.file.filename}`;
+      res.json({ photoUrl });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.use("/uploads/patient-photos", express.static(patientPhotosDir));
 
   // OPD Visits
   app.get("/api/opd-visits", async (_req, res) => {
