@@ -5,7 +5,7 @@ module.exports = {
   apps: [
     {
       name: "primepos",
-      script: "dist/index.cjs",
+      script: "start.cjs",
       cwd: __dirname,
       env: { NODE_ENV: "production", PORT: "5010" },
       env_file: ".env",
