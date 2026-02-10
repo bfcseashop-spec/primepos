@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
@@ -11,9 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, QrCode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, QrCode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User, Clock, XCircle, AlertTriangle, Loader2, ChevronDown } from "lucide-react";
 import type { LabTest, Patient } from "@shared/schema";
 
 const LAB_CATEGORIES = [
@@ -27,13 +29,96 @@ const SAMPLE_TYPES = [
   "Tissue", "CSF", "Saliva", "Serum", "Plasma", "Other"
 ];
 
+const STATUS_OPTIONS = [
+  { value: "processing", label: "Processing", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30" },
+  { value: "complete", label: "Complete", color: "text-green-600 dark:text-green-400", bg: "bg-green-100 dark:bg-green-900/30" },
+  { value: "sample_missing", label: "Sample Missing", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30" },
+  { value: "cancel", label: "Cancel", color: "text-red-600 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30" },
+];
+
 const defaultForm = {
-  testName: "", category: "", sampleType: "", price: "",
-  description: "", turnaroundTime: "", isActive: true,
+  testName: "", categories: [] as string[], sampleTypes: [] as string[], price: "",
+  description: "", turnaroundTime: "", status: "processing",
   patientId: "", referrerName: "",
 };
 
 type LabTestWithPatient = LabTest & { patientName?: string | null };
+
+function getElapsedTime(createdAt: string | Date | null): string {
+  if (!createdAt) return "-";
+  const start = new Date(createdAt).getTime();
+  const now = Date.now();
+  const diff = now - start;
+  if (diff < 0) return "0m";
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function LiveTimer({ createdAt, status }: { createdAt: string | Date | null; status: string }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (status !== "processing") return;
+    const interval = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(interval);
+  }, [status]);
+
+  if (status === "complete") return <span className="text-xs text-green-600 dark:text-green-400 font-medium">Completed</span>;
+  if (status === "cancel") return <span className="text-xs text-red-600 dark:text-red-400 font-medium">Cancelled</span>;
+  if (status === "sample_missing") return <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Waiting</span>;
+
+  const elapsed = getElapsedTime(createdAt);
+  return (
+    <div className="flex items-center gap-1">
+      <Clock className="h-3 w-3 text-blue-500 animate-pulse" />
+      <span className="text-xs font-medium text-blue-600 dark:text-blue-400">{elapsed}</span>
+    </div>
+  );
+}
+
+function MultiSelect({ options, selected, onChange, placeholder, testId }: {
+  options: string[];
+  selected: string[];
+  onChange: (val: string[]) => void;
+  placeholder: string;
+  testId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const toggle = (item: string) => {
+    onChange(selected.includes(item) ? selected.filter(s => s !== item) : [...selected, item]);
+  };
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="w-full justify-between font-normal h-9 text-sm" data-testid={testId}>
+          {selected.length > 0 ? (
+            <span className="truncate">{selected.join(", ")}</span>
+          ) : (
+            <span className="text-muted-foreground">{placeholder}</span>
+          )}
+          <ChevronDown className="h-3.5 w-3.5 ml-1 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2" align="start">
+        <div className="space-y-1 max-h-48 overflow-y-auto">
+          {options.map(opt => (
+            <label key={opt} className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer hover-elevate text-sm">
+              <Checkbox
+                checked={selected.includes(opt)}
+                onCheckedChange={() => toggle(opt)}
+                data-testid={`checkbox-${testId}-${opt.toLowerCase().replace(/\s/g, '-')}`}
+              />
+              {opt}
+            </label>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export default function LabTestsPage() {
   const { toast } = useToast();
@@ -102,17 +187,17 @@ export default function LabTestsPage() {
   });
 
   const handleSubmit = () => {
-    if (!form.testName || !form.category || !form.sampleType || !form.price) {
+    if (!form.testName || form.categories.length === 0 || form.sampleTypes.length === 0 || !form.price) {
       return toast({ title: "Please fill in all required fields", variant: "destructive" });
     }
     const payload: any = {
       testName: form.testName,
-      category: form.category,
-      sampleType: form.sampleType,
+      category: form.categories.join(", "),
+      sampleType: form.sampleTypes.join(", "),
       price: form.price,
       description: form.description || null,
       turnaroundTime: form.turnaroundTime || null,
-      isActive: form.isActive,
+      status: form.status,
       patientId: form.patientId ? Number(form.patientId) : null,
       referrerName: form.referrerName || null,
     };
@@ -126,12 +211,12 @@ export default function LabTestsPage() {
   const openEdit = (test: LabTestWithPatient) => {
     setForm({
       testName: test.testName,
-      category: test.category,
-      sampleType: test.sampleType,
+      categories: test.category.split(",").map(s => s.trim()).filter(Boolean),
+      sampleTypes: test.sampleType.split(",").map(s => s.trim()).filter(Boolean),
       price: test.price,
       description: test.description || "",
       turnaroundTime: test.turnaroundTime || "",
-      isActive: test.isActive,
+      status: test.status,
       patientId: test.patientId ? String(test.patientId) : "",
       referrerName: test.referrerName || "",
     });
@@ -171,14 +256,34 @@ export default function LabTestsPage() {
       t.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.sampleType.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (t.testCode && t.testCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (t.patientName && t.patientName.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchCategory = categoryFilter === "all" || t.category === categoryFilter;
+      (t.patientName && t.patientName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (t.referrerName && t.referrerName.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchCategory = categoryFilter === "all" || t.category.includes(categoryFilter);
     return matchSearch && matchCategory;
   });
 
-  const activeCount = labTests.filter(t => t.isActive).length;
-  const uniqueCategories = Array.from(new Set(labTests.map(t => t.category)));
+  const processingCount = labTests.filter(t => t.status === "processing").length;
+  const completeCount = labTests.filter(t => t.status === "complete").length;
+  const uniqueCategories = Array.from(new Set(labTests.flatMap(t => t.category.split(",").map(s => s.trim()))));
   const withReports = labTests.filter(t => t.reportFileUrl).length;
+
+  const getStatusBadge = (status: string) => {
+    const opt = STATUS_OPTIONS.find(s => s.value === status);
+    if (!opt) return <Badge variant="secondary">{status}</Badge>;
+    const icons: Record<string, typeof CheckCircle> = {
+      processing: Loader2,
+      complete: CheckCircle,
+      sample_missing: AlertTriangle,
+      cancel: XCircle,
+    };
+    const Icon = icons[status] || CheckCircle;
+    return (
+      <Badge variant="outline" className={`${opt.color} border-current/20 gap-1`}>
+        <Icon className={`h-3 w-3 ${status === "processing" ? "animate-spin" : ""}`} />
+        {opt.label}
+      </Badge>
+    );
+  };
 
   const columns = [
     { header: "Test ID", accessor: (row: LabTestWithPatient) => (
@@ -193,30 +298,32 @@ export default function LabTestsPage() {
       </span>
     )},
     { header: "Category", accessor: (row: LabTestWithPatient) => (
-      <Badge variant="outline" data-testid={`badge-category-${row.id}`}>{row.category}</Badge>
+      <div className="flex flex-wrap gap-1" data-testid={`badge-category-${row.id}`}>
+        {row.category.split(",").map(c => c.trim()).filter(Boolean).map(c => (
+          <Badge key={c} variant="outline" className="text-xs">{c}</Badge>
+        ))}
+      </div>
     )},
     { header: "Sample Type", accessor: (row: LabTestWithPatient) => (
-      <Badge variant="secondary" data-testid={`badge-sample-${row.id}`}>{row.sampleType}</Badge>
+      <div className="flex flex-wrap gap-1" data-testid={`badge-sample-${row.id}`}>
+        {row.sampleType.split(",").map(s => s.trim()).filter(Boolean).map(s => (
+          <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+        ))}
+      </div>
     )},
     { header: "Price", accessor: (row: LabTestWithPatient) => (
       <span className="font-medium" data-testid={`text-price-${row.id}`}>${row.price}</span>
     )},
-    { header: "Report", accessor: (row: LabTestWithPatient) => (
-      row.reportFileUrl ? (
-        <div className="flex items-center gap-1">
-          <Badge variant="default" className="text-xs">
-            <FileText className="h-3 w-3 mr-1" />
-            Uploaded
-          </Badge>
-        </div>
-      ) : (
-        <span className="text-xs text-muted-foreground">No report</span>
-      )
+    { header: "Processing Time", accessor: (row: LabTestWithPatient) => (
+      <LiveTimer createdAt={row.createdAt} status={row.status} />
     )},
     { header: "Status", accessor: (row: LabTestWithPatient) => (
-      <Badge variant={row.isActive ? "default" : "secondary"} data-testid={`badge-status-${row.id}`}>
-        {row.isActive ? "active" : "inactive"}
-      </Badge>
+      <span data-testid={`badge-status-${row.id}`}>{getStatusBadge(row.status)}</span>
+    )},
+    { header: "Refer Name", accessor: (row: LabTestWithPatient) => (
+      <span className="text-sm" data-testid={`text-referrer-${row.id}`}>
+        {row.referrerName || <span className="text-muted-foreground">-</span>}
+      </span>
     )},
     { header: "Actions", accessor: (row: LabTestWithPatient) => (
       <DropdownMenu>
@@ -238,11 +345,6 @@ export default function LabTestsPage() {
           {row.reportFileUrl && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); window.open(row.reportFileUrl!, '_blank'); }} className="gap-2" data-testid={`action-download-${row.id}`}>
               <Download className="h-4 w-4 text-indigo-500" /> Download Report
-            </DropdownMenuItem>
-          )}
-          {row.reportFileUrl && (
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); const w = window.open(row.reportFileUrl!, '_blank'); if (w) setTimeout(() => w.print(), 1000); }} className="gap-2" data-testid={`action-print-${row.id}`}>
-              <Printer className="h-4 w-4 text-cyan-500" /> Print Report
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBarcodeTest(row); }} className="gap-2" data-testid={`action-barcode-${row.id}`}>
@@ -282,25 +384,23 @@ export default function LabTestsPage() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Category *</Label>
-            <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-              <SelectTrigger data-testid="select-test-category"><SelectValue placeholder="Select category" /></SelectTrigger>
-              <SelectContent>
-                {LAB_CATEGORIES.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiSelect
+              options={LAB_CATEGORIES}
+              selected={form.categories}
+              onChange={v => setForm(f => ({ ...f, categories: v }))}
+              placeholder="Select categories"
+              testId="select-test-category"
+            />
           </div>
           <div>
             <Label>Sample Type *</Label>
-            <Select value={form.sampleType} onValueChange={v => setForm(f => ({ ...f, sampleType: v }))}>
-              <SelectTrigger data-testid="select-sample-type"><SelectValue placeholder="Select sample" /></SelectTrigger>
-              <SelectContent>
-                {SAMPLE_TYPES.map(s => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiSelect
+              options={SAMPLE_TYPES}
+              selected={form.sampleTypes}
+              onChange={v => setForm(f => ({ ...f, sampleTypes: v }))}
+              placeholder="Select sample types"
+              testId="select-sample-type"
+            />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -315,24 +415,23 @@ export default function LabTestsPage() {
         </div>
         <div>
           <Label htmlFor="test-referrer">Referrer Name</Label>
-          <Input id="test-referrer" placeholder="Person who referred/updated" value={form.referrerName} onChange={e => setForm(f => ({ ...f, referrerName: e.target.value }))} data-testid="input-referrer-name" />
+          <Input id="test-referrer" placeholder="Person who referred/uploaded" value={form.referrerName} onChange={e => setForm(f => ({ ...f, referrerName: e.target.value }))} data-testid="input-referrer-name" />
         </div>
         <div>
           <Label htmlFor="test-desc">Description</Label>
           <Textarea id="test-desc" rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} data-testid="input-test-description" />
         </div>
-        {editTest && (
-          <div>
-            <Label>Status</Label>
-            <Select value={form.isActive ? "active" : "inactive"} onValueChange={v => setForm(f => ({ ...f, isActive: v === "active" }))}>
-              <SelectTrigger data-testid="select-test-status"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+        <div>
+          <Label>Status</Label>
+          <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+            <SelectTrigger data-testid="select-test-status"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map(s => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </div>
   );
@@ -387,15 +486,31 @@ export default function LabTestsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Category</p>
-                  <Badge variant="outline">{viewTest.category}</Badge>
+                  <div className="flex flex-wrap gap-1">
+                    {viewTest.category.split(",").map(c => c.trim()).filter(Boolean).map(c => (
+                      <Badge key={c} variant="outline" className="text-xs">{c}</Badge>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Sample Type</p>
-                  <Badge variant="secondary">{viewTest.sampleType}</Badge>
+                  <div className="flex flex-wrap gap-1">
+                    {viewTest.sampleType.split(",").map(s => s.trim()).filter(Boolean).map(s => (
+                      <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Price</p>
                   <p className="font-bold text-green-600 dark:text-green-400">${viewTest.price}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Processing Time</p>
+                  <LiveTimer createdAt={viewTest.createdAt} status={viewTest.status} />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  {getStatusBadge(viewTest.status)}
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Turnaround Time</p>
@@ -404,12 +519,6 @@ export default function LabTestsPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">Referrer</p>
                   <p className="text-sm">{viewTest.referrerName || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Status</p>
-                  <Badge variant={viewTest.isActive ? "default" : "secondary"}>
-                    {viewTest.isActive ? "Active" : "Inactive"}
-                  </Badge>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Report</p>
@@ -551,12 +660,23 @@ export default function LabTestsPage() {
           </Card>
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
+              <div className="p-2 rounded-md bg-blue-100 dark:bg-blue-900/30">
+                <Loader2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Processing</p>
+                <p className="text-xl font-bold" data-testid="text-processing-tests">{processingCount}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
               <div className="p-2 rounded-md bg-green-100 dark:bg-green-900/30">
                 <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Active Tests</p>
-                <p className="text-xl font-bold" data-testid="text-active-tests">{activeCount}</p>
+                <p className="text-xs text-muted-foreground">Complete</p>
+                <p className="text-xl font-bold" data-testid="text-complete-tests">{completeCount}</p>
               </div>
             </CardContent>
           </Card>
@@ -568,17 +688,6 @@ export default function LabTestsPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Categories</p>
                 <p className="text-xl font-bold" data-testid="text-categories-count">{uniqueCategories.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className="p-2 rounded-md bg-amber-100 dark:bg-amber-900/30">
-                <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Reports Uploaded</p>
-                <p className="text-xl font-bold" data-testid="text-reports-count">{withReports}</p>
               </div>
             </CardContent>
           </Card>

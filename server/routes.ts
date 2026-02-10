@@ -562,7 +562,7 @@ export async function registerRoutes(
         referrerName: z.string().nullable().optional(),
         reportFileUrl: z.string().nullable().optional(),
         reportFileName: z.string().nullable().optional(),
-        isActive: z.boolean().optional(),
+        status: z.string().optional(),
       });
       const data = validateBody(updateSchema, req.body);
       const test = await storage.updateLabTest(Number(req.params.id), data);

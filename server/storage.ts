@@ -468,7 +468,7 @@ export class DatabaseStorage implements IStorage {
       reportFileUrl: labTests.reportFileUrl,
       reportFileName: labTests.reportFileName,
       referrerName: labTests.referrerName,
-      isActive: labTests.isActive,
+      status: labTests.status,
       createdAt: labTests.createdAt,
       patientName: patients.name,
     }).from(labTests).leftJoin(patients, eq(labTests.patientId, patients.id)).orderBy(desc(labTests.createdAt));

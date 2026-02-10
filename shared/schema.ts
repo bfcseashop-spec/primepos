@@ -222,7 +222,7 @@ export const labTests = pgTable("lab_tests", {
   reportFileUrl: text("report_file_url"),
   reportFileName: text("report_file_name"),
   referrerName: text("referrer_name"),
-  isActive: boolean("is_active").notNull().default(true),
+  status: text("status").notNull().default("processing"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
