@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { PageHeader } from "@/components/page-header";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -57,11 +58,9 @@ export default function AuthenticationPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
-      <div>
-        <h1 className="text-2xl font-bold" data-testid="text-page-title">Authentication</h1>
-        <p className="text-sm text-muted-foreground">Login, logout, and manage passwords</p>
-      </div>
+    <div className="flex flex-col h-full">
+      <PageHeader title="Authentication" description="Login, logout, and manage passwords" />
+      <div className="flex-1 overflow-auto p-6 space-y-6">
 
       {loggedInUser && (
         <Card className="border-green-200 dark:border-green-800">
@@ -303,6 +302,7 @@ export default function AuthenticationPage() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

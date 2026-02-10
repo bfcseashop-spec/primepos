@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -234,7 +235,7 @@ export default function SettingsPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col h-full">
-        <div className="p-6"><h1 className="text-2xl font-bold">Settings</h1></div>
+        <PageHeader title="Settings" description="Configure your application settings" />
         <div className="p-6 space-y-4">
           {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-40" />)}
         </div>
@@ -243,13 +244,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-auto">
-      <div className="p-6 pb-0">
-        <h1 className="text-2xl font-bold" data-testid="text-settings-title">Settings</h1>
-        <p className="text-sm text-muted-foreground">Configure your application settings</p>
-      </div>
-
-      <div className="p-6">
+    <div className="flex flex-col h-full">
+      <PageHeader title="Settings" description="Configure your application settings" />
+      <div className="flex-1 overflow-auto p-6">
         <div className="flex gap-1 border-b mb-6 flex-wrap">
           {tabsList.map(tab => {
             const iconColors: Record<string, string> = {

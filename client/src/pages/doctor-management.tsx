@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { PageHeader } from "@/components/page-header";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -188,57 +189,57 @@ export default function DoctorManagementPage() {
   const specList = (s: string) => s.split(",").map(x => x.trim()).filter(Boolean);
 
   return (
-    <div className="p-6 space-y-5 overflow-auto h-full">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Doctors</h1>
-          <p className="text-sm text-muted-foreground">Home &gt; Doctors</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            size="icon"
-            variant={viewMode === "grid" ? "default" : "outline"}
-            onClick={() => setViewMode("grid")}
-            data-testid="button-grid-view"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant={viewMode === "list" ? "default" : "outline"}
-            onClick={() => setViewMode("list")}
-            data-testid="button-list-view"
-          >
-            <List className="h-4 w-4" />
-          </Button>
-          <Button size="icon" variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/doctors"] })} data-testid="button-refresh">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[130px]" data-testid="select-status-filter">
-              <SelectValue placeholder="Status: All" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Status: All</SelectItem>
-              <SelectItem value="active">Available</SelectItem>
-              <SelectItem value="busy">Busy</SelectItem>
-              <SelectItem value="in_surgery">In Surgery</SelectItem>
-              <SelectItem value="on_leave">On Leave</SelectItem>
-              <SelectItem value="inactive">Unavailable</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={() => setDeptDialog(true)} data-testid="button-add-department">
-            <Building2 className="h-4 w-4 mr-2" /> + Department
-          </Button>
-          <Button variant="outline" onClick={() => setPosDialog(true)} data-testid="button-add-position">
-            <Briefcase className="h-4 w-4 mr-2" /> + Position
-          </Button>
-          <Button onClick={() => { resetForm(); setAddDialog(true); }} data-testid="button-add-doctor">
-            <Plus className="h-4 w-4 mr-2" /> Add New Doctor
-          </Button>
-        </div>
-      </div>
-
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="Doctors"
+        description="Manage doctor profiles and schedules"
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="icon"
+              variant={viewMode === "grid" ? "default" : "outline"}
+              onClick={() => setViewMode("grid")}
+              data-testid="button-grid-view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant={viewMode === "list" ? "default" : "outline"}
+              onClick={() => setViewMode("list")}
+              data-testid="button-list-view"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/doctors"] })} data-testid="button-refresh">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[130px]" data-testid="select-status-filter">
+                <SelectValue placeholder="Status: All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Status: All</SelectItem>
+                <SelectItem value="active">Available</SelectItem>
+                <SelectItem value="busy">Busy</SelectItem>
+                <SelectItem value="in_surgery">In Surgery</SelectItem>
+                <SelectItem value="on_leave">On Leave</SelectItem>
+                <SelectItem value="inactive">Unavailable</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => setDeptDialog(true)} data-testid="button-add-department">
+              <Building2 className="h-4 w-4 mr-1" /> + Department
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setPosDialog(true)} data-testid="button-add-position">
+              <Briefcase className="h-4 w-4 mr-1" /> + Position
+            </Button>
+            <Button size="sm" onClick={() => { resetForm(); setAddDialog(true); }} data-testid="button-add-doctor">
+              <Plus className="h-4 w-4 mr-1" /> Add New Doctor
+            </Button>
+          </div>
+        }
+      />
+      <div className="flex-1 overflow-auto p-4 space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card data-testid="stat-total-doctors">
           <CardContent className="p-4 flex items-center gap-3">
@@ -811,6 +812,7 @@ export default function DoctorManagementPage() {
           </DialogContent>
         </Dialog>
       )}
+      </div>
     </div>
   );
 }

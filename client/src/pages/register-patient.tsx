@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -133,23 +134,15 @@ export default function RegisterPatientPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <UserCircle className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold" data-testid="text-page-title">Add Patient</h1>
-            <p className="text-sm text-muted-foreground">Register a new patient</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-6 py-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/opd")} data-testid="button-back-patients">
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Patients
-        </Button>
-      </div>
+      <PageHeader
+        title="Add Patient"
+        description="Register a new patient"
+        actions={
+          <Button variant="ghost" size="sm" onClick={() => navigate("/opd")} data-testid="button-back-patients">
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back to Patients
+          </Button>
+        }
+      />
 
       <div className="flex-1 overflow-auto px-6 pb-6 space-y-4">
         <Card>

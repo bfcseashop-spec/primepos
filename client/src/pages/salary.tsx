@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { PageHeader } from "@/components/page-header";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1854,86 +1855,86 @@ export default function SalaryPage() {
   const { data: payrollRuns = [] } = useQuery<PayrollRun[]>({ queryKey: ["/api/payroll-runs"] });
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Salary Management</h1>
-          <p className="text-sm text-muted-foreground">Payroll, loans, advances, and employee compensation</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
-            <Button variant="outline" onClick={() => setCatDialogOpen(true)} data-testid="button-manage-categories">
-              <Tag className="h-4 w-4 mr-1" /> + Category
-            </Button>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Manage Categories</DialogTitle>
-                <DialogDescription>Add or remove salary categories</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Input
-                    placeholder="New category name..."
-                    value={newSalaryCategory}
-                    onChange={(e) => setNewSalaryCategory(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSalaryCategory())}
-                    data-testid="input-new-category"
-                  />
-                  <Button onClick={addSalaryCategory} disabled={!newSalaryCategory.trim()} data-testid="button-add-category">
-                    <Plus className="h-4 w-4" />
-                  </Button>
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="Salary Management"
+        description="Payroll, loans, advances, and employee compensation"
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
+              <Button variant="outline" size="sm" onClick={() => setCatDialogOpen(true)} data-testid="button-manage-categories">
+                <Tag className="h-4 w-4 mr-1" /> + Category
+              </Button>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Manage Categories</DialogTitle>
+                  <DialogDescription>Add or remove salary categories</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="New category name..."
+                      value={newSalaryCategory}
+                      onChange={(e) => setNewSalaryCategory(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSalaryCategory())}
+                      data-testid="input-new-category"
+                    />
+                    <Button onClick={addSalaryCategory} disabled={!newSalaryCategory.trim()} data-testid="button-add-category">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                    {salaryCategories.map(cat => (
+                      <Badge key={cat} variant="secondary" className="gap-1 pr-1" data-testid={`badge-category-${cat}`}>
+                        {cat}
+                        <button type="button" onClick={() => removeSalaryCategory(cat)} className="ml-0.5 rounded-full p-0.5 hover-elevate" data-testid={`button-remove-category-${cat}`}>
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
-                  {salaryCategories.map(cat => (
-                    <Badge key={cat} variant="secondary" className="gap-1 pr-1" data-testid={`badge-category-${cat}`}>
-                      {cat}
-                      <button type="button" onClick={() => removeSalaryCategory(cat)} className="ml-0.5 rounded-full p-0.5 hover-elevate" data-testid={`button-remove-category-${cat}`}>
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
+              </DialogContent>
+            </Dialog>
+            <Dialog open={deptDialogOpen} onOpenChange={setDeptDialogOpen}>
+              <Button variant="outline" size="sm" onClick={() => setDeptDialogOpen(true)} data-testid="button-manage-departments">
+                <Building2 className="h-4 w-4 mr-1" /> + Department
+              </Button>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Manage Departments</DialogTitle>
+                  <DialogDescription>Add or remove salary departments</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="New department name..."
+                      value={newDepartment}
+                      onChange={(e) => setNewDepartment(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addDepartment())}
+                      data-testid="input-new-department"
+                    />
+                    <Button onClick={addDepartment} disabled={!newDepartment.trim()} data-testid="button-add-department">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                    {departments.map(dept => (
+                      <Badge key={dept} variant="secondary" className="gap-1 pr-1" data-testid={`badge-department-${dept}`}>
+                        {dept}
+                        <button type="button" onClick={() => removeDepartment(dept)} className="ml-0.5 rounded-full p-0.5 hover-elevate" data-testid={`button-remove-department-${dept}`}>
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={deptDialogOpen} onOpenChange={setDeptDialogOpen}>
-            <Button variant="outline" onClick={() => setDeptDialogOpen(true)} data-testid="button-manage-departments">
-              <Building2 className="h-4 w-4 mr-1" /> + Department
-            </Button>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Manage Departments</DialogTitle>
-                <DialogDescription>Add or remove salary departments</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Input
-                    placeholder="New department name..."
-                    value={newDepartment}
-                    onChange={(e) => setNewDepartment(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addDepartment())}
-                    data-testid="input-new-department"
-                  />
-                  <Button onClick={addDepartment} disabled={!newDepartment.trim()} data-testid="button-add-department">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
-                  {departments.map(dept => (
-                    <Badge key={dept} variant="secondary" className="gap-1 pr-1" data-testid={`badge-department-${dept}`}>
-                      {dept}
-                      <button type="button" onClick={() => removeDepartment(dept)} className="ml-0.5 rounded-full p-0.5 hover-elevate" data-testid={`button-remove-department-${dept}`}>
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
+              </DialogContent>
+            </Dialog>
+          </div>
+        }
+      />
+      <div className="flex-1 overflow-auto p-4 space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full justify-start flex-wrap" data-testid="tabs-salary">
           <TabsTrigger value="dashboard" className="gap-1.5 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400" data-testid="tab-dashboard">
@@ -1973,6 +1974,7 @@ export default function SalaryPage() {
           <LedgerTab salaries={salaries} payrollRuns={payrollRuns} />
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }

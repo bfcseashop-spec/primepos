@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -333,22 +334,17 @@ export default function StaffPage() {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-auto">
-      <div className="p-6 space-y-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-md bg-blue-500/10">
-                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <h1 className="text-2xl font-bold" data-testid="text-page-title">User Management</h1>
-            </div>
-            <p className="text-sm text-muted-foreground">Manage users and assign roles</p>
-          </div>
-          <Button onClick={() => setStaffDialogOpen(true)} data-testid="button-create-user">
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="User Management"
+        description="Manage users and assign roles"
+        actions={
+          <Button size="sm" onClick={() => setStaffDialogOpen(true)} data-testid="button-create-user">
             <Plus className="h-4 w-4 mr-1" /> Create User
           </Button>
-        </div>
+        }
+      />
+      <div className="flex-1 overflow-auto p-6 space-y-6">
 
         <div className="border rounded-md">
           <table className="w-full text-sm">

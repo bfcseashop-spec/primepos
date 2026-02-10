@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
+import { LayoutHeader } from "@/components/page-header";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import OpdPage from "@/pages/opd";
@@ -97,9 +98,12 @@ function App() {
           <SidebarProvider style={sidebarStyle as React.CSSProperties}>
             <div className="flex h-screen w-full">
               <AppSidebar />
-              <main className="flex-1 overflow-hidden">
-                <Router />
-              </main>
+              <div className="flex flex-col flex-1 overflow-hidden">
+                <LayoutHeader />
+                <main className="flex-1 overflow-hidden">
+                  <Router />
+                </main>
+              </div>
             </div>
           </SidebarProvider>
           <Toaster />

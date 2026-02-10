@@ -17,12 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileText, User, LogOut, Calendar, Clock } from "lucide-react";
 
-interface PageHeaderProps {
-  title: string;
-  description?: string;
-  actions?: React.ReactNode;
-}
-
 function LiveDateTime() {
   const [now, setNow] = useState(new Date());
 
@@ -151,39 +145,53 @@ function ProfileMenu() {
   );
 }
 
-export function PageHeader({ title, description, actions }: PageHeaderProps) {
+export function LayoutHeader() {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="flex flex-col">
-      <header className="flex items-center justify-between gap-2 p-3 border-b bg-background sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <SidebarTrigger data-testid="button-sidebar-toggle" />
-          <Separator orientation="vertical" className="h-5" />
-          <div>
-            <h1 className="text-sm font-semibold" data-testid="text-page-title">{title}</h1>
-            {description && <p className="text-xs text-muted-foreground">{description}</p>}
-          </div>
-        </div>
-        <div className="hidden md:flex items-center">
-          <LiveDateTime />
-        </div>
+    <header className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-background sticky top-0 z-50">
+      <div className="flex items-center gap-2">
+        <SidebarTrigger data-testid="button-sidebar-toggle" />
+      </div>
+      <div className="hidden md:flex items-center">
+        <LiveDateTime />
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setLocation("/billing")}
+          data-testid="button-header-pos"
+        >
+          <FileText className="h-4 w-4 mr-1" />
+          <span className="hidden sm:inline">Make Payment (POS)</span>
+          <span className="sm:hidden">POS</span>
+        </Button>
+        <ThemeToggle />
+        <ProfileMenu />
+      </div>
+    </header>
+  );
+}
+
+interface PageHeaderProps {
+  title: string;
+  description?: string;
+  actions?: React.ReactNode;
+}
+
+export function PageHeader({ title, description, actions }: PageHeaderProps) {
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 py-3 border-b bg-muted/30 flex-wrap">
+      <div>
+        <h1 className="text-lg font-semibold" data-testid="text-page-title">{title}</h1>
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      </div>
+      {actions && (
         <div className="flex items-center gap-2 flex-wrap">
           {actions}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setLocation("/billing")}
-            data-testid="button-header-pos"
-          >
-            <FileText className="h-4 w-4 mr-1" />
-            <span className="hidden sm:inline">Make Payment (POS)</span>
-            <span className="sm:hidden">POS</span>
-          </Button>
-          <ThemeToggle />
-          <ProfileMenu />
         </div>
-      </header>
+      )}
     </div>
   );
 }
