@@ -521,7 +521,7 @@ export default function BillingPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Billing"
+        title="Make Payment (POS)"
         description="Manage patient bills and invoices"
         actions={
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
