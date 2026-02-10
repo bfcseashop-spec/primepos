@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, Shield, UserCog } from "lucide-react";
+import { Plus, Search, Shield, UserCog, Eye, Edit, Trash2 } from "lucide-react";
 import type { User, Role, Permissions } from "@shared/schema";
 import { permissionModules } from "@shared/schema";
 
@@ -22,6 +22,9 @@ export default function StaffPage() {
   const { toast } = useToast();
   const [staffDialogOpen, setStaffDialogOpen] = useState(false);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [rolePermissions, setRolePermissions] = useState<Partial<Permissions>>({});
 
@@ -75,6 +78,51 @@ export default function StaffPage() {
     },
   });
 
+  const updateUserMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/users/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setEditDialogOpen(false);
+      setSelectedUser(null);
+      toast({ title: "User updated successfully" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/users/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "User deleted successfully" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleEditUser = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    const form = new FormData(e.currentTarget);
+    updateUserMutation.mutate({
+      id: selectedUser.id,
+      data: {
+        fullName: form.get("fullName"),
+        email: form.get("email") || null,
+        phone: form.get("phone") || null,
+        roleId: form.get("roleId") ? Number(form.get("roleId")) : null,
+        isActive: form.get("status") === "active",
+      },
+    });
+  };
+
   const handleCreateStaff = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
@@ -122,25 +170,45 @@ export default function StaffPage() {
         <span className="block text-xs text-muted-foreground">@{row.username}</span>
       </div>
     )},
-    { header: "Email", accessor: (row: any) => row.email || "-" },
-    { header: "Phone", accessor: (row: any) => row.phone || "-" },
+    { header: "Email", accessor: (row: any) => <span className="text-sm">{row.email || "-"}</span> },
     { header: "Role", accessor: (row: any) => (
       <Badge variant="outline">{row.roleName || "No Role"}</Badge>
     )},
     { header: "Status", accessor: (row: any) => (
-      <Badge variant={row.isActive ? "default" : "secondary"}>
-        {row.isActive ? "Active" : "Inactive"}
+      <Badge className={row.isActive
+        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+        : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+      }>
+        {row.isActive ? "Active" : "Deactive"}
       </Badge>
     )},
     { header: "Actions", accessor: (row: any) => (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={(e) => { e.stopPropagation(); toggleStaffMutation.mutate({ id: row.id, isActive: !row.isActive }); }}
-        data-testid={`button-toggle-staff-${row.id}`}
-      >
-        {row.isActive ? "Deactivate" : "Activate"}
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={(e) => { e.stopPropagation(); setSelectedUser(row); setViewDialogOpen(true); }}
+          data-testid={`button-view-user-${row.id}`}
+        >
+          <Eye className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={(e) => { e.stopPropagation(); setSelectedUser(row); setEditDialogOpen(true); }}
+          data-testid={`button-edit-user-${row.id}`}
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={(e) => { e.stopPropagation(); if (confirm("Are you sure you want to delete this user?")) deleteUserMutation.mutate(row.id); }}
+          data-testid={`button-delete-user-${row.id}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     )},
   ];
 
@@ -307,6 +375,81 @@ export default function StaffPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={viewDialogOpen} onOpenChange={(open) => { if (!open) { setViewDialogOpen(false); setSelectedUser(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="space-y-3 py-2">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><span className="text-muted-foreground">Full Name</span><p className="font-medium">{selectedUser.fullName}</p></div>
+                <div><span className="text-muted-foreground">Username</span><p className="font-medium">@{selectedUser.username}</p></div>
+                <div><span className="text-muted-foreground">Email</span><p className="font-medium">{selectedUser.email || "-"}</p></div>
+                <div><span className="text-muted-foreground">Phone</span><p className="font-medium">{selectedUser.phone || "-"}</p></div>
+                <div><span className="text-muted-foreground">Role</span><p className="font-medium">{selectedUser.roleName || "No Role"}</p></div>
+                <div><span className="text-muted-foreground">Status</span><p><Badge className={selectedUser.isActive ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"}>{selectedUser.isActive ? "Active" : "Deactive"}</Badge></p></div>
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => { setViewDialogOpen(false); setSelectedUser(null); }}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onOpenChange={(open) => { if (!open) { setEditDialogOpen(false); setSelectedUser(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
+          {selectedUser && (
+            <form onSubmit={handleEditUser} className="space-y-3">
+              <div>
+                <Label htmlFor="editFullName">Full Name *</Label>
+                <Input id="editFullName" name="fullName" defaultValue={selectedUser.fullName} required data-testid="input-edit-user-name" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="editEmail">Email</Label>
+                  <Input id="editEmail" name="email" type="email" defaultValue={selectedUser.email || ""} data-testid="input-edit-user-email" />
+                </div>
+                <div>
+                  <Label htmlFor="editPhone">Phone</Label>
+                  <Input id="editPhone" name="phone" defaultValue={selectedUser.phone || ""} data-testid="input-edit-user-phone" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Role</Label>
+                  <Select name="roleId" defaultValue={selectedUser.roleId ? String(selectedUser.roleId) : ""}>
+                    <SelectTrigger data-testid="select-edit-user-role"><SelectValue placeholder="Select role" /></SelectTrigger>
+                    <SelectContent>
+                      {roles.map(r => (
+                        <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <Select name="status" defaultValue={selectedUser.isActive ? "active" : "deactive"}>
+                    <SelectTrigger data-testid="select-edit-user-status"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="deactive">Deactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={updateUserMutation.isPending} data-testid="button-submit-edit-user">
+                {updateUserMutation.isPending ? "Updating..." : "Update User"}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

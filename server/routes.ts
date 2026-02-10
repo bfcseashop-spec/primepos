@@ -790,11 +790,20 @@ export async function registerRoutes(
 
   app.patch("/api/users/:id", async (req, res) => {
     try {
-      const updateSchema = z.object({ isActive: z.boolean().optional(), roleId: z.number().optional(), fullName: z.string().optional() });
+      const updateSchema = z.object({ isActive: z.boolean().optional(), roleId: z.number().nullable().optional(), fullName: z.string().optional(), email: z.string().nullable().optional(), phone: z.string().nullable().optional() });
       const data = validateBody(updateSchema, req.body);
       const user = await storage.updateUser(Number(req.params.id), data);
       if (!user) return res.status(404).json({ message: "User not found" });
       res.json(user);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      await storage.deleteUser(Number(req.params.id));
+      res.json({ success: true });
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }
