@@ -13,18 +13,18 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil } from "lucide-react";
+import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone } from "lucide-react";
 import type { Patient, Service, Medicine, BillItem, User, ClinicSettings } from "@shared/schema";
 
 const PAYMENT_METHODS = [
-  { value: "cash", label: "Cash Pay" },
-  { value: "aba", label: "ABA" },
-  { value: "acleda", label: "Acleda" },
-  { value: "other_bank", label: "Other Bank" },
-  { value: "paypal", label: "PayPal" },
-  { value: "card", label: "Card Pay" },
-  { value: "gpay", label: "GPay" },
-  { value: "wechat", label: "WeChat Pay" },
+  { value: "cash", label: "Cash Pay", icon: Banknote, color: "text-green-600 bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-800" },
+  { value: "aba", label: "ABA", icon: Building2, color: "text-blue-600 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800" },
+  { value: "acleda", label: "Acleda", icon: Building2, color: "text-yellow-700 bg-yellow-50 dark:bg-yellow-950/40 border-yellow-200 dark:border-yellow-800" },
+  { value: "other_bank", label: "Other Bank", icon: Building2, color: "text-slate-600 bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700" },
+  { value: "paypal", label: "PayPal", icon: Globe, color: "text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800" },
+  { value: "card", label: "Card Pay", icon: CreditCard, color: "text-purple-600 bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800" },
+  { value: "gpay", label: "GPay", icon: Smartphone, color: "text-teal-600 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800" },
+  { value: "wechat", label: "WeChat Pay", icon: Smartphone, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800" },
 ];
 
 export default function BillingPage() {
@@ -76,6 +76,29 @@ export default function BillingPage() {
     const found = PAYMENT_METHODS.find(p => p.value === method);
     return found ? found.label : method;
   };
+
+  const getPaymentBadge = (method: string) => {
+    const found = PAYMENT_METHODS.find(p => p.value === method);
+    if (!found) return <Badge variant="outline">{method}</Badge>;
+    const Icon = found.icon;
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border ${found.color}`}>
+        <Icon className="h-3 w-3" />
+        {found.label}
+      </span>
+    );
+  };
+
+  const getStatusBadge = (status: string) => {
+    if (status === "paid") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"><CheckCircle2 className="h-3 w-3" />Paid</span>;
+    if (status === "partial") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"><Clock className="h-3 w-3" />Partial</span>;
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"><X className="h-3 w-3" />Unpaid</span>;
+  };
+
+  const totalRevenue = bills.reduce((sum: number, b: any) => sum + (Number(b.total) || 0), 0);
+  const totalPaid = bills.reduce((sum: number, b: any) => sum + (Number(b.paidAmount) || 0), 0);
+  const paidCount = bills.filter((b: any) => b.status === "paid").length;
+  const pendingCount = bills.filter((b: any) => b.status !== "paid").length;
 
   const createBillMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -341,28 +364,30 @@ export default function BillingPage() {
   );
 
   const billColumns = [
-    { header: "Bill #", accessor: "billNo" as keyof any },
-    { header: "Patient", accessor: "patientName" as keyof any },
+    { header: "Bill #", accessor: (row: any) => (
+      <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">{row.billNo}</span>
+    )},
+    { header: "Patient", accessor: (row: any) => (
+      <span className="font-medium text-sm">{row.patientName}</span>
+    )},
     { header: "Items", accessor: (row: any) => {
       const items = Array.isArray(row.items) ? row.items : [];
-      return <span className="text-xs text-muted-foreground">{items.length} items</span>;
+      return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 text-[11px] font-medium border border-violet-200 dark:border-violet-800">{items.length} items</span>;
     }},
-    { header: "Total", accessor: (row: any) => <span className="font-medium">${row.total}</span> },
-    { header: "Paid", accessor: (row: any) => `$${row.paidAmount}` },
-    { header: "Method", accessor: (row: any) => (
-      <Badge variant="outline">{getPaymentLabel(row.paymentMethod)}</Badge>
+    { header: "Total", accessor: (row: any) => <span className="font-semibold text-sm">${Number(row.total).toFixed(2)}</span> },
+    { header: "Paid", accessor: (row: any) => (
+      <span className="text-sm text-green-600 dark:text-green-400 font-medium">${Number(row.paidAmount).toFixed(2)}</span>
     )},
+    { header: "Method", accessor: (row: any) => getPaymentBadge(row.paymentMethod) },
     { header: "Doctor", accessor: (row: any) => (
-      <span className="text-xs text-muted-foreground">{row.referenceDoctor || "-"}</span>
+      row.referenceDoctor
+        ? <span className="inline-flex items-center gap-1 text-xs text-cyan-700 dark:text-cyan-400"><Wallet className="h-3 w-3" />{row.referenceDoctor}</span>
+        : <span className="text-xs text-muted-foreground">-</span>
     )},
-    { header: "Status", accessor: (row: any) => (
-      <Badge variant={row.status === "paid" ? "default" : row.status === "partial" ? "secondary" : "destructive"}>
-        {row.status}
-      </Badge>
-    )},
+    { header: "Status", accessor: (row: any) => getStatusBadge(row.status) },
     { header: "Date", accessor: (row: any) => {
-      if (row.paymentDate) return row.paymentDate;
-      return row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-";
+      const d = row.paymentDate || (row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-");
+      return <span className="text-xs text-muted-foreground">{d}</span>;
     }},
     { header: "Actions", accessor: (row: any) => (
       <DropdownMenu>
@@ -372,17 +397,17 @@ export default function BillingPage() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewBill(row); }} data-testid={`action-view-${row.id}`}>
-            <Eye className="h-4 w-4 mr-2" /> View Invoice
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewBill(row); }} data-testid={`action-view-${row.id}`} className="gap-2">
+            <Eye className="h-4 w-4 text-blue-500" /> View Invoice
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printReceipt(row); }} data-testid={`action-print-${row.id}`}>
-            <Printer className="h-4 w-4 mr-2" /> Print
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printReceipt(row); }} data-testid={`action-print-${row.id}`} className="gap-2">
+            <Printer className="h-4 w-4 text-teal-500" /> Print
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditBill(row); }} data-testid={`action-edit-${row.id}`}>
-            <Pencil className="h-4 w-4 mr-2" /> Edit
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditBill(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
+            <Pencil className="h-4 w-4 text-amber-500" /> Edit
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (confirm("Are you sure you want to delete this bill?")) deleteBillMutation.mutate(row.id); }} className="text-red-600" data-testid={`action-delete-${row.id}`}>
-            <Trash2 className="h-4 w-4 mr-2" /> Delete
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (confirm("Are you sure you want to delete this bill?")) deleteBillMutation.mutate(row.id); }} className="text-red-600 gap-2" data-testid={`action-delete-${row.id}`}>
+            <Trash2 className="h-4 w-4" /> Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -565,8 +590,8 @@ export default function BillingPage() {
                 </div>
 
                 {billItems.length > 0 && (
-                  <div className="border rounded-md">
-                    <div className="grid grid-cols-[1fr,80px,80px,80px,40px] gap-2 p-2 bg-muted/50 text-xs font-medium">
+                  <div className="border rounded-md overflow-hidden">
+                    <div className="grid grid-cols-[1fr,80px,80px,80px,40px] gap-2 p-2 bg-teal-700 text-white text-xs font-semibold">
                       <span>Item</span>
                       <span className="text-right">Price</span>
                       <span className="text-center">Qty</span>
@@ -576,7 +601,11 @@ export default function BillingPage() {
                     {billItems.map((item, i) => (
                       <div key={i} className="grid grid-cols-[1fr,80px,80px,80px,40px] gap-2 p-2 items-center border-t text-sm">
                         <div className="flex items-center gap-1.5">
-                          <Badge variant="outline" className="text-[10px]">{item.type === "service" ? "SVC" : "MED"}</Badge>
+                          {item.type === "service" ? (
+                            <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">SVC</span>
+                          ) : (
+                            <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800">MED</span>
+                          )}
                           <span className="truncate">{item.name}</span>
                         </div>
                         <span className="text-right text-muted-foreground">${item.unitPrice.toFixed(2)}</span>
@@ -588,9 +617,9 @@ export default function BillingPage() {
                           className="h-7 text-center text-xs"
                           data-testid={`input-bill-qty-${i}`}
                         />
-                        <span className="text-right font-medium">${item.total.toFixed(2)}</span>
+                        <span className="text-right font-semibold text-emerald-600 dark:text-emerald-400">${item.total.toFixed(2)}</span>
                         <Button variant="ghost" size="icon" onClick={() => removeItem(i)} data-testid={`button-remove-item-${i}`}>
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3 w-3 text-red-400" />
                         </Button>
                       </div>
                     ))}
@@ -668,7 +697,7 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                <div className="bg-muted/50 rounded-md p-3 space-y-1">
+                <div className="bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/30 dark:to-emerald-950/30 rounded-md p-3 space-y-1 border border-teal-200 dark:border-teal-800">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span>${subtotal.toFixed(2)}</span>
@@ -677,11 +706,11 @@ export default function BillingPage() {
                     <span className="text-muted-foreground">
                       Discount{discountType === "percentage" ? ` (${discountValue}%)` : ""}
                     </span>
-                    <span>-${discountAmount.toFixed(2)}</span>
+                    <span className="text-red-500">-${discountAmount.toFixed(2)}</span>
                   </div>
                   <Separator />
-                  <div className="flex justify-between font-semibold">
-                    <span>Total</span>
+                  <div className="flex justify-between font-bold text-base text-teal-700 dark:text-teal-400">
+                    <span>Grand Total</span>
                     <span>${total.toFixed(2)}</span>
                   </div>
                 </div>
@@ -728,10 +757,63 @@ export default function BillingPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-4 space-y-4">
+        {/* Summary Stats */}
+        <div className="grid grid-cols-4 gap-3" data-testid="billing-stats">
+          <Card className="border-l-4 border-l-blue-500">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/50">
+                <Receipt className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Bills</p>
+                <p className="text-xl font-bold" data-testid="stat-total-bills">{bills.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-emerald-500">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/50">
+                <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Revenue</p>
+                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-total-revenue">${totalRevenue.toFixed(2)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-green-500">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950/50">
+                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Paid</p>
+                <p className="text-xl font-bold text-green-600 dark:text-green-400" data-testid="stat-paid">{paidCount}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-amber-500">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-950/50">
+                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Pending</p>
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400" data-testid="stat-pending">{pendingCount}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Bills Table */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-            <CardTitle className="text-sm font-semibold">All Bills</CardTitle>
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-semibold">All Bills</CardTitle>
+              <Badge variant="secondary" className="text-[10px]">{filteredBills.length}</Badge>
+            </div>
             <div className="relative w-64">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
