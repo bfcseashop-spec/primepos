@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw, LayoutGrid, List, Eye, Filter } from "lucide-react";
+import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw, LayoutGrid, List, Eye, Camera, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Doctor } from "@shared/schema";
 
 const specializations = [
@@ -52,8 +52,9 @@ export default function DoctorManagementPage() {
     name: "", specialization: "", department: "", experience: "",
     qualification: "", phone: "", email: "", address: "",
     consultationFee: "0", schedule: "", status: "active",
-    joiningDate: "", notes: "",
+    joiningDate: "", notes: "", photoUrl: "",
   });
+  const [uploading, setUploading] = useState(false);
 
   const { data: doctors = [], isLoading } = useQuery<Doctor[]>({ queryKey: ["/api/doctors"] });
 
@@ -91,7 +92,28 @@ export default function DoctorManagementPage() {
   });
 
   const resetForm = () => {
-    setForm({ name: "", specialization: "", department: "", experience: "", qualification: "", phone: "", email: "", address: "", consultationFee: "0", schedule: "", status: "active", joiningDate: "", notes: "" });
+    setForm({ name: "", specialization: "", department: "", experience: "", qualification: "", phone: "", email: "", address: "", consultationFee: "0", schedule: "", status: "active", joiningDate: "", notes: "", photoUrl: "" });
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const res = await fetch("/api/doctors/upload-photo", { method: "POST", body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        setForm(f => ({ ...f, photoUrl: data.photoUrl }));
+      } else {
+        toast({ title: "Upload failed", description: data.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Upload failed", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const filtered = doctors.filter((d) => {
@@ -127,6 +149,7 @@ export default function DoctorManagementPage() {
       email: doc.email || "", address: doc.address || "",
       consultationFee: doc.consultationFee || "0", schedule: doc.schedule || "",
       status: doc.status, joiningDate: doc.joiningDate || "", notes: doc.notes || "",
+      photoUrl: doc.photoUrl || "",
     });
     setEditDialog(true);
   };
@@ -228,6 +251,7 @@ export default function DoctorManagementPage() {
 
                 <div className="flex flex-col items-center mt-2 mb-3">
                   <Avatar className={`h-16 w-16 ${getAvatarColor(doc.id)}`}>
+                    {doc.photoUrl && <AvatarImage src={doc.photoUrl} alt={doc.name} />}
                     <AvatarFallback className="text-lg font-bold bg-transparent">{getInitials(doc.name)}</AvatarFallback>
                   </Avatar>
                   <p className="text-xs text-muted-foreground mt-2">{doc.doctorId}</p>
@@ -290,6 +314,7 @@ export default function DoctorManagementPage() {
             <Card key={doc.id} data-testid={`card-doctor-${doc.id}`}>
               <CardContent className="p-4 flex items-center gap-4 flex-wrap">
                 <Avatar className={`h-12 w-12 ${getAvatarColor(doc.id)}`}>
+                  {doc.photoUrl && <AvatarImage src={doc.photoUrl} alt={doc.name} />}
                   <AvatarFallback className="font-bold bg-transparent">{getInitials(doc.name)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-[150px]">
@@ -348,6 +373,7 @@ export default function DoctorManagementPage() {
             </DialogHeader>
             <div className="flex flex-col items-center py-4">
               <Avatar className={`h-20 w-20 ${getAvatarColor(viewingDoctor.id)}`}>
+                {viewingDoctor.photoUrl && <AvatarImage src={viewingDoctor.photoUrl} alt={viewingDoctor.name} />}
                 <AvatarFallback className="text-2xl font-bold bg-transparent">{getInitials(viewingDoctor.name)}</AvatarFallback>
               </Avatar>
               <p className="text-xs text-muted-foreground mt-2">{viewingDoctor.doctorId}</p>
@@ -388,6 +414,31 @@ export default function DoctorManagementPage() {
               <DialogTitle>{editDialog ? "Edit Doctor" : "Add New Doctor"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
+              <div className="flex flex-col items-center gap-2">
+                <label className="text-sm font-medium mb-1 block">Photo</label>
+                <div className="relative">
+                  <Avatar className="h-20 w-20 border-2 border-dashed border-muted-foreground/30">
+                    {form.photoUrl && <AvatarImage src={form.photoUrl} alt="Doctor" />}
+                    <AvatarFallback className="bg-muted">
+                      <Camera className="h-6 w-6 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
+                  {form.photoUrl && (
+                    <button
+                      type="button"
+                      className="absolute -top-1 -right-1 rounded-full bg-destructive text-destructive-foreground p-0.5"
+                      onClick={() => setForm(f => ({ ...f, photoUrl: "" }))}
+                      data-testid="button-remove-photo"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+                <label className="cursor-pointer">
+                  <span className="text-xs text-primary font-medium">{uploading ? "Uploading..." : "Upload Photo"}</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploading} data-testid="input-doctor-photo" />
+                </label>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-1 block">Full Name *</label>
