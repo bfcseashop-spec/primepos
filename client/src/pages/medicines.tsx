@@ -16,7 +16,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Plus, Search, AlertTriangle, Package, Pill, TrendingUp, DollarSign,
   Box, Droplets, FlaskConical, MoreHorizontal, Eye, Pencil, Trash2,
-  Calculator, Users, Globe, ShieldAlert, CheckCircle2, X
+  Calculator, Users, Globe, ShieldAlert, CheckCircle2, X,
+  List, LayoutGrid, RefreshCw, Tag, FolderPlus
 } from "lucide-react";
 import type { Medicine } from "@shared/schema";
 
@@ -50,6 +51,18 @@ export default function MedicinesPage() {
   const [viewMed, setViewMed] = useState<Medicine | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [form, setForm] = useState(defaultForm);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [customCategories, setCustomCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("medicine_custom_categories");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [newCategory, setNewCategory] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const allCategories = [...MEDICINE_CATEGORIES, ...customCategories];
 
   const { data: medicines = [], isLoading } = useQuery<Medicine[]>({
     queryKey: ["/api/medicines"],
@@ -102,6 +115,34 @@ export default function MedicinesPage() {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
+
+  const addCategory = () => {
+    const trimmed = newCategory.trim();
+    if (!trimmed) return;
+    if (allCategories.includes(trimmed)) {
+      toast({ title: "Category already exists", variant: "destructive" });
+      return;
+    }
+    const updated = [...customCategories, trimmed];
+    setCustomCategories(updated);
+    localStorage.setItem("medicine_custom_categories", JSON.stringify(updated));
+    setNewCategory("");
+    toast({ title: `Category "${trimmed}" added` });
+  };
+
+  const removeCategory = (cat: string) => {
+    const updated = customCategories.filter(c => c !== cat);
+    setCustomCategories(updated);
+    localStorage.setItem("medicine_custom_categories", JSON.stringify(updated));
+    toast({ title: `Category "${cat}" removed` });
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+    setTimeout(() => setIsRefreshing(false), 600);
+    toast({ title: "Medicines refreshed" });
+  };
 
   const handleSubmit = () => {
     if (!form.name) return toast({ title: "Medicine name is required", variant: "destructive" });
@@ -280,7 +321,7 @@ export default function MedicinesPage() {
             <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
               <SelectTrigger data-testid="select-medicine-category"><SelectValue placeholder="Select" /></SelectTrigger>
               <SelectContent>
-                {MEDICINE_CATEGORIES.map(cat => (
+                {allCategories.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
@@ -421,25 +462,51 @@ export default function MedicinesPage() {
         title="Medicine Management"
         description="Manage medicine inventory, pricing and stock alerts"
         actions={
-          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setForm(defaultForm); }}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-new-medicine">
-                <Plus className="h-4 w-4 mr-1" /> Add Medicine
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Pill className="h-5 w-5 text-teal-500" />
-                  Add New Medicine
-                </DialogTitle>
-              </DialogHeader>
-              {formContent}
-              <Button onClick={handleSubmit} className="w-full" disabled={createMutation.isPending} data-testid="button-submit-medicine">
-                {createMutation.isPending ? "Adding..." : "Add Medicine"}
-              </Button>
-            </DialogContent>
-          </Dialog>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => setCategoryDialogOpen(true)} data-testid="button-category">
+              <FolderPlus className="h-4 w-4 mr-1" /> Category
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              data-testid="button-list-view"
+              className="toggle-elevate"
+            >
+              <List className="h-4 w-4 mr-1" /> List View
+            </Button>
+            <Button
+              variant={viewMode === "grid" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              data-testid="button-grid-view"
+              className="toggle-elevate"
+            >
+              <LayoutGrid className="h-4 w-4 mr-1" /> Grid View
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} data-testid="button-refresh">
+              <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setForm(defaultForm); }}>
+              <DialogTrigger asChild>
+                <Button size="sm" data-testid="button-new-medicine">
+                  <Plus className="h-4 w-4 mr-1" /> Add Medicine
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Pill className="h-5 w-5 text-teal-500" />
+                    Add New Medicine
+                  </DialogTitle>
+                </DialogHeader>
+                {formContent}
+                <Button onClick={handleSubmit} className="w-full" disabled={createMutation.isPending} data-testid="button-submit-medicine">
+                  {createMutation.isPending ? "Adding..." : "Add Medicine"}
+                </Button>
+              </DialogContent>
+            </Dialog>
+          </div>
         }
       />
 
@@ -536,6 +603,68 @@ export default function MedicinesPage() {
         </Dialog>
       )}
 
+      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Tag className="h-5 w-5 text-indigo-500" />
+              Manage Categories
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="New category name..."
+                value={newCategory}
+                onChange={e => setNewCategory(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && addCategory()}
+                data-testid="input-new-category"
+              />
+              <Button onClick={addCategory} size="sm" data-testid="button-add-category">
+                <Plus className="h-4 w-4 mr-1" /> Add
+              </Button>
+            </div>
+
+            <div>
+              <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">Default Categories</p>
+              <div className="flex flex-wrap gap-1.5">
+                {MEDICINE_CATEGORIES.map(cat => (
+                  <span key={cat} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                    <Tag className="h-3 w-3" />
+                    {cat}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {customCategories.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">Custom Categories</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {customCategories.map(cat => (
+                    <span key={cat} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800">
+                      <Tag className="h-3 w-3" />
+                      {cat}
+                      <button
+                        onClick={() => removeCategory(cat)}
+                        className="ml-0.5 rounded-full p-0.5 hover:bg-teal-200 dark:hover:bg-teal-800 transition-colors"
+                        data-testid={`button-remove-category-${cat}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p className="text-[11px] text-muted-foreground italic">
+              Default categories cannot be removed. Custom categories are saved locally and available when adding or editing medicines.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-4 gap-3" data-testid="medicine-stats">
           <Card className="border-l-4 border-l-blue-500">
@@ -623,8 +752,89 @@ export default function MedicinesPage() {
               />
             </div>
           </CardHeader>
-          <CardContent className="p-0">
-            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No medicines yet" />
+          <CardContent className={viewMode === "grid" ? "p-4" : "p-0"}>
+            {viewMode === "list" ? (
+              <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No medicines yet" />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3" data-testid="medicine-grid">
+                {isLoading ? (
+                  <p className="col-span-full text-center text-muted-foreground py-8">Loading...</p>
+                ) : filtered.length === 0 ? (
+                  <p className="col-span-full text-center text-muted-foreground py-8">No medicines yet</p>
+                ) : filtered.map(med => {
+                  const isLow = med.stockCount < (med.stockAlert || 10);
+                  return (
+                    <Card key={med.id} className="hover-elevate" data-testid={`card-medicine-${med.id}`}>
+                      <CardContent className="p-3 space-y-2">
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm truncate">{med.name}</p>
+                            {med.genericName && <p className="text-xs text-muted-foreground italic truncate">{med.genericName}</p>}
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="shrink-0" data-testid={`button-grid-actions-${med.id}`}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setViewMed(med)} className="gap-2">
+                                <Eye className="h-4 w-4 text-blue-500" /> View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEdit(med)} className="gap-2">
+                                <Pencil className="h-4 w-4 text-amber-500" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { if (confirm("Delete this medicine?")) deleteMutation.mutate(med.id); }} className="text-red-600 gap-2">
+                                <Trash2 className="h-4 w-4" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-medium bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                            {med.category || "-"}
+                          </span>
+                          {getUnitBadge(med.unit || "Box")}
+                        </div>
+
+                        <Separator />
+
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Box Price:</span>
+                            <span className="font-medium">${Number(med.boxPrice || 0).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Per Med:</span>
+                            <span className="font-medium text-orange-600 dark:text-orange-400">${Number(med.perMedPrice || 0).toFixed(4)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Local:</span>
+                            <span className="font-medium text-green-600 dark:text-green-400">${Number(med.sellingPriceLocal || 0).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Foreign:</span>
+                            <span className="font-medium text-blue-600 dark:text-blue-400">${Number(med.sellingPriceForeigner || 0).toFixed(2)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <div className="flex items-center gap-1.5">
+                            <Package className="h-3 w-3 text-muted-foreground" />
+                            <span className={`text-xs font-semibold ${isLow ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+                              {med.stockCount} in stock
+                            </span>
+                            {isLow && <AlertTriangle className="h-3 w-3 text-red-500 animate-pulse" />}
+                          </div>
+                          {getExpiryBadge(med.expiryDate)}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
