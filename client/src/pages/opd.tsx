@@ -4,11 +4,19 @@ import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Search, UserPlus, LayoutGrid, List, RefreshCw } from "lucide-react";
+import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, MapPin, User as UserIcon } from "lucide-react";
 import { useLocation } from "wouter";
 import type { Patient, OpdVisit } from "@shared/schema";
 
@@ -16,66 +24,93 @@ export default function OpdPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  const { data: visits = [], isLoading: visitsLoading } = useQuery<any[]>({
-    queryKey: ["/api/opd-visits"],
-  });
-
-  const { data: patients = [] } = useQuery<Patient[]>({
+  const { data: patients = [], isLoading: patientsLoading } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
   });
 
-  const updateVisitStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      const res = await apiRequest("PATCH", `/api/opd-visits/${id}`, { status });
-      return res.json();
+  const { data: visits = [] } = useQuery<any[]>({
+    queryKey: ["/api/opd-visits"],
+  });
+
+  const deletePatientMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/patients/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
-      toast({ title: "Visit status updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      toast({ title: "Patient deleted" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
     queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
     toast({ title: "Data refreshed" });
   };
 
-  const filteredVisits = visits.filter((v: any) =>
-    v.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.visitId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.doctorName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getLastVisit = (patientId: number) => {
+    const patientVisits = visits.filter((v: any) => v.patientId === patientId);
+    if (patientVisits.length === 0) return null;
+    return patientVisits.sort((a: any, b: any) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime())[0];
+  };
 
-  const visitColumns = [
-    { header: "Visit ID", accessor: "visitId" as keyof any },
-    { header: "Patient", accessor: "patientName" as keyof any },
-    { header: "Doctor", accessor: (row: any) => row.doctorName || "-" },
-    { header: "Symptoms", accessor: (row: any) => (
-      <span className="max-w-[200px] truncate block text-xs text-muted-foreground">
-        {row.symptoms || "-"}
-      </span>
-    )},
-    { header: "Status", accessor: (row: any) => (
-      <Badge variant={row.status === "active" ? "default" : row.status === "completed" ? "secondary" : "outline"}>
-        {row.status}
+  const getInitials = (patient: Patient) => {
+    if (patient.firstName && patient.lastName) {
+      return `${patient.firstName[0]}${patient.lastName[0]}`.toUpperCase();
+    }
+    return patient.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "P";
+  };
+
+  const getDisplayName = (patient: Patient) => {
+    if (patient.firstName && patient.lastName) return `${patient.firstName} ${patient.lastName}`;
+    return patient.name;
+  };
+
+  const filteredPatients = patients.filter((p) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      p.name?.toLowerCase().includes(term) ||
+      p.firstName?.toLowerCase().includes(term) ||
+      p.lastName?.toLowerCase().includes(term) ||
+      p.patientId?.toLowerCase().includes(term) ||
+      p.city?.toLowerCase().includes(term) ||
+      p.phone?.toLowerCase().includes(term)
+    );
+  });
+
+  const patientTypeColor = (type: string | null) => {
+    switch (type) {
+      case "In Patient": return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
+      case "Emergency": return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20";
+      default: return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+    }
+  };
+
+  const listColumns = [
+    { header: "Patient ID", accessor: (row: any) => row.patientId },
+    { header: "Name", accessor: (row: any) => getDisplayName(row) },
+    { header: "Gender", accessor: (row: any) => row.gender || "-" },
+    { header: "Phone", accessor: (row: any) => row.phone || "-" },
+    { header: "Type", accessor: (row: any) => (
+      <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${patientTypeColor(row.patientType)}`}>
+        {row.patientType || "Out Patient"}
       </Badge>
     )},
-    { header: "Date", accessor: (row: any) => row.visitDate ? new Date(row.visitDate).toLocaleDateString() : "-" },
+    { header: "Location", accessor: (row: any) => row.city || "-" },
+    { header: "Last Visit", accessor: (row: any) => {
+      const lv = getLastVisit(row.id);
+      return lv ? new Date(lv.visitDate).toLocaleDateString() : "-";
+    }},
     { header: "Actions", accessor: (row: any) => (
       <div className="flex gap-1">
-        {row.status === "active" && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => { e.stopPropagation(); updateVisitStatusMutation.mutate({ id: row.id, status: "completed" }); }}
-            data-testid={`button-complete-visit-${row.id}`}
-          >
-            Complete
-          </Button>
-        )}
+        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); }} data-testid={`button-add-appointment-list-${row.id}`}>
+          <CalendarPlus className="h-3 w-3 mr-1" /> Appointment
+        </Button>
       </div>
     )},
   ];
@@ -112,11 +147,11 @@ export default function OpdPage() {
             <div className="relative w-64">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search visits..."
+                placeholder="Search patients by name, ID, or location..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                data-testid="input-search-visits"
+                data-testid="input-search-patients"
               />
             </div>
           </div>
@@ -124,59 +159,120 @@ export default function OpdPage() {
       />
 
       <div className="flex-1 overflow-auto p-4">
-        {viewMode === "list" ? (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-              <CardTitle className="text-sm font-semibold">OPD Visits</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <DataTable columns={visitColumns} data={filteredVisits} isLoading={visitsLoading} emptyMessage="No OPD visits yet" />
-            </CardContent>
-          </Card>
-        ) : (
-          <div>
-            <h3 className="text-sm font-semibold mb-3">OPD Visits</h3>
-            {visitsLoading ? (
-              <p className="text-sm text-muted-foreground">Loading...</p>
-            ) : filteredVisits.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No OPD visits yet</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {filteredVisits.map((visit: any) => (
-                  <Card key={visit.id} className="hover-elevate" data-testid={`card-visit-${visit.id}`}>
-                    <CardContent className="p-4 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-mono text-muted-foreground">{visit.visitId}</span>
-                        <Badge variant={visit.status === "active" ? "default" : visit.status === "completed" ? "secondary" : "outline"}>
-                          {visit.status}
+        {viewMode === "grid" ? (
+          patientsLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-6 flex flex-col items-center gap-3">
+                    <Skeleton className="h-16 w-16 rounded-full" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-8 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : filteredPatients.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <UserIcon className="h-12 w-12 mb-3 opacity-30" />
+              <p className="text-sm">No patients found</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredPatients.map((patient) => {
+                const lastVisit = getLastVisit(patient.id);
+                return (
+                  <Card key={patient.id} data-testid={`card-patient-${patient.id}`}>
+                    <CardContent className="p-0">
+                      <div className="flex items-center justify-between gap-2 px-4 pt-3">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] font-medium no-default-hover-elevate no-default-active-elevate ${patientTypeColor(patient.patientType)}`}
+                          data-testid={`badge-patient-type-${patient.id}`}
+                        >
+                          {patient.patientType || "Out Patient"}
                         </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" data-testid={`button-patient-menu-${patient.id}`}>
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem data-testid={`menu-view-${patient.id}`}>
+                              <Eye className="h-3.5 w-3.5 mr-2" /> View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem data-testid={`menu-edit-${patient.id}`}>
+                              <Pencil className="h-3.5 w-3.5 mr-2" /> Edit Patient
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => deletePatientMutation.mutate(patient.id)}
+                              data-testid={`menu-delete-${patient.id}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                      <p className="font-medium text-sm">{visit.patientName}</p>
-                      <p className="text-xs text-muted-foreground">{visit.doctorName || "No doctor assigned"}</p>
-                      {visit.symptoms && (
-                        <p className="text-xs text-muted-foreground truncate">{visit.symptoms}</p>
-                      )}
-                      <div className="flex items-center justify-between gap-2 pt-1">
-                        <span className="text-xs text-muted-foreground">
-                          {visit.visitDate ? new Date(visit.visitDate).toLocaleDateString() : "-"}
+
+                      <div className="flex flex-col items-center py-4 px-4">
+                        <Avatar className="h-16 w-16 mb-2">
+                          <AvatarImage src={patient.photoUrl || undefined} alt={getDisplayName(patient)} />
+                          <AvatarFallback className="text-lg bg-muted">
+                            {getInitials(patient)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-[11px] text-muted-foreground font-mono" data-testid={`text-patient-id-${patient.id}`}>
+                          #{patient.patientId}
                         </span>
-                        {visit.status === "active" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateVisitStatusMutation.mutate({ id: visit.id, status: "completed" })}
-                            data-testid={`button-complete-visit-grid-${visit.id}`}
-                          >
-                            Complete
-                          </Button>
-                        )}
+                        <h3 className="font-medium text-sm mt-0.5" data-testid={`text-patient-name-${patient.id}`}>
+                          {getDisplayName(patient)}
+                        </h3>
+                      </div>
+
+                      <div className="border-t grid grid-cols-3 divide-x text-center py-3 px-2">
+                        <div>
+                          <p className="text-[10px] text-muted-foreground mb-0.5">Last Visit</p>
+                          <p className="text-xs font-medium" data-testid={`text-last-visit-${patient.id}`}>
+                            {lastVisit ? new Date(lastVisit.visitDate).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" }) : "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground mb-0.5">Gender</p>
+                          <p className="text-xs font-medium" data-testid={`text-gender-${patient.id}`}>
+                            {patient.gender || "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground mb-0.5">Location</p>
+                          <p className="text-xs font-medium truncate" data-testid={`text-location-${patient.id}`}>
+                            {patient.city || "Not specified"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="border-t px-4 py-2.5">
+                        <button
+                          className="w-full text-center text-xs font-medium text-primary hover:underline cursor-pointer"
+                          data-testid={`button-add-appointment-${patient.id}`}
+                        >
+                          Add Appointment
+                        </button>
                       </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
-            )}
-          </div>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <DataTable columns={listColumns} data={filteredPatients} isLoading={patientsLoading} emptyMessage="No patients found" />
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

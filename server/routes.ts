@@ -137,6 +137,15 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/patients/:id", async (req, res) => {
+    try {
+      await storage.deletePatient(Number(req.params.id));
+      res.json({ message: "Patient deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/patients/upload-photo", photoUpload.single('photo'), async (req, res) => {
     try {
       if (!req.file) {
