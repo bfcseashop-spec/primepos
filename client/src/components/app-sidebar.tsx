@@ -1,9 +1,10 @@
 import { useLocation, Link } from "wouter";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, FileText, Stethoscope, Pill,
   Receipt, Landmark, TrendingUp, UserCog, Settings,
   Cable, BarChart3, Activity, FlaskConical, CalendarCheck,
-  UserRound, DollarSign, Shield, Heart
+  UserRound, DollarSign, Shield, Heart, LogOut, ChevronRight
 } from "lucide-react";
 import {
   Sidebar,
@@ -17,53 +18,66 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 const mainItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, color: "text-blue-500 dark:text-blue-400", bg: "bg-blue-500/10 dark:bg-blue-400/10" },
-  { title: "Make Payment (POS)", url: "/billing", icon: FileText, color: "text-amber-500 dark:text-amber-400", bg: "bg-amber-500/10 dark:bg-amber-400/10" },
-  { title: "OPD Management", url: "/opd", icon: Stethoscope, color: "text-emerald-500 dark:text-emerald-400", bg: "bg-emerald-500/10 dark:bg-emerald-400/10" },
-  { title: "Appointments", url: "/appointments", icon: CalendarCheck, color: "text-violet-500 dark:text-violet-400", bg: "bg-violet-500/10 dark:bg-violet-400/10" },
-  { title: "Services", url: "/services", icon: Activity, color: "text-pink-500 dark:text-pink-400", bg: "bg-pink-500/10 dark:bg-pink-400/10" },
-  { title: "Lab Tests", url: "/lab-tests", icon: FlaskConical, color: "text-cyan-500 dark:text-cyan-400", bg: "bg-cyan-500/10 dark:bg-cyan-400/10" },
-  { title: "Medicines", url: "/medicines", icon: Pill, color: "text-orange-500 dark:text-orange-400", bg: "bg-orange-500/10 dark:bg-orange-400/10" },
-  { title: "Doctor Management", url: "/doctors", icon: UserRound, color: "text-teal-500 dark:text-teal-400", bg: "bg-teal-500/10 dark:bg-teal-400/10" },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, gradient: "from-blue-500 to-cyan-400" },
+  { title: "Make Payment (POS)", url: "/billing", icon: FileText, gradient: "from-amber-500 to-orange-400" },
+  { title: "OPD Management", url: "/opd", icon: Stethoscope, gradient: "from-emerald-500 to-teal-400" },
+  { title: "Appointments", url: "/appointments", icon: CalendarCheck, gradient: "from-violet-500 to-purple-400" },
+  { title: "Services", url: "/services", icon: Activity, gradient: "from-pink-500 to-rose-400" },
+  { title: "Lab Tests", url: "/lab-tests", icon: FlaskConical, gradient: "from-cyan-500 to-sky-400" },
+  { title: "Medicines", url: "/medicines", icon: Pill, gradient: "from-orange-500 to-amber-400" },
+  { title: "Doctor Management", url: "/doctors", icon: UserRound, gradient: "from-teal-500 to-emerald-400" },
 ];
 
 const financeItems = [
-  { title: "Expenses", url: "/expenses", icon: Receipt, color: "text-rose-500 dark:text-rose-400", bg: "bg-rose-500/10 dark:bg-rose-400/10" },
-  { title: "Bank Transactions", url: "/bank", icon: Landmark, color: "text-indigo-500 dark:text-indigo-400", bg: "bg-indigo-500/10 dark:bg-indigo-400/10" },
-  { title: "Investments", url: "/investments", icon: TrendingUp, color: "text-green-500 dark:text-green-400", bg: "bg-green-500/10 dark:bg-green-400/10" },
-  { title: "Salary", url: "/salary", icon: DollarSign, color: "text-yellow-500 dark:text-yellow-400", bg: "bg-yellow-500/10 dark:bg-yellow-400/10" },
+  { title: "Expenses", url: "/expenses", icon: Receipt, gradient: "from-rose-500 to-pink-400" },
+  { title: "Bank Transactions", url: "/bank", icon: Landmark, gradient: "from-indigo-500 to-blue-400" },
+  { title: "Investments", url: "/investments", icon: TrendingUp, gradient: "from-green-500 to-emerald-400" },
+  { title: "Salary", url: "/salary", icon: DollarSign, gradient: "from-yellow-500 to-amber-400" },
 ];
 
 const systemItems = [
-  { title: "User and Role", url: "/staff", icon: UserCog, color: "text-sky-500 dark:text-sky-400", bg: "bg-sky-500/10 dark:bg-sky-400/10" },
-  { title: "Authentication", url: "/authentication", icon: Shield, color: "text-red-500 dark:text-red-400", bg: "bg-red-500/10 dark:bg-red-400/10" },
-  { title: "Integrations", url: "/integrations", icon: Cable, color: "text-purple-500 dark:text-purple-400", bg: "bg-purple-500/10 dark:bg-purple-400/10" },
-  { title: "Reports", url: "/reports", icon: BarChart3, color: "text-lime-500 dark:text-lime-400", bg: "bg-lime-500/10 dark:bg-lime-400/10" },
-  { title: "Settings", url: "/settings", icon: Settings, color: "text-slate-500 dark:text-slate-400", bg: "bg-slate-500/10 dark:bg-slate-400/10" },
+  { title: "User and Role", url: "/staff", icon: UserCog, gradient: "from-sky-500 to-cyan-400" },
+  { title: "Authentication", url: "/authentication", icon: Shield, gradient: "from-red-500 to-rose-400" },
+  { title: "Integrations", url: "/integrations", icon: Cable, gradient: "from-purple-500 to-violet-400" },
+  { title: "Reports", url: "/reports", icon: BarChart3, gradient: "from-lime-500 to-green-400" },
+  { title: "Settings", url: "/settings", icon: Settings, gradient: "from-slate-400 to-zinc-400" },
 ];
 
 function NavGroup({ label, items, isActive }: { label: string; items: typeof mainItems; isActive: (url: string) => boolean }) {
   return (
     <SidebarGroup>
-      <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider opacity-60">
+      <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-300/50 px-3 mb-1">
         {label}
       </SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                <Link href={item.url} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                  <span className={`inline-flex items-center justify-center rounded-md ${item.bg} p-1`}>
-                    <item.icon className={`h-3.5 w-3.5 ${item.color}`} />
-                  </span>
-                  <span>{item.title}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {items.map((item) => {
+            const active = isActive(item.url);
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={active}
+                  className={active ? "bg-gradient-to-r from-blue-600/20 to-violet-600/20 text-white border-0" : "text-slate-400 border-0"}
+                >
+                  <Link href={item.url} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <span className={`inline-flex items-center justify-center rounded-md p-1 ${active ? `bg-gradient-to-br ${item.gradient} shadow-sm` : "bg-white/5"}`}>
+                      <item.icon className={`h-3.5 w-3.5 ${active ? "text-white" : "text-slate-400"}`} />
+                    </span>
+                    <span className={`text-[13px] ${active ? "font-semibold text-white" : ""}`}>{item.title}</span>
+                    {active && (
+                      <ChevronRight className="ml-auto h-3.5 w-3.5 text-blue-400/60" />
+                    )}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
@@ -72,36 +86,86 @@ function NavGroup({ label, items, isActive }: { label: string; items: typeof mai
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("clinicpos_user");
+      if (stored) setCurrentUser(JSON.parse(stored));
+    } catch {}
+  }, []);
 
   const isActive = (url: string) => {
     if (url === "/") return location === "/";
     return location.startsWith(url);
   };
 
+  const handleLogout = () => {
+    window.dispatchEvent(new Event("clinicpos_logout"));
+  };
+
+  const userInitials = currentUser?.fullName
+    ? currentUser.fullName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
+    : "U";
+
   return (
     <Sidebar>
-      <SidebarHeader className="p-4 pb-2">
+      <SidebarHeader className="p-4 pb-3">
         <Link href="/">
-          <div className="flex items-center gap-3 cursor-pointer" data-testid="link-logo">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 dark:from-blue-400 dark:to-cyan-300 shadow-sm">
+          <div className="flex items-center gap-3 cursor-pointer group" data-testid="link-logo">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-violet-500 to-purple-500 shadow-lg shadow-blue-500/20">
               <Heart className="h-5 w-5 text-white" fill="white" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-bold tracking-tight">ClinicPOS</span>
-              <span className="text-[11px] text-muted-foreground">Management System</span>
+              <span className="text-sm font-bold tracking-tight text-white">ClinicPOS</span>
+              <span className="text-[10px] text-blue-300/60 font-medium">Management System</span>
             </div>
           </div>
         </Link>
       </SidebarHeader>
-      <SidebarContent>
+
+      <div className="px-4 pb-2">
+        <Separator className="bg-white/[0.06]" />
+      </div>
+
+      <SidebarContent className="px-1">
         <NavGroup label="Main" items={mainItems} isActive={isActive} />
         <NavGroup label="Finance" items={financeItems} isActive={isActive} />
         <NavGroup label="System" items={systemItems} isActive={isActive} />
       </SidebarContent>
-      <SidebarFooter className="p-4">
-        <div className="text-xs text-muted-foreground text-center">
-          ClinicPOS v1.0
-        </div>
+
+      <div className="px-4 pt-1">
+        <Separator className="bg-white/[0.06]" />
+      </div>
+
+      <SidebarFooter className="p-3">
+        {currentUser && (
+          <div className="flex items-center gap-2.5 rounded-lg bg-white/[0.04] px-2.5 py-2">
+            <Avatar className="h-8 w-8 shrink-0">
+              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-violet-500 text-white text-xs font-semibold">
+                {userInitials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-white truncate">{currentUser.fullName}</p>
+              <p className="text-[10px] text-slate-400 truncate">{currentUser.email || currentUser.username}</p>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={handleLogout}
+              className="shrink-0 text-slate-400"
+              data-testid="button-sidebar-logout"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+        {!currentUser && (
+          <div className="text-[10px] text-slate-500 text-center font-medium">
+            ClinicPOS v1.0
+          </div>
+        )}
       </SidebarFooter>
     </Sidebar>
   );
