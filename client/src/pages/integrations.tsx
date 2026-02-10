@@ -80,16 +80,23 @@ export default function IntegrationsPage() {
     return dt?.icon || Cable;
   };
 
-  const getDeviceIconColor = (type: string) => {
+  const getDeviceIconGradient = (type: string) => {
     switch (type) {
-      case "ultrasound": return { text: "text-blue-500", bg: "bg-blue-500/10" };
-      case "xray": return { text: "text-violet-500", bg: "bg-violet-500/10" };
-      case "ecg": return { text: "text-emerald-500", bg: "bg-emerald-500/10" };
-      case "printer": return { text: "text-amber-500", bg: "bg-amber-500/10" };
-      case "lab_analyzer": return { text: "text-cyan-500", bg: "bg-cyan-500/10" };
-      default: return { text: "text-slate-500", bg: "bg-slate-500/10" };
+      case "ultrasound": return "from-blue-500 to-blue-600";
+      case "xray": return "from-violet-500 to-violet-600";
+      case "ecg": return "from-emerald-500 to-emerald-600";
+      case "printer": return "from-amber-500 to-amber-600";
+      case "lab_analyzer": return "from-cyan-500 to-cyan-600";
+      default: return "from-slate-500 to-slate-600";
     }
   };
+
+  const statCards = [
+    { key: "total", label: "Total Devices", gradient: "from-blue-500 to-blue-600", value: integrations.length, icon: Cable },
+    { key: "connected", label: "Connected", gradient: "from-emerald-500 to-emerald-600", value: integrations.filter(d => d.status === "connected").length, icon: Wifi },
+    { key: "offline", label: "Offline", gradient: "from-red-500 to-red-600", value: integrations.filter(d => d.status !== "connected").length, icon: WifiOff },
+    { key: "types", label: "Device Types", gradient: "from-violet-500 to-violet-600", value: new Set(integrations.map(d => d.deviceType)).size, icon: Monitor },
+  ];
 
   return (
     <div className="flex flex-col h-full">
@@ -154,9 +161,29 @@ export default function IntegrationsPage() {
       />
 
       <div className="flex-1 overflow-auto p-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          {statCards.map((s) => (
+            <Card key={s.key} data-testid={`stat-${s.key}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br ${s.gradient} shrink-0`}>
+                    <s.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{s.label}</p>
+                    <p className="text-xl font-bold">{s.value}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
         {integrations.length === 0 && !isLoading ? (
           <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-            <Cable className="h-16 w-16 mb-4 opacity-20" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/10 to-violet-500/10 mb-4">
+              <Cable className="h-8 w-8 text-blue-500/40" />
+            </div>
             <p className="text-lg font-medium mb-1">No devices connected</p>
             <p className="text-sm">Add your medical devices to integrate them with the system</p>
           </div>
@@ -164,14 +191,15 @@ export default function IntegrationsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {integrations.map((device) => {
               const DeviceIcon = getDeviceIcon(device.deviceType);
-              const iconColor = getDeviceIconColor(device.deviceType);
               return (
-                <Card key={device.id} className={device.status === "connected" ? "border-emerald-500/30" : ""}>
-                  <CardContent className="p-4">
+                <Card key={device.id} className={`overflow-visible hover-elevate ${device.status === "connected" ? "border-emerald-500/30" : ""}`}>
+                  <CardContent className="p-0">
+                    <div className={`h-1 rounded-t-md bg-gradient-to-r ${device.status === "connected" ? "from-emerald-500 to-teal-400" : "from-slate-400 to-slate-500"}`} />
+                    <div className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-3">
                       <div className="flex items-center gap-2">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-md ${iconColor.bg}`}>
-                          <DeviceIcon className={`h-5 w-5 ${iconColor.text}`} />
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br ${getDeviceIconGradient(device.deviceType)} shrink-0`}>
+                          <DeviceIcon className="h-5 w-5 text-white" />
                         </div>
                         <div>
                           <h3 className="text-sm font-semibold">{device.deviceName}</h3>
@@ -216,6 +244,7 @@ export default function IntegrationsPage() {
                     >
                       {device.status === "connected" ? "Disconnect" : "Connect"}
                     </Button>
+                    </div>
                   </CardContent>
                 </Card>
               );

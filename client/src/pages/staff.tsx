@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Eye, Edit, Trash2, ShieldCheck, Check, X, Users, Shield } from "lucide-react";
+import { Plus, Eye, Edit, Trash2, ShieldCheck, Check, X, Users, Shield, UserCheck } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { Role } from "@shared/schema";
 
@@ -94,6 +94,15 @@ function mergePermissions(saved: any): PermissionMap {
   });
   return defaults;
 }
+
+const avatarGradients = [
+  "from-blue-500 to-cyan-400",
+  "from-violet-500 to-purple-400",
+  "from-emerald-500 to-teal-400",
+  "from-pink-500 to-rose-400",
+  "from-amber-500 to-orange-400",
+  "from-indigo-500 to-blue-400",
+];
 
 export default function StaffPage() {
   const { toast } = useToast();
@@ -346,6 +355,41 @@ export default function StaffPage() {
       />
       <div className="flex-1 overflow-auto p-6 space-y-6">
 
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { key: "total-users", label: "Total Users", gradient: "from-blue-500 to-blue-600", value: staff.length, icon: Users },
+            { key: "active-users", label: "Active Users", gradient: "from-emerald-500 to-emerald-600", value: staff.filter((u: any) => u.isActive).length, icon: UserCheck },
+            { key: "roles", label: "Roles", gradient: "from-violet-500 to-violet-600", value: roles.length, icon: Shield },
+            { key: "permissions-set", label: "Permissions Set", gradient: "from-amber-500 to-amber-600", value: roles.filter(r => getPermissionCount(r) > 0).length, icon: ShieldCheck },
+          ].map((s) => (
+            <Card key={s.key} data-testid={`stat-${s.key}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br ${s.gradient} shrink-0`}>
+                    <s.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{s.label}</p>
+                    <p className="text-xl font-bold">{s.value}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-600">
+                <Users className="h-5 w-5 text-white" />
+              </div>
+              <h2 className="text-xl font-bold" data-testid="text-users-title">User Management</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">Manage system users and access</p>
+          </div>
+        </div>
+
         <div className="border rounded-md">
           <table className="w-full text-sm">
             <thead>
@@ -366,7 +410,7 @@ export default function StaffPage() {
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+                        <AvatarFallback className={`bg-gradient-to-br ${avatarGradients[user.id % avatarGradients.length]} text-white text-xs font-semibold`}>
                           {(user.fullName || "U").split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -375,7 +419,7 @@ export default function StaffPage() {
                   </td>
                   <td className="p-3 font-medium">{user.fullName}</td>
                   <td className="p-3">
-                    <Badge className={getRoleBadgeClasses(user.roleName || "")}>{user.roleName || "No Role"}</Badge>
+                    <Badge className={`no-default-hover-elevate no-default-active-elevate ${getRoleBadgeClasses(user.roleName || "")}`}>{user.roleName || "No Role"}</Badge>
                   </td>
                   <td className="p-3 text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -417,8 +461,8 @@ export default function StaffPage() {
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-md bg-violet-500/10">
-                  <Shield className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                <div className="p-2 rounded-md bg-gradient-to-br from-violet-500 to-violet-600">
+                  <Shield className="h-5 w-5 text-white" />
                 </div>
                 <h2 className="text-xl font-bold" data-testid="text-roles-title">Roles Management</h2>
               </div>

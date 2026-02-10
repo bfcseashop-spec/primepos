@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
-import { StatsCard } from "@/components/stats-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,19 +44,115 @@ export default function ReportsPage() {
             [...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)
           ) : (
             <>
-              <StatsCard title="Total Revenue" value={`$${stats?.totalRevenue ?? "0"}`} icon={DollarSign} iconColor="text-emerald-500 dark:text-emerald-400" iconBg="bg-emerald-500/10 dark:bg-emerald-400/10" />
-              <StatsCard title="Total Expenses" value={`$${stats?.totalExpenses ?? "0"}`} icon={Receipt} iconColor="text-red-500 dark:text-red-400" iconBg="bg-red-500/10 dark:bg-red-400/10" />
-              <StatsCard title="Net Profit" value={`$${stats?.netProfit ?? "0"}`} icon={TrendingUp} trendUp={(stats?.netProfit ?? 0) > 0} iconColor="text-violet-500 dark:text-violet-400" iconBg="bg-violet-500/10 dark:bg-violet-400/10" />
-              <StatsCard title="Total Patients" value={stats?.totalPatients ?? 0} icon={Users} iconColor="text-blue-500 dark:text-blue-400" iconBg="bg-blue-500/10 dark:bg-blue-400/10" />
+              <Card data-testid="stat-total-revenue">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shrink-0">
+                      <DollarSign className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Revenue</p>
+                      <p className="text-xl font-bold">${stats?.totalRevenue ?? "0"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card data-testid="stat-total-expenses">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-red-500 to-red-600 shrink-0">
+                      <Receipt className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Expenses</p>
+                      <p className="text-xl font-bold">${stats?.totalExpenses ?? "0"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card data-testid="stat-net-profit">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600 shrink-0">
+                      <TrendingUp className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Net Profit</p>
+                      <p className="text-xl font-bold">${stats?.netProfit ?? "0"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card data-testid="stat-total-patients">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shrink-0">
+                      <Users className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Patients</p>
+                      <p className="text-xl font-bold">{stats?.totalPatients ?? 0}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </>
           )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatsCard title="Total Visits" value={stats?.totalVisits ?? 0} icon={Stethoscope} iconColor="text-amber-500 dark:text-amber-400" iconBg="bg-amber-500/10 dark:bg-amber-400/10" />
-          <StatsCard title="Total Bills" value={stats?.totalBills ?? 0} icon={FileText} iconColor="text-cyan-500 dark:text-cyan-400" iconBg="bg-cyan-500/10 dark:bg-cyan-400/10" />
-          <StatsCard title="Medicines" value={stats?.totalMedicines ?? 0} icon={Pill} iconColor="text-pink-500 dark:text-pink-400" iconBg="bg-pink-500/10 dark:bg-pink-400/10" />
-          <StatsCard title="Services" value={stats?.totalServices ?? 0} icon={BarChart3} iconColor="text-violet-500 dark:text-violet-400" iconBg="bg-violet-500/10 dark:bg-violet-400/10" />
+          <Card data-testid="stat-total-visits">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-amber-500 to-amber-600 shrink-0">
+                  <Stethoscope className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Visits</p>
+                  <p className="text-xl font-bold">{stats?.totalVisits ?? 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card data-testid="stat-total-bills">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-cyan-500 to-cyan-600 shrink-0">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Bills</p>
+                  <p className="text-xl font-bold">{stats?.totalBills ?? 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card data-testid="stat-medicines">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-pink-500 to-pink-600 shrink-0">
+                  <Pill className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Medicines</p>
+                  <p className="text-xl font-bold">{stats?.totalMedicines ?? 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card data-testid="stat-services">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-indigo-600 shrink-0">
+                  <BarChart3 className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Services</p>
+                  <p className="text-xl font-bold">{stats?.totalServices ?? 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs defaultValue="revenue">

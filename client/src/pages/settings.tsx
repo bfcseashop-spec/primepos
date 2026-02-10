@@ -225,10 +225,10 @@ export default function SettingsPage() {
 
   function getActionColor(action: string) {
     switch (action) {
-      case "create": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-      case "update": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
-      case "delete": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
-      default: return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
+      case "create": return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20";
+      case "update": return "bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20";
+      case "delete": return "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20";
+      default: return "bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/20";
     }
   }
 
@@ -266,7 +266,18 @@ export default function SettingsPage() {
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
-                <tab.icon className={`h-4 w-4 ${activeTab === tab.id ? iconColors[tab.id] || "" : ""}`} />
+                {activeTab === tab.id ? (
+                  <div className={`flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br ${
+                    tab.id === "metadata" ? "from-blue-500 to-blue-600" :
+                    tab.id === "currency" ? "from-amber-500 to-amber-600" :
+                    tab.id === "company" ? "from-emerald-500 to-emerald-600" :
+                    "from-violet-500 to-violet-600"
+                  }`}>
+                    <tab.icon className="h-3.5 w-3.5 text-white" />
+                  </div>
+                ) : (
+                  <tab.icon className="h-4 w-4" />
+                )}
                 {tab.label}
               </button>
             );
@@ -278,7 +289,10 @@ export default function SettingsPage() {
             <Card>
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <AppWindow className="h-4 w-4 text-blue-500" /> Application Info
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600">
+                    <AppWindow className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  Application Info
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
@@ -302,7 +316,10 @@ export default function SettingsPage() {
             <Card>
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-emerald-500" /> Clinic Information
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600">
+                    <Building2 className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  Clinic Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
@@ -330,7 +347,10 @@ export default function SettingsPage() {
             <Card>
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Hash className="h-4 w-4 text-violet-500" /> ID Prefixes
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600">
+                    <Hash className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  ID Prefixes
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
@@ -351,7 +371,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={updateMutation.isPending} data-testid="button-save-metadata">
+            <Button type="submit" className="bg-blue-600 text-white" disabled={updateMutation.isPending} data-testid="button-save-metadata">
               <Save className="h-4 w-4 mr-1" />
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
@@ -512,7 +532,7 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white" disabled={updateMutation.isPending} data-testid="button-save-currency">
+            <Button type="submit" className="bg-amber-600 text-white" disabled={updateMutation.isPending} data-testid="button-save-currency">
               <Save className="h-4 w-4 mr-1" />
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
@@ -525,7 +545,10 @@ export default function SettingsPage() {
             <Card>
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-emerald-500" /> Company Details for Receipts
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600">
+                    <Building2 className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  Company Details for Receipts
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
@@ -630,7 +653,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white" disabled={updateMutation.isPending} data-testid="button-save-company">
+            <Button type="submit" className="bg-emerald-600 text-white" disabled={updateMutation.isPending} data-testid="button-save-company">
               <Save className="h-4 w-4 mr-1" />
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
@@ -641,7 +664,9 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <h2 className="text-lg font-semibold flex items-center gap-2" data-testid="text-logs-title"><ScrollText className="h-5 w-5 text-violet-500" /> Activity Logs</h2>
+                <h2 className="text-lg font-semibold flex items-center gap-2" data-testid="text-logs-title"><div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600">
+                    <ScrollText className="h-4 w-4 text-white" />
+                  </div> Activity Logs</h2>
                 <p className="text-sm text-muted-foreground">Recent system activities and changes</p>
               </div>
               {activityLogs.length > 0 && (
@@ -683,7 +708,7 @@ export default function SettingsPage() {
                         </div>
                       </td>
                       <td className="p-3">
-                        <Badge className={`text-xs ${getActionColor(log.action)} no-default-hover-elevate no-default-active-elevate`}>
+                        <Badge variant="outline" className={`text-xs ${getActionColor(log.action)} no-default-hover-elevate no-default-active-elevate`}>
                           {log.action.toUpperCase()}
                         </Badge>
                       </td>

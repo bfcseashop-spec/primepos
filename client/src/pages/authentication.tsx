@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogIn, LogOut, KeyRound, Shield, User, Lock } from "lucide-react";
+import { LogIn, LogOut, KeyRound, Shield, User, Lock, Users, UserCheck, UserX } from "lucide-react";
 import type { User as UserType } from "@shared/schema";
 
 export default function AuthenticationPage() {
@@ -62,20 +62,42 @@ export default function AuthenticationPage() {
       <PageHeader title="Authentication" description="Login, logout, and manage passwords" />
       <div className="flex-1 overflow-auto p-6 space-y-6">
 
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { key: "total", label: "Total Accounts", gradient: "from-blue-500 to-blue-600", value: users.length, icon: Users },
+          { key: "active", label: "Active Users", gradient: "from-emerald-500 to-emerald-600", value: users.filter((u: any) => u.isActive).length, icon: UserCheck },
+          { key: "inactive", label: "Inactive Users", gradient: "from-red-500 to-red-600", value: users.filter((u: any) => !u.isActive).length, icon: UserX },
+        ].map((s) => (
+          <Card key={s.key} data-testid={`stat-${s.key}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br ${s.gradient} shrink-0`}>
+                  <s.icon className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{s.label}</p>
+                  <p className="text-xl font-bold">{s.value}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       {loggedInUser && (
         <Card className="border-green-200 dark:border-green-800">
           <CardContent className="p-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-green-100 dark:bg-green-900">
-                  <User className="h-5 w-5 text-green-700 dark:text-green-300" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600">
+                  <User className="h-5 w-5 text-white" />
                 </div>
                 <div>
                   <p className="font-semibold" data-testid="text-logged-in-user">{loggedInUser.fullName}</p>
                   <p className="text-sm text-muted-foreground">@{loggedInUser.username} {loggedInUser.email ? `| ${loggedInUser.email}` : ""}</p>
                 </div>
               </div>
-              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 no-default-hover-elevate no-default-active-elevate">
+              <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">
                 Logged In
               </Badge>
             </div>
@@ -100,7 +122,10 @@ export default function AuthenticationPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <LogIn className="h-5 w-5 text-blue-500" /> Staff Login
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600">
+                  <LogIn className="h-4 w-4 text-white" />
+                </div>
+                Staff Login
               </CardTitle>
               <CardDescription>Enter your credentials to access the system</CardDescription>
             </CardHeader>
@@ -148,7 +173,10 @@ export default function AuthenticationPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <LogOut className="h-5 w-5 text-amber-500" /> Logout
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-amber-500 to-amber-600">
+                  <LogOut className="h-4 w-4 text-white" />
+                </div>
+                Logout
               </CardTitle>
               <CardDescription>End your current session</CardDescription>
             </CardHeader>
@@ -176,7 +204,10 @@ export default function AuthenticationPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-blue-500" /> Change Password
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600">
+                  <Shield className="h-4 w-4 text-white" />
+                </div>
+                Change Password
               </CardTitle>
               <CardDescription>Update your account password</CardDescription>
             </CardHeader>
@@ -245,7 +276,10 @@ export default function AuthenticationPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-violet-500" /> Registered Staff Accounts
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600">
+              <Shield className="h-4 w-4 text-white" />
+            </div>
+            Registered Staff Accounts
           </CardTitle>
           <CardDescription>All staff members with system access</CardDescription>
         </CardHeader>
@@ -269,7 +303,7 @@ export default function AuthenticationPage() {
                     <tr key={u.id} className="border-b" data-testid={`row-user-${u.id}`}>
                       <td className="p-3">
                         <div className="flex items-center gap-2">
-                          <div className="h-7 w-7 rounded-full bg-blue-500/10 flex items-center justify-center text-xs font-medium text-blue-600 dark:text-blue-400">
+                          <div className={`h-7 w-7 rounded-full bg-gradient-to-br ${["from-blue-500 to-cyan-400","from-violet-500 to-purple-400","from-emerald-500 to-teal-400","from-pink-500 to-rose-400","from-amber-500 to-orange-400","from-indigo-500 to-blue-400"][u.id % 6]} flex items-center justify-center text-xs font-medium text-white`}>
                             {u.fullName ? u.fullName.charAt(0).toUpperCase() : "?"}
                           </div>
                           <span className="font-medium">@{u.username}</span>
