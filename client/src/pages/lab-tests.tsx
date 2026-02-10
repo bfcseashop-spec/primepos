@@ -44,21 +44,47 @@ const defaultForm = {
 
 type LabTestWithPatient = LabTest & { patientName?: string | null };
 
-function getElapsedTime(createdAt: string | Date | null): string {
-  if (!createdAt) return "-";
-  const start = new Date(createdAt).getTime();
-  const now = Date.now();
-  const diff = now - start;
-  if (diff < 0) return "0m";
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
+function parseTurnaroundToMs(tat: string | null): number | null {
+  if (!tat) return null;
+  const lower = tat.toLowerCase().trim();
+  let totalMs = 0;
+  const dayMatch = lower.match(/(\d+)\s*d(?:ay)?s?/);
+  const hourMatch = lower.match(/(\d+)\s*h(?:our|r)?s?/);
+  const minMatch = lower.match(/(\d+)\s*m(?:in(?:ute)?)?s?/);
+  if (dayMatch) totalMs += parseInt(dayMatch[1]) * 86400000;
+  if (hourMatch) totalMs += parseInt(hourMatch[1]) * 3600000;
+  if (minMatch) totalMs += parseInt(minMatch[1]) * 60000;
+  if (totalMs === 0) {
+    const num = parseFloat(lower);
+    if (!isNaN(num)) {
+      if (lower.includes("hour") || lower.includes("hr") || lower.includes("h")) totalMs = num * 3600000;
+      else if (lower.includes("day") || lower.includes("d")) totalMs = num * 86400000;
+      else totalMs = num * 3600000;
+    }
+  }
+  return totalMs > 0 ? totalMs : null;
 }
 
-function LiveTimer({ createdAt, status }: { createdAt: string | Date | null; status: string }) {
+function getCountdownTime(createdAt: string | Date | null, turnaroundTime: string | null): { text: string; overdue: boolean } {
+  if (!createdAt || !turnaroundTime) return { text: "-", overdue: false };
+  const tatMs = parseTurnaroundToMs(turnaroundTime);
+  if (!tatMs) return { text: "-", overdue: false };
+  const start = new Date(createdAt).getTime();
+  const deadline = start + tatMs;
+  const remaining = deadline - Date.now();
+  const abs = Math.abs(remaining);
+  const days = Math.floor(abs / 86400000);
+  const hours = Math.floor((abs % 86400000) / 3600000);
+  const minutes = Math.floor((abs % 3600000) / 60000);
+  let display = "";
+  if (days > 0) display = `${days}d ${hours}h`;
+  else if (hours > 0) display = `${hours}h ${minutes}m`;
+  else display = `${minutes}m`;
+  if (remaining <= 0) return { text: display, overdue: true };
+  return { text: display, overdue: false };
+}
+
+function LiveTimer({ createdAt, status, turnaroundTime }: { createdAt: string | Date | null; status: string; turnaroundTime: string | null }) {
   const [, setTick] = useState(0);
   useEffect(() => {
     if (status !== "processing") return;
@@ -70,11 +96,16 @@ function LiveTimer({ createdAt, status }: { createdAt: string | Date | null; sta
   if (status === "cancel") return <span className="text-xs text-red-600 dark:text-red-400 font-medium">Cancelled</span>;
   if (status === "sample_missing") return <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Waiting</span>;
 
-  const elapsed = getElapsedTime(createdAt);
+  const { text, overdue } = getCountdownTime(createdAt, turnaroundTime);
+  if (text === "-") {
+    return <span className="text-xs text-muted-foreground">No TAT set</span>;
+  }
   return (
     <div className="flex items-center gap-1">
-      <Clock className="h-3 w-3 text-blue-500 animate-pulse" />
-      <span className="text-xs font-medium text-blue-600 dark:text-blue-400">{elapsed}</span>
+      <Clock className={`h-3 w-3 ${overdue ? "text-red-500" : "text-blue-500"} animate-pulse`} />
+      <span className={`text-xs font-medium ${overdue ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`}>
+        {overdue ? `Overdue ${text}` : text}
+      </span>
     </div>
   );
 }
@@ -315,7 +346,7 @@ export default function LabTestsPage() {
       <span className="font-medium" data-testid={`text-price-${row.id}`}>${row.price}</span>
     )},
     { header: "Processing Time", accessor: (row: LabTestWithPatient) => (
-      <LiveTimer createdAt={row.createdAt} status={row.status} />
+      <LiveTimer createdAt={row.createdAt} status={row.status} turnaroundTime={row.turnaroundTime} />
     )},
     { header: "Status", accessor: (row: LabTestWithPatient) => (
       <span data-testid={`badge-status-${row.id}`}>{getStatusBadge(row.status)}</span>
@@ -506,7 +537,7 @@ export default function LabTestsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Processing Time</p>
-                  <LiveTimer createdAt={viewTest.createdAt} status={viewTest.status} />
+                  <LiveTimer createdAt={viewTest.createdAt} status={viewTest.status} turnaroundTime={viewTest.turnaroundTime} />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Status</p>
