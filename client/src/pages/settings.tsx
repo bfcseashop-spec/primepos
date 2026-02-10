@@ -102,6 +102,46 @@ export default function SettingsPage() {
     },
   });
 
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("logo", file);
+      const res = await fetch("/api/settings/upload-logo", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Upload failed");
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/activity-logs"] });
+      toast({ title: "Logo uploaded successfully" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setLogoUploading(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  };
+
+  const removeLogoMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", "/api/settings/logo");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/activity-logs"] });
+      toast({ title: "Logo removed" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
   const clearLogsMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("DELETE", "/api/activity-logs");
@@ -424,6 +464,56 @@ export default function SettingsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
+                <div>
+                  <Label>Company Logo</Label>
+                  <div className="flex items-center gap-4 mt-1">
+                    {settings?.logo ? (
+                      <div className="relative">
+                        <img
+                          src={settings.logo}
+                          alt="Company logo"
+                          className="h-20 w-20 rounded-md border object-contain bg-white"
+                          data-testid="img-company-logo"
+                        />
+                        <button
+                          type="button"
+                          className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                          onClick={() => removeLogoMutation.mutate()}
+                          disabled={removeLogoMutation.isPending}
+                          data-testid="button-remove-logo"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="h-20 w-20 rounded-md border border-dashed flex items-center justify-center text-muted-foreground">
+                        <ImageIcon className="h-8 w-8" />
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-1.5">
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                        data-testid="input-logo-file"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={logoUploading}
+                        data-testid="button-upload-logo"
+                      >
+                        <Upload className="h-4 w-4 mr-1" />
+                        {logoUploading ? "Uploading..." : settings?.logo ? "Change Logo" : "Upload Logo"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">JPG, PNG, GIF, WebP or SVG. Max 5MB.</p>
+                    </div>
+                  </div>
+                </div>
                 <div>
                   <Label htmlFor="companyName">Company / Business Name</Label>
                   <Input id="companyName" name="companyName" placeholder="Legal business name for receipts" defaultValue={settings?.companyName || ""} data-testid="input-company-name" />
