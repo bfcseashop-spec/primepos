@@ -41,7 +41,7 @@ export default function StaffPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setStaffDialogOpen(false);
-      toast({ title: "Staff member added successfully" });
+      toast({ title: "User added successfully" });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -71,7 +71,7 @@ export default function StaffPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({ title: "Staff status updated" });
+      toast({ title: "User status updated" });
     },
   });
 
@@ -157,7 +157,7 @@ export default function StaffPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="User and Role"
-        description="Manage staff members and role permissions"
+        description="Manage users and role permissions"
         actions={
           <div className="flex gap-2 flex-wrap">
             <Dialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen}>
@@ -210,12 +210,12 @@ export default function StaffPage() {
             <Dialog open={staffDialogOpen} onOpenChange={setStaffDialogOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-new-staff">
-                  <Plus className="h-4 w-4 mr-1" /> Add Staff
+                  <Plus className="h-4 w-4 mr-1" /> Add User
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Add Staff Member</DialogTitle>
+                  <DialogTitle>Add User</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleCreateStaff} className="space-y-3">
                   <div>
@@ -254,7 +254,7 @@ export default function StaffPage() {
                     </Select>
                   </div>
                   <Button type="submit" className="w-full" disabled={createStaffMutation.isPending} data-testid="button-submit-staff">
-                    {createStaffMutation.isPending ? "Adding..." : "Add Staff Member"}
+                    {createStaffMutation.isPending ? "Adding..." : "Add User"}
                   </Button>
                 </form>
               </DialogContent>
@@ -267,7 +267,7 @@ export default function StaffPage() {
         <Tabs defaultValue="staff">
           <TabsList>
             <TabsTrigger value="staff" data-testid="tab-staff">
-              <UserCog className="h-3.5 w-3.5 mr-1" /> Staff
+              <UserCog className="h-3.5 w-3.5 mr-1" /> Users
             </TabsTrigger>
             <TabsTrigger value="roles" data-testid="tab-roles">
               <Shield className="h-3.5 w-3.5 mr-1" /> Roles
@@ -277,11 +277,11 @@ export default function StaffPage() {
           <TabsContent value="staff" className="mt-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-                <CardTitle className="text-sm font-semibold">Staff Members</CardTitle>
+                <CardTitle className="text-sm font-semibold">Users</CardTitle>
                 <div className="relative w-64">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    placeholder="Search staff..."
+                    placeholder="Search users..."
                     className="pl-8 h-8 text-sm"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -290,7 +290,7 @@ export default function StaffPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <DataTable columns={staffColumns} data={filteredStaff} isLoading={staffLoading} emptyMessage="No staff members" />
+                <DataTable columns={staffColumns} data={filteredStaff} isLoading={staffLoading} emptyMessage="No users found" />
               </CardContent>
             </Card>
           </TabsContent>
