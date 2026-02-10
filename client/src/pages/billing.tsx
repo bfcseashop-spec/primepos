@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X } from "lucide-react";
-import type { Patient, Service, Medicine, BillItem, User } from "@shared/schema";
+import type { Patient, Service, Medicine, BillItem, User, ClinicSettings } from "@shared/schema";
 
 const PAYMENT_METHODS = [
   { value: "cash", label: "Cash Pay" },
@@ -44,6 +44,10 @@ export default function BillingPage() {
 
   const { data: patients = [] } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
+  });
+
+  const { data: settings } = useQuery<ClinicSettings>({
+    queryKey: ["/api/settings"],
   });
 
   const { data: services = [] } = useQuery<Service[]>({
@@ -101,8 +105,10 @@ export default function BillingPage() {
     const items = bill.items || billItems;
     const printWindow = window.open("", "_blank", "width=400,height=600");
     if (!printWindow) return;
+    const clinicName = settings?.clinicName || "Prime Clinic";
+    const clinicEmail = settings?.email || "info@primeclinic.com";
     printWindow.document.write(`
-      <html><head><title>Receipt</title>
+      <html><head><title>Receipt - ${clinicName}</title>
       <style>
         body { font-family: monospace; padding: 20px; max-width: 350px; margin: 0 auto; font-size: 13px; }
         .center { text-align: center; }
@@ -111,11 +117,21 @@ export default function BillingPage() {
         .row { display: flex; justify-content: space-between; margin: 3px 0; }
         .items { margin: 8px 0; }
         h2 { margin: 4px 0; }
+        h3 { margin: 2px 0; font-size: 11px; font-weight: normal; color: #666; }
         p { margin: 2px 0; }
+        .logo { max-height: 48px; margin: 0 auto 6px; display: block; }
+        .footer { margin-top: 12px; font-size: 11px; color: #666; }
       </style></head><body>
         <div class="center">
-          <h2>Receipt</h2>
-          <p>Bill #: ${bill.billNo}</p>
+          ${settings?.logo ? `<img src="${settings.logo}" alt="Logo" class="logo" />` : ""}
+          <h2>${clinicName}</h2>
+          ${settings?.address ? `<h3>${settings.address}</h3>` : ""}
+          ${settings?.phone ? `<h3>${settings.phone}</h3>` : ""}
+        </div>
+        <div class="line"></div>
+        <div class="center">
+          <p class="bold">INVOICE</p>
+          <p>Invoice #: ${bill.billNo}</p>
           <p>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
         </div>
         <div class="line"></div>
@@ -138,7 +154,10 @@ export default function BillingPage() {
         <div class="row"><span>Paid</span><span>$${bill.paidAmount}</span></div>
         <div class="row"><span>Method</span><span>${getPaymentLabel(bill.paymentMethod)}</span></div>
         <div class="line"></div>
-        <p class="center">Thank you!</p>
+        <div class="center footer">
+          <p class="bold">Thank you for choosing ${clinicName}!</p>
+          <p>For questions, contact ${clinicEmail}</p>
+        </div>
         <script>window.onload = function() { window.print(); }</script>
       </body></html>
     `);
@@ -272,8 +291,19 @@ export default function BillingPage() {
                 <div className="space-y-4">
                   <div className="border rounded-md p-5 bg-white dark:bg-card" data-testid="invoice-preview">
                     <div className="text-center mb-4">
-                      <h2 className="text-xl font-bold">INVOICE</h2>
-                      <p className="text-xs text-muted-foreground">Bill #: BILL-PREVIEW</p>
+                      {settings?.logo && (
+                        <img src={settings.logo} alt="Clinic Logo" className="h-12 mx-auto mb-2 object-contain" data-testid="img-clinic-logo" />
+                      )}
+                      <h2 className="text-lg font-bold">{settings?.clinicName || "Prime Clinic"}</h2>
+                      {settings?.address && <p className="text-[11px] text-muted-foreground">{settings.address}</p>}
+                      {(settings?.phone || settings?.email) && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {[settings?.phone, settings?.email].filter(Boolean).join(" | ")}
+                        </p>
+                      )}
+                      <Separator className="my-2" />
+                      <h3 className="text-xl font-bold tracking-wide">INVOICE</h3>
+                      <p className="text-xs text-muted-foreground">Invoice #: {settings?.invoicePrefix || "INV"}-{String(bills.length + 1).padStart(4, "0")}</p>
                       <p className="text-xs text-muted-foreground">{paymentDate || new Date().toISOString().split("T")[0]}</p>
                     </div>
 
@@ -337,6 +367,13 @@ export default function BillingPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Payment Method</span>
                       <Badge variant="outline">{getPaymentLabel(paymentMethod)}</Badge>
+                    </div>
+
+                    <Separator className="my-3" />
+
+                    <div className="text-center text-xs text-muted-foreground space-y-0.5 pt-1" data-testid="invoice-footer">
+                      <p className="font-medium">Thank you for choosing {settings?.clinicName || "Prime Clinic"}!</p>
+                      <p>For questions, contact {settings?.email || "info@primeclinic.com"}</p>
                     </div>
                   </div>
 
