@@ -22,7 +22,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, User as UserIcon, Phone, Mail, MapPin, Droplets, Calendar, AlertTriangle, FileText, Heart } from "lucide-react";
+import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, User as UserIcon, Phone, Mail, MapPin, Droplets, Calendar, AlertTriangle, FileText, Heart, Users, UserCheck, Activity, Clock, Stethoscope } from "lucide-react";
 import { useLocation } from "wouter";
 import type { Patient } from "@shared/schema";
 
@@ -31,6 +31,7 @@ export default function OpdPage() {
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [viewPatient, setViewPatient] = useState<Patient | null>(null);
@@ -168,9 +169,12 @@ export default function OpdPage() {
     return patient.name;
   };
 
+  const outPatients = patients.filter(p => !p.patientType || p.patientType === "Out Patient");
+  const inPatients = patients.filter(p => p.patientType === "In Patient");
+  const emergencyPatients = patients.filter(p => p.patientType === "Emergency");
   const filteredPatients = patients.filter((p) => {
     const term = searchTerm.toLowerCase();
-    return (
+    const matchesSearch = (
       p.name?.toLowerCase().includes(term) ||
       p.firstName?.toLowerCase().includes(term) ||
       p.lastName?.toLowerCase().includes(term) ||
@@ -178,35 +182,82 @@ export default function OpdPage() {
       p.city?.toLowerCase().includes(term) ||
       p.phone?.toLowerCase().includes(term)
     );
+    const matchesType = typeFilter === "all" ||
+      (typeFilter === "Out Patient" && (!p.patientType || p.patientType === "Out Patient")) ||
+      p.patientType === typeFilter;
+    return matchesSearch && matchesType;
   });
 
-  const patientTypeColor = (type: string | null) => {
+  const avatarGradients = [
+    "from-blue-500 to-cyan-400",
+    "from-violet-500 to-purple-400",
+    "from-emerald-500 to-teal-400",
+    "from-pink-500 to-rose-400",
+    "from-amber-500 to-orange-400",
+    "from-indigo-500 to-blue-400",
+  ];
+
+  const getAvatarGradient = (id: number) => avatarGradients[id % avatarGradients.length];
+
+  const patientTypeBadge = (type: string | null) => {
     switch (type) {
-      case "In Patient": return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
-      case "Emergency": return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20";
-      default: return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+      case "In Patient": return { bg: "bg-blue-500/10 dark:bg-blue-400/10", text: "text-blue-700 dark:text-blue-300", border: "border-blue-500/20", dot: "bg-blue-500" };
+      case "Emergency": return { bg: "bg-red-500/10 dark:bg-red-400/10", text: "text-red-700 dark:text-red-300", border: "border-red-500/20", dot: "bg-red-500" };
+      default: return { bg: "bg-emerald-500/10 dark:bg-emerald-400/10", text: "text-emerald-700 dark:text-emerald-300", border: "border-emerald-500/20", dot: "bg-emerald-500" };
     }
   };
 
   const listColumns = [
-    { header: "Patient ID", accessor: (row: any) => row.patientId },
-    { header: "Name", accessor: (row: any) => getDisplayName(row) },
-    { header: "Gender", accessor: (row: any) => row.gender || "-" },
-    { header: "Phone", accessor: (row: any) => row.phone || "-" },
-    { header: "Type", accessor: (row: any) => (
-      <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${patientTypeColor(row.patientType)}`}>
-        {row.patientType || "Out Patient"}
-      </Badge>
+    { header: "Patient ID", accessor: (row: any) => (
+      <span className="font-mono text-xs text-blue-600 dark:text-blue-400 font-medium">#{row.patientId}</span>
     )},
-    { header: "Location", accessor: (row: any) => row.city || "-" },
+    { header: "Name", accessor: (row: any) => (
+      <div className="flex items-center gap-2.5">
+        <Avatar className="h-8 w-8">
+          <AvatarImage src={row.photoUrl || undefined} />
+          <AvatarFallback className={`text-[10px] font-bold bg-gradient-to-br ${getAvatarGradient(row.id)} text-white`}>
+            {getInitials(row)}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <p className="text-sm font-medium">{getDisplayName(row)}</p>
+          <p className="text-[10px] text-muted-foreground">{row.gender || "N/A"}</p>
+        </div>
+      </div>
+    )},
+    { header: "Phone", accessor: (row: any) => (
+      <span className="text-sm">{row.phone || "-"}</span>
+    )},
+    { header: "Type", accessor: (row: any) => {
+      const style = patientTypeBadge(row.patientType);
+      return (
+        <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${style.bg} ${style.text} ${style.border}`}>
+          <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1.5 ${style.dot}`} />
+          {row.patientType || "Out Patient"}
+        </Badge>
+      );
+    }},
+    { header: "Location", accessor: (row: any) => (
+      <span className="text-sm">{row.city || "-"}</span>
+    )},
     { header: "Last Visit", accessor: (row: any) => {
       const lv = getLastVisit(row.id);
-      return lv ? new Date(lv.visitDate).toLocaleDateString() : "-";
+      return lv ? (
+        <span className="text-xs text-muted-foreground">{new Date(lv.visitDate).toLocaleDateString()}</span>
+      ) : (
+        <span className="text-xs text-muted-foreground">-</span>
+      );
     }},
     { header: "Actions", accessor: (row: any) => (
-      <div className="flex gap-1">
-        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); openAppointmentDialog(row); }} data-testid={`button-add-appointment-list-${row.id}`}>
-          <CalendarPlus className="h-3 w-3 mr-1 text-blue-500 dark:text-blue-400" /> Appointment
+      <div className="flex gap-1.5">
+        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setViewPatient(row); }} data-testid={`button-view-list-${row.id}`}>
+          <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditPatient(row); }} data-testid={`button-edit-list-${row.id}`}>
+          <Pencil className="h-4 w-4 text-amber-500 dark:text-amber-400" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openAppointmentDialog(row); }} data-testid={`button-add-appointment-list-${row.id}`}>
+          <CalendarPlus className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
         </Button>
       </div>
     )},
@@ -216,55 +267,130 @@ export default function OpdPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="OPD Management"
-        description="Manage outpatient department visits"
+        description="Manage outpatient department visits and patient records"
         actions={
-          <div className="flex gap-2 flex-wrap items-center">
-            <Button variant="outline" onClick={() => navigate("/register-patient")} data-testid="button-register-patient">
-              <UserPlus className="h-4 w-4 mr-1 text-emerald-500 dark:text-emerald-400" /> Register Patient
-            </Button>
-            <Button
-              variant={viewMode === "grid" ? "default" : "outline"}
-              size="icon"
-              className={`toggle-elevate ${viewMode === "grid" ? "toggle-elevated" : ""}`}
-              onClick={() => setViewMode("grid")}
-              data-testid="button-grid-view"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "default" : "outline"}
-              size="icon"
-              className={`toggle-elevate ${viewMode === "list" ? "toggle-elevated" : ""}`}
-              onClick={() => setViewMode("list")}
-              data-testid="button-list-view"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="icon" onClick={handleRefresh} data-testid="button-refresh">
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search patients by name, ID, or location..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                data-testid="input-search-patients"
-              />
-            </div>
-          </div>
+          <Button variant="default" onClick={() => navigate("/register-patient")} className="bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-700 text-white" data-testid="button-register-patient">
+            <UserPlus className="h-4 w-4 mr-1.5" /> Register Patient
+          </Button>
         }
       />
 
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-4 space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card data-testid="stat-total-patients">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shrink-0">
+                  <Users className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Patients</p>
+                  <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{patients.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card data-testid="stat-out-patients">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shrink-0">
+                  <UserCheck className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Out Patients</p>
+                  <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{outPatients.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card data-testid="stat-in-patients">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600 shrink-0">
+                  <Stethoscope className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">In Patients</p>
+                  <p className="text-xl font-bold text-violet-600 dark:text-violet-400">{inPatients.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card data-testid="stat-emergency">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-red-500 to-red-600 shrink-0">
+                  <Activity className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Emergency</p>
+                  <p className="text-xl font-bold text-red-600 dark:text-red-400">{emergencyPatients.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative w-64">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, ID, phone..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    data-testid="input-search-patients"
+                  />
+                </div>
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-40" data-testid="select-type-filter">
+                    <SelectValue placeholder="All Types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="Out Patient">Out Patient</SelectItem>
+                    <SelectItem value="In Patient">In Patient</SelectItem>
+                    <SelectItem value="Emergency">Emergency</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant={viewMode === "grid" ? "default" : "outline"}
+                  size="icon"
+                  className={`toggle-elevate ${viewMode === "grid" ? "toggle-elevated" : ""}`}
+                  onClick={() => setViewMode("grid")}
+                  data-testid="button-grid-view"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "default" : "outline"}
+                  size="icon"
+                  className={`toggle-elevate ${viewMode === "list" ? "toggle-elevated" : ""}`}
+                  onClick={() => setViewMode("list")}
+                  data-testid="button-list-view"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={handleRefresh} data-testid="button-refresh">
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {viewMode === "grid" ? (
           patientsLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(6)].map((_, i) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {[...Array(8)].map((_, i) => (
                 <Card key={i}>
-                  <CardContent className="p-6 flex flex-col items-center gap-3">
-                    <Skeleton className="h-16 w-16 rounded-full" />
+                  <CardContent className="p-5 flex flex-col items-center gap-3">
+                    <Skeleton className="h-14 w-14 rounded-full" />
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-3 w-32" />
                     <Skeleton className="h-8 w-full" />
@@ -273,94 +399,136 @@ export default function OpdPage() {
               ))}
             </div>
           ) : filteredPatients.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-              <UserIcon className="h-12 w-12 mb-3 opacity-30" />
-              <p className="text-sm">No patients found</p>
-            </div>
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
+                  <UserIcon className="h-8 w-8 text-muted-foreground/50" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground">No patients found</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">Try adjusting your search or filters</p>
+                <Button variant="outline" onClick={() => navigate("/register-patient")} className="mt-4" data-testid="button-register-empty">
+                  <UserPlus className="h-4 w-4 mr-1.5" /> Register New Patient
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredPatients.map((patient) => {
                 const lastVisit = getLastVisit(patient.id);
+                const typeBadge = patientTypeBadge(patient.patientType);
                 return (
-                  <Card key={patient.id} data-testid={`card-patient-${patient.id}`}>
+                  <Card key={patient.id} className="overflow-visible hover-elevate" data-testid={`card-patient-${patient.id}`}>
                     <CardContent className="p-0">
-                      <div className="flex items-center justify-between gap-2 px-4 pt-3">
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] font-medium no-default-hover-elevate no-default-active-elevate ${patientTypeColor(patient.patientType)}`}
-                          data-testid={`badge-patient-type-${patient.id}`}
+                      <div className={`h-1.5 rounded-t-md bg-gradient-to-r ${
+                        patient.patientType === "Emergency" ? "from-red-500 to-orange-400" :
+                        patient.patientType === "In Patient" ? "from-blue-500 to-cyan-400" :
+                        "from-emerald-500 to-teal-400"
+                      }`} />
+
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] font-medium no-default-hover-elevate no-default-active-elevate ${typeBadge.bg} ${typeBadge.text} ${typeBadge.border}`}
+                            data-testid={`badge-patient-type-${patient.id}`}
+                          >
+                            <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${typeBadge.dot}`} />
+                            {patient.patientType || "Out Patient"}
+                          </Badge>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" data-testid={`button-patient-menu-${patient.id}`}>
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setViewPatient(patient)} data-testid={`menu-view-${patient.id}`}>
+                                <Eye className="h-3.5 w-3.5 mr-2 text-blue-500" /> View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEditPatient(patient)} data-testid={`menu-edit-${patient.id}`}>
+                                <Pencil className="h-3.5 w-3.5 mr-2 text-amber-500" /> Edit Patient
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => setDeletePatient(patient)}
+                                data-testid={`menu-delete-${patient.id}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+
+                        <div className="flex flex-col items-center mb-3">
+                          <Avatar className="h-14 w-14 mb-2">
+                            <AvatarImage src={patient.photoUrl || undefined} alt={getDisplayName(patient)} />
+                            <AvatarFallback className={`text-base font-bold bg-gradient-to-br ${getAvatarGradient(patient.id)} text-white`}>
+                              {getInitials(patient)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <h3 className="font-semibold text-sm text-center" data-testid={`text-patient-name-${patient.id}`}>
+                            {getDisplayName(patient)}
+                          </h3>
+                          <span className="text-[11px] text-muted-foreground font-mono" data-testid={`text-patient-id-${patient.id}`}>
+                            #{patient.patientId}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 mb-3">
+                          <div className="text-center p-1.5 rounded-md bg-muted/40">
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Gender</p>
+                            <p className="text-xs font-medium" data-testid={`text-gender-${patient.id}`}>
+                              {patient.gender || "N/A"}
+                            </p>
+                          </div>
+                          <div className="text-center p-1.5 rounded-md bg-muted/40">
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Blood</p>
+                            <p className="text-xs font-medium text-red-600 dark:text-red-400" data-testid={`text-blood-${patient.id}`}>
+                              {patient.bloodGroup || "N/A"}
+                            </p>
+                          </div>
+                          <div className="text-center p-1.5 rounded-md bg-muted/40">
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Location</p>
+                            <p className="text-xs font-medium truncate" data-testid={`text-location-${patient.id}`}>
+                              {patient.city || "N/A"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {lastVisit && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-3">
+                            <Clock className="h-3 w-3 text-blue-500 dark:text-blue-400" />
+                            <span>Last visit: {new Date(lastVisit.visitDate).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" })}</span>
+                          </div>
+                        )}
+
+                        {patient.phone && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-3">
+                            <Phone className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
+                            <span>{patient.phone}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="border-t p-2.5 flex gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => setViewPatient(patient)}
+                          data-testid={`button-view-patient-${patient.id}`}
                         >
-                          {patient.patientType || "Out Patient"}
-                        </Badge>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" data-testid={`button-patient-menu-${patient.id}`}>
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setViewPatient(patient)} data-testid={`menu-view-${patient.id}`}>
-                              <Eye className="h-3.5 w-3.5 mr-2" /> View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEditPatient(patient)} data-testid={`menu-edit-${patient.id}`}>
-                              <Pencil className="h-3.5 w-3.5 mr-2" /> Edit Patient
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => setDeletePatient(patient)}
-                              data-testid={`menu-delete-${patient.id}`}
-                            >
-                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-
-                      <div className="flex flex-col items-center py-4 px-4">
-                        <Avatar className="h-16 w-16 mb-2">
-                          <AvatarImage src={patient.photoUrl || undefined} alt={getDisplayName(patient)} />
-                          <AvatarFallback className="text-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
-                            {getInitials(patient)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-[11px] text-muted-foreground font-mono" data-testid={`text-patient-id-${patient.id}`}>
-                          #{patient.patientId}
-                        </span>
-                        <h3 className="font-medium text-sm mt-0.5" data-testid={`text-patient-name-${patient.id}`}>
-                          {getDisplayName(patient)}
-                        </h3>
-                      </div>
-
-                      <div className="border-t grid grid-cols-3 divide-x text-center py-3 px-2">
-                        <div>
-                          <p className="text-[10px] text-muted-foreground mb-0.5">Last Visit</p>
-                          <p className="text-xs font-medium" data-testid={`text-last-visit-${patient.id}`}>
-                            {lastVisit ? new Date(lastVisit.visitDate).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" }) : "N/A"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-muted-foreground mb-0.5">Gender</p>
-                          <p className="text-xs font-medium" data-testid={`text-gender-${patient.id}`}>
-                            {patient.gender || "N/A"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-muted-foreground mb-0.5">Location</p>
-                          <p className="text-xs font-medium truncate" data-testid={`text-location-${patient.id}`}>
-                            {patient.city || "Not specified"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="border-t px-4 py-2.5">
-                        <button
-                          className="w-full text-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center justify-center gap-1"
+                          <Eye className="h-3.5 w-3.5 mr-1 text-blue-500 dark:text-blue-400" /> View
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1 text-xs"
                           onClick={() => openAppointmentDialog(patient)}
                           data-testid={`button-add-appointment-${patient.id}`}
                         >
-                          <CalendarPlus className="h-3 w-3 text-blue-500 dark:text-blue-400" />
-                          Add Appointment
-                        </button>
+                          <CalendarPlus className="h-3.5 w-3.5 mr-1 text-emerald-500 dark:text-emerald-400" /> Appoint
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -377,7 +545,6 @@ export default function OpdPage() {
         )}
       </div>
 
-      {/* View Patient Details Dialog */}
       <Dialog open={!!viewPatient} onOpenChange={(open) => { if (!open) setViewPatient(null); }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -389,14 +556,20 @@ export default function OpdPage() {
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">
                   <AvatarImage src={viewPatient.photoUrl || undefined} />
-                  <AvatarFallback className="text-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">{getInitials(viewPatient)}</AvatarFallback>
+                  <AvatarFallback className={`text-lg font-bold bg-gradient-to-br ${getAvatarGradient(viewPatient.id)} text-white`}>{getInitials(viewPatient)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <h3 className="text-lg font-semibold" data-testid="text-view-patient-name">{getDisplayName(viewPatient)}</h3>
                   <p className="text-sm text-muted-foreground font-mono">#{viewPatient.patientId}</p>
-                  <Badge variant="outline" className={`text-[10px] mt-1 no-default-hover-elevate no-default-active-elevate ${patientTypeColor(viewPatient.patientType)}`}>
-                    {viewPatient.patientType || "Out Patient"}
-                  </Badge>
+                  {(() => {
+                    const style = patientTypeBadge(viewPatient.patientType);
+                    return (
+                      <Badge variant="outline" className={`text-[10px] mt-1 no-default-hover-elevate no-default-active-elevate ${style.bg} ${style.text} ${style.border}`}>
+                        <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${style.dot}`} />
+                        {viewPatient.patientType || "Out Patient"}
+                      </Badge>
+                    );
+                  })()}
                 </div>
               </div>
               <Separator />
@@ -516,7 +689,7 @@ export default function OpdPage() {
               )}
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" onClick={() => { setViewPatient(null); openEditPatient(viewPatient); }} data-testid="button-view-to-edit">
-                  <Pencil className="h-4 w-4 mr-1" /> Edit
+                  <Pencil className="h-4 w-4 mr-1 text-amber-500" /> Edit
                 </Button>
                 <Button variant="outline" onClick={() => setViewPatient(null)} data-testid="button-close-view">
                   Close
@@ -527,7 +700,6 @@ export default function OpdPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Patient Dialog */}
       <Dialog open={!!editPatient} onOpenChange={(open) => { if (!open) setEditPatient(null); }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -635,7 +807,6 @@ export default function OpdPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deletePatient} onOpenChange={(open) => { if (!open) setDeletePatient(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
