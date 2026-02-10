@@ -678,7 +678,7 @@ export default function StaffPage() {
                   <th className="p-3 text-left font-medium text-muted-foreground min-w-[180px]">Module</th>
                   {PERMISSION_ACTIONS.map(action => (
                     <th key={action} className="p-3 text-center font-medium text-muted-foreground min-w-[80px]">
-                      <button
+                      <div
                         className="flex flex-col items-center gap-1 w-full cursor-pointer"
                         onClick={() => toggleActionAll(action)}
                         data-testid={`button-toggle-all-${action}`}
@@ -689,7 +689,7 @@ export default function StaffPage() {
                           className="pointer-events-none"
                           data-testid={`checkbox-all-${action}`}
                         />
-                      </button>
+                      </div>
                     </th>
                   ))}
                   <th className="p-3 text-center font-medium text-muted-foreground min-w-[70px]">All</th>
