@@ -250,6 +250,9 @@ export default function DoctorManagementPage() {
                       <DropdownMenuItem onClick={() => { setViewingDoctor(doc); setViewDialog(true); }} data-testid={`button-view-${doc.id}`}>
                         <Eye className="h-4 w-4 mr-2" /> View Profile
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openEdit(doc)} data-testid={`button-edit-${doc.id}`}>
+                        <Edit className="h-4 w-4 mr-2" /> Edit
+                      </DropdownMenuItem>
                       <Separator className="my-1" />
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "active")} data-testid={`button-set-available-${doc.id}`}>
                         <UserCheck className="h-4 w-4 mr-2 text-emerald-600" /> Set Available
@@ -371,6 +374,9 @@ export default function DoctorManagementPage() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => { setViewingDoctor(doc); setViewDialog(true); }} data-testid={`button-view-${doc.id}`}>
                         <Eye className="h-4 w-4 mr-2" /> View Profile
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openEdit(doc)} data-testid={`button-edit-${doc.id}`}>
+                        <Edit className="h-4 w-4 mr-2" /> Edit
                       </DropdownMenuItem>
                       <Separator className="my-1" />
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "active")}>
