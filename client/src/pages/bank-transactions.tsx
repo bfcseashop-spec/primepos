@@ -18,14 +18,14 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp } from "lucide-react";
 import type { BankTransaction } from "@shared/schema";
 
-const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; bgColor: string }> = {
-  cash: { label: "Cash Pay", icon: Banknote, color: "text-green-600 dark:text-green-400", bgColor: "bg-green-100 dark:bg-green-950/50" },
-  aba: { label: "ABA", icon: Building2, color: "text-blue-600 dark:text-blue-400", bgColor: "bg-blue-100 dark:bg-blue-950/50" },
-  acleda: { label: "Acleda", icon: Building2, color: "text-yellow-700 dark:text-yellow-400", bgColor: "bg-yellow-100 dark:bg-yellow-950/50" },
-  other_bank: { label: "Other Bank", icon: Building2, color: "text-slate-600 dark:text-slate-400", bgColor: "bg-slate-100 dark:bg-slate-900/50" },
-  card: { label: "Card Pay", icon: CreditCard, color: "text-purple-600 dark:text-purple-400", bgColor: "bg-purple-100 dark:bg-purple-950/50" },
-  wechat: { label: "WeChat Pay", icon: Smartphone, color: "text-emerald-600 dark:text-emerald-400", bgColor: "bg-emerald-100 dark:bg-emerald-950/50" },
-  gpay: { label: "GPay", icon: Smartphone, color: "text-teal-600 dark:text-teal-400", bgColor: "bg-teal-100 dark:bg-teal-950/50" },
+const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; bgColor: string; progressColor: string }> = {
+  cash: { label: "Cash Pay", icon: Banknote, color: "text-emerald-600 dark:text-emerald-400", bgColor: "bg-emerald-500/10", progressColor: "bg-emerald-500" },
+  aba: { label: "ABA", icon: Building2, color: "text-blue-500 dark:text-blue-400", bgColor: "bg-blue-500/10", progressColor: "bg-blue-500" },
+  acleda: { label: "Acleda", icon: Building2, color: "text-amber-600 dark:text-amber-400", bgColor: "bg-amber-500/10", progressColor: "bg-amber-500" },
+  other_bank: { label: "Other Bank", icon: Building2, color: "text-slate-600 dark:text-slate-400", bgColor: "bg-slate-500/10", progressColor: "bg-slate-500" },
+  card: { label: "Card Pay", icon: CreditCard, color: "text-violet-600 dark:text-violet-400", bgColor: "bg-violet-500/10", progressColor: "bg-violet-500" },
+  wechat: { label: "WeChat Pay", icon: Smartphone, color: "text-green-600 dark:text-green-400", bgColor: "bg-green-500/10", progressColor: "bg-green-500" },
+  gpay: { label: "GPay", icon: Smartphone, color: "text-sky-600 dark:text-sky-400", bgColor: "bg-sky-500/10", progressColor: "bg-sky-500" },
 };
 
 export default function BankTransactionsPage() {
@@ -107,7 +107,7 @@ export default function BankTransactionsPage() {
       <span className="text-sm font-medium" data-testid={`text-bill-patient-${row.id}`}>{row.patientName || "-"}</span>
     )},
     { header: "Amount", accessor: (row: any) => (
-      <span className="font-semibold text-sm text-green-600 dark:text-green-400" data-testid={`text-bill-amount-${row.id}`}>${Number(row.paidAmount).toFixed(2)}</span>
+      <span className="font-semibold text-sm text-emerald-600 dark:text-emerald-400" data-testid={`text-bill-amount-${row.id}`}>${Number(row.paidAmount).toFixed(2)}</span>
     )},
     { header: "Method", accessor: (row: any) => {
       const cfg = PAYMENT_METHOD_CONFIG[row.paymentMethod] || { label: row.paymentMethod, icon: Banknote, color: "text-muted-foreground", bgColor: "bg-muted" };
@@ -120,9 +120,9 @@ export default function BankTransactionsPage() {
       );
     }},
     { header: "Status", accessor: (row: any) => {
-      if (row.status === "paid") return <Badge variant="default" className="bg-green-600 text-[10px]" data-testid={`badge-status-${row.id}`}>Paid</Badge>;
-      if (row.status === "partial") return <Badge variant="secondary" className="text-[10px]" data-testid={`badge-status-${row.id}`}>Partial</Badge>;
-      return <Badge variant="outline" className="text-[10px]" data-testid={`badge-status-${row.id}`}>Unpaid</Badge>;
+      if (row.status === "paid") return <Badge variant="default" style={{ backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderColor: "rgba(16, 185, 129, 0.3)" }} className="border text-[10px]" data-testid={`badge-status-${row.id}`}>Paid</Badge>;
+      if (row.status === "partial") return <Badge variant="secondary" style={{ backgroundColor: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", borderColor: "rgba(245, 158, 11, 0.3)" }} className="border text-[10px]" data-testid={`badge-status-${row.id}`}>Partial</Badge>;
+      return <Badge variant="outline" style={{ backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.25)" }} className="border text-[10px]" data-testid={`badge-status-${row.id}`}>Unpaid</Badge>;
     }},
     { header: "Date", accessor: (row: any) => (
       <span className="text-xs text-muted-foreground">{row.paymentDate || "-"}</span>
@@ -133,17 +133,27 @@ export default function BankTransactionsPage() {
     { header: "Type", accessor: (row: BankTransaction) => (
       <div className="flex items-center gap-1.5">
         {row.type === "deposit" ? (
-          <ArrowDownLeft className="h-3.5 w-3.5 text-green-600" />
+          <div className="p-1 rounded-md bg-emerald-500/10">
+            <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          </div>
         ) : (
-          <ArrowUpRight className="h-3.5 w-3.5 text-red-600" />
+          <div className="p-1 rounded-md bg-red-500/10">
+            <ArrowUpRight className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+          </div>
         )}
-        <Badge variant={row.type === "deposit" ? "default" : "secondary"}>
+        <Badge variant={row.type === "deposit" ? "default" : "secondary"}
+          style={row.type === "deposit"
+            ? { backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderColor: "rgba(16, 185, 129, 0.3)" }
+            : { backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.25)" }
+          }
+          className="border"
+        >
           {row.type}
         </Badge>
       </div>
     )},
     { header: "Amount", accessor: (row: BankTransaction) => (
-      <span className={`font-medium ${row.type === "deposit" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+      <span className={`font-semibold ${row.type === "deposit" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
         {row.type === "deposit" ? "+" : "-"}${row.amount}
       </span>
     )},
@@ -226,18 +236,18 @@ export default function BankTransactionsPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="bank-summary-stats">
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950/50">
-                <ArrowDownLeft className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <ArrowDownLeft className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Deposits</p>
-                <p className="text-lg font-bold text-green-600 dark:text-green-400" data-testid="stat-deposits">${totalDeposits.toFixed(2)}</p>
+                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-deposits">${totalDeposits.toFixed(2)}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-red-100 dark:bg-red-950/50">
+              <div className="p-2 rounded-lg bg-red-500/10">
                 <ArrowUpRight className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
@@ -248,8 +258,8 @@ export default function BankTransactionsPage() {
           </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/50">
-                <Landmark className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Landmark className="h-5 w-5 text-blue-500 dark:text-blue-400" />
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Net Balance</p>
@@ -259,24 +269,24 @@ export default function BankTransactionsPage() {
           </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/50">
-                <Receipt className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="p-2 rounded-lg bg-violet-500/10">
+                <Receipt className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Bill Collections</p>
-                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-bill-collections">${totalBillCollections.toFixed(2)}</p>
+                <p className="text-lg font-bold text-violet-600 dark:text-violet-400" data-testid="stat-bill-collections">${totalBillCollections.toFixed(2)}</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         <Tabs defaultValue="collections" className="space-y-4">
-          <TabsList data-testid="tabs-bank-transactions">
-            <TabsTrigger value="collections" data-testid="tab-collections">
-              <Receipt className="h-4 w-4 mr-1.5" /> Bill Collections
+          <TabsList className="bg-muted/60 p-1" data-testid="tabs-bank-transactions">
+            <TabsTrigger value="collections" className="data-[state=active]:bg-violet-500/10 data-[state=active]:text-violet-700 dark:data-[state=active]:text-violet-400" data-testid="tab-collections">
+              <Receipt className="h-4 w-4 mr-1.5 text-violet-500" /> Bill Collections
             </TabsTrigger>
-            <TabsTrigger value="transactions" data-testid="tab-transactions">
-              <Landmark className="h-4 w-4 mr-1.5" /> Bank Transactions
+            <TabsTrigger value="transactions" className="data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400" data-testid="tab-transactions">
+              <Landmark className="h-4 w-4 mr-1.5 text-blue-500" /> Bank Transactions
             </TabsTrigger>
           </TabsList>
 
@@ -302,7 +312,7 @@ export default function BankTransactionsPage() {
                         <p className="text-xs font-medium text-muted-foreground">{cfg.label}</p>
                         <p className={`text-lg font-bold ${cfg.color}`} data-testid={`stat-method-total-${method}`}>${data.total.toFixed(2)}</p>
                         <div className="mt-1.5 w-full bg-muted rounded-full h-1.5">
-                          <div className={`h-1.5 rounded-full ${cfg.bgColor}`} style={{ width: `${pct}%` }} />
+                          <div className={`h-1.5 rounded-full ${cfg.progressColor}`} style={{ width: `${pct}%`, opacity: 0.8 }} />
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-1">{pct}% of total</p>
                       </CardContent>
@@ -310,7 +320,13 @@ export default function BankTransactionsPage() {
                   );
                 })}
               {Object.keys(paymentsByMethod).length === 0 && (
-                <div className="col-span-full text-center py-8 text-muted-foreground text-sm">No bill payments collected yet</div>
+                <div className="col-span-full text-center py-12 text-muted-foreground">
+                  <div className="mx-auto mb-3 p-3 rounded-full bg-violet-500/10 w-fit">
+                    <Receipt className="h-6 w-6 text-violet-500" />
+                  </div>
+                  <p className="text-sm font-medium">No bill payments collected yet</p>
+                  <p className="text-xs mt-1">Bill payment records will appear here</p>
+                </div>
               )}
             </div>
 
@@ -318,7 +334,7 @@ export default function BankTransactionsPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Receipt className="h-4 w-4 text-muted-foreground" />
+                  <Receipt className="h-4 w-4 text-violet-500" />
                   <CardTitle className="text-sm font-semibold">Bill Payment Records</CardTitle>
                   <Badge variant="secondary" className="text-[10px]">{filteredBillPayments.length}</Badge>
                 </div>
@@ -356,7 +372,10 @@ export default function BankTransactionsPage() {
           <TabsContent value="transactions" className="space-y-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-                <CardTitle className="text-sm font-semibold">All Transactions</CardTitle>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Landmark className="h-4 w-4 text-blue-500" />
+                  <CardTitle className="text-sm font-semibold">All Transactions</CardTitle>
+                </div>
                 <div className="relative w-64">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input

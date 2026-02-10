@@ -52,7 +52,21 @@ shared/
 - Schema auto-pushed on startup
 - Seed data auto-populated on first run
 
+## Design System
+- **Color Palette**: Vibrant, colorful UI with consistent color coding across all modules
+  - Blue: primary actions, totals, navigation
+  - Emerald: success, active, paid, money values
+  - Amber: pending, warnings, edit actions
+  - Violet: special categories, print actions
+  - Red: destructive, cancelled, inactive
+  - Cyan/Pink/Sky: accent variations for variety
+- **Stats Cards**: Each metric uses distinct iconColor and iconBg props (e.g., text-blue-500 + bg-blue-500/10)
+- **Status Badges**: Inline colored spans with bg/text/border pattern (e.g., bg-emerald-500/10 text-emerald-700 border-emerald-500/20)
+- **Charts**: Vibrant chart palette (blue, emerald, amber, violet, pink, cyan), gradient area fills
+- **Dark Mode**: All colors include dark variants (e.g., dark:text-blue-400)
+
 ## Recent Changes
+- 2026-02-10: Comprehensive colorful redesign across all 18+ pages - vibrant stat cards, colorful status badges, colored action icons, gradient charts, colorful section headers, distinct payment method colors, and polished empty states
 - 2026-02-10: Redesigned Settings with 4-tab layout (Application Metadata/Currency & Localization/Company Details/Activity Logs), dual currency selection, exchange rate, company receipt details, activity logging for user/role/settings changes
 - 2026-02-10: Renamed Staff & Roles to User & Role Management, vertical layout with inline role creation form, role description field, edit/delete roles
 - 2026-02-10: Redesigned Salary Management with 5-tab layout (Dashboard/Profiles/Loans/Payroll/Ledger), new DB tables (salary_profiles, salary_loans, loan_installments, payroll_runs, payslips), KPI dashboard, employee profile cards, loan/advance CRUD with progress bars, automated payroll run with payslip generation & loan deductions, CSV export, alerts

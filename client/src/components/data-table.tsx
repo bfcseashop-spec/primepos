@@ -12,7 +12,7 @@ interface DataTableProps<T> {
   columns: Column<T>[];
   data: T[];
   isLoading?: boolean;
-  emptyMessage?: string;
+  emptyMessage?: React.ReactNode;
   onRowClick?: (row: T) => void;
 }
 
@@ -28,12 +28,15 @@ export function DataTable<T extends { id: number }>({ columns, data, isLoading, 
   }
 
   if (data.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-        <FileX className="h-12 w-12 mb-3 opacity-30" />
-        <p className="text-sm">{emptyMessage}</p>
-      </div>
-    );
+    if (typeof emptyMessage === "string") {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <FileX className="h-12 w-12 mb-3 opacity-30" />
+          <p className="text-sm">{emptyMessage}</p>
+        </div>
+      );
+    }
+    return <>{emptyMessage}</>;
   }
 
   return (

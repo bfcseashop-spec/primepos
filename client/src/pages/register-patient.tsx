@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Upload, Camera, Link as LinkIcon, UserCircle } from "lucide-react";
+import { ArrowLeft, Upload, Camera, Link as LinkIcon, UserCircle, User, Phone, Heart, AlertTriangle } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function RegisterPatientPage() {
@@ -154,7 +154,7 @@ export default function RegisterPatientPage() {
       <div className="flex-1 overflow-auto px-6 pb-6 space-y-4">
         <Card>
           <CardContent className="pt-6">
-            <h2 className="text-base font-semibold border-b pb-2 mb-4" data-testid="text-section-personal">Personal Information</h2>
+            <h2 className="text-base font-semibold border-b pb-2 mb-4 flex items-center gap-2" data-testid="text-section-personal"><User className="h-4 w-4 text-blue-500" /> Personal Information</h2>
 
             <div className="flex flex-col items-center mb-6">
               <div
@@ -169,7 +169,7 @@ export default function RegisterPatientPage() {
               </div>
 
               <div
-                className="border-2 border-dashed rounded-md p-4 text-center cursor-pointer w-full max-w-xs"
+                className="border-2 border-dashed border-blue-400/40 dark:border-blue-500/30 rounded-md p-4 text-center cursor-pointer w-full max-w-xs hover:border-blue-500/60 dark:hover:border-blue-400/50 transition-colors"
                 onDrop={handleDrop}
                 onDragOver={e => e.preventDefault()}
                 onClick={() => fileInputRef.current?.click()}
@@ -283,7 +283,7 @@ export default function RegisterPatientPage() {
 
         <Card>
           <CardContent className="pt-6">
-            <h2 className="text-base font-semibold border-b pb-2 mb-4" data-testid="text-section-emergency">Emergency Contact</h2>
+            <h2 className="text-base font-semibold border-b pb-2 mb-4 flex items-center gap-2" data-testid="text-section-emergency"><AlertTriangle className="h-4 w-4 text-amber-500" /> Emergency Contact</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="emergencyName">Contact Name</Label>
@@ -299,7 +299,7 @@ export default function RegisterPatientPage() {
 
         <Card>
           <CardContent className="pt-6">
-            <h2 className="text-base font-semibold border-b pb-2 mb-4" data-testid="text-section-medical">Medical Information</h2>
+            <h2 className="text-base font-semibold border-b pb-2 mb-4 flex items-center gap-2" data-testid="text-section-medical"><Heart className="h-4 w-4 text-violet-500" /> Medical Information</h2>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="medicalHistory">Medical History</Label>
@@ -315,7 +315,7 @@ export default function RegisterPatientPage() {
 
         <div className="flex justify-end gap-3 pb-4">
           <Button variant="outline" onClick={() => navigate("/opd")} data-testid="button-cancel">Cancel</Button>
-          <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-register-patient">
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-register-patient">
             <UserCircle className="h-4 w-4 mr-1" />
             {createMutation.isPending ? "Registering..." : "Register Patient"}
           </Button>

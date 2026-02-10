@@ -104,12 +104,18 @@ export default function InvestmentsPage() {
 
   const columns = [
     { header: "Title", accessor: "title" as keyof Investment },
-    { header: "Category", accessor: (row: Investment) => <Badge variant="outline">{row.category}</Badge> },
-    { header: "Amount", accessor: (row: Investment) => <span className="font-medium">${row.amount}</span> },
-    { header: "Returns", accessor: (row: Investment) => <span className="text-green-600 dark:text-green-400">${row.returnAmount || "0"}</span> },
+    { header: "Category", accessor: (row: Investment) => <Badge variant="outline" className="text-violet-600 dark:text-violet-400">{row.category}</Badge> },
+    { header: "Amount", accessor: (row: Investment) => <span className="font-medium text-emerald-600 dark:text-emerald-400">${row.amount}</span> },
+    { header: "Returns", accessor: (row: Investment) => <span className="font-medium text-emerald-600 dark:text-emerald-400">${row.returnAmount || "0"}</span> },
     { header: "Investor", accessor: (row: Investment) => row.investorName || "-" },
     { header: "Status", accessor: (row: Investment) => (
-      <Badge variant={row.status === "active" ? "default" : row.status === "completed" ? "secondary" : "destructive"}>
+      <Badge variant="outline" className={
+        row.status === "active"
+          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+          : row.status === "completed"
+          ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
+          : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20"
+      }>
         {row.status}
       </Badge>
     )},
@@ -232,9 +238,9 @@ export default function InvestmentsPage() {
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <StatsCard title="Total Invested" value={`$${totalInvested.toFixed(2)}`} icon={DollarSign} />
-          <StatsCard title="Total Returns" value={`$${totalReturns.toFixed(2)}`} icon={TrendingUp} />
-          <StatsCard title="Active Investments" value={activeCount} icon={Briefcase} />
+          <StatsCard title="Total Invested" value={`$${totalInvested.toFixed(2)}`} icon={DollarSign} iconColor="text-blue-500 dark:text-blue-400" iconBg="bg-blue-500/10 dark:bg-blue-400/10" />
+          <StatsCard title="Total Returns" value={`$${totalReturns.toFixed(2)}`} icon={TrendingUp} iconColor="text-emerald-500 dark:text-emerald-400" iconBg="bg-emerald-500/10 dark:bg-emerald-400/10" />
+          <StatsCard title="Active Investments" value={activeCount} icon={Briefcase} iconColor="text-amber-500 dark:text-amber-400" iconBg="bg-amber-500/10 dark:bg-amber-400/10" />
         </div>
 
         <Card>

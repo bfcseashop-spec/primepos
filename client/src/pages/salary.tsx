@@ -87,12 +87,12 @@ function DashboardTab({ profiles, loans, payrollRuns, salaries }: {
   }
 
   const kpiCards = [
-    { label: "Active Employees", value: activeEmployees, icon: Users, color: "bg-blue-500", textColor: "text-blue-600 dark:text-blue-400" },
-    { label: "Monthly Gross Payable", value: formatCurrency(totalGross), icon: CircleDollarSign, color: "bg-emerald-500", textColor: "text-emerald-600 dark:text-emerald-400" },
-    { label: "Outstanding Loans", value: formatCurrency(outstandingLoanTotal), icon: HandCoins, color: "bg-amber-500", textColor: "text-amber-600 dark:text-amber-400" },
-    { label: "Monthly Loan Deductions", value: formatCurrency(monthlyLoanDeductions), icon: ArrowUpDown, color: "bg-purple-500", textColor: "text-purple-600 dark:text-purple-400" },
-    { label: "Total Paid (All Time)", value: formatCurrency(totalPaidSalaries), icon: CheckCircle2, color: "bg-green-500", textColor: "text-green-600 dark:text-green-400" },
-    { label: "Pending Payments", value: formatCurrency(totalPendingSalaries), icon: Clock, color: "bg-orange-500", textColor: "text-orange-600 dark:text-orange-400" },
+    { label: "Active Employees", value: activeEmployees, icon: Users, iconBg: "bg-blue-500/10", iconColor: "text-blue-500 dark:text-blue-400", textColor: "text-blue-500 dark:text-blue-400" },
+    { label: "Monthly Gross Payable", value: formatCurrency(totalGross), icon: CircleDollarSign, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-500 dark:text-emerald-400", textColor: "text-emerald-500 dark:text-emerald-400" },
+    { label: "Outstanding Loans", value: formatCurrency(outstandingLoanTotal), icon: HandCoins, iconBg: "bg-amber-500/10", iconColor: "text-amber-500 dark:text-amber-400", textColor: "text-amber-500 dark:text-amber-400" },
+    { label: "Monthly Loan Deductions", value: formatCurrency(monthlyLoanDeductions), icon: ArrowUpDown, iconBg: "bg-red-500/10", iconColor: "text-red-500 dark:text-red-400", textColor: "text-red-500 dark:text-red-400" },
+    { label: "Total Paid (All Time)", value: formatCurrency(totalPaidSalaries), icon: CheckCircle2, iconBg: "bg-violet-500/10", iconColor: "text-violet-500 dark:text-violet-400", textColor: "text-violet-500 dark:text-violet-400" },
+    { label: "Pending Payments", value: formatCurrency(totalPendingSalaries), icon: Clock, iconBg: "bg-cyan-500/10", iconColor: "text-cyan-500 dark:text-cyan-400", textColor: "text-cyan-500 dark:text-cyan-400" },
   ];
 
   return (
@@ -119,8 +119,8 @@ function DashboardTab({ profiles, loans, payrollRuns, salaries }: {
           <Card key={kpi.label} data-testid={`kpi-card-${kpi.label.replace(/\s+/g, '-').toLowerCase()}`}>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
-                <div className={`p-1.5 rounded-md ${kpi.color}`}>
-                  <kpi.icon className="h-4 w-4 text-white" />
+                <div className={`p-1.5 rounded-md ${kpi.iconBg}`}>
+                  <kpi.icon className={`h-4 w-4 ${kpi.iconColor}`} />
                 </div>
               </div>
               <p className={`text-lg font-bold ${kpi.textColor}`}>{kpi.value}</p>
@@ -325,8 +325,8 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
                   {p.profileImage ? (
                     <img src={p.profileImage} alt={p.staffName} className="w-10 h-10 rounded-full object-cover border" />
                   ) : (
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900">
-                      <UserCircle className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/20 to-violet-500/20 dark:from-blue-500/30 dark:to-violet-500/30">
+                      <UserCircle className="h-5 w-5 text-blue-500 dark:text-blue-400" />
                     </div>
                   )}
                   <div>
@@ -334,7 +334,7 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
                     <p className="text-xs text-muted-foreground">{p.role || "Staff"} {p.staffId ? `(${p.staffId})` : ""}</p>
                   </div>
                 </div>
-                <Badge variant={p.status === "active" ? "default" : "secondary"} className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${p.status === "active" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : ""}`}>
+                <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${p.status === "active" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" : "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20"}`}>
                   {p.status}
                 </Badge>
               </div>
@@ -369,10 +369,10 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
                 </div>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(p)} data-testid={`button-edit-profile-${p.id}`}>
-                    <Edit className="h-4 w-4" />
+                    <Edit className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                   </Button>
                   <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(p.id)} data-testid={`button-delete-profile-${p.id}`}>
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
                   </Button>
                 </div>
               </div>
@@ -794,36 +794,36 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-md bg-blue-500"><HandCoins className="h-4 w-4 text-white" /></div>
+              <div className="p-1.5 rounded-md bg-blue-500/10"><HandCoins className="h-4 w-4 text-blue-500 dark:text-blue-400" /></div>
             </div>
-            <p className="text-lg font-bold">{loans.length}</p>
+            <p className="text-lg font-bold text-blue-500 dark:text-blue-400">{loans.length}</p>
             <p className="text-xs text-muted-foreground">Total Loans/Advances</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-md bg-green-500"><CheckCircle2 className="h-4 w-4 text-white" /></div>
+              <div className="p-1.5 rounded-md bg-emerald-500/10"><CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400" /></div>
             </div>
-            <p className="text-lg font-bold">{loans.filter(l => l.status === "active").length}</p>
+            <p className="text-lg font-bold text-emerald-500 dark:text-emerald-400">{loans.filter(l => l.status === "active").length}</p>
             <p className="text-xs text-muted-foreground">Active</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-md bg-amber-500"><CircleDollarSign className="h-4 w-4 text-white" /></div>
+              <div className="p-1.5 rounded-md bg-amber-500/10"><CircleDollarSign className="h-4 w-4 text-amber-500 dark:text-amber-400" /></div>
             </div>
-            <p className="text-lg font-bold">{formatCurrency(loans.reduce((s, l) => s + Number(l.principal || 0), 0))}</p>
+            <p className="text-lg font-bold text-amber-500 dark:text-amber-400">{formatCurrency(loans.reduce((s, l) => s + Number(l.principal || 0), 0))}</p>
             <p className="text-xs text-muted-foreground">Total Disbursed</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-md bg-red-500"><AlertTriangle className="h-4 w-4 text-white" /></div>
+              <div className="p-1.5 rounded-md bg-red-500/10"><AlertTriangle className="h-4 w-4 text-red-500 dark:text-red-400" /></div>
             </div>
-            <p className="text-lg font-bold">{formatCurrency(loans.filter(l => l.status === "active").reduce((s, l) => s + Number(l.outstanding || 0), 0))}</p>
+            <p className="text-lg font-bold text-red-500 dark:text-red-400">{formatCurrency(loans.filter(l => l.status === "active").reduce((s, l) => s + Number(l.outstanding || 0), 0))}</p>
             <p className="text-xs text-muted-foreground">Outstanding Balance</p>
           </CardContent>
         </Card>
@@ -868,23 +868,23 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
                       <td className="p-3 text-right font-medium text-red-600 dark:text-red-400">{formatCurrency(loan.outstanding)}</td>
                       <td className="p-3">{loan.startDate}</td>
                       <td className="p-3">
-                        <Badge className={`no-default-hover-elevate no-default-active-elevate text-[10px] ${loan.status === "active" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"}`}>
+                        <Badge variant="outline" className={`no-default-hover-elevate no-default-active-elevate text-[10px] ${loan.status === "active" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" : "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20"}`}>
                           {loan.status}
                         </Badge>
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button size="icon" variant="ghost" onClick={() => openEditLoan(loan)} data-testid={`button-edit-loan-${loan.id}`}>
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                           </Button>
                           <Button size="icon" variant="ghost" onClick={() => viewDetails(loan)} data-testid={`button-view-loan-${loan.id}`}>
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" />
                           </Button>
                           <Button size="icon" variant="ghost" onClick={() => printLoan(loan)} data-testid={`button-print-loan-${loan.id}`}>
-                            <Printer className="h-4 w-4" />
+                            <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" />
                           </Button>
                           <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(loan.id)} data-testid={`button-delete-loan-${loan.id}`}>
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
                           </Button>
                         </div>
                       </td>
@@ -1025,9 +1025,9 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
                   <p className="text-muted-foreground">{selectedLoan.notes}</p>
                 </div>
               )}
-              <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-green-500 transition-all"
+                  className={`h-full rounded-full transition-all ${Math.round((Number(selectedLoan.totalPaid || 0) / (Number(selectedLoan.principal || 1) + Number(selectedLoan.principal || 0) * Number(selectedLoan.interestRate || 0) / 100)) * 100) >= 100 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" : "bg-gradient-to-r from-amber-500 to-amber-400"}`}
                   style={{ width: `${Math.min(100, (Number(selectedLoan.totalPaid || 0) / (Number(selectedLoan.principal || 1) + Number(selectedLoan.principal || 0) * Number(selectedLoan.interestRate || 0) / 100)) * 100)}%` }}
                 />
               </div>
@@ -1185,36 +1185,36 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-md bg-blue-500"><FileText className="h-4 w-4 text-white" /></div>
+              <div className="p-1.5 rounded-md bg-blue-500/10"><FileText className="h-4 w-4 text-blue-500 dark:text-blue-400" /></div>
             </div>
-            <p className="text-lg font-bold">{payrollRuns.length}</p>
+            <p className="text-lg font-bold text-blue-500 dark:text-blue-400">{payrollRuns.length}</p>
             <p className="text-xs text-muted-foreground">Total Runs</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-md bg-amber-500"><Clock className="h-4 w-4 text-white" /></div>
+              <div className="p-1.5 rounded-md bg-amber-500/10"><Clock className="h-4 w-4 text-amber-500 dark:text-amber-400" /></div>
             </div>
-            <p className="text-lg font-bold">{payrollRuns.filter(r => r.status === "draft").length}</p>
+            <p className="text-lg font-bold text-amber-500 dark:text-amber-400">{payrollRuns.filter(r => r.status === "draft").length}</p>
             <p className="text-xs text-muted-foreground">Draft</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-md bg-green-500"><CheckCircle2 className="h-4 w-4 text-white" /></div>
+              <div className="p-1.5 rounded-md bg-emerald-500/10"><CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400" /></div>
             </div>
-            <p className="text-lg font-bold">{payrollRuns.filter(r => r.status === "finalized").length}</p>
+            <p className="text-lg font-bold text-emerald-500 dark:text-emerald-400">{payrollRuns.filter(r => r.status === "finalized").length}</p>
             <p className="text-xs text-muted-foreground">Finalized</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-md bg-emerald-500"><DollarSign className="h-4 w-4 text-white" /></div>
+              <div className="p-1.5 rounded-md bg-violet-500/10"><DollarSign className="h-4 w-4 text-violet-500 dark:text-violet-400" /></div>
             </div>
-            <p className="text-lg font-bold">{formatCurrency(payrollRuns.reduce((s, r) => s + Number(r.totalNet || 0), 0))}</p>
+            <p className="text-lg font-bold text-violet-500 dark:text-violet-400">{formatCurrency(payrollRuns.reduce((s, r) => s + Number(r.totalNet || 0), 0))}</p>
             <p className="text-xs text-muted-foreground">Total Net Paid</p>
           </CardContent>
         </Card>
@@ -1249,11 +1249,11 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
                       <td className="p-3 text-center">{run.employeeCount || 0}</td>
                       <td className="p-3 text-right">{formatCurrency(run.totalGross)}</td>
                       <td className="p-3 text-right text-red-600 dark:text-red-400">{formatCurrency(run.totalDeductions)}</td>
-                      <td className="p-3 text-right font-semibold text-green-600 dark:text-green-400">{formatCurrency(run.totalNet)}</td>
+                      <td className="p-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(run.totalNet)}</td>
                       <td className="p-3">
-                        <Badge className={`no-default-hover-elevate no-default-active-elevate text-[10px] ${
-                          run.status === "finalized" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
-                          "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                        <Badge variant="outline" className={`no-default-hover-elevate no-default-active-elevate text-[10px] ${
+                          run.status === "finalized" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" :
+                          "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20"
                         }`}>
                           {run.status}
                         </Badge>
@@ -1261,21 +1261,21 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button size="icon" variant="ghost" onClick={() => openEditRun(run)} data-testid={`button-edit-payroll-${run.id}`}>
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                           </Button>
                           <Button size="icon" variant="ghost" onClick={() => viewPayslips(run)} data-testid={`button-view-payroll-${run.id}`}>
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" />
                           </Button>
                           <Button size="icon" variant="ghost" onClick={() => printPayroll(run)} data-testid={`button-print-payroll-${run.id}`}>
-                            <Printer className="h-4 w-4" />
+                            <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" />
                           </Button>
                           {run.status === "draft" && (
                             <Button size="icon" variant="ghost" onClick={() => finalizeRunMutation.mutate(run.id)} data-testid={`button-finalize-payroll-${run.id}`}>
-                              <CheckCircle2 className="h-4 w-4" />
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
                             </Button>
                           )}
                           <Button size="icon" variant="ghost" onClick={() => deleteRunMutation.mutate(run.id)} data-testid={`button-delete-payroll-${run.id}`}>
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
                           </Button>
                         </div>
                       </td>
@@ -1347,7 +1347,7 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
           </DialogHeader>
           <div className="flex items-center justify-end gap-2 mb-2">
             <Button variant="outline" size="sm" onClick={() => selectedRun && exportPayrollCSV(selectedRun)} data-testid="button-export-payroll-csv">
-              <Download className="h-4 w-4 mr-1" /> Export CSV
+              <Download className="h-4 w-4 mr-1 text-emerald-500 dark:text-emerald-400" /> Export CSV
             </Button>
           </div>
           {payslipsList.length === 0 ? (
@@ -1378,11 +1378,11 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
                       <td className="p-3 text-right">{formatCurrency(slip.grossPay)}</td>
                       <td className="p-3 text-right text-red-600 dark:text-red-400">-{formatCurrency(slip.loanDeductions)}</td>
                       <td className="p-3 text-right text-red-600 dark:text-red-400">-{formatCurrency(slip.otherDeductions)}</td>
-                      <td className="p-3 text-right font-bold">{formatCurrency(slip.netPay)}</td>
+                      <td className="p-3 text-right font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(slip.netPay)}</td>
                       <td className="p-3">
-                        <Badge className={`no-default-hover-elevate no-default-active-elevate text-[10px] ${
-                          slip.status === "paid" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
-                          "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                        <Badge variant="outline" className={`no-default-hover-elevate no-default-active-elevate text-[10px] ${
+                          slip.status === "paid" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" :
+                          "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20"
                         }`}>
                           {slip.status}
                         </Badge>
@@ -1578,33 +1578,45 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={exportCSV} data-testid="button-export-ledger">
-          <Download className="h-4 w-4 mr-2" /> Export CSV
+          <Download className="h-4 w-4 mr-2 text-emerald-500 dark:text-emerald-400" /> Export CSV
         </Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 rounded-md bg-blue-500/10"><Receipt className="h-4 w-4 text-blue-500 dark:text-blue-400" /></div>
+            </div>
+            <p className="text-lg font-bold text-blue-500 dark:text-blue-400">{filtered.length}</p>
             <p className="text-xs text-muted-foreground">Total Records</p>
-            <p className="text-lg font-bold">{filtered.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 rounded-md bg-emerald-500/10"><CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400" /></div>
+            </div>
+            <p className="text-lg font-bold text-emerald-500 dark:text-emerald-400">{filtered.filter(s => s.status === "paid").length}</p>
             <p className="text-xs text-muted-foreground">Paid Records</p>
-            <p className="text-lg font-bold text-green-600 dark:text-green-400">{filtered.filter(s => s.status === "paid").length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 rounded-md bg-violet-500/10"><DollarSign className="h-4 w-4 text-violet-500 dark:text-violet-400" /></div>
+            </div>
+            <p className="text-lg font-bold text-violet-500 dark:text-violet-400">{formatCurrency(totalPaid)}</p>
             <p className="text-xs text-muted-foreground">Total Paid</p>
-            <p className="text-lg font-bold text-green-600 dark:text-green-400">{formatCurrency(totalPaid)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 rounded-md bg-amber-500/10"><Clock className="h-4 w-4 text-amber-500 dark:text-amber-400" /></div>
+            </div>
+            <p className="text-lg font-bold text-amber-500 dark:text-amber-400">{formatCurrency(totalPending)}</p>
             <p className="text-xs text-muted-foreground">Total Pending</p>
-            <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{formatCurrency(totalPending)}</p>
           </CardContent>
         </Card>
       </div>
@@ -1639,13 +1651,13 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
                       <td className="p-3 text-right">{formatCurrency(sal.baseSalary)}</td>
                       <td className="p-3 text-right text-green-600 dark:text-green-400">+{formatCurrency(sal.allowances)}</td>
                       <td className="p-3 text-right text-red-600 dark:text-red-400">-{formatCurrency(sal.deductions)}</td>
-                      <td className="p-3 text-right font-semibold">{formatCurrency(sal.netSalary)}</td>
+                      <td className="p-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(sal.netSalary)}</td>
                       <td className="p-3">{sal.month} {sal.year}</td>
                       <td className="p-3">
-                        <Badge className={`no-default-hover-elevate no-default-active-elevate text-[10px] ${
-                          sal.status === "paid" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
-                          sal.status === "pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" :
-                          "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                        <Badge variant="outline" className={`no-default-hover-elevate no-default-active-elevate text-[10px] ${
+                          sal.status === "paid" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" :
+                          sal.status === "pending" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" :
+                          "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
                         }`}>
                           {sal.status}
                         </Badge>
@@ -1653,21 +1665,21 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button size="icon" variant="ghost" onClick={() => openEditSalary(sal)} data-testid={`button-edit-ledger-${sal.id}`}>
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                           </Button>
                           <Button size="icon" variant="ghost" onClick={() => { setViewingSalary(sal); setViewDialog(true); }} data-testid={`button-view-ledger-${sal.id}`}>
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" />
                           </Button>
                           <Button size="icon" variant="ghost" onClick={() => printSalary(sal)} data-testid={`button-print-ledger-${sal.id}`}>
-                            <Printer className="h-4 w-4" />
+                            <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" />
                           </Button>
                           {sal.status === "pending" && (
                             <Button size="icon" variant="ghost" onClick={() => updateMutation.mutate({ id: sal.id, data: { status: "paid", paymentDate: new Date().toISOString().split("T")[0] } })} data-testid={`button-mark-paid-${sal.id}`}>
-                              <CheckCircle2 className="h-4 w-4" />
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
                             </Button>
                           )}
                           <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(sal.id)} data-testid={`button-delete-ledger-${sal.id}`}>
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
                           </Button>
                         </div>
                       </td>
@@ -1771,7 +1783,7 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
                 <div><span className="text-muted-foreground">Allowances:</span><p className="font-medium text-green-600 dark:text-green-400">+{formatCurrency(Number(viewingSalary.allowances || 0))}</p></div>
                 <div><span className="text-muted-foreground">Deductions:</span><p className="font-medium text-red-600 dark:text-red-400">-{formatCurrency(Number(viewingSalary.deductions || 0))}</p></div>
                 <div><span className="text-muted-foreground">Net Salary:</span><p className="font-medium text-blue-600 dark:text-blue-400">{formatCurrency(Number(viewingSalary.netSalary || 0))}</p></div>
-                <div><span className="text-muted-foreground">Status:</span><p><Badge className={viewingSalary.status === "paid" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"}>{viewingSalary.status}</Badge></p></div>
+                <div><span className="text-muted-foreground">Status:</span><p><Badge variant="outline" className={viewingSalary.status === "paid" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20"}>{viewingSalary.status}</Badge></p></div>
                 <div><span className="text-muted-foreground">Payment Date:</span><p className="font-medium">{viewingSalary.paymentDate || "-"}</p></div>
               </div>
             </div>
@@ -1924,19 +1936,19 @@ export default function SalaryPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full justify-start flex-wrap" data-testid="tabs-salary">
-          <TabsTrigger value="dashboard" className="gap-1.5" data-testid="tab-dashboard">
+          <TabsTrigger value="dashboard" className="gap-1.5 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400" data-testid="tab-dashboard">
             <TrendingUp className="h-4 w-4" /> Dashboard
           </TabsTrigger>
-          <TabsTrigger value="profiles" className="gap-1.5" data-testid="tab-profiles">
+          <TabsTrigger value="profiles" className="gap-1.5 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400" data-testid="tab-profiles">
             <Users className="h-4 w-4" /> Employee Profiles
           </TabsTrigger>
-          <TabsTrigger value="loans" className="gap-1.5" data-testid="tab-loans">
+          <TabsTrigger value="loans" className="gap-1.5 data-[state=active]:text-amber-600 dark:data-[state=active]:text-amber-400" data-testid="tab-loans">
             <HandCoins className="h-4 w-4" /> Loans & Advances
           </TabsTrigger>
-          <TabsTrigger value="payroll" className="gap-1.5" data-testid="tab-payroll">
+          <TabsTrigger value="payroll" className="gap-1.5 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-400" data-testid="tab-payroll">
             <Banknote className="h-4 w-4" /> Payroll
           </TabsTrigger>
-          <TabsTrigger value="ledger" className="gap-1.5" data-testid="tab-ledger">
+          <TabsTrigger value="ledger" className="gap-1.5 data-[state=active]:text-cyan-600 dark:data-[state=active]:text-cyan-400" data-testid="tab-ledger">
             <Receipt className="h-4 w-4" /> Salary Ledger
           </TabsTrigger>
         </TabsList>

@@ -13,8 +13,39 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Eye, Edit, Trash2, ShieldCheck, Check, X } from "lucide-react";
+import { Plus, Eye, Edit, Trash2, ShieldCheck, Check, X, Users, Shield } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { Role } from "@shared/schema";
+
+function getRoleBadgeClasses(roleName: string): string {
+  const lower = (roleName || "").toLowerCase();
+  if (lower === "admin") return "bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20";
+  if (lower === "doctor") return "bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20";
+  if (lower === "receptionist") return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20";
+  if (lower === "finance") return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20";
+  return "bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/20";
+}
+
+const MODULE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  dashboard: { bg: "bg-blue-500/10", text: "text-blue-700 dark:text-blue-300", border: "border-blue-500/20" },
+  make_payment: { bg: "bg-emerald-500/10", text: "text-emerald-700 dark:text-emerald-300", border: "border-emerald-500/20" },
+  opd: { bg: "bg-teal-500/10", text: "text-teal-700 dark:text-teal-300", border: "border-teal-500/20" },
+  appointments: { bg: "bg-violet-500/10", text: "text-violet-700 dark:text-violet-300", border: "border-violet-500/20" },
+  services: { bg: "bg-pink-500/10", text: "text-pink-700 dark:text-pink-300", border: "border-pink-500/20" },
+  lab_tests: { bg: "bg-cyan-500/10", text: "text-cyan-700 dark:text-cyan-300", border: "border-cyan-500/20" },
+  medicines: { bg: "bg-green-500/10", text: "text-green-700 dark:text-green-300", border: "border-green-500/20" },
+  doctors: { bg: "bg-indigo-500/10", text: "text-indigo-700 dark:text-indigo-300", border: "border-indigo-500/20" },
+  patients: { bg: "bg-rose-500/10", text: "text-rose-700 dark:text-rose-300", border: "border-rose-500/20" },
+  expenses: { bg: "bg-red-500/10", text: "text-red-700 dark:text-red-300", border: "border-red-500/20" },
+  bank_transactions: { bg: "bg-amber-500/10", text: "text-amber-700 dark:text-amber-300", border: "border-amber-500/20" },
+  investments: { bg: "bg-yellow-500/10", text: "text-yellow-700 dark:text-yellow-300", border: "border-yellow-500/20" },
+  salary: { bg: "bg-lime-500/10", text: "text-lime-700 dark:text-lime-300", border: "border-lime-500/20" },
+  user_role: { bg: "bg-purple-500/10", text: "text-purple-700 dark:text-purple-300", border: "border-purple-500/20" },
+  authentication: { bg: "bg-orange-500/10", text: "text-orange-700 dark:text-orange-300", border: "border-orange-500/20" },
+  integrations: { bg: "bg-sky-500/10", text: "text-sky-700 dark:text-sky-300", border: "border-sky-500/20" },
+  reports: { bg: "bg-fuchsia-500/10", text: "text-fuchsia-700 dark:text-fuchsia-300", border: "border-fuchsia-500/20" },
+  settings: { bg: "bg-slate-500/10", text: "text-slate-700 dark:text-slate-300", border: "border-slate-500/20" },
+};
 
 const PERMISSION_MODULES = [
   { key: "dashboard", label: "Dashboard" },
@@ -306,7 +337,12 @@ export default function StaffPage() {
       <div className="p-6 space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold" data-testid="text-page-title">User Management</h1>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-md bg-blue-500/10">
+                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <h1 className="text-2xl font-bold" data-testid="text-page-title">User Management</h1>
+            </div>
             <p className="text-sm text-muted-foreground">Manage users and assign roles</p>
           </div>
           <Button onClick={() => setStaffDialogOpen(true)} data-testid="button-create-user">
@@ -331,10 +367,19 @@ export default function StaffPage() {
                 <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">No users found</td></tr>
               ) : staff.map((user: any) => (
                 <tr key={user.id} className="border-b last:border-b-0" data-testid={`row-user-${user.id}`}>
-                  <td className="p-3">{user.email || "-"}</td>
+                  <td className="p-3">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+                          {(user.fullName || "U").split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>{user.email || "-"}</span>
+                    </div>
+                  </td>
                   <td className="p-3 font-medium">{user.fullName}</td>
                   <td className="p-3">
-                    <Badge variant="outline">{user.roleName || "No Role"}</Badge>
+                    <Badge className={getRoleBadgeClasses(user.roleName || "")}>{user.roleName || "No Role"}</Badge>
                   </td>
                   <td className="p-3 text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -344,7 +389,7 @@ export default function StaffPage() {
                         onClick={() => { setSelectedUser(user); setViewDialogOpen(true); }}
                         data-testid={`button-view-user-${user.id}`}
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       </Button>
                       <Button
                         size="icon"
@@ -352,7 +397,7 @@ export default function StaffPage() {
                         onClick={() => { setSelectedUser(user); setEditDialogOpen(true); }}
                         data-testid={`button-edit-user-${user.id}`}
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       </Button>
                       <Button
                         size="icon"
@@ -360,7 +405,7 @@ export default function StaffPage() {
                         onClick={() => { if (confirm("Are you sure you want to delete this user?")) deleteUserMutation.mutate(user.id); }}
                         data-testid={`button-delete-user-${user.id}`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                       </Button>
                     </div>
                   </td>
@@ -375,7 +420,12 @@ export default function StaffPage() {
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h2 className="text-xl font-bold" data-testid="text-roles-title">Roles Management</h2>
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-md bg-violet-500/10">
+                  <Shield className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <h2 className="text-xl font-bold" data-testid="text-roles-title">Roles Management</h2>
+              </div>
               <p className="text-sm text-muted-foreground">Create and manage user roles</p>
             </div>
           </div>
@@ -452,7 +502,7 @@ export default function StaffPage() {
                         onClick={() => openPermissionDialog(role)}
                         data-testid={`button-permission-role-${role.id}`}
                       >
-                        <ShieldCheck className="h-4 w-4 mr-1" />
+                        <ShieldCheck className="h-4 w-4 mr-1 text-violet-600 dark:text-violet-400" />
                         {permCount > 0 ? (
                           <span>{permCount}/{totalPerms}</span>
                         ) : (
@@ -468,7 +518,7 @@ export default function StaffPage() {
                           onClick={() => { setSelectedRole(role); setEditRoleDialogOpen(true); }}
                           data-testid={`button-edit-role-${role.id}`}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                         </Button>
                         <Button
                           size="icon"
@@ -476,7 +526,7 @@ export default function StaffPage() {
                           onClick={() => { if (confirm("Are you sure you want to delete this role?")) deleteRoleMutation.mutate(role.id); }}
                           data-testid={`button-delete-role-${role.id}`}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                         </Button>
                       </div>
                     </td>
@@ -550,7 +600,7 @@ export default function StaffPage() {
                 <div><span className="text-muted-foreground">Email</span><p className="font-medium">{selectedUser.email || "-"}</p></div>
                 <div><span className="text-muted-foreground">Phone</span><p className="font-medium">{selectedUser.phone || "-"}</p></div>
                 <div><span className="text-muted-foreground">Role</span><p className="font-medium">{selectedUser.roleName || "No Role"}</p></div>
-                <div><span className="text-muted-foreground">Status</span><p><Badge className={selectedUser.isActive ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"}>{selectedUser.isActive ? "Active" : "Deactive"}</Badge></p></div>
+                <div><span className="text-muted-foreground">Status</span><p><Badge className={selectedUser.isActive ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20" : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"}>{selectedUser.isActive ? "Active" : "Deactive"}</Badge></p></div>
               </div>
             </div>
           )}
@@ -646,7 +696,7 @@ export default function StaffPage() {
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5" />
+              <ShieldCheck className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               Role Permission
             </DialogTitle>
             <DialogDescription>
@@ -705,18 +755,26 @@ export default function StaffPage() {
                       className={`border-b last:border-b-0 ${i % 2 === 0 ? "" : "bg-muted/20"}`}
                       data-testid={`row-permission-${mod.key}`}
                     >
-                      <td className="p-3 font-medium">{mod.label}</td>
-                      {PERMISSION_ACTIONS.map(action => (
+                      <td className="p-3 font-medium">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium ${MODULE_COLORS[mod.key]?.bg || ""} ${MODULE_COLORS[mod.key]?.text || ""}`}>
+                          {mod.label}
+                        </span>
+                      </td>
+                      {PERMISSION_ACTIONS.map(action => {
+                        const colors = MODULE_COLORS[mod.key];
+                        return (
                         <td key={action} className="p-3 text-center">
                           <div className="flex justify-center">
                             <Checkbox
                               checked={!!permissionMap[mod.key]?.[action]}
                               onCheckedChange={() => togglePermission(mod.key, action)}
+                              className={permissionMap[mod.key]?.[action] && colors ? `${colors.border} data-[state=checked]:bg-current` : ""}
                               data-testid={`checkbox-${mod.key}-${action}`}
                             />
                           </div>
                         </td>
-                      ))}
+                        );
+                      })}
                       <td className="p-3 text-center">
                         <div className="flex justify-center">
                           <Checkbox

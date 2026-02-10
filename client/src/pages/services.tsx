@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, ImagePlus, X, FolderPlus } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, ImagePlus, X, FolderPlus, Activity, CheckCircle2, XCircle } from "lucide-react";
 import type { Service } from "@shared/schema";
 
 const DEFAULT_SERVICE_CATEGORIES = [
@@ -141,15 +141,17 @@ export default function ServicesPage() {
         <span className="font-medium">{row.name}</span>
       </div>
     )},
-    { header: "Category", accessor: (row: Service) => <Badge variant="outline">{row.category}</Badge> },
+    { header: "Category", accessor: (row: Service) => <Badge variant="outline" className="text-violet-600 dark:text-violet-400">{row.category}</Badge> },
     { header: "Description", accessor: (row: Service) => (
       <span className="text-xs text-muted-foreground max-w-[200px] truncate block">{row.description || "-"}</span>
     )},
-    { header: "Price", accessor: (row: Service) => <span className="font-medium">${row.price}</span> },
+    { header: "Price", accessor: (row: Service) => <span className="font-semibold text-emerald-600 dark:text-emerald-400">${row.price}</span> },
     { header: "Status", accessor: (row: Service) => (
-      <Badge variant={row.isActive ? "default" : "secondary"}>
-        {row.isActive ? "active" : "inactive"}
-      </Badge>
+      row.isActive ? (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">active</span>
+      ) : (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">inactive</span>
+      )
     )},
     { header: "Actions", accessor: (row: Service) => (
       <DropdownMenu>
@@ -170,7 +172,7 @@ export default function ServicesPage() {
             className="text-red-600 gap-2"
             data-testid={`action-delete-${row.id}`}
           >
-            <Trash2 className="h-4 w-4" /> Delete
+            <Trash2 className="h-4 w-4 text-red-500" /> Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -391,25 +393,27 @@ export default function ServicesPage() {
               )}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground">Service Name</p>
+                  <p className="text-xs text-blue-500 font-medium">Service Name</p>
                   <p className="font-semibold">{viewService.name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Category</p>
-                  <Badge variant="outline">{viewService.category}</Badge>
+                  <p className="text-xs text-violet-500 font-medium">Category</p>
+                  <Badge variant="outline" className="text-violet-600 dark:text-violet-400">{viewService.category}</Badge>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Price</p>
-                  <p className="font-bold text-green-600 dark:text-green-400">${viewService.price}</p>
+                  <p className="text-xs text-emerald-500 font-medium">Price</p>
+                  <p className="font-bold text-emerald-600 dark:text-emerald-400">${viewService.price}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Status</p>
-                  <Badge variant={viewService.isActive ? "default" : "secondary"}>
-                    {viewService.isActive ? "Active" : "Inactive"}
-                  </Badge>
+                  <p className="text-xs text-amber-500 font-medium">Status</p>
+                  {viewService.isActive ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">Active</span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">Inactive</span>
+                  )}
                 </div>
                 <div className="col-span-2">
-                  <p className="text-xs text-muted-foreground">Description</p>
+                  <p className="text-xs text-muted-foreground font-medium">Description</p>
                   <p className="text-sm">{viewService.description || "-"}</p>
                 </div>
               </div>
@@ -432,7 +436,54 @@ export default function ServicesPage() {
         </Dialog>
       )}
 
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-4 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-md p-2 bg-blue-500/10">
+                <Activity className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total Services</p>
+                <p className="text-xl font-bold text-blue-500">{services.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-md p-2 bg-emerald-500/10">
+                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Active</p>
+                <p className="text-xl font-bold text-emerald-500">{services.filter(s => s.isActive).length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-md p-2 bg-red-500/10">
+                <XCircle className="h-5 w-5 text-red-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Inactive</p>
+                <p className="text-xl font-bold text-red-500">{services.filter(s => !s.isActive).length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-md p-2 bg-violet-500/10">
+                <FolderPlus className="h-5 w-5 text-violet-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Categories</p>
+                <p className="text-xl font-bold text-violet-500">{new Set(services.map(s => s.category)).size}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
             <CardTitle className="text-sm font-semibold">All Services</CardTitle>

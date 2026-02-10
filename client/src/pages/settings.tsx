@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Save, AppWindow, Coins, Building2, ScrollText,
   Trash2, Clock, User, ArrowRightLeft, Upload, X, ImageIcon, FileText,
+  Globe, Hash,
 } from "lucide-react";
 import type { ClinicSettings, ActivityLog } from "@shared/schema";
 
@@ -249,22 +250,30 @@ export default function SettingsPage() {
       </div>
 
       <div className="p-6">
-        <div className="flex gap-2 border-b mb-6 flex-wrap">
-          {tabsList.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                activeTab === tab.id
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-              data-testid={`tab-${tab.id}`}
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex gap-1 border-b mb-6 flex-wrap">
+          {tabsList.map(tab => {
+            const iconColors: Record<string, string> = {
+              metadata: "text-blue-500",
+              currency: "text-amber-500",
+              company: "text-emerald-500",
+              logs: "text-violet-500",
+            };
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors rounded-t-md ${
+                  activeTab === tab.id
+                    ? "border-primary text-foreground bg-muted/50"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+                data-testid={`tab-${tab.id}`}
+              >
+                <tab.icon className={`h-4 w-4 ${activeTab === tab.id ? iconColors[tab.id] || "" : ""}`} />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         {activeTab === "metadata" && (
@@ -272,7 +281,7 @@ export default function SettingsPage() {
             <Card>
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <AppWindow className="h-4 w-4" /> Application Info
+                  <AppWindow className="h-4 w-4 text-blue-500" /> Application Info
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
@@ -296,7 +305,7 @@ export default function SettingsPage() {
             <Card>
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Building2 className="h-4 w-4" /> Clinic Information
+                  <Building2 className="h-4 w-4 text-emerald-500" /> Clinic Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
@@ -323,7 +332,9 @@ export default function SettingsPage() {
 
             <Card>
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-base">ID Prefixes</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Hash className="h-4 w-4 text-violet-500" /> ID Prefixes
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
                 <div className="grid grid-cols-3 gap-3">
@@ -343,7 +354,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Button type="submit" disabled={updateMutation.isPending} data-testid="button-save-metadata">
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={updateMutation.isPending} data-testid="button-save-metadata">
               <Save className="h-4 w-4 mr-1" />
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
@@ -372,7 +383,7 @@ export default function SettingsPage() {
           <form onSubmit={handleSaveCurrency} className="space-y-4 max-w-3xl">
             <div className="grid grid-cols-[1fr,auto] gap-4 items-start">
               <div>
-                <Label>Primary Currency</Label>
+                <Label className="flex items-center gap-1.5"><Coins className="h-3.5 w-3.5 text-amber-500" /> Primary Currency</Label>
                 <Select value={primaryCurrency} onValueChange={setPrimaryCurrency}>
                   <SelectTrigger data-testid="select-primary-currency"><SelectValue placeholder="Select currency" /></SelectTrigger>
                   <SelectContent>
@@ -383,7 +394,7 @@ export default function SettingsPage() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="taxRate">Tax Rate (%)</Label>
+                <Label htmlFor="taxRate" className="flex items-center gap-1.5"><FileText className="h-3.5 w-3.5 text-emerald-500" /> Tax Rate (%)</Label>
                 <Input id="taxRate" name="taxRate" type="number" step="0.01" defaultValue={settings?.taxRate || "0"} data-testid="input-tax-rate" />
               </div>
             </div>
@@ -392,7 +403,7 @@ export default function SettingsPage() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold">Enable Dual Currency</p>
+                    <p className="text-sm font-semibold flex items-center gap-1.5"><ArrowRightLeft className="h-3.5 w-3.5 text-blue-500" /> Enable Dual Currency</p>
                     <p className="text-xs text-muted-foreground">Show amounts in both primary and secondary currencies on invoices</p>
                   </div>
                   <Switch
@@ -504,7 +515,7 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <Button type="submit" disabled={updateMutation.isPending} data-testid="button-save-currency">
+            <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white" disabled={updateMutation.isPending} data-testid="button-save-currency">
               <Save className="h-4 w-4 mr-1" />
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
@@ -517,7 +528,7 @@ export default function SettingsPage() {
             <Card>
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Building2 className="h-4 w-4" /> Company Details for Receipts
+                  <Building2 className="h-4 w-4 text-emerald-500" /> Company Details for Receipts
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
@@ -622,7 +633,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Button type="submit" disabled={updateMutation.isPending} data-testid="button-save-company">
+            <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white" disabled={updateMutation.isPending} data-testid="button-save-company">
               <Save className="h-4 w-4 mr-1" />
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
@@ -633,7 +644,7 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <h2 className="text-lg font-semibold" data-testid="text-logs-title">Activity Logs</h2>
+                <h2 className="text-lg font-semibold flex items-center gap-2" data-testid="text-logs-title"><ScrollText className="h-5 w-5 text-violet-500" /> Activity Logs</h2>
                 <p className="text-sm text-muted-foreground">Recent system activities and changes</p>
               </div>
               {activityLogs.length > 0 && (

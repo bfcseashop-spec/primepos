@@ -51,19 +51,35 @@ function saveExpenseCategories(custom: string[]) {
 function getStatusBadge(status: string | null) {
   switch (status) {
     case "approved":
-      return <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">Approved</Badge>;
+      return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">Approved</Badge>;
     case "rejected":
-      return <Badge variant="outline" className="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800">Rejected</Badge>;
+      return <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">Rejected</Badge>;
     default:
-      return <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800">Pending</Badge>;
+      return <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">Pending</Badge>;
   }
 }
 
 function getPaymentIcon(method: string | null) {
   switch (method) {
-    case "card": return <CreditCard className="h-3 w-3" />;
-    case "cash": return <Banknote className="h-3 w-3" />;
-    default: return <CreditCard className="h-3 w-3" />;
+    case "card": return <CreditCard className="h-3 w-3 text-violet-500 dark:text-violet-400" />;
+    case "cash": return <Banknote className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />;
+    case "aba": return <CreditCard className="h-3 w-3 text-blue-500 dark:text-blue-400" />;
+    case "acleda": return <CreditCard className="h-3 w-3 text-amber-500 dark:text-amber-400" />;
+    case "wechat": return <CreditCard className="h-3 w-3 text-green-500 dark:text-green-400" />;
+    case "gpay": return <CreditCard className="h-3 w-3 text-sky-500 dark:text-sky-400" />;
+    default: return <CreditCard className="h-3 w-3 text-slate-500 dark:text-slate-400" />;
+  }
+}
+
+function getPaymentBadgeClass(method: string | null): string {
+  switch (method) {
+    case "cash": return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20";
+    case "aba": return "bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20";
+    case "acleda": return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20";
+    case "card": return "bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20";
+    case "wechat": return "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20";
+    case "gpay": return "bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20";
+    default: return "bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/20";
   }
 }
 
@@ -237,7 +253,7 @@ export default function ExpensesPage() {
       <span className="text-xs text-muted-foreground">{row.date}</span>
     )},
     { header: "Category", accessor: (row: Expense) => (
-      <Badge variant="outline">{row.category}</Badge>
+      <Badge variant="outline" className="bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20">{row.category}</Badge>
     )},
     { header: "Description", accessor: (row: Expense) => (
       <span className="font-medium text-sm">{row.description}</span>
@@ -246,10 +262,12 @@ export default function ExpensesPage() {
       <span className="font-semibold text-red-600 dark:text-red-400">${Number(row.amount).toFixed(2)}</span>
     )},
     { header: "Method", accessor: (row: Expense) => (
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {getPaymentIcon(row.paymentMethod)}
-        <span className="text-xs capitalize">{row.paymentMethod || "cash"}</span>
-      </div>
+      <Badge variant="outline" className={getPaymentBadgeClass(row.paymentMethod)}>
+        <span className="flex items-center gap-1.5">
+          {getPaymentIcon(row.paymentMethod)}
+          <span className="text-xs capitalize">{row.paymentMethod || "cash"}</span>
+        </span>
+      </Badge>
     )},
     { header: "Status", accessor: (row: Expense) => getStatusBadge(row.status) },
     { header: "Actions", accessor: (row: Expense) => (
@@ -261,20 +279,20 @@ export default function ExpensesPage() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => setViewExpense(row)} data-testid={`button-view-expense-${row.id}`}>
-            <Eye className="h-4 w-4 mr-2" /> View Details
+            <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> View Details
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setEditExpense(row)} data-testid={`button-edit-expense-${row.id}`}>
-            <Pencil className="h-4 w-4 mr-2" /> Edit
+            <Pencil className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> Edit
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {(row.status !== "approved") && (
             <DropdownMenuItem onClick={() => updateMutation.mutate({ id: row.id, data: { status: "approved" } })} data-testid={`button-approve-expense-${row.id}`}>
-              <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600" /> Approve
+              <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-500 dark:text-emerald-400" /> Approve
             </DropdownMenuItem>
           )}
           {(row.status !== "rejected") && (
             <DropdownMenuItem onClick={() => updateMutation.mutate({ id: row.id, data: { status: "rejected" } })} data-testid={`button-reject-expense-${row.id}`}>
-              <X className="h-4 w-4 mr-2 text-red-600" /> Reject
+              <X className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> Reject
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
@@ -283,7 +301,7 @@ export default function ExpensesPage() {
             onClick={() => { if (confirm("Delete this expense?")) deleteMutation.mutate(row.id); }}
             data-testid={`button-delete-expense-${row.id}`}
           >
-            <Trash2 className="h-4 w-4 mr-2" /> Delete
+            <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -429,15 +447,15 @@ export default function ExpensesPage() {
           <p className="text-xs text-muted-foreground">Home &gt; Manage &gt; Expense</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Card data-testid="card-total-expenses">
             <CardContent className="flex items-center justify-between gap-2 p-4">
               <div>
                 <p className="text-xs text-muted-foreground">Total Expenses</p>
-                <p className="text-xl font-bold">${totalExpenses.toFixed(2)}</p>
+                <p className="text-xl font-bold text-blue-600 dark:text-blue-400">${totalExpenses.toFixed(2)}</p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-950/30 flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                <DollarSign className="h-5 w-5 text-blue-500 dark:text-blue-400" />
               </div>
             </CardContent>
           </Card>
@@ -445,10 +463,10 @@ export default function ExpensesPage() {
             <CardContent className="flex items-center justify-between gap-2 p-4">
               <div>
                 <p className="text-xs text-muted-foreground">Approved</p>
-                <p className="text-xl font-bold">${approvedExpenses.toFixed(2)}</p>
+                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">${approvedExpenses.toFixed(2)}</p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-950/30 flex items-center justify-center">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <CheckCircle2 className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
               </div>
             </CardContent>
           </Card>
@@ -456,10 +474,21 @@ export default function ExpensesPage() {
             <CardContent className="flex items-center justify-between gap-2 p-4">
               <div>
                 <p className="text-xs text-muted-foreground">Pending</p>
-                <p className="text-xl font-bold">${pendingExpenses.toFixed(2)}</p>
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">${pendingExpenses.toFixed(2)}</p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-950/30 flex items-center justify-center">
-                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+                <Clock className="h-5 w-5 text-amber-500 dark:text-amber-400" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card data-testid="card-categories-count">
+            <CardContent className="flex items-center justify-between gap-2 p-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Categories</p>
+                <p className="text-xl font-bold text-violet-600 dark:text-violet-400">{usedCategories.length}</p>
+              </div>
+              <div className="h-10 w-10 rounded-full bg-violet-500/10 flex items-center justify-center">
+                <FolderPlus className="h-5 w-5 text-violet-500 dark:text-violet-400" />
               </div>
             </CardContent>
           </Card>
@@ -506,7 +535,15 @@ export default function ExpensesPage() {
         {viewMode === "list" ? (
           <Card>
             <CardContent className="p-0">
-              <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No expenses recorded" />
+              <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-4">
+                    <DollarSign className="h-8 w-8 text-blue-500 dark:text-blue-400" />
+                  </div>
+                  <p className="text-sm font-medium mb-1">No expenses recorded</p>
+                  <p className="text-xs text-muted-foreground">Start tracking your expenses by adding a new entry</p>
+                </div>
+              } />
             </CardContent>
           </Card>
         ) : (
@@ -514,7 +551,13 @@ export default function ExpensesPage() {
             {isLoading ? (
               <p className="text-sm text-muted-foreground col-span-full text-center py-8">Loading expenses...</p>
             ) : filtered.length === 0 ? (
-              <p className="text-sm text-muted-foreground col-span-full text-center py-8">No expenses recorded</p>
+              <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
+                <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-4">
+                  <DollarSign className="h-8 w-8 text-blue-500 dark:text-blue-400" />
+                </div>
+                <p className="text-sm font-medium mb-1">No expenses recorded</p>
+                <p className="text-xs text-muted-foreground">Start tracking your expenses by adding a new entry</p>
+              </div>
             ) : (
               filtered.map(exp => (
                 <Card key={exp.id} className="hover-elevate" data-testid={`card-expense-${exp.id}`}>
@@ -532,20 +575,20 @@ export default function ExpensesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => setViewExpense(exp)} data-testid={`button-grid-view-expense-${exp.id}`}>
-                            <Eye className="h-4 w-4 mr-2" /> View
+                            <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> View
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setEditExpense(exp)} data-testid={`button-grid-edit-expense-${exp.id}`}>
-                            <Pencil className="h-4 w-4 mr-2" /> Edit
+                            <Pencil className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> Edit
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {exp.status !== "approved" && (
                             <DropdownMenuItem onClick={() => updateMutation.mutate({ id: exp.id, data: { status: "approved" } })} data-testid={`button-grid-approve-expense-${exp.id}`}>
-                              <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600" /> Approve
+                              <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-500 dark:text-emerald-400" /> Approve
                             </DropdownMenuItem>
                           )}
                           {exp.status !== "rejected" && (
                             <DropdownMenuItem onClick={() => updateMutation.mutate({ id: exp.id, data: { status: "rejected" } })} data-testid={`button-grid-reject-expense-${exp.id}`}>
-                              <X className="h-4 w-4 mr-2 text-red-600" /> Reject
+                              <X className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> Reject
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
@@ -554,14 +597,14 @@ export default function ExpensesPage() {
                             onClick={() => { if (confirm("Delete this expense?")) deleteMutation.mutate(exp.id); }}
                             data-testid={`button-grid-delete-expense-${exp.id}`}
                           >
-                            <Trash2 className="h-4 w-4 mr-2" /> Delete
+                            <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline">{exp.category}</Badge>
+                      <Badge variant="outline" className="bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20">{exp.category}</Badge>
                       {getStatusBadge(exp.status)}
                     </div>
 
@@ -569,10 +612,12 @@ export default function ExpensesPage() {
 
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-lg font-bold text-red-600 dark:text-red-400">${Number(exp.amount).toFixed(2)}</span>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
-                        {getPaymentIcon(exp.paymentMethod)}
-                        <span className="capitalize">{exp.paymentMethod || "cash"}</span>
-                      </div>
+                      <Badge variant="outline" className={getPaymentBadgeClass(exp.paymentMethod)}>
+                        <span className="flex items-center gap-1">
+                          {getPaymentIcon(exp.paymentMethod)}
+                          <span className="text-xs capitalize">{exp.paymentMethod || "cash"}</span>
+                        </span>
+                      </Badge>
                     </div>
 
                     {exp.notes && (

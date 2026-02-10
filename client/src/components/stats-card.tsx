@@ -8,9 +8,11 @@ interface StatsCardProps {
   trend?: string;
   trendUp?: boolean;
   className?: string;
+  iconColor?: string;
+  iconBg?: string;
 }
 
-export function StatsCard({ title, value, icon: Icon, trend, trendUp, className }: StatsCardProps) {
+export function StatsCard({ title, value, icon: Icon, trend, trendUp, className, iconColor, iconBg }: StatsCardProps) {
   return (
     <Card className={className}>
       <CardContent className="p-4">
@@ -21,13 +23,13 @@ export function StatsCard({ title, value, icon: Icon, trend, trendUp, className 
               {value}
             </span>
             {trend && (
-              <span className={`text-xs font-medium ${trendUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {trend}
+              <span className={`text-xs font-medium ${trendUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
+                {trendUp ? "+" : ""}{trend}
               </span>
             )}
           </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-            <Icon className="h-5 w-5 text-primary" />
+          <div className={`flex h-10 w-10 items-center justify-center rounded-md ${iconBg || "bg-primary/10"}`}>
+            <Icon className={`h-5 w-5 ${iconColor || "text-primary"}`} />
           </div>
         </div>
       </CardContent>

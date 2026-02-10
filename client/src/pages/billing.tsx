@@ -49,13 +49,13 @@ function dualCurrencyHTML(amount: number, settings?: ClinicSettings | null) {
 }
 
 const PAYMENT_METHODS = [
-  { value: "cash", label: "Cash Pay", icon: Banknote, color: "text-green-600 bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-800" },
-  { value: "aba", label: "ABA", icon: Building2, color: "text-blue-600 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800" },
-  { value: "acleda", label: "Acleda", icon: Building2, color: "text-yellow-700 bg-yellow-50 dark:bg-yellow-950/40 border-yellow-200 dark:border-yellow-800" },
-  { value: "other_bank", label: "Other Bank", icon: Building2, color: "text-slate-600 bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700" },
-  { value: "card", label: "Card Pay", icon: CreditCard, color: "text-purple-600 bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800" },
-  { value: "wechat", label: "WeChat Pay", icon: Smartphone, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800" },
-  { value: "gpay", label: "GPay", icon: Smartphone, color: "text-teal-600 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800" },
+  { value: "cash", label: "Cash Pay", icon: Banknote, color: "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20" },
+  { value: "aba", label: "ABA", icon: Building2, color: "text-blue-700 dark:text-blue-300 bg-blue-500/10 border-blue-500/20" },
+  { value: "acleda", label: "Acleda", icon: Building2, color: "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/20" },
+  { value: "other_bank", label: "Other Bank", icon: Building2, color: "text-slate-700 dark:text-slate-300 bg-slate-500/10 border-slate-500/20" },
+  { value: "card", label: "Card Pay", icon: CreditCard, color: "text-violet-700 dark:text-violet-300 bg-violet-500/10 border-violet-500/20" },
+  { value: "wechat", label: "WeChat Pay", icon: Smartphone, color: "text-green-700 dark:text-green-300 bg-green-500/10 border-green-500/20" },
+  { value: "gpay", label: "GPay", icon: Smartphone, color: "text-sky-700 dark:text-sky-300 bg-sky-500/10 border-sky-500/20" },
 ];
 
 type DatePreset = "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "last_month" | "custom";
@@ -164,9 +164,11 @@ export default function BillingPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === "paid") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"><CheckCircle2 className="h-3 w-3" />Paid</span>;
-    if (status === "partial") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"><Clock className="h-3 w-3" />Partial</span>;
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"><X className="h-3 w-3" />Unpaid</span>;
+    if (status === "paid") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"><CheckCircle2 className="h-3 w-3" />Paid</span>;
+    if (status === "partial") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20"><Clock className="h-3 w-3" />Partial</span>;
+    if (status === "pending") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20"><Clock className="h-3 w-3" />Pending</span>;
+    if (status === "cancelled") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"><X className="h-3 w-3" />Cancelled</span>;
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"><X className="h-3 w-3" />Unpaid</span>;
   };
 
   const createBillMutation = useMutation({
@@ -478,9 +480,9 @@ export default function BillingPage() {
       const items = Array.isArray(row.items) ? row.items : [];
       return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 text-[11px] font-medium border border-violet-200 dark:border-violet-800">{items.length} items</span>;
     }},
-    { header: "Total", accessor: (row: any) => <span className="font-semibold text-sm">{formatDualCurrency(Number(row.total), settings)}</span> },
+    { header: "Total", accessor: (row: any) => <span className="font-semibold text-sm text-emerald-600 dark:text-emerald-400">{formatDualCurrency(Number(row.total), settings)}</span> },
     { header: "Paid", accessor: (row: any) => (
-      <span className="text-sm text-green-600 dark:text-green-400 font-medium">{formatDualCurrency(Number(row.paidAmount), settings)}</span>
+      <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">{formatDualCurrency(Number(row.paidAmount), settings)}</span>
     )},
     { header: "Method", accessor: (row: any) => getPaymentBadge(row.paymentMethod) },
     { header: "Doctor", accessor: (row: any) => (
@@ -502,15 +504,15 @@ export default function BillingPage() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewBill(row); }} data-testid={`action-view-${row.id}`} className="gap-2">
-            <Eye className="h-4 w-4 text-blue-500" /> View Invoice
+            <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" /> View Invoice
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printReceipt(row); }} data-testid={`action-print-${row.id}`} className="gap-2">
-            <Printer className="h-4 w-4 text-teal-500" /> Print
+            <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" /> Print
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditBill(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
-            <Pencil className="h-4 w-4 text-amber-500" /> Edit
+            <Pencil className="h-4 w-4 text-amber-500 dark:text-amber-400" /> Edit
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (confirm("Are you sure you want to delete this bill?")) deleteBillMutation.mutate(row.id); }} className="text-red-600 gap-2" data-testid={`action-delete-${row.id}`}>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (confirm("Are you sure you want to delete this bill?")) deleteBillMutation.mutate(row.id); }} className="text-red-600 dark:text-red-400 gap-2" data-testid={`action-delete-${row.id}`}>
             <Trash2 className="h-4 w-4" /> Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -545,7 +547,7 @@ export default function BillingPage() {
                         {settings?.logo && (
                           <img src={settings.logo} alt="Clinic Logo" className="h-10 mb-1.5 object-contain" data-testid="img-clinic-logo" />
                         )}
-                        <h2 className="text-base font-bold text-teal-700 dark:text-teal-400">{settings?.clinicName || "Prime Clinic"}</h2>
+                        <h2 className="text-base font-bold text-blue-700 dark:text-blue-400">{settings?.clinicName || "Prime Clinic"}</h2>
                         {settings?.address && <p className="text-[10px] text-muted-foreground">{settings.address}</p>}
                         {settings?.phone && <p className="text-[10px] text-muted-foreground">{settings.phone}</p>}
                         {settings?.email && <p className="text-[10px] text-muted-foreground">{settings.email}</p>}
@@ -561,7 +563,7 @@ export default function BillingPage() {
                     {/* Patient & Details */}
                     <div className="grid grid-cols-2 gap-0 rounded-md border bg-muted/30 mb-4">
                       <div className="p-3">
-                        <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-1">Patient</p>
+                        <p className="text-[10px] uppercase text-blue-600 dark:text-blue-400 font-semibold tracking-wide mb-1">Patient</p>
                         <p className="text-sm font-semibold">{patients.find(p => p.id === Number(selectedPatient))?.name || "-"}</p>
                         {(() => { const p = patients.find(pt => pt.id === Number(selectedPatient)); return p ? (
                           <>
@@ -571,7 +573,7 @@ export default function BillingPage() {
                         ) : null; })()}
                       </div>
                       <div className="p-3 border-l">
-                        <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-1">Details</p>
+                        <p className="text-[10px] uppercase text-amber-600 dark:text-amber-400 font-semibold tracking-wide mb-1">Details</p>
                         {referenceDoctor && referenceDoctor !== "none" && (
                           <p className="text-[11px]"><span className="text-muted-foreground">Ref Doctor:</span> <span className="font-medium">{referenceDoctor}</span></p>
                         )}
@@ -581,7 +583,7 @@ export default function BillingPage() {
 
                     {/* Items Table */}
                     <div className="mb-4 rounded-md overflow-hidden border">
-                      <div className="grid grid-cols-[36px,1fr,70px,46px,80px] bg-teal-700 text-white text-[11px] font-semibold">
+                      <div className="grid grid-cols-[36px,1fr,70px,46px,80px] bg-gradient-to-r from-blue-600 to-violet-600 text-white text-[11px] font-semibold">
                         <span className="p-2 text-center">#</span>
                         <span className="p-2">Description</span>
                         <span className="p-2 text-right">Price</span>
@@ -594,7 +596,7 @@ export default function BillingPage() {
                           <span className="p-2">{item.name}</span>
                           <span className="p-2 text-right text-muted-foreground">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{item.unitPrice.toFixed(2)}</span>
                           <span className="p-2 text-center">{item.quantity}</span>
-                          <span className="p-2 text-right font-medium">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{item.total.toFixed(2)}</span>
+                          <span className="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{item.total.toFixed(2)}</span>
                         </div>
                       ))}
                     </div>
@@ -604,7 +606,7 @@ export default function BillingPage() {
                       <div className="w-64 space-y-1 text-sm">
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">Subtotal</span>
-                          <span className="text-right">{formatDualCurrency(subtotal, settings)}</span>
+                          <span className="text-right text-emerald-600 dark:text-emerald-400">{formatDualCurrency(subtotal, settings)}</span>
                         </div>
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">Discount{discountType === "percentage" ? ` (${Number(discount) || 0}%)` : ""}</span>
@@ -615,12 +617,12 @@ export default function BillingPage() {
                           const { primaryStr, secondaryStr } = getCurrencyParts(total, settings);
                           return (
                             <>
-                              <div className="flex justify-between gap-2 font-bold text-teal-700 dark:text-teal-400 text-base pt-0.5">
+                              <div className="flex justify-between gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-base pt-0.5">
                                 <span>Grand Total</span>
                                 <span className="text-right">{primaryStr}</span>
                               </div>
                               {secondaryStr && (
-                                <div className="flex justify-between gap-2 font-bold text-teal-700 dark:text-teal-400 text-base">
+                                <div className="flex justify-between gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-base">
                                   <span>Grand Total</span>
                                   <span className="text-right">{secondaryStr}</span>
                                 </div>
@@ -632,10 +634,10 @@ export default function BillingPage() {
                     </div>
 
                     {/* Payment Information */}
-                    <div className="rounded-md bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 p-3 mb-4">
-                      <p className="text-[10px] uppercase text-teal-700 dark:text-teal-400 font-semibold tracking-wide mb-1">Payment Information</p>
+                    <div className="rounded-md bg-violet-500/10 border border-violet-500/20 p-3 mb-4">
+                      <p className="text-[10px] uppercase text-violet-700 dark:text-violet-400 font-semibold tracking-wide mb-1">Payment Information</p>
                       <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || "Prime Clinic"}.</p>
-                      <p className="text-[11px] text-muted-foreground mt-1">Amount: <span className="font-semibold text-foreground">{formatDualCurrency(total, settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(paymentMethod)}</span></p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Amount: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatDualCurrency(total, settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(paymentMethod)}</span></p>
                     </div>
 
                     {/* Footer */}
@@ -708,7 +710,7 @@ export default function BillingPage() {
 
                 {billItems.length > 0 && (
                   <div className="border rounded-md overflow-hidden">
-                    <div className="grid grid-cols-[1fr,80px,80px,80px,40px] gap-2 p-2 bg-teal-700 text-white text-xs font-semibold">
+                    <div className="grid grid-cols-[1fr,80px,80px,80px,40px] gap-2 p-2 bg-gradient-to-r from-blue-600 to-violet-600 text-white text-xs font-semibold">
                       <span>Item</span>
                       <span className="text-right">Price</span>
                       <span className="text-center">Qty</span>
@@ -814,10 +816,10 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/30 dark:to-emerald-950/30 rounded-md p-3 space-y-1 border border-teal-200 dark:border-teal-800">
+                <div className="bg-gradient-to-r from-blue-500/5 to-violet-500/5 dark:from-blue-500/10 dark:to-violet-500/10 rounded-md p-3 space-y-1 border border-blue-500/20">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span>{formatDualCurrency(subtotal, settings)}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">{formatDualCurrency(subtotal, settings)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
@@ -830,12 +832,12 @@ export default function BillingPage() {
                     const { primaryStr, secondaryStr } = getCurrencyParts(total, settings);
                     return (
                       <>
-                        <div className="flex justify-between font-bold text-base text-teal-700 dark:text-teal-400">
+                        <div className="flex justify-between font-bold text-base text-emerald-700 dark:text-emerald-400">
                           <span>Grand Total</span>
                           <span>{primaryStr}</span>
                         </div>
                         {secondaryStr && (
-                          <div className="flex justify-between font-bold text-base text-teal-700 dark:text-teal-400">
+                          <div className="flex justify-between font-bold text-base text-emerald-700 dark:text-emerald-400">
                             <span>Grand Total</span>
                             <span>{secondaryStr}</span>
                           </div>
@@ -890,43 +892,43 @@ export default function BillingPage() {
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {/* Summary Stats */}
         <div className="grid grid-cols-4 gap-3" data-testid="billing-stats">
-          <Card className="border-l-4 border-l-blue-500">
+          <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/50">
-                <Receipt className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2.5 rounded-lg bg-blue-500/10">
+                <Receipt className="h-5 w-5 text-blue-500 dark:text-blue-400" />
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Bills</p>
-                <p className="text-xl font-bold" data-testid="stat-total-bills">{bills.length}</p>
+                <p className="text-xl font-bold text-blue-600 dark:text-blue-400" data-testid="stat-total-bills">{bills.length}</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-l-4 border-l-emerald-500">
+          <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/50">
-                <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="p-2.5 rounded-lg bg-violet-500/10">
+                <TrendingUp className="h-5 w-5 text-violet-500 dark:text-violet-400" />
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Revenue</p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-total-revenue">{formatDualCurrency(totalRevenue, settings)}</p>
+                <p className="text-xl font-bold text-violet-600 dark:text-violet-400" data-testid="stat-total-revenue">{formatDualCurrency(totalRevenue, settings)}</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-l-4 border-l-green-500">
+          <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950/50">
-                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <div className="p-2.5 rounded-lg bg-emerald-500/10">
+                <CheckCircle2 className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Paid</p>
-                <p className="text-xl font-bold text-green-600 dark:text-green-400" data-testid="stat-paid">{paidCount}</p>
+                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-paid">{paidCount}</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-l-4 border-l-amber-500">
+          <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-950/50">
-                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="p-2.5 rounded-lg bg-amber-500/10">
+                <Clock className="h-5 w-5 text-amber-500 dark:text-amber-400" />
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Pending</p>
@@ -1037,7 +1039,7 @@ export default function BillingPage() {
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <div>
                       {settings?.logo && <img src={settings.logo} alt="Logo" className="h-10 mb-1.5 object-contain" />}
-                      <h2 className="text-base font-bold text-teal-700 dark:text-teal-400">{settings?.clinicName || "Prime Clinic"}</h2>
+                      <h2 className="text-base font-bold text-blue-700 dark:text-blue-400">{settings?.clinicName || "Prime Clinic"}</h2>
                       {settings?.address && <p className="text-[10px] text-muted-foreground">{settings.address}</p>}
                       {settings?.phone && <p className="text-[10px] text-muted-foreground">{settings.phone}</p>}
                       {settings?.email && <p className="text-[10px] text-muted-foreground">{settings.email}</p>}
@@ -1046,7 +1048,7 @@ export default function BillingPage() {
                       <h3 className="text-xl font-extrabold tracking-wide">INVOICE</h3>
                       <p className="text-xs text-muted-foreground mt-1">Invoice #: <span className="font-semibold text-foreground">{viewBill.billNo}</span></p>
                       <p className="text-xs text-muted-foreground">Date: {new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
-                      <Badge className={`mt-1.5 ${viewBill.status === "paid" ? "bg-green-600 border-green-700" : "bg-amber-500 border-amber-600"} text-white`}>
+                      <Badge className={`mt-1.5 ${viewBill.status === "paid" ? "bg-emerald-600 border-emerald-700" : "bg-amber-500 border-amber-600"} text-white`}>
                         {viewBill.status === "paid" ? "Paid" : "Pending"}
                       </Badge>
                     </div>
@@ -1054,20 +1056,20 @@ export default function BillingPage() {
 
                   <div className="grid grid-cols-2 gap-0 rounded-md border bg-muted/30 mb-4">
                     <div className="p-3">
-                      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-1">Patient</p>
+                      <p className="text-[10px] uppercase text-blue-600 dark:text-blue-400 font-semibold tracking-wide mb-1">Patient</p>
                       <p className="text-sm font-semibold">{viewBill.patientName || patient?.name || "-"}</p>
                       {patient?.patientId && <p className="text-[11px] text-muted-foreground">ID: {patient.patientId}</p>}
                       {patient?.gender && <p className="text-[11px] text-muted-foreground">Gender: {patient.gender}</p>}
                     </div>
                     <div className="p-3 border-l">
-                      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-1">Details</p>
+                      <p className="text-[10px] uppercase text-amber-600 dark:text-amber-400 font-semibold tracking-wide mb-1">Details</p>
                       {viewBill.referenceDoctor && <p className="text-[11px]"><span className="text-muted-foreground">Ref Doctor:</span> <span className="font-medium">{viewBill.referenceDoctor}</span></p>}
                       <p className="text-[11px]"><span className="text-muted-foreground">Payment:</span> <span className="font-medium">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
                     </div>
                   </div>
 
                   <div className="mb-4 rounded-md overflow-hidden border">
-                    <div className="grid grid-cols-[36px,1fr,70px,46px,80px] bg-teal-700 text-white text-[11px] font-semibold">
+                    <div className="grid grid-cols-[36px,1fr,70px,46px,80px] bg-gradient-to-r from-blue-600 to-violet-600 text-white text-[11px] font-semibold">
                       <span className="p-2 text-center">#</span>
                       <span className="p-2">Description</span>
                       <span className="p-2 text-right">Price</span>
@@ -1080,7 +1082,7 @@ export default function BillingPage() {
                         <span className="p-2">{item.name}</span>
                         <span className="p-2 text-right text-muted-foreground">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{Number(item.unitPrice).toFixed(2)}</span>
                         <span className="p-2 text-center">{item.quantity}</span>
-                        <span className="p-2 text-right font-medium">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{Number(item.total).toFixed(2)}</span>
+                        <span className="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{Number(item.total).toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
@@ -1089,7 +1091,7 @@ export default function BillingPage() {
                     <div className="w-64 space-y-1 text-sm">
                       <div className="flex justify-between gap-2">
                         <span className="text-muted-foreground">Subtotal</span>
-                        <span className="text-right">{formatDualCurrency(vSubtotal, settings)}</span>
+                        <span className="text-right text-emerald-600 dark:text-emerald-400">{formatDualCurrency(vSubtotal, settings)}</span>
                       </div>
                       <div className="flex justify-between gap-2">
                         <span className="text-muted-foreground">Discount</span>
@@ -1100,12 +1102,12 @@ export default function BillingPage() {
                         const { primaryStr, secondaryStr } = getCurrencyParts(vTotal, settings);
                         return (
                           <>
-                            <div className="flex justify-between gap-2 font-bold text-teal-700 dark:text-teal-400 text-base pt-0.5">
+                            <div className="flex justify-between gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-base pt-0.5">
                               <span>Grand Total</span>
                               <span className="text-right">{primaryStr}</span>
                             </div>
                             {secondaryStr && (
-                              <div className="flex justify-between gap-2 font-bold text-teal-700 dark:text-teal-400 text-base">
+                              <div className="flex justify-between gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-base">
                                 <span>Grand Total</span>
                                 <span className="text-right">{secondaryStr}</span>
                               </div>
@@ -1116,10 +1118,10 @@ export default function BillingPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-md bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 p-3 mb-4">
-                    <p className="text-[10px] uppercase text-teal-700 dark:text-teal-400 font-semibold tracking-wide mb-1">Payment Information</p>
+                  <div className="rounded-md bg-violet-500/10 border border-violet-500/20 p-3 mb-4">
+                    <p className="text-[10px] uppercase text-violet-700 dark:text-violet-400 font-semibold tracking-wide mb-1">Payment Information</p>
                     <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || "Prime Clinic"}.</p>
-                    <p className="text-[11px] text-muted-foreground mt-1">Amount Paid: <span className="font-semibold text-foreground">{formatDualCurrency(Number(viewBill.paidAmount), settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
+                    <p className="text-[11px] text-muted-foreground mt-1">Amount Paid: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatDualCurrency(Number(viewBill.paidAmount), settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
                   </div>
 
                   <Separator className="mb-3" />

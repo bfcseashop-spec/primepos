@@ -206,7 +206,7 @@ export default function OpdPage() {
     { header: "Actions", accessor: (row: any) => (
       <div className="flex gap-1">
         <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); openAppointmentDialog(row); }} data-testid={`button-add-appointment-list-${row.id}`}>
-          <CalendarPlus className="h-3 w-3 mr-1" /> Appointment
+          <CalendarPlus className="h-3 w-3 mr-1 text-blue-500 dark:text-blue-400" /> Appointment
         </Button>
       </div>
     )},
@@ -220,11 +220,12 @@ export default function OpdPage() {
         actions={
           <div className="flex gap-2 flex-wrap items-center">
             <Button variant="outline" onClick={() => navigate("/register-patient")} data-testid="button-register-patient">
-              <UserPlus className="h-4 w-4 mr-1" /> Register Patient
+              <UserPlus className="h-4 w-4 mr-1 text-emerald-500 dark:text-emerald-400" /> Register Patient
             </Button>
             <Button
               variant={viewMode === "grid" ? "default" : "outline"}
               size="icon"
+              className={`toggle-elevate ${viewMode === "grid" ? "toggle-elevated" : ""}`}
               onClick={() => setViewMode("grid")}
               data-testid="button-grid-view"
             >
@@ -233,6 +234,7 @@ export default function OpdPage() {
             <Button
               variant={viewMode === "list" ? "default" : "outline"}
               size="icon"
+              className={`toggle-elevate ${viewMode === "list" ? "toggle-elevated" : ""}`}
               onClick={() => setViewMode("list")}
               data-testid="button-list-view"
             >
@@ -317,7 +319,7 @@ export default function OpdPage() {
                       <div className="flex flex-col items-center py-4 px-4">
                         <Avatar className="h-16 w-16 mb-2">
                           <AvatarImage src={patient.photoUrl || undefined} alt={getDisplayName(patient)} />
-                          <AvatarFallback className="text-lg bg-muted">
+                          <AvatarFallback className="text-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
                             {getInitials(patient)}
                           </AvatarFallback>
                         </Avatar>
@@ -352,10 +354,11 @@ export default function OpdPage() {
 
                       <div className="border-t px-4 py-2.5">
                         <button
-                          className="w-full text-center text-xs font-medium text-primary hover:underline cursor-pointer"
+                          className="w-full text-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center justify-center gap-1"
                           onClick={() => openAppointmentDialog(patient)}
                           data-testid={`button-add-appointment-${patient.id}`}
                         >
+                          <CalendarPlus className="h-3 w-3 text-blue-500 dark:text-blue-400" />
                           Add Appointment
                         </button>
                       </div>
@@ -386,7 +389,7 @@ export default function OpdPage() {
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">
                   <AvatarImage src={viewPatient.photoUrl || undefined} />
-                  <AvatarFallback className="text-lg bg-muted">{getInitials(viewPatient)}</AvatarFallback>
+                  <AvatarFallback className="text-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">{getInitials(viewPatient)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <h3 className="text-lg font-semibold" data-testid="text-view-patient-name">{getDisplayName(viewPatient)}</h3>
@@ -400,7 +403,9 @@ export default function OpdPage() {
               <div className="grid grid-cols-2 gap-3">
                 {viewPatient.phone && (
                   <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-500/10 dark:bg-blue-400/10 shrink-0">
+                      <Phone className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                    </div>
                     <div>
                       <p className="text-[10px] text-muted-foreground">Phone</p>
                       <p className="text-sm" data-testid="text-view-phone">{viewPatient.phone}</p>
@@ -409,7 +414,9 @@ export default function OpdPage() {
                 )}
                 {viewPatient.email && (
                   <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-cyan-500/10 dark:bg-cyan-400/10 shrink-0">
+                      <Mail className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
+                    </div>
                     <div>
                       <p className="text-[10px] text-muted-foreground">Email</p>
                       <p className="text-sm" data-testid="text-view-email">{viewPatient.email}</p>
@@ -418,7 +425,9 @@ export default function OpdPage() {
                 )}
                 {viewPatient.gender && (
                   <div className="flex items-center gap-2">
-                    <UserIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-violet-500/10 dark:bg-violet-400/10 shrink-0">
+                      <UserIcon className="h-4 w-4 text-violet-500 dark:text-violet-400" />
+                    </div>
                     <div>
                       <p className="text-[10px] text-muted-foreground">Gender</p>
                       <p className="text-sm" data-testid="text-view-gender">{viewPatient.gender}</p>
@@ -427,7 +436,9 @@ export default function OpdPage() {
                 )}
                 {viewPatient.dateOfBirth && (
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-500/10 dark:bg-amber-400/10 shrink-0">
+                      <Calendar className="h-4 w-4 text-amber-500 dark:text-amber-400" />
+                    </div>
                     <div>
                       <p className="text-[10px] text-muted-foreground">Date of Birth</p>
                       <p className="text-sm" data-testid="text-view-dob">{viewPatient.dateOfBirth}</p>
@@ -436,7 +447,9 @@ export default function OpdPage() {
                 )}
                 {viewPatient.bloodGroup && (
                   <div className="flex items-center gap-2">
-                    <Droplets className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-red-500/10 dark:bg-red-400/10 shrink-0">
+                      <Droplets className="h-4 w-4 text-red-500 dark:text-red-400" />
+                    </div>
                     <div>
                       <p className="text-[10px] text-muted-foreground">Blood Group</p>
                       <p className="text-sm" data-testid="text-view-blood">{viewPatient.bloodGroup}</p>
@@ -445,7 +458,9 @@ export default function OpdPage() {
                 )}
                 {(viewPatient.address || viewPatient.city) && (
                   <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/10 dark:bg-emerald-400/10 shrink-0">
+                      <MapPin className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+                    </div>
                     <div>
                       <p className="text-[10px] text-muted-foreground">Address</p>
                       <p className="text-sm" data-testid="text-view-address">{[viewPatient.address, viewPatient.city].filter(Boolean).join(", ")}</p>
@@ -457,8 +472,8 @@ export default function OpdPage() {
                 <>
                   <Separator />
                   <div>
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <AlertTriangle className="h-3.5 w-3.5" /> Emergency Contact
+                    <h4 className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" /> Emergency Contact
                     </h4>
                     <div className="grid grid-cols-2 gap-3">
                       {viewPatient.emergencyContactName && (
@@ -481,8 +496,8 @@ export default function OpdPage() {
                 <>
                   <Separator />
                   <div>
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <FileText className="h-3.5 w-3.5" /> Medical History
+                    <h4 className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" /> Medical History
                     </h4>
                     <p className="text-sm bg-muted/50 rounded-md p-3">{viewPatient.medicalHistory}</p>
                   </div>
@@ -492,8 +507,8 @@ export default function OpdPage() {
                 <>
                   <Separator />
                   <div>
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <Heart className="h-3.5 w-3.5" /> Allergies
+                    <h4 className="text-xs font-semibold text-pink-600 dark:text-pink-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <Heart className="h-3.5 w-3.5 text-pink-500 dark:text-pink-400" /> Allergies
                     </h4>
                     <p className="text-sm bg-muted/50 rounded-md p-3">{viewPatient.allergies}</p>
                   </div>

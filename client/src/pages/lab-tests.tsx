@@ -102,8 +102,8 @@ function LiveTimer({ createdAt, status, turnaroundTime }: { createdAt: string | 
   }
   return (
     <div className="flex items-center gap-1">
-      <Clock className={`h-3 w-3 ${overdue ? "text-red-500" : "text-blue-500"} animate-pulse`} />
-      <span className={`text-xs font-medium ${overdue ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`}>
+      <Clock className={`h-3 w-3 ${overdue ? "text-red-500" : "text-amber-500"} animate-pulse`} />
+      <span className={`text-xs font-medium ${overdue ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
         {overdue ? `Overdue ${text}` : text}
       </span>
     </div>
@@ -307,18 +307,25 @@ export default function LabTestsPage() {
       sample_missing: AlertTriangle,
       cancel: XCircle,
     };
+    const statusStyles: Record<string, string> = {
+      processing: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20",
+      complete: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20",
+      sample_missing: "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20",
+      cancel: "bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/20",
+    };
     const Icon = icons[status] || CheckCircle;
+    const styleClass = statusStyles[status] || "";
     return (
-      <Badge variant="outline" className={`${opt.color} border-current/20 gap-1`}>
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${styleClass}`}>
         <Icon className={`h-3 w-3 ${status === "processing" ? "animate-spin" : ""}`} />
         {opt.label}
-      </Badge>
+      </span>
     );
   };
 
   const columns = [
     { header: "Test ID", accessor: (row: LabTestWithPatient) => (
-      <span className="font-mono text-xs text-muted-foreground" data-testid={`text-test-code-${row.id}`}>{row.testCode}</span>
+      <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400" data-testid={`text-test-code-${row.id}`}>{row.testCode}</span>
     )},
     { header: "Test Name", accessor: (row: LabTestWithPatient) => (
       <span className="font-medium" data-testid={`text-test-name-${row.id}`}>{row.testName}</span>
@@ -331,7 +338,7 @@ export default function LabTestsPage() {
     { header: "Category", accessor: (row: LabTestWithPatient) => (
       <div className="flex flex-wrap gap-1" data-testid={`badge-category-${row.id}`}>
         {row.category.split(",").map(c => c.trim()).filter(Boolean).map(c => (
-          <Badge key={c} variant="outline" className="text-xs">{c}</Badge>
+          <Badge key={c} variant="outline" className="text-xs text-violet-600 dark:text-violet-400">{c}</Badge>
         ))}
       </div>
     )},
@@ -398,7 +405,7 @@ export default function LabTestsPage() {
           </DropdownMenuItem>
           {row.reportFileUrl && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); window.open(row.reportFileUrl!, '_blank'); }} className="gap-2" data-testid={`action-download-${row.id}`}>
-              <Download className="h-4 w-4 text-indigo-500" /> Download Report
+              <Download className="h-4 w-4 text-emerald-500" /> Download Report
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBarcodeTest(row); }} className="gap-2" data-testid={`action-barcode-${row.id}`}>
@@ -447,7 +454,7 @@ export default function LabTestsPage() {
               printWindow.print();
             }
           }} className="gap-2" data-testid={`action-print-${row.id}`}>
-            <Printer className="h-4 w-4 text-teal-500" /> Print
+            <Printer className="h-4 w-4 text-violet-500" /> Print
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => { e.stopPropagation(); if (confirm("Delete this lab test?")) deleteMutation.mutate(row.id); }}
@@ -748,45 +755,45 @@ export default function LabTestsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
-              <div className="p-2 rounded-md bg-blue-100 dark:bg-blue-900/30">
-                <FlaskConical className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 rounded-md bg-blue-500/10">
+                <FlaskConical className="h-5 w-5 text-blue-500" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Total Tests</p>
-                <p className="text-xl font-bold" data-testid="text-total-tests">{labTests.length}</p>
+                <p className="text-xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-total-tests">{labTests.length}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
-              <div className="p-2 rounded-md bg-blue-100 dark:bg-blue-900/30">
-                <Loader2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 rounded-md bg-amber-500/10">
+                <Loader2 className="h-5 w-5 text-amber-500" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Processing</p>
-                <p className="text-xl font-bold" data-testid="text-processing-tests">{processingCount}</p>
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400" data-testid="text-processing-tests">{processingCount}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
-              <div className="p-2 rounded-md bg-green-100 dark:bg-green-900/30">
-                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <div className="p-2 rounded-md bg-emerald-500/10">
+                <CheckCircle className="h-5 w-5 text-emerald-500" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Complete</p>
-                <p className="text-xl font-bold" data-testid="text-complete-tests">{completeCount}</p>
+                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="text-complete-tests">{completeCount}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
-              <div className="p-2 rounded-md bg-purple-100 dark:bg-purple-900/30">
-                <TestTubes className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              <div className="p-2 rounded-md bg-rose-500/10">
+                <TestTubes className="h-5 w-5 text-rose-500" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Categories</p>
-                <p className="text-xl font-bold" data-testid="text-categories-count">{uniqueCategories.length}</p>
+                <p className="text-xl font-bold text-rose-600 dark:text-rose-400" data-testid="text-categories-count">{uniqueCategories.length}</p>
               </div>
             </CardContent>
           </Card>
