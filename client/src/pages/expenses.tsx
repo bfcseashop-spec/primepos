@@ -17,11 +17,12 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Plus, Search, DollarSign, CheckCircle2, Clock, List, LayoutGrid,
   RefreshCw, MoreHorizontal, Eye, Pencil, Trash2, X, Filter,
-  CreditCard, Banknote, Calendar, FileText
+  CreditCard, Banknote, FileText, FolderPlus, Upload, Download,
+  FileSpreadsheet, FileDown, File
 } from "lucide-react";
 import type { Expense } from "@shared/schema";
 
-const EXPENSE_CATEGORIES = [
+const DEFAULT_EXPENSE_CATEGORIES = [
   "Rent", "Salaries", "Utilities", "Medical Supplies", "Equipment",
   "Maintenance", "Insurance", "Marketing", "Travel", "Miscellaneous"
 ];
@@ -35,6 +36,17 @@ const PAYMENT_METHODS = [
   { value: "wechat", label: "WeChat Pay" },
   { value: "gpay", label: "GPay" },
 ];
+
+function getStoredExpenseCategories(): string[] {
+  try {
+    const stored = localStorage.getItem("expense_custom_categories");
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
+function saveExpenseCategories(custom: string[]) {
+  localStorage.setItem("expense_custom_categories", JSON.stringify(custom));
+}
 
 function getStatusBadge(status: string | null) {
   switch (status) {
@@ -64,6 +76,14 @@ export default function ExpensesPage() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [categoryDialog, setCategoryDialog] = useState(false);
+  const [customCategories, setCustomCategories] = useState<string[]>(getStoredExpenseCategories());
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [importDialog, setImportDialog] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
+
+  const allCategories = [...DEFAULT_EXPENSE_CATEGORIES, ...customCategories];
 
   const { data: expenses = [], isLoading } = useQuery<Expense[]>({
     queryKey: ["/api/expenses"],
@@ -147,6 +167,57 @@ export default function ExpensesPage() {
     });
   };
 
+  const handleAddCategory = () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    if (allCategories.includes(name)) {
+      toast({ title: "Category already exists", variant: "destructive" });
+      return;
+    }
+    const updated = [...customCategories, name];
+    setCustomCategories(updated);
+    saveExpenseCategories(updated);
+    setNewCategoryName("");
+    toast({ title: `Category "${name}" added` });
+  };
+
+  const handleDeleteCategory = (cat: string) => {
+    const updated = customCategories.filter(c => c !== cat);
+    setCustomCategories(updated);
+    saveExpenseCategories(updated);
+    toast({ title: `Category "${cat}" removed` });
+  };
+
+  const handleExport = (format: string) => {
+    window.open(`/api/expenses/export/${format}`, "_blank");
+  };
+
+  const handleDownloadTemplate = () => {
+    window.open("/api/expenses/sample-template", "_blank");
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/expenses/import", { method: "POST", body: formData });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      setImportResult(result);
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      toast({ title: `Imported ${result.imported} expense(s)` });
+    } catch (err: any) {
+      toast({ title: "Import failed", description: err.message, variant: "destructive" });
+    } finally {
+      setImporting(false);
+      e.target.value = "";
+    }
+  };
+
   const filtered = expenses.filter(e => {
     const matchesSearch = e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.category.toLowerCase().includes(searchTerm.toLowerCase());
@@ -175,7 +246,7 @@ export default function ExpensesPage() {
       <span className="font-semibold text-red-600 dark:text-red-400">${Number(row.amount).toFixed(2)}</span>
     )},
     { header: "Method", accessor: (row: Expense) => (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
         {getPaymentIcon(row.paymentMethod)}
         <span className="text-xs capitalize">{row.paymentMethod || "cash"}</span>
       </div>
@@ -226,7 +297,7 @@ export default function ExpensesPage() {
         <Select name="category" required defaultValue={expense?.category || ""}>
           <SelectTrigger data-testid="select-expense-category"><SelectValue placeholder="Select category" /></SelectTrigger>
           <SelectContent>
-            {EXPENSE_CATEGORIES.map(cat => (
+            {allCategories.map(cat => (
               <SelectItem key={cat} value={cat}>{cat}</SelectItem>
             ))}
           </SelectContent>
@@ -317,6 +388,34 @@ export default function ExpensesPage() {
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" data-testid="button-export-expenses">
+                  <Download className="h-4 w-4 mr-1" /> Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport("xlsx")} data-testid="button-export-excel">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel (.xlsx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("csv")} data-testid="button-export-csv">
+                  <FileText className="h-4 w-4 mr-2" /> CSV (.csv)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("pdf")} data-testid="button-export-pdf">
+                  <File className="h-4 w-4 mr-2" /> PDF (.pdf)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button variant="outline" onClick={() => setImportDialog(true)} data-testid="button-import-expenses">
+              <Upload className="h-4 w-4 mr-1" /> Import
+            </Button>
+
+            <Button variant="outline" onClick={() => setCategoryDialog(true)} data-testid="button-add-category">
+              <FolderPlus className="h-4 w-4 mr-1" /> Add Category
+            </Button>
+
             <Button onClick={() => setDialogOpen(true)} data-testid="button-new-expense">
               <Plus className="h-4 w-4 mr-1" /> New Expense
             </Button>
@@ -332,7 +431,7 @@ export default function ExpensesPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card data-testid="card-total-expenses">
-            <CardContent className="flex items-center justify-between p-4">
+            <CardContent className="flex items-center justify-between gap-2 p-4">
               <div>
                 <p className="text-xs text-muted-foreground">Total Expenses</p>
                 <p className="text-xl font-bold">${totalExpenses.toFixed(2)}</p>
@@ -343,7 +442,7 @@ export default function ExpensesPage() {
             </CardContent>
           </Card>
           <Card data-testid="card-approved-expenses">
-            <CardContent className="flex items-center justify-between p-4">
+            <CardContent className="flex items-center justify-between gap-2 p-4">
               <div>
                 <p className="text-xs text-muted-foreground">Approved</p>
                 <p className="text-xl font-bold">${approvedExpenses.toFixed(2)}</p>
@@ -354,7 +453,7 @@ export default function ExpensesPage() {
             </CardContent>
           </Card>
           <Card data-testid="card-pending-expenses">
-            <CardContent className="flex items-center justify-between p-4">
+            <CardContent className="flex items-center justify-between gap-2 p-4">
               <div>
                 <p className="text-xs text-muted-foreground">Pending</p>
                 <p className="text-xl font-bold">${pendingExpenses.toFixed(2)}</p>
@@ -386,7 +485,7 @@ export default function ExpensesPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {(usedCategories.length > 0 ? usedCategories : EXPENSE_CATEGORIES).map(cat => (
+              {(usedCategories.length > 0 ? Array.from(new Set([...usedCategories, ...allCategories])) : allCategories).map(cat => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}
             </SelectContent>
@@ -470,7 +569,7 @@ export default function ExpensesPage() {
 
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-lg font-bold text-red-600 dark:text-red-400">${Number(exp.amount).toFixed(2)}</span>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
                         {getPaymentIcon(exp.paymentMethod)}
                         <span className="capitalize">{exp.paymentMethod || "cash"}</span>
                       </div>
@@ -523,7 +622,7 @@ export default function ExpensesPage() {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <span className="text-2xl font-bold text-red-600 dark:text-red-400">${Number(viewExpense.amount).toFixed(2)}</span>
                 {getStatusBadge(viewExpense.status)}
               </div>
@@ -565,6 +664,125 @@ export default function ExpensesPage() {
                   </Button>
                 )}
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {categoryDialog && (
+        <Dialog open={categoryDialog} onOpenChange={setCategoryDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FolderPlus className="h-5 w-5 text-emerald-500" />
+                Manage Expense Categories
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Input
+                  className="flex-1 min-w-[150px]"
+                  placeholder="New category name..."
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+                  data-testid="input-new-category-name"
+                />
+                <Button onClick={handleAddCategory} data-testid="button-save-category">
+                  <Plus className="h-4 w-4 mr-1" /> Add
+                </Button>
+              </div>
+              <Separator />
+              <div className="space-y-1 max-h-[300px] overflow-auto">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Default Categories</p>
+                {DEFAULT_EXPENSE_CATEGORIES.map(cat => (
+                  <div key={cat} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md">
+                    <span className="text-sm">{cat}</span>
+                    <Badge variant="outline" className="text-[10px]">Default</Badge>
+                  </div>
+                ))}
+                {customCategories.length > 0 && (
+                  <>
+                    <Separator className="my-2" />
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Custom Categories</p>
+                    {customCategories.map(cat => (
+                      <div key={cat} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md hover-elevate">
+                        <span className="text-sm">{cat}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteCategory(cat)}
+                          data-testid={`button-delete-category-${cat}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {importDialog && (
+        <Dialog open={importDialog} onOpenChange={(open) => { setImportDialog(open); if (!open) setImportResult(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5 text-emerald-500" />
+                Import Expenses
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="border-2 border-dashed rounded-md p-6 text-center">
+                <FileSpreadsheet className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm font-medium mb-1">Upload Excel or CSV file</p>
+                <p className="text-xs text-muted-foreground mb-3">Supports .xlsx, .xls, .csv formats</p>
+                <label className="cursor-pointer">
+                  <Button variant="outline" size="sm" asChild>
+                    <span>{importing ? "Importing..." : "Choose File"}</span>
+                  </Button>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    className="hidden"
+                    onChange={handleImport}
+                    disabled={importing}
+                    data-testid="input-import-expense-file"
+                  />
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 flex-wrap">
+                <FileDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-medium">Need a template?</p>
+                  <p className="text-[10px] text-muted-foreground">Download a sample file with the correct format</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleDownloadTemplate} data-testid="button-expense-template-download">
+                  Download
+                </Button>
+              </div>
+
+              {importResult && (
+                <div className="p-3 rounded-md border space-y-1">
+                  <p className="text-sm font-medium">Import Results</p>
+                  <div className="flex items-center gap-4 text-xs flex-wrap">
+                    <span className="text-green-600">Imported: {importResult.imported}</span>
+                    {importResult.skipped > 0 && <span className="text-amber-600">Skipped: {importResult.skipped}</span>}
+                    <span className="text-muted-foreground">Total: {importResult.total}</span>
+                  </div>
+                  {importResult.errors.length > 0 && (
+                    <div className="mt-1 text-xs text-destructive space-y-0.5">
+                      {importResult.errors.map((err, i) => (
+                        <p key={i}>{err}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>

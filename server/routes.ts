@@ -518,6 +518,162 @@ export async function registerRoutes(
   });
 
   // Expenses
+  app.get("/api/expenses/export/:format", async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const expenses = await storage.getExpenses();
+      const rows = expenses.map(e => ({
+        Date: e.date,
+        Category: e.category,
+        Description: e.description,
+        Amount: e.amount,
+        "Payment Method": e.paymentMethod || "cash",
+        Status: e.status || "pending",
+        Notes: e.notes || "",
+        "Approved By": e.approvedBy || "",
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+      const format = req.params.format;
+      if (format === "csv") {
+        const csv = XLSX.utils.sheet_to_csv(ws);
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", "attachment; filename=expenses.csv");
+        res.send(csv);
+      } else if (format === "pdf") {
+        const PDFDocument = (await import("pdfkit")).default;
+        const doc = new PDFDocument({ margin: 40, size: "A4", layout: "landscape" });
+        const chunks: Buffer[] = [];
+        doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+        doc.on("end", () => {
+          const pdfBuf = Buffer.concat(chunks);
+          res.setHeader("Content-Type", "application/pdf");
+          res.setHeader("Content-Disposition", "attachment; filename=expenses.pdf");
+          res.send(pdfBuf);
+        });
+        doc.fontSize(18).text("Expense Report", { align: "center" });
+        doc.moveDown(0.5);
+        doc.fontSize(9).fillColor("#666").text(`Generated: ${new Date().toLocaleDateString()}`, { align: "center" });
+        doc.moveDown(1);
+        const headers = ["Date", "Category", "Description", "Amount", "Method", "Status"];
+        const colWidths = [75, 90, 200, 70, 70, 70];
+        let y = doc.y;
+        doc.fontSize(8).fillColor("#fff");
+        let x = 40;
+        headers.forEach((h, i) => {
+          doc.rect(x, y, colWidths[i], 18).fill("#2d7d46");
+          doc.fillColor("#fff").text(h, x + 4, y + 5, { width: colWidths[i] - 8 });
+          x += colWidths[i];
+        });
+        y += 18;
+        doc.fillColor("#333");
+        expenses.forEach((e, idx) => {
+          if (y > 520) { doc.addPage(); y = 40; }
+          const bgColor = idx % 2 === 0 ? "#f9f9f9" : "#ffffff";
+          x = 40;
+          const vals = [e.date, e.category, e.description, `$${Number(e.amount).toFixed(2)}`, e.paymentMethod || "cash", e.status || "pending"];
+          vals.forEach((v, i) => {
+            doc.rect(x, y, colWidths[i], 16).fill(bgColor);
+            doc.fillColor("#333").text(v, x + 4, y + 4, { width: colWidths[i] - 8 });
+            x += colWidths[i];
+          });
+          y += 16;
+        });
+        doc.moveDown(1);
+        const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
+        doc.fontSize(10).fillColor("#333").text(`Total Expenses: $${total.toFixed(2)}`, 40, y + 10);
+        doc.end();
+        return;
+      } else {
+        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment; filename=expenses.xlsx");
+        res.send(buf);
+      }
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/expenses/sample-template", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const sampleRows = [
+        {
+          Date: "2026-02-10", Category: "Medical Supplies", Description: "Surgical gloves (100 boxes)",
+          Amount: "250.00", "Payment Method": "cash", Notes: "Monthly supply order",
+        },
+        {
+          Date: "2026-02-09", Category: "Utilities", Description: "Electricity bill - January",
+          Amount: "180.50", "Payment Method": "aba", Notes: "Monthly utility",
+        },
+        {
+          Date: "2026-02-08", Category: "Equipment", Description: "Blood pressure monitor",
+          Amount: "120.00", "Payment Method": "card", Notes: "Replacement unit",
+        },
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Expense Template");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=expense_import_template.xlsx");
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  const expenseImportUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  });
+
+  app.post("/api/expenses/import", expenseImportUpload.single("file"), async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      if (rows.length === 0) return res.status(400).json({ message: "File is empty or has no data rows" });
+      let imported = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const description = row["Description"] || row["description"];
+        const category = row["Category"] || row["category"];
+        const amount = row["Amount"] || row["amount"];
+        const date = row["Date"] || row["date"];
+        if (!description || !category || !amount || !date) {
+          skipped++;
+          errors.push(`Row ${i + 2}: Missing required fields (Description, Category, Amount, Date)`);
+          continue;
+        }
+        try {
+          await storage.createExpense({
+            description,
+            category,
+            amount: parseFloat(amount).toFixed(2),
+            date,
+            paymentMethod: row["Payment Method"] || row["paymentMethod"] || "cash",
+            notes: row["Notes"] || row["notes"] || null,
+            status: "pending",
+          });
+          imported++;
+        } catch (err: any) {
+          skipped++;
+          errors.push(`Row ${i + 2}: ${err.message}`);
+        }
+      }
+      res.json({ imported, skipped, total: rows.length, errors: errors.slice(0, 10) });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/expenses", async (_req, res) => {
     try {
       const result = await storage.getExpenses();
