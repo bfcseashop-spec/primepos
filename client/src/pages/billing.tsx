@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, Trash2, DollarSign, Percent } from "lucide-react";
+import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard } from "lucide-react";
 import type { Patient, Service, Medicine, BillItem, User } from "@shared/schema";
 
 const PAYMENT_METHODS = [
@@ -62,22 +62,87 @@ export default function BillingPage() {
     .filter((u) => u.fullName?.toLowerCase().startsWith("dr"))
     .map((u) => u.fullName);
 
+  const [billAction, setBillAction] = useState<"create" | "print" | "payment">("create");
+
+  const getPaymentLabel = (method: string) => {
+    const found = PAYMENT_METHODS.find(p => p.value === method);
+    return found ? found.label : method;
+  };
+
   const createBillMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest("POST", "/api/bills", data);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (bill: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+
+      if (billAction === "print") {
+        printReceipt(bill);
+        toast({ title: "Bill created and receipt printed" });
+      } else if (billAction === "payment") {
+        toast({ title: "Bill created with payment recorded" });
+      } else {
+        toast({ title: "Bill created successfully" });
+      }
+
       setDialogOpen(false);
       resetForm();
-      toast({ title: "Bill created successfully" });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
+
+  const printReceipt = (bill: any) => {
+    const patient = patients.find(p => p.id === Number(selectedPatient || bill.patientId));
+    const items = bill.items || billItems;
+    const printWindow = window.open("", "_blank", "width=400,height=600");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html><head><title>Receipt</title>
+      <style>
+        body { font-family: monospace; padding: 20px; max-width: 350px; margin: 0 auto; font-size: 13px; }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .line { border-top: 1px dashed #333; margin: 8px 0; }
+        .row { display: flex; justify-content: space-between; margin: 3px 0; }
+        .items { margin: 8px 0; }
+        h2 { margin: 4px 0; }
+        p { margin: 2px 0; }
+      </style></head><body>
+        <div class="center">
+          <h2>Receipt</h2>
+          <p>Bill #: ${bill.billNo}</p>
+          <p>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+        </div>
+        <div class="line"></div>
+        <p><span class="bold">Patient:</span> ${patient?.name || "N/A"}</p>
+        ${bill.referenceDoctor ? `<p><span class="bold">Doctor:</span> ${bill.referenceDoctor}</p>` : ""}
+        <div class="line"></div>
+        <div class="items">
+          ${(Array.isArray(items) ? items : []).map((item: any) => `
+            <div class="row">
+              <span>${item.name} x${item.quantity}</span>
+              <span>$${Number(item.total).toFixed(2)}</span>
+            </div>
+          `).join("")}
+        </div>
+        <div class="line"></div>
+        <div class="row"><span>Subtotal</span><span>$${bill.subtotal}</span></div>
+        <div class="row"><span>Discount</span><span>-$${bill.discount}</span></div>
+        <div class="line"></div>
+        <div class="row bold"><span>Total</span><span>$${bill.total}</span></div>
+        <div class="row"><span>Paid</span><span>$${bill.paidAmount}</span></div>
+        <div class="row"><span>Method</span><span>${getPaymentLabel(bill.paymentMethod)}</span></div>
+        <div class="line"></div>
+        <p class="center">Thank you!</p>
+        <script>window.onload = function() { window.print(); }</script>
+      </body></html>
+    `);
+    printWindow.document.close();
+  };
 
   const resetForm = () => {
     setBillItems([]);
@@ -156,11 +221,6 @@ export default function BillingPage() {
     b.billNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.patientName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const getPaymentLabel = (method: string) => {
-    const found = PAYMENT_METHODS.find(p => p.value === method);
-    return found ? found.label : method;
-  };
 
   const billColumns = [
     { header: "Bill #", accessor: "billNo" as keyof any },
@@ -365,9 +425,35 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                <Button onClick={handleCreateBill} className="w-full" disabled={createBillMutation.isPending} data-testid="button-submit-bill">
-                  {createBillMutation.isPending ? "Creating..." : "Create Bill"}
-                </Button>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    onClick={() => { setBillAction("create"); handleCreateBill(); }}
+                    disabled={createBillMutation.isPending}
+                    className="bg-emerald-600 hover:bg-emerald-600 text-white border-emerald-700"
+                    data-testid="button-submit-bill"
+                  >
+                    <FileText className="h-4 w-4 mr-1.5" />
+                    {createBillMutation.isPending && billAction === "create" ? "Creating..." : "Create Bill"}
+                  </Button>
+                  <Button
+                    onClick={() => { setBillAction("print"); handleCreateBill(); }}
+                    disabled={createBillMutation.isPending}
+                    className="bg-blue-600 hover:bg-blue-600 text-white border-blue-700"
+                    data-testid="button-print-receipt"
+                  >
+                    <Printer className="h-4 w-4 mr-1.5" />
+                    {createBillMutation.isPending && billAction === "print" ? "Printing..." : "Print Receipt"}
+                  </Button>
+                  <Button
+                    onClick={() => { setBillAction("payment"); handleCreateBill(); }}
+                    disabled={createBillMutation.isPending}
+                    className="bg-amber-600 hover:bg-amber-600 text-white border-amber-700"
+                    data-testid="button-make-payment"
+                  >
+                    <CreditCard className="h-4 w-4 mr-1.5" />
+                    {createBillMutation.isPending && billAction === "payment" ? "Processing..." : "Make Payment"}
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
