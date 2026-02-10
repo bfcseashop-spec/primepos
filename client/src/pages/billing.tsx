@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone } from "lucide-react";
+import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, CalendarDays } from "lucide-react";
 import type { Patient, Service, Medicine, BillItem, User, ClinicSettings } from "@shared/schema";
 
 const PAYMENT_METHODS = [
@@ -26,6 +26,46 @@ const PAYMENT_METHODS = [
   { value: "gpay", label: "GPay", icon: Smartphone, color: "text-teal-600 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800" },
 ];
 
+type DatePreset = "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "last_month" | "custom";
+
+function getDateRange(preset: DatePreset): { from: Date; to: Date } | null {
+  if (preset === "custom") return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+
+  switch (preset) {
+    case "today":
+      return { from: today, to: tomorrow };
+    case "yesterday": {
+      const y = new Date(today); y.setDate(today.getDate() - 1);
+      return { from: y, to: today };
+    }
+    case "this_week": {
+      const dow = today.getDay();
+      const monday = new Date(today); monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+      return { from: monday, to: tomorrow };
+    }
+    case "last_week": {
+      const dow = today.getDay();
+      const thisMonday = new Date(today); thisMonday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+      const lastMonday = new Date(thisMonday); lastMonday.setDate(thisMonday.getDate() - 7);
+      return { from: lastMonday, to: thisMonday };
+    }
+    case "this_month": {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { from: firstDay, to: tomorrow };
+    }
+    case "last_month": {
+      const firstDayLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const firstDayThis = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { from: firstDayLast, to: firstDayThis };
+    }
+    default:
+      return null;
+  }
+}
+
 export default function BillingPage() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -37,6 +77,9 @@ export default function BillingPage() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [referenceDoctor, setReferenceDoctor] = useState("");
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [datePreset, setDatePreset] = useState<DatePreset | "all">("all");
+  const [customDateFrom, setCustomDateFrom] = useState("");
+  const [customDateTo, setCustomDateTo] = useState("");
 
   const { data: bills = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/bills"],
@@ -93,11 +136,6 @@ export default function BillingPage() {
     if (status === "partial") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"><Clock className="h-3 w-3" />Partial</span>;
     return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"><X className="h-3 w-3" />Unpaid</span>;
   };
-
-  const totalRevenue = bills.reduce((sum: number, b: any) => sum + (Number(b.total) || 0), 0);
-  const totalPaid = bills.reduce((sum: number, b: any) => sum + (Number(b.paidAmount) || 0), 0);
-  const paidCount = bills.filter((b: any) => b.status === "paid").length;
-  const pendingCount = bills.filter((b: any) => b.status !== "paid").length;
 
   const createBillMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -357,10 +395,38 @@ export default function BillingPage() {
     });
   };
 
-  const filteredBills = bills.filter((b: any) =>
+  const dateFilteredBills = bills.filter((b: any) => {
+    if (datePreset === "all") return true;
+    const billDateStr = b.paymentDate || (b.createdAt ? new Date(b.createdAt).toISOString().split("T")[0] : null);
+    if (!billDateStr) return true;
+    const billDate = new Date(billDateStr + "T00:00:00");
+
+    if (datePreset === "custom") {
+      if (customDateFrom) {
+        const from = new Date(customDateFrom + "T00:00:00");
+        if (billDate < from) return false;
+      }
+      if (customDateTo) {
+        const to = new Date(customDateTo + "T23:59:59");
+        if (billDate > to) return false;
+      }
+      return true;
+    }
+
+    const range = getDateRange(datePreset);
+    if (!range) return true;
+    return billDate >= range.from && billDate < range.to;
+  });
+
+  const filteredBills = dateFilteredBills.filter((b: any) =>
     b.billNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.patientName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const totalRevenue = dateFilteredBills.reduce((sum: number, b: any) => sum + (Number(b.total) || 0), 0);
+  const totalPaid = dateFilteredBills.reduce((sum: number, b: any) => sum + (Number(b.paidAmount) || 0), 0);
+  const paidCount = dateFilteredBills.filter((b: any) => b.status === "paid").length;
+  const pendingCount = dateFilteredBills.filter((b: any) => b.status !== "paid").length;
 
   const billColumns = [
     { header: "Bill #", accessor: (row: any) => (
@@ -805,10 +871,66 @@ export default function BillingPage() {
           </Card>
         </div>
 
+        {/* Date Filter Bar */}
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-xs font-medium text-muted-foreground shrink-0">Filter by:</span>
+              {([
+                { key: "all", label: "All" },
+                { key: "today", label: "Today" },
+                { key: "yesterday", label: "Yesterday" },
+                { key: "this_week", label: "This Week" },
+                { key: "last_week", label: "Last Week" },
+                { key: "this_month", label: "This Month" },
+                { key: "last_month", label: "Last Month" },
+                { key: "custom", label: "Custom Range" },
+              ] as { key: DatePreset | "all"; label: string }[]).map((item) => (
+                <Button
+                  key={item.key}
+                  variant={datePreset === item.key ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setDatePreset(item.key);
+                    if (item.key !== "custom") {
+                      setCustomDateFrom("");
+                      setCustomDateTo("");
+                    }
+                  }}
+                  className="toggle-elevate"
+                  data-testid={`button-date-filter-${item.key}`}
+                >
+                  {item.label}
+                </Button>
+              ))}
+              {datePreset === "custom" && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Input
+                    type="date"
+                    value={customDateFrom}
+                    onChange={(e) => setCustomDateFrom(e.target.value)}
+                    className="h-8 w-36 text-xs"
+                    data-testid="input-date-from"
+                  />
+                  <span className="text-xs text-muted-foreground">to</span>
+                  <Input
+                    type="date"
+                    value={customDateTo}
+                    onChange={(e) => setCustomDateTo(e.target.value)}
+                    className="h-8 w-36 text-xs"
+                    data-testid="input-date-to"
+                  />
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Bills Table */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <FileText className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-semibold">All Bills</CardTitle>
               <Badge variant="secondary" className="text-[10px]">{filteredBills.length}</Badge>
