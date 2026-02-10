@@ -22,30 +22,30 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   INR: "\u20B9", AUD: "A$", CAD: "C$", CHF: "CHF", KRW: "\u20A9",
 };
 
-function formatDualCurrency(amount: number, settings?: ClinicSettings | null) {
+function getCurrencyParts(amount: number, settings?: ClinicSettings | null) {
   const primary = settings?.currency || "USD";
   const pSym = CURRENCY_SYMBOLS[primary] || primary;
   const secondary = settings?.secondaryCurrency;
   const rate = Number(settings?.exchangeRate) || 1;
-  const primaryStr = `${pSym}${amount.toFixed(2)}`;
-  if (!secondary || secondary === primary) return primaryStr;
+  const pDecimals = ["JPY", "KRW", "VND", "KHR"].includes(primary) ? 0 : 2;
+  const primaryStr = `${pSym}${amount.toFixed(pDecimals)}`;
+  if (!secondary || secondary === primary) return { primaryStr, secondaryStr: null };
   const sSym = CURRENCY_SYMBOLS[secondary] || secondary;
   const converted = amount * rate;
-  const decimals = ["JPY", "KRW", "VND", "KHR"].includes(secondary) ? 0 : 2;
-  return `${primaryStr} / ${sSym}${converted.toFixed(decimals)}`;
+  const sDecimals = ["JPY", "KRW", "VND", "KHR"].includes(secondary) ? 0 : 2;
+  return { primaryStr, secondaryStr: `${sSym}${converted.toFixed(sDecimals)}` };
+}
+
+function formatDualCurrency(amount: number, settings?: ClinicSettings | null) {
+  const { primaryStr, secondaryStr } = getCurrencyParts(amount, settings);
+  if (!secondaryStr) return primaryStr;
+  return `${primaryStr} / ${secondaryStr}`;
 }
 
 function dualCurrencyHTML(amount: number, settings?: ClinicSettings | null) {
-  const primary = settings?.currency || "USD";
-  const pSym = CURRENCY_SYMBOLS[primary] || primary;
-  const secondary = settings?.secondaryCurrency;
-  const rate = Number(settings?.exchangeRate) || 1;
-  const primaryStr = `${pSym}${amount.toFixed(2)}`;
-  if (!secondary || secondary === primary) return primaryStr;
-  const sSym = CURRENCY_SYMBOLS[secondary] || secondary;
-  const converted = amount * rate;
-  const decimals = ["JPY", "KRW", "VND", "KHR"].includes(secondary) ? 0 : 2;
-  return `${primaryStr} <span style="color:#6b7280;font-size:0.85em;">/ ${sSym}${converted.toFixed(decimals)}</span>`;
+  const { primaryStr, secondaryStr } = getCurrencyParts(amount, settings);
+  if (!secondaryStr) return primaryStr;
+  return `${primaryStr} <span style="color:#6b7280;font-size:0.85em;">/ ${secondaryStr}</span>`;
 }
 
 const PAYMENT_METHODS = [
@@ -328,8 +328,14 @@ export default function BillingPage() {
                 </tr>
                 <tr style="border-top:2px solid #0f766e;">
                   <td style="padding:8px 10px;font-size:14px;font-weight:700;color:#0f766e;">Grand Total</td>
-                  <td style="padding:8px 10px;text-align:right;font-size:14px;font-weight:700;color:#0f766e;">${dualCurrencyHTML(Number(bill.total), settings)}</td>
+                  <td style="padding:8px 10px;text-align:right;font-size:14px;font-weight:700;color:#0f766e;">${getCurrencyParts(Number(bill.total), settings).primaryStr}</td>
                 </tr>
+                ${getCurrencyParts(Number(bill.total), settings).secondaryStr ? `
+                <tr>
+                  <td style="padding:4px 10px;font-size:14px;font-weight:700;color:#0f766e;">Grand Total</td>
+                  <td style="padding:4px 10px;text-align:right;font-size:14px;font-weight:700;color:#0f766e;">${getCurrencyParts(Number(bill.total), settings).secondaryStr}</td>
+                </tr>
+                ` : ""}
               </table>
             </td>
           </tr>
@@ -605,10 +611,23 @@ export default function BillingPage() {
                           <span className="text-right text-red-500">-{formatDualCurrency(discountAmount, settings)}</span>
                         </div>
                         <Separator />
-                        <div className="flex justify-between gap-2 font-bold text-teal-700 dark:text-teal-400 text-base pt-0.5">
-                          <span>Grand Total</span>
-                          <span className="text-right">{formatDualCurrency(total, settings)}</span>
-                        </div>
+                        {(() => {
+                          const { primaryStr, secondaryStr } = getCurrencyParts(total, settings);
+                          return (
+                            <>
+                              <div className="flex justify-between gap-2 font-bold text-teal-700 dark:text-teal-400 text-base pt-0.5">
+                                <span>Grand Total</span>
+                                <span className="text-right">{primaryStr}</span>
+                              </div>
+                              {secondaryStr && (
+                                <div className="flex justify-between gap-2 font-bold text-teal-700 dark:text-teal-400 text-base">
+                                  <span>Grand Total</span>
+                                  <span className="text-right">{secondaryStr}</span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -807,10 +826,23 @@ export default function BillingPage() {
                     <span className="text-red-500">-{formatDualCurrency(discountAmount, settings)}</span>
                   </div>
                   <Separator />
-                  <div className="flex justify-between font-bold text-base text-teal-700 dark:text-teal-400">
-                    <span>Grand Total</span>
-                    <span>{formatDualCurrency(total, settings)}</span>
-                  </div>
+                  {(() => {
+                    const { primaryStr, secondaryStr } = getCurrencyParts(total, settings);
+                    return (
+                      <>
+                        <div className="flex justify-between font-bold text-base text-teal-700 dark:text-teal-400">
+                          <span>Grand Total</span>
+                          <span>{primaryStr}</span>
+                        </div>
+                        {secondaryStr && (
+                          <div className="flex justify-between font-bold text-base text-teal-700 dark:text-teal-400">
+                            <span>Grand Total</span>
+                            <span>{secondaryStr}</span>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
@@ -1064,10 +1096,23 @@ export default function BillingPage() {
                         <span className="text-right text-red-500">-{formatDualCurrency(vDiscount, settings)}</span>
                       </div>
                       <Separator />
-                      <div className="flex justify-between gap-2 font-bold text-teal-700 dark:text-teal-400 text-base pt-0.5">
-                        <span>Grand Total</span>
-                        <span className="text-right">{formatDualCurrency(vTotal, settings)}</span>
-                      </div>
+                      {(() => {
+                        const { primaryStr, secondaryStr } = getCurrencyParts(vTotal, settings);
+                        return (
+                          <>
+                            <div className="flex justify-between gap-2 font-bold text-teal-700 dark:text-teal-400 text-base pt-0.5">
+                              <span>Grand Total</span>
+                              <span className="text-right">{primaryStr}</span>
+                            </div>
+                            {secondaryStr && (
+                              <div className="flex justify-between gap-2 font-bold text-teal-700 dark:text-teal-400 text-base">
+                                <span>Grand Total</span>
+                                <span className="text-right">{secondaryStr}</span>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
 
