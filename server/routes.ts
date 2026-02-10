@@ -132,10 +132,108 @@ function validateBody<T>(schema: z.ZodSchema<T>, body: unknown): T {
   return result.data;
 }
 
+function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  next();
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // Authentication routes (no auth required)
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      const isHashed = user.password.startsWith("$2");
+      const isMatch = isHashed ? await bcrypt.compare(password, user.password) : user.password === password;
+      if (!isMatch) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      if (!user.isActive) {
+        return res.status(403).json({ message: "Account is deactivated" });
+      }
+      if (!isHashed) {
+        const hashed = await bcrypt.hash(password, 10);
+        await storage.changePassword(user.id, hashed);
+      }
+      req.session.userId = user.id;
+      req.session.username = user.username;
+      req.session.fullName = user.fullName || "";
+      req.session.email = user.email || "";
+      req.session.roleId = user.roleId;
+      let roleName = "User";
+      if (user.roleId) {
+        const role = await storage.getRole(user.roleId);
+        if (role) roleName = role.name;
+      }
+      req.session.save((err) => {
+        if (err) {
+          return res.status(500).json({ message: "Session error" });
+        }
+        res.json({ id: user.id, username: user.username, fullName: user.fullName, email: user.email, roleId: user.roleId, role: roleName });
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.clearCookie("connect.sid");
+      res.json({ message: "Logged out" });
+    });
+  });
+
+  app.get("/api/auth/me", (req, res) => {
+    if (!req.session || !req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    res.json({
+      id: req.session.userId,
+      username: req.session.username,
+      fullName: req.session.fullName,
+      email: req.session.email,
+      roleId: req.session.roleId,
+    });
+  });
+
+  app.post("/api/auth/change-password", requireAuth, async (req, res) => {
+    try {
+      const { userId, currentPassword, newPassword } = req.body;
+      if (!userId || !currentPassword || !newPassword) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+      const user = await storage.getUser(Number(userId));
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const isHashed = user.password.startsWith("$2");
+      const isMatch = isHashed ? await bcrypt.compare(currentPassword, user.password) : user.password === currentPassword;
+      if (!isMatch) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+      const hashedNew = await bcrypt.hash(newPassword, 10);
+      await storage.changePassword(Number(userId), hashedNew);
+      res.json({ message: "Password changed successfully" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Protect all other API routes
+  app.use("/api", requireAuth);
 
   // Dashboard
   app.get("/api/dashboard/stats", async (_req, res) => {
@@ -1628,56 +1726,6 @@ export async function registerRoutes(
       res.json(payslip);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
-    }
-  });
-
-  // Authentication
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const { username, password } = req.body;
-      if (!username || !password) {
-        return res.status(400).json({ message: "Username and password are required" });
-      }
-      const user = await storage.getUserByUsername(username);
-      if (!user) {
-        return res.status(401).json({ message: "Invalid username or password" });
-      }
-      const isHashed = user.password.startsWith("$2");
-      const isMatch = isHashed ? await bcrypt.compare(password, user.password) : user.password === password;
-      if (!isMatch) {
-        return res.status(401).json({ message: "Invalid username or password" });
-      }
-      if (!user.isActive) {
-        return res.status(403).json({ message: "Account is deactivated" });
-      }
-      if (!isHashed) {
-        const hashed = await bcrypt.hash(password, 10);
-        await storage.changePassword(user.id, hashed);
-      }
-      res.json({ id: user.id, username: user.username, fullName: user.fullName, email: user.email, roleId: user.roleId });
-    } catch (err: any) {
-      res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.post("/api/auth/change-password", async (req, res) => {
-    try {
-      const { userId, currentPassword, newPassword } = req.body;
-      if (!userId || !currentPassword || !newPassword) {
-        return res.status(400).json({ message: "All fields are required" });
-      }
-      const user = await storage.getUser(Number(userId));
-      if (!user) return res.status(404).json({ message: "User not found" });
-      const isHashed = user.password.startsWith("$2");
-      const isMatch = isHashed ? await bcrypt.compare(currentPassword, user.password) : user.password === currentPassword;
-      if (!isMatch) {
-        return res.status(401).json({ message: "Current password is incorrect" });
-      }
-      const hashedNew = await bcrypt.hash(newPassword, 10);
-      await storage.changePassword(Number(userId), hashedNew);
-      res.json({ message: "Password changed successfully" });
-    } catch (err: any) {
-      res.status(500).json({ message: err.message });
     }
   });
 
