@@ -312,6 +312,106 @@ export const insertSalarySchema = createInsertSchema(salaries).omit({ id: true, 
 export type InsertSalary = z.infer<typeof insertSalarySchema>;
 export type Salary = typeof salaries.$inferSelect;
 
+export const salaryProfiles = pgTable("salary_profiles", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  staffName: text("staff_name").notNull(),
+  staffId: text("staff_id"),
+  department: text("department"),
+  category: text("category"),
+  role: text("role"),
+  baseSalary: numeric("base_salary", { precision: 10, scale: 2 }).notNull().default("0"),
+  housingAllowance: numeric("housing_allowance", { precision: 10, scale: 2 }).default("0"),
+  transportAllowance: numeric("transport_allowance", { precision: 10, scale: 2 }).default("0"),
+  mealAllowance: numeric("meal_allowance", { precision: 10, scale: 2 }).default("0"),
+  otherAllowance: numeric("other_allowance", { precision: 10, scale: 2 }).default("0"),
+  phone: text("phone"),
+  email: text("email"),
+  bankName: text("bank_name"),
+  bankAccount: text("bank_account"),
+  joinDate: text("join_date"),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSalaryProfileSchema = createInsertSchema(salaryProfiles).omit({ id: true, createdAt: true });
+export type InsertSalaryProfile = z.infer<typeof insertSalaryProfileSchema>;
+export type SalaryProfile = typeof salaryProfiles.$inferSelect;
+
+export const salaryLoans = pgTable("salary_loans", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  profileId: integer("profile_id").references(() => salaryProfiles.id),
+  staffName: text("staff_name").notNull(),
+  type: text("type").notNull().default("loan"),
+  principal: numeric("principal", { precision: 10, scale: 2 }).notNull(),
+  interestRate: numeric("interest_rate", { precision: 5, scale: 2 }).default("0"),
+  termMonths: integer("term_months").notNull().default(1),
+  installmentAmount: numeric("installment_amount", { precision: 10, scale: 2 }).notNull(),
+  totalPaid: numeric("total_paid", { precision: 10, scale: 2 }).default("0"),
+  outstanding: numeric("outstanding", { precision: 10, scale: 2 }).notNull(),
+  startDate: text("start_date").notNull(),
+  status: text("status").notNull().default("active"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSalaryLoanSchema = createInsertSchema(salaryLoans).omit({ id: true, createdAt: true });
+export type InsertSalaryLoan = z.infer<typeof insertSalaryLoanSchema>;
+export type SalaryLoan = typeof salaryLoans.$inferSelect;
+
+export const loanInstallments = pgTable("loan_installments", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  loanId: integer("loan_id").references(() => salaryLoans.id),
+  dueDate: text("due_date").notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  paidAmount: numeric("paid_amount", { precision: 10, scale: 2 }).default("0"),
+  status: text("status").notNull().default("due"),
+  paidDate: text("paid_date"),
+});
+
+export const insertLoanInstallmentSchema = createInsertSchema(loanInstallments).omit({ id: true });
+export type InsertLoanInstallment = z.infer<typeof insertLoanInstallmentSchema>;
+export type LoanInstallment = typeof loanInstallments.$inferSelect;
+
+export const payrollRuns = pgTable("payroll_runs", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  month: text("month").notNull(),
+  year: text("year").notNull(),
+  runDate: text("run_date").notNull(),
+  totalGross: numeric("total_gross", { precision: 12, scale: 2 }).default("0"),
+  totalDeductions: numeric("total_deductions", { precision: 12, scale: 2 }).default("0"),
+  totalNet: numeric("total_net", { precision: 12, scale: 2 }).default("0"),
+  employeeCount: integer("employee_count").default(0),
+  status: text("status").notNull().default("draft"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPayrollRunSchema = createInsertSchema(payrollRuns).omit({ id: true, createdAt: true });
+export type InsertPayrollRun = z.infer<typeof insertPayrollRunSchema>;
+export type PayrollRun = typeof payrollRuns.$inferSelect;
+
+export const payslips = pgTable("payslips", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  payrollRunId: integer("payroll_run_id").references(() => payrollRuns.id),
+  profileId: integer("profile_id").references(() => salaryProfiles.id),
+  staffName: text("staff_name").notNull(),
+  department: text("department"),
+  baseSalary: numeric("base_salary", { precision: 10, scale: 2 }).notNull(),
+  allowances: numeric("allowances", { precision: 10, scale: 2 }).default("0"),
+  loanDeductions: numeric("loan_deductions", { precision: 10, scale: 2 }).default("0"),
+  otherDeductions: numeric("other_deductions", { precision: 10, scale: 2 }).default("0"),
+  grossPay: numeric("gross_pay", { precision: 10, scale: 2 }).notNull(),
+  netPay: numeric("net_pay", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: text("payment_method").default("bank_transfer"),
+  status: text("status").notNull().default("pending"),
+  paidDate: text("paid_date"),
+  notes: text("notes"),
+});
+
+export const insertPayslipSchema = createInsertSchema(payslips).omit({ id: true });
+export type InsertPayslip = z.infer<typeof insertPayslipSchema>;
+export type Payslip = typeof payslips.$inferSelect;
+
 export type BillItem = {
   name: string;
   type: "service" | "medicine";

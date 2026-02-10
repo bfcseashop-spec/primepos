@@ -7,7 +7,9 @@ import {
   insertBankTransactionSchema, insertInvestmentSchema,
   insertUserSchema, insertRoleSchema, insertIntegrationSchema,
   insertClinicSettingsSchema, insertLabTestSchema, insertAppointmentSchema,
-  insertDoctorSchema, insertSalarySchema
+  insertDoctorSchema, insertSalarySchema,
+  insertSalaryProfileSchema, insertSalaryLoanSchema, insertLoanInstallmentSchema,
+  insertPayrollRunSchema, insertPayslipSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -1153,6 +1155,292 @@ export async function registerRoutes(
       res.json({ message: "Deleted" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Salary Profiles
+  app.get("/api/salary-profiles", async (_req, res) => {
+    try {
+      const result = await storage.getSalaryProfiles();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/salary-profiles/:id", async (req, res) => {
+    try {
+      const profile = await storage.getSalaryProfile(Number(req.params.id));
+      if (!profile) return res.status(404).json({ message: "Salary profile not found" });
+      res.json(profile);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/salary-profiles", async (req, res) => {
+    try {
+      const data = validateBody(insertSalaryProfileSchema, req.body);
+      const profile = await storage.createSalaryProfile(data);
+      res.status(201).json(profile);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.put("/api/salary-profiles/:id", async (req, res) => {
+    try {
+      const profile = await storage.updateSalaryProfile(Number(req.params.id), req.body);
+      if (!profile) return res.status(404).json({ message: "Salary profile not found" });
+      res.json(profile);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/salary-profiles/:id", async (req, res) => {
+    try {
+      await storage.deleteSalaryProfile(Number(req.params.id));
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Salary Loans
+  app.get("/api/salary-loans", async (_req, res) => {
+    try {
+      const result = await storage.getSalaryLoans();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/salary-loans/:id", async (req, res) => {
+    try {
+      const loan = await storage.getSalaryLoan(Number(req.params.id));
+      if (!loan) return res.status(404).json({ message: "Salary loan not found" });
+      res.json(loan);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/salary-loans", async (req, res) => {
+    try {
+      const data = validateBody(insertSalaryLoanSchema, req.body);
+      const loan = await storage.createSalaryLoan(data);
+      res.status(201).json(loan);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.put("/api/salary-loans/:id", async (req, res) => {
+    try {
+      const loan = await storage.updateSalaryLoan(Number(req.params.id), req.body);
+      if (!loan) return res.status(404).json({ message: "Salary loan not found" });
+      res.json(loan);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/salary-loans/:id", async (req, res) => {
+    try {
+      await storage.deleteSalaryLoan(Number(req.params.id));
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Loan Installments
+  app.get("/api/loan-installments/:loanId", async (req, res) => {
+    try {
+      const result = await storage.getLoanInstallments(Number(req.params.loanId));
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/loan-installments", async (req, res) => {
+    try {
+      const data = validateBody(insertLoanInstallmentSchema, req.body);
+      const installment = await storage.createLoanInstallment(data);
+      res.status(201).json(installment);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  // Payroll Runs
+  app.get("/api/payroll-runs", async (_req, res) => {
+    try {
+      const result = await storage.getPayrollRuns();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/payroll-runs/:id", async (req, res) => {
+    try {
+      const run = await storage.getPayrollRun(Number(req.params.id));
+      if (!run) return res.status(404).json({ message: "Payroll run not found" });
+      res.json(run);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/payroll-runs", async (req, res) => {
+    try {
+      const data = validateBody(insertPayrollRunSchema, req.body);
+      const run = await storage.createPayrollRun(data);
+      res.status(201).json(run);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.put("/api/payroll-runs/:id", async (req, res) => {
+    try {
+      const run = await storage.updatePayrollRun(Number(req.params.id), req.body);
+      if (!run) return res.status(404).json({ message: "Payroll run not found" });
+      res.json(run);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/payroll-runs/:id", async (req, res) => {
+    try {
+      await storage.deletePayrollRun(Number(req.params.id));
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/payroll-runs/:id/generate", async (req, res) => {
+    try {
+      const payrollRunId = Number(req.params.id);
+      const run = await storage.getPayrollRun(payrollRunId);
+      if (!run) return res.status(404).json({ message: "Payroll run not found" });
+
+      const profiles = await storage.getSalaryProfiles();
+      const activeProfiles = profiles.filter(p => p.status === "active");
+      const allLoans = await storage.getSalaryLoans();
+
+      let totalGross = 0;
+      let totalDeductions = 0;
+      let totalNet = 0;
+      const generatedPayslips = [];
+      const today = new Date().toISOString().split("T")[0];
+
+      for (const profile of activeProfiles) {
+        const baseSalary = Number(profile.baseSalary) || 0;
+        const housing = Number(profile.housingAllowance) || 0;
+        const transport = Number(profile.transportAllowance) || 0;
+        const meal = Number(profile.mealAllowance) || 0;
+        const other = Number(profile.otherAllowance) || 0;
+        const allowances = housing + transport + meal + other;
+        const grossPay = baseSalary + allowances;
+
+        const activeLoans = allLoans.filter(l => l.profileId === profile.id && l.status === "active");
+        let loanDeductions = 0;
+        for (const loan of activeLoans) {
+          const installment = Number(loan.installmentAmount) || 0;
+          const outstanding = Number(loan.outstanding) || 0;
+          const deduction = Math.min(installment, outstanding);
+          loanDeductions += deduction;
+
+          const newTotalPaid = Number(loan.totalPaid || 0) + deduction;
+          const newOutstanding = Math.max(0, outstanding - deduction);
+          const newStatus = newOutstanding <= 0 ? "closed" : "active";
+          await storage.updateSalaryLoan(loan.id, {
+            totalPaid: newTotalPaid.toString(),
+            outstanding: newOutstanding.toString(),
+            status: newStatus,
+          });
+
+          await storage.createLoanInstallment({
+            loanId: loan.id,
+            dueDate: today,
+            amount: deduction.toString(),
+            paidAmount: deduction.toString(),
+            status: "paid",
+            paidDate: today,
+          });
+        }
+
+        const netPay = grossPay - loanDeductions;
+
+        const payslip = await storage.createPayslip({
+          payrollRunId,
+          profileId: profile.id,
+          staffName: profile.staffName,
+          department: profile.department,
+          baseSalary: baseSalary.toString(),
+          allowances: allowances.toString(),
+          loanDeductions: loanDeductions.toString(),
+          otherDeductions: "0",
+          grossPay: grossPay.toString(),
+          netPay: netPay.toString(),
+          paymentMethod: "bank_transfer",
+          status: "pending",
+        });
+
+        generatedPayslips.push(payslip);
+        totalGross += grossPay;
+        totalDeductions += loanDeductions;
+        totalNet += netPay;
+      }
+
+      await storage.updatePayrollRun(payrollRunId, {
+        totalGross: totalGross.toString(),
+        totalDeductions: totalDeductions.toString(),
+        totalNet: totalNet.toString(),
+        employeeCount: activeProfiles.length,
+        status: "generated",
+      });
+
+      res.status(201).json({ payslips: generatedPayslips, employeeCount: activeProfiles.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Payslips
+  app.get("/api/payslips/:payrollRunId", async (req, res) => {
+    try {
+      const result = await storage.getPayslips(Number(req.params.payrollRunId));
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/payslips", async (req, res) => {
+    try {
+      const data = validateBody(insertPayslipSchema, req.body);
+      const payslip = await storage.createPayslip(data);
+      res.status(201).json(payslip);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/payslips/:id", async (req, res) => {
+    try {
+      const payslip = await storage.updatePayslip(Number(req.params.id), req.body);
+      if (!payslip) return res.status(404).json({ message: "Payslip not found" });
+      res.json(payslip);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
     }
   });
 

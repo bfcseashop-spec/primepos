@@ -4,6 +4,7 @@ import {
   users, roles, patients, services, medicines, opdVisits, bills,
   expenses, bankTransactions, investments, integrations, clinicSettings, labTests, appointments,
   doctors, salaries,
+  salaryProfiles, salaryLoans, loanInstallments, payrollRuns, payslips,
   type InsertUser, type User, type InsertRole, type Role,
   type InsertPatient, type Patient, type InsertService, type Service,
   type InsertMedicine, type Medicine, type InsertOpdVisit, type OpdVisit,
@@ -16,6 +17,11 @@ import {
   type InsertAppointment, type Appointment,
   type InsertDoctor, type Doctor,
   type InsertSalary, type Salary,
+  type InsertSalaryProfile, type SalaryProfile,
+  type InsertSalaryLoan, type SalaryLoan,
+  type InsertLoanInstallment, type LoanInstallment,
+  type InsertPayrollRun, type PayrollRun,
+  type InsertPayslip, type Payslip,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -99,6 +105,32 @@ export interface IStorage {
   createSalary(salary: InsertSalary): Promise<Salary>;
   updateSalary(id: number, data: Partial<InsertSalary>): Promise<Salary | undefined>;
   deleteSalary(id: number): Promise<void>;
+
+  getSalaryProfiles(): Promise<SalaryProfile[]>;
+  getSalaryProfile(id: number): Promise<SalaryProfile | undefined>;
+  createSalaryProfile(profile: InsertSalaryProfile): Promise<SalaryProfile>;
+  updateSalaryProfile(id: number, data: Partial<InsertSalaryProfile>): Promise<SalaryProfile | undefined>;
+  deleteSalaryProfile(id: number): Promise<void>;
+
+  getSalaryLoans(): Promise<SalaryLoan[]>;
+  getSalaryLoan(id: number): Promise<SalaryLoan | undefined>;
+  createSalaryLoan(loan: InsertSalaryLoan): Promise<SalaryLoan>;
+  updateSalaryLoan(id: number, data: Partial<InsertSalaryLoan>): Promise<SalaryLoan | undefined>;
+  deleteSalaryLoan(id: number): Promise<void>;
+
+  getLoanInstallments(loanId: number): Promise<LoanInstallment[]>;
+  createLoanInstallment(installment: InsertLoanInstallment): Promise<LoanInstallment>;
+  updateLoanInstallment(id: number, data: Partial<InsertLoanInstallment>): Promise<LoanInstallment | undefined>;
+
+  getPayrollRuns(): Promise<PayrollRun[]>;
+  getPayrollRun(id: number): Promise<PayrollRun | undefined>;
+  createPayrollRun(run: InsertPayrollRun): Promise<PayrollRun>;
+  updatePayrollRun(id: number, data: Partial<InsertPayrollRun>): Promise<PayrollRun | undefined>;
+  deletePayrollRun(id: number): Promise<void>;
+
+  getPayslips(payrollRunId: number): Promise<Payslip[]>;
+  createPayslip(payslip: InsertPayslip): Promise<Payslip>;
+  updatePayslip(id: number, data: Partial<InsertPayslip>): Promise<Payslip | undefined>;
 
   getUserByUsername(username: string): Promise<User | undefined>;
   changePassword(id: number, newPassword: string): Promise<void>;
@@ -621,6 +653,103 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSalary(id: number): Promise<void> {
     await db.delete(salaries).where(eq(salaries.id, id));
+  }
+
+  async getSalaryProfiles(): Promise<SalaryProfile[]> {
+    return db.select().from(salaryProfiles).orderBy(desc(salaryProfiles.createdAt));
+  }
+
+  async getSalaryProfile(id: number): Promise<SalaryProfile | undefined> {
+    const [profile] = await db.select().from(salaryProfiles).where(eq(salaryProfiles.id, id));
+    return profile;
+  }
+
+  async createSalaryProfile(profile: InsertSalaryProfile): Promise<SalaryProfile> {
+    const [created] = await db.insert(salaryProfiles).values(profile).returning();
+    return created;
+  }
+
+  async updateSalaryProfile(id: number, data: Partial<InsertSalaryProfile>): Promise<SalaryProfile | undefined> {
+    const [updated] = await db.update(salaryProfiles).set(data).where(eq(salaryProfiles.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSalaryProfile(id: number): Promise<void> {
+    await db.delete(salaryProfiles).where(eq(salaryProfiles.id, id));
+  }
+
+  async getSalaryLoans(): Promise<SalaryLoan[]> {
+    return db.select().from(salaryLoans).orderBy(desc(salaryLoans.createdAt));
+  }
+
+  async getSalaryLoan(id: number): Promise<SalaryLoan | undefined> {
+    const [loan] = await db.select().from(salaryLoans).where(eq(salaryLoans.id, id));
+    return loan;
+  }
+
+  async createSalaryLoan(loan: InsertSalaryLoan): Promise<SalaryLoan> {
+    const [created] = await db.insert(salaryLoans).values(loan).returning();
+    return created;
+  }
+
+  async updateSalaryLoan(id: number, data: Partial<InsertSalaryLoan>): Promise<SalaryLoan | undefined> {
+    const [updated] = await db.update(salaryLoans).set(data).where(eq(salaryLoans.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSalaryLoan(id: number): Promise<void> {
+    await db.delete(salaryLoans).where(eq(salaryLoans.id, id));
+  }
+
+  async getLoanInstallments(loanId: number): Promise<LoanInstallment[]> {
+    return db.select().from(loanInstallments).where(eq(loanInstallments.loanId, loanId)).orderBy(loanInstallments.dueDate);
+  }
+
+  async createLoanInstallment(installment: InsertLoanInstallment): Promise<LoanInstallment> {
+    const [created] = await db.insert(loanInstallments).values(installment).returning();
+    return created;
+  }
+
+  async updateLoanInstallment(id: number, data: Partial<InsertLoanInstallment>): Promise<LoanInstallment | undefined> {
+    const [updated] = await db.update(loanInstallments).set(data).where(eq(loanInstallments.id, id)).returning();
+    return updated;
+  }
+
+  async getPayrollRuns(): Promise<PayrollRun[]> {
+    return db.select().from(payrollRuns).orderBy(desc(payrollRuns.createdAt));
+  }
+
+  async getPayrollRun(id: number): Promise<PayrollRun | undefined> {
+    const [run] = await db.select().from(payrollRuns).where(eq(payrollRuns.id, id));
+    return run;
+  }
+
+  async createPayrollRun(run: InsertPayrollRun): Promise<PayrollRun> {
+    const [created] = await db.insert(payrollRuns).values(run).returning();
+    return created;
+  }
+
+  async updatePayrollRun(id: number, data: Partial<InsertPayrollRun>): Promise<PayrollRun | undefined> {
+    const [updated] = await db.update(payrollRuns).set(data).where(eq(payrollRuns.id, id)).returning();
+    return updated;
+  }
+
+  async deletePayrollRun(id: number): Promise<void> {
+    await db.delete(payrollRuns).where(eq(payrollRuns.id, id));
+  }
+
+  async getPayslips(payrollRunId: number): Promise<Payslip[]> {
+    return db.select().from(payslips).where(eq(payslips.payrollRunId, payrollRunId));
+  }
+
+  async createPayslip(payslip: InsertPayslip): Promise<Payslip> {
+    const [created] = await db.insert(payslips).values(payslip).returning();
+    return created;
+  }
+
+  async updatePayslip(id: number, data: Partial<InsertPayslip>): Promise<Payslip | undefined> {
+    const [updated] = await db.update(payslips).set(data).where(eq(payslips.id, id)).returning();
+    return updated;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
