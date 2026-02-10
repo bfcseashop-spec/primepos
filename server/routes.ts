@@ -176,13 +176,29 @@ export async function registerRoutes(
 
   app.patch("/api/services/:id", async (req, res) => {
     try {
-      const updateSchema = z.object({ isActive: z.boolean().optional(), name: z.string().optional(), price: z.string().optional() });
+      const updateSchema = z.object({
+        isActive: z.boolean().optional(),
+        name: z.string().optional(),
+        category: z.string().optional(),
+        price: z.string().optional(),
+        description: z.string().nullable().optional(),
+        imageUrl: z.string().nullable().optional(),
+      });
       const data = validateBody(updateSchema, req.body);
       const service = await storage.updateService(Number(req.params.id), data);
       if (!service) return res.status(404).json({ message: "Service not found" });
       res.json(service);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/services/:id", async (req, res) => {
+    try {
+      await storage.deleteService(Number(req.params.id));
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
     }
   });
 

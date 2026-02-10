@@ -52,6 +52,7 @@ export const services = pgTable("services", {
   category: text("category").notNull(),
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
+  imageUrl: text("image_url"),
   isActive: boolean("is_active").notNull().default(true),
 });
 
