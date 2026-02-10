@@ -133,6 +133,27 @@ export async function registerRoutes(
     }
   });
 
+  app.put("/api/bills/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const bill = await storage.updateBill(id, req.body);
+      if (!bill) return res.status(404).json({ message: "Bill not found" });
+      res.json(bill);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/bills/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      await storage.deleteBill(id);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Services
   app.get("/api/services", async (_req, res) => {
     try {

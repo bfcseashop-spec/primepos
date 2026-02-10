@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil } from "lucide-react";
 import type { Patient, Service, Medicine, BillItem, User, ClinicSettings } from "@shared/schema";
 
 const PAYMENT_METHODS = [
@@ -68,6 +69,8 @@ export default function BillingPage() {
 
   const [billAction, setBillAction] = useState<"create" | "print" | "payment">("create");
   const [showPreview, setShowPreview] = useState(false);
+  const [viewBill, setViewBill] = useState<any>(null);
+  const [editBill, setEditBill] = useState<any>(null);
 
   const getPaymentLabel = (method: string) => {
     const found = PAYMENT_METHODS.find(p => p.value === method);
@@ -94,6 +97,36 @@ export default function BillingPage() {
 
       setDialogOpen(false);
       resetForm();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteBillMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/bills/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      toast({ title: "Bill deleted successfully" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const updateBillMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await apiRequest("PUT", `/api/bills/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      setEditBill(null);
+      toast({ title: "Bill updated successfully" });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -331,6 +364,29 @@ export default function BillingPage() {
       if (row.paymentDate) return row.paymentDate;
       return row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-";
     }},
+    { header: "Actions", accessor: (row: any) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" data-testid={`button-actions-${row.id}`} onClick={(e) => e.stopPropagation()}>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewBill(row); }} data-testid={`action-view-${row.id}`}>
+            <Eye className="h-4 w-4 mr-2" /> View Invoice
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printReceipt(row); }} data-testid={`action-print-${row.id}`}>
+            <Printer className="h-4 w-4 mr-2" /> Print
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditBill(row); }} data-testid={`action-edit-${row.id}`}>
+            <Pencil className="h-4 w-4 mr-2" /> Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (confirm("Are you sure you want to delete this bill?")) deleteBillMutation.mutate(row.id); }} className="text-red-600" data-testid={`action-delete-${row.id}`}>
+            <Trash2 className="h-4 w-4 mr-2" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )},
   ];
 
   return (
@@ -692,6 +748,188 @@ export default function BillingPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* View Invoice Dialog */}
+      <Dialog open={!!viewBill} onOpenChange={(open) => { if (!open) setViewBill(null); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Invoice - {viewBill?.billNo}</DialogTitle>
+            <DialogDescription>View invoice details</DialogDescription>
+          </DialogHeader>
+          {viewBill && (() => {
+            const patient = patients.find(p => p.id === viewBill.patientId);
+            const items: any[] = Array.isArray(viewBill.items) ? viewBill.items : [];
+            const vSubtotal = Number(viewBill.subtotal) || 0;
+            const vDiscount = Number(viewBill.discount) || 0;
+            const vTotal = Number(viewBill.total) || 0;
+            const dateStr = viewBill.paymentDate || (viewBill.createdAt ? new Date(viewBill.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]);
+            return (
+              <div className="space-y-4">
+                <div className="border rounded-md p-5 bg-white dark:bg-card">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div>
+                      {settings?.logo && <img src={settings.logo} alt="Logo" className="h-10 mb-1.5 object-contain" />}
+                      <h2 className="text-base font-bold text-teal-700 dark:text-teal-400">{settings?.clinicName || "Prime Clinic"}</h2>
+                      {settings?.address && <p className="text-[10px] text-muted-foreground">{settings.address}</p>}
+                      {settings?.phone && <p className="text-[10px] text-muted-foreground">{settings.phone}</p>}
+                      {settings?.email && <p className="text-[10px] text-muted-foreground">{settings.email}</p>}
+                    </div>
+                    <div className="text-right">
+                      <h3 className="text-xl font-extrabold tracking-wide">INVOICE</h3>
+                      <p className="text-xs text-muted-foreground mt-1">Invoice #: <span className="font-semibold text-foreground">{viewBill.billNo}</span></p>
+                      <p className="text-xs text-muted-foreground">Date: {new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+                      <Badge className={`mt-1.5 ${viewBill.status === "paid" ? "bg-green-600 border-green-700" : "bg-amber-500 border-amber-600"} text-white`}>
+                        {viewBill.status === "paid" ? "Paid" : "Pending"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-0 rounded-md border bg-muted/30 mb-4">
+                    <div className="p-3">
+                      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-1">Patient</p>
+                      <p className="text-sm font-semibold">{viewBill.patientName || patient?.name || "-"}</p>
+                      {patient?.patientId && <p className="text-[11px] text-muted-foreground">ID: {patient.patientId}</p>}
+                      {patient?.gender && <p className="text-[11px] text-muted-foreground">Gender: {patient.gender}</p>}
+                    </div>
+                    <div className="p-3 border-l">
+                      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-1">Details</p>
+                      {viewBill.referenceDoctor && <p className="text-[11px]"><span className="text-muted-foreground">Ref Doctor:</span> <span className="font-medium">{viewBill.referenceDoctor}</span></p>}
+                      <p className="text-[11px]"><span className="text-muted-foreground">Payment:</span> <span className="font-medium">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
+                    </div>
+                  </div>
+
+                  <div className="mb-4 rounded-md overflow-hidden border">
+                    <div className="grid grid-cols-[36px,1fr,70px,46px,80px] bg-teal-700 text-white text-[11px] font-semibold">
+                      <span className="p-2 text-center">#</span>
+                      <span className="p-2">Description</span>
+                      <span className="p-2 text-right">Price</span>
+                      <span className="p-2 text-center">Qty</span>
+                      <span className="p-2 text-right">Total</span>
+                    </div>
+                    {items.map((item: any, i: number) => (
+                      <div key={i} className="grid grid-cols-[36px,1fr,70px,46px,80px] text-sm border-b last:border-b-0">
+                        <span className="p-2 text-center text-muted-foreground text-xs">{i + 1}</span>
+                        <span className="p-2">{item.name}</span>
+                        <span className="p-2 text-right text-muted-foreground">${Number(item.unitPrice).toFixed(2)}</span>
+                        <span className="p-2 text-center">{item.quantity}</span>
+                        <span className="p-2 text-right font-medium">${Number(item.total).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-end mb-4">
+                    <div className="w-52 space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>${vSubtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Discount</span>
+                        <span className="text-red-500">-${vDiscount.toFixed(2)}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between font-bold text-teal-700 dark:text-teal-400 text-base pt-0.5">
+                        <span>Grand Total</span>
+                        <span>${vTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-md bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 p-3 mb-4">
+                    <p className="text-[10px] uppercase text-teal-700 dark:text-teal-400 font-semibold tracking-wide mb-1">Payment Information</p>
+                    <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || "Prime Clinic"}.</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">Amount Paid: <span className="font-semibold text-foreground">${Number(viewBill.paidAmount).toFixed(2)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
+                  </div>
+
+                  <Separator className="mb-3" />
+                  <div className="text-center space-y-0.5">
+                    <p className="text-sm font-semibold">Thank you for choosing {settings?.clinicName || "Prime Clinic"}!</p>
+                    <p className="text-xs text-muted-foreground">For questions, contact {settings?.email || "info@primeclinic.com"}</p>
+                  </div>
+                </div>
+
+                <Button onClick={() => { printReceipt(viewBill); }} className="w-full bg-blue-600 hover:bg-blue-600 text-white border-blue-700" data-testid="button-view-print">
+                  <Printer className="h-4 w-4 mr-1.5" /> Print Invoice
+                </Button>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Bill Dialog */}
+      <Dialog open={!!editBill} onOpenChange={(open) => { if (!open) setEditBill(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Bill - {editBill?.billNo}</DialogTitle>
+            <DialogDescription>Update bill details</DialogDescription>
+          </DialogHeader>
+          {editBill && (() => {
+            const [editStatus, setEditStatus] = [editBill._editStatus || editBill.status, (v: string) => setEditBill({ ...editBill, _editStatus: v })];
+            const [editPaid, setEditPaid] = [editBill._editPaid || String(editBill.paidAmount), (v: string) => setEditBill({ ...editBill, _editPaid: v })];
+            const [editMethod, setEditMethod] = [editBill._editMethod || editBill.paymentMethod, (v: string) => setEditBill({ ...editBill, _editMethod: v })];
+            const [editDoctor, setEditDoctor] = [editBill._editDoctor ?? (editBill.referenceDoctor || ""), (v: string) => setEditBill({ ...editBill, _editDoctor: v })];
+            return (
+              <div className="space-y-3">
+                <div>
+                  <Label>Status</Label>
+                  <Select value={editStatus} onValueChange={setEditStatus}>
+                    <SelectTrigger data-testid="edit-bill-status"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="partial">Partial</SelectItem>
+                      <SelectItem value="unpaid">Unpaid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Paid Amount ($)</Label>
+                  <Input type="number" step="0.01" value={editPaid} onChange={(e) => setEditPaid(e.target.value)} data-testid="edit-bill-paid" />
+                </div>
+                <div>
+                  <Label>Payment Method</Label>
+                  <Select value={editMethod} onValueChange={setEditMethod}>
+                    <SelectTrigger data-testid="edit-bill-method"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map(m => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Reference Doctor</Label>
+                  <Select value={editDoctor || "none"} onValueChange={(v) => setEditDoctor(v === "none" ? "" : v)}>
+                    <SelectTrigger data-testid="edit-bill-doctor"><SelectValue placeholder="None" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {doctorNames.map(d => d && <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={updateBillMutation.isPending}
+                  data-testid="button-save-edit"
+                  onClick={() => {
+                    updateBillMutation.mutate({
+                      id: editBill.id,
+                      data: {
+                        status: editStatus,
+                        paidAmount: editPaid,
+                        paymentMethod: editMethod,
+                        referenceDoctor: editDoctor || null,
+                      },
+                    });
+                  }}
+                >
+                  {updateBillMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

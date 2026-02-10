@@ -45,6 +45,8 @@ export interface IStorage {
   getBills(): Promise<any[]>;
   getBill(id: number): Promise<Bill | undefined>;
   createBill(bill: InsertBill): Promise<Bill>;
+  updateBill(id: number, data: Partial<InsertBill>): Promise<Bill | undefined>;
+  deleteBill(id: number): Promise<void>;
 
   getExpenses(): Promise<Expense[]>;
   createExpense(expense: InsertExpense): Promise<Expense>;
@@ -232,6 +234,15 @@ export class DatabaseStorage implements IStorage {
   async createBill(bill: InsertBill): Promise<Bill> {
     const [created] = await db.insert(bills).values(bill).returning();
     return created;
+  }
+
+  async updateBill(id: number, data: Partial<InsertBill>): Promise<Bill | undefined> {
+    const [updated] = await db.update(bills).set(data).where(eq(bills.id, id)).returning();
+    return updated;
+  }
+
+  async deleteBill(id: number): Promise<void> {
+    await db.delete(bills).where(eq(bills.id, id));
   }
 
   async getExpenses(): Promise<Expense[]> {
