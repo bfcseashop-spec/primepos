@@ -9,23 +9,39 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw, LayoutGrid, List, Eye, Camera, X, UserCheck, UserX, Activity, BedDouble } from "lucide-react";
+import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw, LayoutGrid, List, Eye, Camera, X, UserCheck, UserX, Activity, BedDouble, Building2, Briefcase } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Doctor } from "@shared/schema";
 
-const specializations = [
+const defaultPositions = [
   "General Physician", "Cardiologist", "Orthopedic Surgeon", "Pediatrician", "Dermatologist",
   "ENT Specialist", "Ophthalmologist", "Neurologist", "Gynecologist", "Radiologist",
   "Dentist", "Psychiatrist", "Oncologist", "Urologist", "Gastroenterologist",
 ];
 
-const departments = [
+const defaultDepartments = [
   "General Medicine", "Cardiology", "Orthopedics", "Pediatrics", "Dermatology",
   "ENT", "Ophthalmology", "Neurology", "Gynecology", "Radiology",
   "Dentistry", "Psychiatry", "Oncology", "Urology", "Gastroenterology", "Emergency",
 ];
+
+function loadList(key: string, defaults: string[]): string[] {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsed = JSON.parse(stored) as string[];
+      const merged = [...new Set([...defaults, ...parsed])];
+      return merged.sort();
+    }
+  } catch {}
+  return [...defaults].sort();
+}
+
+function saveList(key: string, list: string[]) {
+  localStorage.setItem(key, JSON.stringify(list));
+}
 
 const avatarColors = [
   "bg-pink-100 text-pink-600 dark:bg-pink-900/40 dark:text-pink-300",
@@ -48,6 +64,12 @@ export default function DoctorManagementPage() {
   const [editDialog, setEditDialog] = useState(false);
   const [viewDialog, setViewDialog] = useState(false);
   const [viewingDoctor, setViewingDoctor] = useState<Doctor | null>(null);
+  const [deptDialog, setDeptDialog] = useState(false);
+  const [posDialog, setPosDialog] = useState(false);
+  const [departments, setDepartments] = useState<string[]>(() => loadList("doctor_departments", defaultDepartments));
+  const [positions, setPositions] = useState<string[]>(() => loadList("doctor_positions", defaultPositions));
+  const [newDeptName, setNewDeptName] = useState("");
+  const [newPosName, setNewPosName] = useState("");
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
   const [form, setForm] = useState({
     name: "", specialization: "", department: "", experience: "",
@@ -205,6 +227,12 @@ export default function DoctorManagementPage() {
               <SelectItem value="inactive">Unavailable</SelectItem>
             </SelectContent>
           </Select>
+          <Button variant="outline" onClick={() => setDeptDialog(true)} data-testid="button-add-department">
+            <Building2 className="h-4 w-4 mr-2" /> + Department
+          </Button>
+          <Button variant="outline" onClick={() => setPosDialog(true)} data-testid="button-add-position">
+            <Briefcase className="h-4 w-4 mr-2" /> + Position
+          </Button>
           <Button onClick={() => { resetForm(); setAddDialog(true); }} data-testid="button-add-doctor">
             <Plus className="h-4 w-4 mr-2" /> Add New Doctor
           </Button>
@@ -490,7 +518,7 @@ export default function DoctorManagementPage() {
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>
-                      {specializations.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      {positions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -581,6 +609,140 @@ export default function DoctorManagementPage() {
               >
                 {editDialog ? "Save Changes" : "Add Doctor"}
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {deptDialog && (
+        <Dialog open={deptDialog} onOpenChange={setDeptDialog}>
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Manage Departments</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="New department name..."
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newDeptName.trim()) {
+                      const updated = [...new Set([...departments, newDeptName.trim()])].sort();
+                      setDepartments(updated);
+                      saveList("doctor_departments", updated);
+                      setNewDeptName("");
+                      toast({ title: "Department added" });
+                    }
+                  }}
+                  data-testid="input-new-department"
+                />
+                <Button
+                  disabled={!newDeptName.trim()}
+                  onClick={() => {
+                    const updated = [...new Set([...departments, newDeptName.trim()])].sort();
+                    setDepartments(updated);
+                    saveList("doctor_departments", updated);
+                    setNewDeptName("");
+                    toast({ title: "Department added" });
+                  }}
+                  data-testid="button-save-department"
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                {departments.map((d) => (
+                  <div key={d} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md hover-elevate">
+                    <span className="text-sm">{d}</span>
+                    {!defaultDepartments.includes(d) && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          const updated = departments.filter(x => x !== d);
+                          setDepartments(updated);
+                          saveList("doctor_departments", updated);
+                          toast({ title: "Department removed" });
+                        }}
+                        data-testid={`button-remove-dept-${d}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeptDialog(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {posDialog && (
+        <Dialog open={posDialog} onOpenChange={setPosDialog}>
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Manage Positions</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="New position name..."
+                  value={newPosName}
+                  onChange={(e) => setNewPosName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newPosName.trim()) {
+                      const updated = [...new Set([...positions, newPosName.trim()])].sort();
+                      setPositions(updated);
+                      saveList("doctor_positions", updated);
+                      setNewPosName("");
+                      toast({ title: "Position added" });
+                    }
+                  }}
+                  data-testid="input-new-position"
+                />
+                <Button
+                  disabled={!newPosName.trim()}
+                  onClick={() => {
+                    const updated = [...new Set([...positions, newPosName.trim()])].sort();
+                    setPositions(updated);
+                    saveList("doctor_positions", updated);
+                    setNewPosName("");
+                    toast({ title: "Position added" });
+                  }}
+                  data-testid="button-save-position"
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                {positions.map((p) => (
+                  <div key={p} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md hover-elevate">
+                    <span className="text-sm">{p}</span>
+                    {!defaultPositions.includes(p) && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          const updated = positions.filter(x => x !== p);
+                          setPositions(updated);
+                          saveList("doctor_positions", updated);
+                          toast({ title: "Position removed" });
+                        }}
+                        data-testid={`button-remove-pos-${p}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPosDialog(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
