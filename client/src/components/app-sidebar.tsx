@@ -63,13 +63,15 @@ function NavGroup({ label, items, isActive }: { label: string; items: typeof mai
                 <SidebarMenuButton
                   asChild
                   isActive={active}
-                  className={active ? "bg-gradient-to-r from-blue-600/20 to-violet-600/20 text-white border-0" : "text-slate-400 border-0"}
+                  className={active
+                    ? "bg-gradient-to-r from-blue-600/20 to-violet-600/20 text-white border border-white/[0.08] rounded-md"
+                    : "text-slate-300 border border-white/[0.04] rounded-md bg-white/[0.02]"}
                 >
                   <Link href={item.url} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
                     <span className={`inline-flex items-center justify-center rounded-md p-1 ${active ? `bg-gradient-to-br ${item.gradient} shadow-sm` : "bg-white/5"}`}>
                       <item.icon className={`h-3.5 w-3.5 ${active ? "text-white" : "text-slate-400"}`} />
                     </span>
-                    <span className={`text-[13px] ${active ? "font-semibold text-white" : ""}`}>{item.title}</span>
+                    <span className={`text-[13px] font-semibold ${active ? "text-white" : "text-slate-300"}`}>{item.title}</span>
                     {active && (
                       <ChevronRight className="ml-auto h-3.5 w-3.5 text-blue-400/60" />
                     )}
