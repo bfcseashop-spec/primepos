@@ -15,7 +15,7 @@ import {
   Building2, Tag, Users, TrendingUp, AlertTriangle, FileText, Wallet, CreditCard,
   Clock, CheckCircle2, Banknote, ArrowUpDown, HandCoins, Play, Eye, RefreshCw,
   ChevronDown, ChevronRight, Landmark, UserCircle, CircleDollarSign, Receipt,
-  Upload, Image, FileImage
+  Upload, Image, FileImage, Printer
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Salary, SalaryProfile, SalaryLoan, LoanInstallment, PayrollRun, Payslip } from "@shared/schema";
@@ -623,13 +623,15 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [addDialog, setAddDialog] = useState(false);
+  const [editDialog, setEditDialog] = useState(false);
+  const [editingLoan, setEditingLoan] = useState<SalaryLoan | null>(null);
   const [detailDialog, setDetailDialog] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<SalaryLoan | null>(null);
   const [installments, setInstallments] = useState<LoanInstallment[]>([]);
 
   const emptyForm = {
     profileId: "", staffName: "", type: "loan", principal: "", interestRate: "0",
-    termMonths: "1", installmentAmount: "", outstanding: "", startDate: "", notes: ""
+    termMonths: "1", installmentAmount: "", outstanding: "", startDate: "", notes: "", status: "active"
   };
   const [form, setForm] = useState(emptyForm);
 
@@ -644,6 +646,17 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => apiRequest("PUT", `/api/salary-loans/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/salary-loans"] });
+      toast({ title: "Loan updated" });
+      setEditDialog(false);
+      setEditingLoan(null);
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/salary-loans/${id}`),
     onSuccess: () => {
@@ -651,6 +664,34 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
       toast({ title: "Loan deleted" });
     },
   });
+
+  const openEditLoan = (loan: SalaryLoan) => {
+    setEditingLoan(loan);
+    setForm({
+      profileId: loan.profileId ? String(loan.profileId) : "",
+      staffName: loan.staffName,
+      type: loan.type,
+      principal: loan.principal || "",
+      interestRate: loan.interestRate || "0",
+      termMonths: String(loan.termMonths),
+      installmentAmount: loan.installmentAmount || "",
+      outstanding: loan.outstanding || "",
+      startDate: loan.startDate || "",
+      notes: loan.notes || "",
+      status: loan.status
+    });
+    setEditDialog(true);
+  };
+
+  const printLoan = (loan: SalaryLoan) => {
+    const totalWithInterest = Number(loan.principal || 0) + (Number(loan.principal || 0) * Number(loan.interestRate || 0) / 100);
+    const paidPct = Math.round((Number(loan.totalPaid || 0) / (totalWithInterest || 1)) * 100);
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<html><head><title>Loan Details - ${loan.staffName}</title><style>body{font-family:Arial,sans-serif;padding:40px;max-width:700px;margin:auto}table{width:100%;border-collapse:collapse;margin:20px 0}td,th{border:1px solid #ddd;padding:8px 12px;text-align:left}th{background:#f5f5f5}h1{font-size:20px}h2{font-size:16px;color:#666}.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:bold}.active{background:#dcfce7;color:#166534}.closed{background:#f3f4f6;color:#374151}.progress{height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;margin:10px 0}.bar{height:100%;background:#22c55e;border-radius:5px}@media print{body{padding:20px}}</style></head><body><h1>Loan/Advance Details</h1><h2>${loan.staffName} - ${loan.type.charAt(0).toUpperCase() + loan.type.slice(1)}</h2><table><tr><th>Field</th><th>Value</th></tr><tr><td>Staff Name</td><td>${loan.staffName}</td></tr><tr><td>Type</td><td>${loan.type}</td></tr><tr><td>Status</td><td><span class="badge ${loan.status}">${loan.status}</span></td></tr><tr><td>Principal</td><td>$${Number(loan.principal || 0).toFixed(2)}</td></tr><tr><td>Interest Rate</td><td>${loan.interestRate}%</td></tr><tr><td>Term</td><td>${loan.termMonths} months</td></tr><tr><td>Monthly Installment</td><td>$${Number(loan.installmentAmount || 0).toFixed(2)}</td></tr><tr><td>Total Paid</td><td>$${Number(loan.totalPaid || 0).toFixed(2)}</td></tr><tr><td>Outstanding</td><td>$${Number(loan.outstanding || 0).toFixed(2)}</td></tr><tr><td>Start Date</td><td>${loan.startDate || "-"}</td></tr></table><p>Repayment Progress: ${paidPct}%</p><div class="progress"><div class="bar" style="width:${paidPct}%"></div></div>${loan.notes ? `<p><strong>Notes:</strong> ${loan.notes}</p>` : ""}<p style="margin-top:30px;font-size:12px;color:#999">Printed on ${new Date().toLocaleDateString()}</p></body></html>`);
+    w.document.close();
+    w.print();
+  };
 
   const { data: loanInstallments = [] } = useQuery<LoanInstallment[]>({
     queryKey: ["/api/loan-installments", selectedLoan?.id],
@@ -690,15 +731,26 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
       return;
     }
     const installment = calculateInstallment();
-    const data = {
-      ...form,
-      profileId: form.profileId ? Number(form.profileId) : null,
-      termMonths: Number(form.termMonths),
-      installmentAmount: installment,
-      outstanding: String(Number(form.principal) + (Number(form.principal) * Number(form.interestRate || 0) / 100)),
-      totalPaid: "0"
-    };
-    createMutation.mutate(data);
+    if (editDialog && editingLoan) {
+      const data = {
+        ...form,
+        profileId: form.profileId ? Number(form.profileId) : null,
+        termMonths: Number(form.termMonths),
+        installmentAmount: installment,
+        outstanding: form.outstanding || String(Number(form.principal) + (Number(form.principal) * Number(form.interestRate || 0) / 100)),
+      };
+      updateMutation.mutate({ id: editingLoan.id, data });
+    } else {
+      const data = {
+        ...form,
+        profileId: form.profileId ? Number(form.profileId) : null,
+        termMonths: Number(form.termMonths),
+        installmentAmount: installment,
+        outstanding: String(Number(form.principal) + (Number(form.principal) * Number(form.interestRate || 0) / 100)),
+        totalPaid: "0"
+      };
+      createMutation.mutate(data);
+    }
   };
 
   const viewDetails = (loan: SalaryLoan) => {
@@ -822,8 +874,14 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => openEditLoan(loan)} data-testid={`button-edit-loan-${loan.id}`}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
                           <Button size="icon" variant="ghost" onClick={() => viewDetails(loan)} data-testid={`button-view-loan-${loan.id}`}>
                             <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => printLoan(loan)} data-testid={`button-print-loan-${loan.id}`}>
+                            <Printer className="h-4 w-4" />
                           </Button>
                           <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(loan.id)} data-testid={`button-delete-loan-${loan.id}`}>
                             <Trash2 className="h-4 w-4" />
@@ -839,11 +897,11 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
         </CardContent>
       </Card>
 
-      <Dialog open={addDialog} onOpenChange={setAddDialog}>
+      <Dialog open={addDialog || editDialog} onOpenChange={(open) => { if (!open) { setAddDialog(false); setEditDialog(false); setEditingLoan(null); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>New Loan / Advance</DialogTitle>
-            <DialogDescription>Create a loan or salary advance for an employee</DialogDescription>
+            <DialogTitle>{editDialog ? "Edit Loan / Advance" : "New Loan / Advance"}</DialogTitle>
+            <DialogDescription>{editDialog ? "Update loan or advance details" : "Create a loan or salary advance for an employee"}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
@@ -912,9 +970,9 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialog(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-save-loan">
-              {createMutation.isPending ? "Creating..." : "Create"}
+            <Button variant="outline" onClick={() => { setAddDialog(false); setEditDialog(false); setEditingLoan(null); }}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-loan">
+              {(createMutation.isPending || updateMutation.isPending) ? "Saving..." : editDialog ? "Update" : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -987,6 +1045,8 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
 function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[]; profiles: SalaryProfile[]; loans: SalaryLoan[] }) {
   const { toast } = useToast();
   const [runDialog, setRunDialog] = useState(false);
+  const [editRunDialog, setEditRunDialog] = useState(false);
+  const [editingRun, setEditingRun] = useState<PayrollRun | null>(null);
   const [previewDialog, setPreviewDialog] = useState(false);
   const [selectedRun, setSelectedRun] = useState<PayrollRun | null>(null);
   const [payslipsList, setPayslipsList] = useState<Payslip[]>([]);
@@ -1023,6 +1083,49 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
       toast({ title: "Payroll run finalized" });
     },
   });
+
+  const updateRunMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => apiRequest("PUT", `/api/payroll-runs/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/payroll-runs"] });
+      toast({ title: "Payroll run updated" });
+      setEditRunDialog(false);
+      setEditingRun(null);
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const openEditRun = (run: PayrollRun) => {
+    setEditingRun(run);
+    setRunForm({ month: run.month, year: run.year, notes: run.notes || "" });
+    setEditRunDialog(true);
+  };
+
+  const handleEditRun = () => {
+    if (!editingRun) return;
+    updateRunMutation.mutate({ id: editingRun.id, data: { month: runForm.month, year: runForm.year, notes: runForm.notes } });
+  };
+
+  const printPayroll = async (run: PayrollRun) => {
+    let slips = payslipsList;
+    if (!selectedRun || selectedRun.id !== run.id) {
+      try {
+        const res = await fetch(`/api/payslips/${run.id}`);
+        slips = await res.json();
+      } catch { slips = []; }
+    }
+    const w = window.open("", "_blank");
+    if (!w) return;
+    const rows = slips.map(s => `<tr><td>${s.staffName}</td><td>${s.department || "-"}</td><td>$${Number(s.baseSalary || 0).toFixed(2)}</td><td>$${Number(s.allowances || 0).toFixed(2)}</td><td>$${Number(s.grossPay || 0).toFixed(2)}</td><td>$${Number(s.loanDeductions || 0).toFixed(2)}</td><td>$${Number(s.otherDeductions || 0).toFixed(2)}</td><td><strong>$${Number(s.netPay || 0).toFixed(2)}</strong></td><td>${s.status}</td></tr>`).join("");
+    const totals = slips.reduce((acc, s) => ({
+      base: acc.base + Number(s.baseSalary || 0), allow: acc.allow + Number(s.allowances || 0),
+      gross: acc.gross + Number(s.grossPay || 0), loan: acc.loan + Number(s.loanDeductions || 0),
+      other: acc.other + Number(s.otherDeductions || 0), net: acc.net + Number(s.netPay || 0)
+    }), { base: 0, allow: 0, gross: 0, loan: 0, other: 0, net: 0 });
+    w.document.write(`<html><head><title>Payroll - ${run.month} ${run.year}</title><style>body{font-family:Arial,sans-serif;padding:40px;max-width:900px;margin:auto}table{width:100%;border-collapse:collapse;margin:20px 0}td,th{border:1px solid #ddd;padding:8px 12px;text-align:left;font-size:13px}th{background:#f5f5f5}tfoot td{font-weight:bold;background:#f9f9f9}h1{font-size:20px}@media print{body{padding:20px}}</style></head><body><h1>Payroll Report - ${run.month} ${run.year}</h1><p>Run Date: ${run.runDate} | Status: ${run.status} | Employees: ${run.employeeCount || 0}</p><table><thead><tr><th>Staff Name</th><th>Department</th><th>Base Salary</th><th>Allowances</th><th>Gross</th><th>Loan Ded.</th><th>Other Ded.</th><th>Net Pay</th><th>Status</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2"><strong>Totals</strong></td><td>$${totals.base.toFixed(2)}</td><td>$${totals.allow.toFixed(2)}</td><td>$${totals.gross.toFixed(2)}</td><td>$${totals.loan.toFixed(2)}</td><td>$${totals.other.toFixed(2)}</td><td>$${totals.net.toFixed(2)}</td><td></td></tr></tfoot></table><p style="margin-top:30px;font-size:12px;color:#999">Printed on ${new Date().toLocaleDateString()}</p></body></html>`);
+    w.document.close();
+    w.print();
+  };
 
   const handleCreateRun = () => {
     if (!runForm.month || !runForm.year) {
@@ -1157,8 +1260,14 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => openEditRun(run)} data-testid={`button-edit-payroll-${run.id}`}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
                           <Button size="icon" variant="ghost" onClick={() => viewPayslips(run)} data-testid={`button-view-payroll-${run.id}`}>
                             <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => printPayroll(run)} data-testid={`button-print-payroll-${run.id}`}>
+                            <Printer className="h-4 w-4" />
                           </Button>
                           {run.status === "draft" && (
                             <Button size="icon" variant="ghost" onClick={() => finalizeRunMutation.mutate(run.id)} data-testid={`button-finalize-payroll-${run.id}`}>
@@ -1298,6 +1407,51 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={editRunDialog} onOpenChange={(open) => { if (!open) { setEditRunDialog(false); setEditingRun(null); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit Payroll Run</DialogTitle>
+            <DialogDescription>Update payroll run details</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Month</label>
+                <Select value={runForm.month} onValueChange={(v) => setRunForm({ ...runForm, month: v })}>
+                  <SelectTrigger data-testid="select-edit-payroll-month">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Year</label>
+                <Select value={runForm.year} onValueChange={(v) => setRunForm({ ...runForm, year: v })}>
+                  <SelectTrigger data-testid="select-edit-payroll-year">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Notes</label>
+              <Textarea value={runForm.notes} onChange={(e) => setRunForm({ ...runForm, notes: e.target.value })} data-testid="input-edit-payroll-notes" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditRunDialog(false); setEditingRun(null); }}>Cancel</Button>
+            <Button onClick={handleEditRun} disabled={updateRunMutation.isPending} data-testid="button-update-payroll">
+              {updateRunMutation.isPending ? "Updating..." : "Update"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1306,7 +1460,17 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
   const [search, setSearch] = useState("");
   const [monthFilter, setMonthFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [editDialog, setEditDialog] = useState(false);
+  const [viewDialog, setViewDialog] = useState(false);
+  const [editingSalary, setEditingSalary] = useState<Salary | null>(null);
+  const [viewingSalary, setViewingSalary] = useState<Salary | null>(null);
   const { toast } = useToast();
+
+  const ledgerEmptyForm = {
+    staffName: "", role: "", department: "", baseSalary: "", allowances: "0",
+    deductions: "0", netSalary: "", month: "", year: "", status: "pending", paymentDate: ""
+  };
+  const [ledgerForm, setLedgerForm] = useState(ledgerEmptyForm);
 
   const { data: salaryList = [] } = useQuery<Salary[]>({ queryKey: ["/api/salaries"] });
 
@@ -1323,7 +1487,9 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
     mutationFn: async ({ id, data }: { id: number; data: any }) => apiRequest("PATCH", `/api/salaries/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/salaries"] });
-      toast({ title: "Status updated" });
+      toast({ title: "Record updated" });
+      setEditDialog(false);
+      setEditingSalary(null);
     },
   });
 
@@ -1334,6 +1500,30 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
       toast({ title: "Record deleted" });
     },
   });
+
+  const openEditSalary = (sal: Salary) => {
+    setEditingSalary(sal);
+    setLedgerForm({
+      staffName: sal.staffName, role: sal.role || "", department: sal.department || "",
+      baseSalary: sal.baseSalary || "", allowances: sal.allowances || "0",
+      deductions: sal.deductions || "0", netSalary: sal.netSalary || "",
+      month: sal.month, year: sal.year, status: sal.status, paymentDate: sal.paymentDate || ""
+    });
+    setEditDialog(true);
+  };
+
+  const handleEditSalary = () => {
+    if (!editingSalary) return;
+    updateMutation.mutate({ id: editingSalary.id, data: ledgerForm });
+  };
+
+  const printSalary = (sal: Salary) => {
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<html><head><title>Salary Record - ${sal.staffName}</title><style>body{font-family:Arial,sans-serif;padding:40px;max-width:700px;margin:auto}table{width:100%;border-collapse:collapse;margin:20px 0}td,th{border:1px solid #ddd;padding:8px 12px;text-align:left}th{background:#f5f5f5}h1{font-size:20px}h2{font-size:16px;color:#666}.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:bold}.paid{background:#dcfce7;color:#166534}.pending{background:#fef3c7;color:#92400e}@media print{body{padding:20px}}</style></head><body><h1>Salary Record</h1><h2>${sal.staffName} - ${sal.month} ${sal.year}</h2><table><tr><th>Field</th><th>Value</th></tr><tr><td>Staff Name</td><td>${sal.staffName}</td></tr><tr><td>Role</td><td>${sal.role || "-"}</td></tr><tr><td>Department</td><td>${sal.department || "-"}</td></tr><tr><td>Base Salary</td><td>$${Number(sal.baseSalary || 0).toFixed(2)}</td></tr><tr><td>Allowances</td><td>$${Number(sal.allowances || 0).toFixed(2)}</td></tr><tr><td>Deductions</td><td>$${Number(sal.deductions || 0).toFixed(2)}</td></tr><tr><td>Net Salary</td><td><strong>$${Number(sal.netSalary || 0).toFixed(2)}</strong></td></tr><tr><td>Period</td><td>${sal.month} ${sal.year}</td></tr><tr><td>Status</td><td><span class="badge ${sal.status}">${sal.status}</span></td></tr><tr><td>Payment Date</td><td>${sal.paymentDate || "-"}</td></tr></table><p style="margin-top:30px;font-size:12px;color:#999">Printed on ${new Date().toLocaleDateString()}</p></body></html>`);
+    w.document.close();
+    w.print();
+  };
 
   const filtered = salaryList.filter(s => {
     const matchSearch = !search || s.staffName.toLowerCase().includes(search.toLowerCase());
@@ -1462,6 +1652,15 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => openEditSalary(sal)} data-testid={`button-edit-ledger-${sal.id}`}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => { setViewingSalary(sal); setViewDialog(true); }} data-testid={`button-view-ledger-${sal.id}`}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => printSalary(sal)} data-testid={`button-print-ledger-${sal.id}`}>
+                            <Printer className="h-4 w-4" />
+                          </Button>
                           {sal.status === "pending" && (
                             <Button size="icon" variant="ghost" onClick={() => updateMutation.mutate({ id: sal.id, data: { status: "paid", paymentDate: new Date().toISOString().split("T")[0] } })} data-testid={`button-mark-paid-${sal.id}`}>
                               <CheckCircle2 className="h-4 w-4" />
@@ -1480,6 +1679,109 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={editDialog} onOpenChange={(open) => { if (!open) { setEditDialog(false); setEditingSalary(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Salary Record</DialogTitle>
+            <DialogDescription>Update salary details</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Staff Name</label>
+                <Input value={ledgerForm.staffName} onChange={(e) => setLedgerForm({ ...ledgerForm, staffName: e.target.value })} data-testid="input-edit-ledger-name" />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Role</label>
+                <Input value={ledgerForm.role} onChange={(e) => setLedgerForm({ ...ledgerForm, role: e.target.value })} data-testid="input-edit-ledger-role" />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Department</label>
+              <Input value={ledgerForm.department} onChange={(e) => setLedgerForm({ ...ledgerForm, department: e.target.value })} data-testid="input-edit-ledger-dept" />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Base Salary</label>
+                <Input type="number" value={ledgerForm.baseSalary} onChange={(e) => setLedgerForm({ ...ledgerForm, baseSalary: e.target.value })} data-testid="input-edit-ledger-base" />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Allowances</label>
+                <Input type="number" value={ledgerForm.allowances} onChange={(e) => setLedgerForm({ ...ledgerForm, allowances: e.target.value })} data-testid="input-edit-ledger-allow" />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Deductions</label>
+                <Input type="number" value={ledgerForm.deductions} onChange={(e) => setLedgerForm({ ...ledgerForm, deductions: e.target.value })} data-testid="input-edit-ledger-deduct" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Month</label>
+                <Select value={ledgerForm.month} onValueChange={(v) => setLedgerForm({ ...ledgerForm, month: v })}>
+                  <SelectTrigger data-testid="select-edit-ledger-month"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Year</label>
+                <Select value={ledgerForm.year} onValueChange={(v) => setLedgerForm({ ...ledgerForm, year: v })}>
+                  <SelectTrigger data-testid="select-edit-ledger-year"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Status</label>
+              <Select value={ledgerForm.status} onValueChange={(v) => setLedgerForm({ ...ledgerForm, status: v })}>
+                <SelectTrigger data-testid="select-edit-ledger-status"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditDialog(false); setEditingSalary(null); }}>Cancel</Button>
+            <Button onClick={handleEditSalary} disabled={updateMutation.isPending} data-testid="button-update-ledger">
+              {updateMutation.isPending ? "Updating..." : "Update"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={viewDialog} onOpenChange={(open) => { if (!open) { setViewDialog(false); setViewingSalary(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Salary Record Details</DialogTitle>
+          </DialogHeader>
+          {viewingSalary && (
+            <div className="space-y-3 py-2">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><span className="text-muted-foreground">Staff Name:</span><p className="font-medium">{viewingSalary.staffName}</p></div>
+                <div><span className="text-muted-foreground">Role:</span><p className="font-medium">{viewingSalary.role || "-"}</p></div>
+                <div><span className="text-muted-foreground">Department:</span><p className="font-medium">{viewingSalary.department || "-"}</p></div>
+                <div><span className="text-muted-foreground">Period:</span><p className="font-medium">{viewingSalary.month} {viewingSalary.year}</p></div>
+                <div><span className="text-muted-foreground">Base Salary:</span><p className="font-medium">{formatCurrency(Number(viewingSalary.baseSalary || 0))}</p></div>
+                <div><span className="text-muted-foreground">Allowances:</span><p className="font-medium text-green-600 dark:text-green-400">+{formatCurrency(Number(viewingSalary.allowances || 0))}</p></div>
+                <div><span className="text-muted-foreground">Deductions:</span><p className="font-medium text-red-600 dark:text-red-400">-{formatCurrency(Number(viewingSalary.deductions || 0))}</p></div>
+                <div><span className="text-muted-foreground">Net Salary:</span><p className="font-medium text-blue-600 dark:text-blue-400">{formatCurrency(Number(viewingSalary.netSalary || 0))}</p></div>
+                <div><span className="text-muted-foreground">Status:</span><p><Badge className={viewingSalary.status === "paid" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"}>{viewingSalary.status}</Badge></p></div>
+                <div><span className="text-muted-foreground">Payment Date:</span><p className="font-medium">{viewingSalary.paymentDate || "-"}</p></div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setViewDialog(false); setViewingSalary(null); }}>Close</Button>
+            {viewingSalary && <Button onClick={() => printSalary(viewingSalary)} data-testid="button-print-from-view"><Printer className="h-4 w-4 mr-2" />Print</Button>}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
