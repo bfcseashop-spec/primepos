@@ -20,9 +20,9 @@ import {
 
 const mainItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, color: "text-blue-500 dark:text-blue-400", bg: "bg-blue-500/10 dark:bg-blue-400/10" },
+  { title: "Make Payment (POS)", url: "/billing", icon: FileText, color: "text-amber-500 dark:text-amber-400", bg: "bg-amber-500/10 dark:bg-amber-400/10" },
   { title: "OPD Management", url: "/opd", icon: Stethoscope, color: "text-emerald-500 dark:text-emerald-400", bg: "bg-emerald-500/10 dark:bg-emerald-400/10" },
   { title: "Appointments", url: "/appointments", icon: CalendarCheck, color: "text-violet-500 dark:text-violet-400", bg: "bg-violet-500/10 dark:bg-violet-400/10" },
-  { title: "Make Payment (POS)", url: "/billing", icon: FileText, color: "text-amber-500 dark:text-amber-400", bg: "bg-amber-500/10 dark:bg-amber-400/10" },
   { title: "Services", url: "/services", icon: Activity, color: "text-pink-500 dark:text-pink-400", bg: "bg-pink-500/10 dark:bg-pink-400/10" },
   { title: "Lab Tests", url: "/lab-tests", icon: FlaskConical, color: "text-cyan-500 dark:text-cyan-400", bg: "bg-cyan-500/10 dark:bg-cyan-400/10" },
   { title: "Medicines", url: "/medicines", icon: Pill, color: "text-orange-500 dark:text-orange-400", bg: "bg-orange-500/10 dark:bg-orange-400/10" },
