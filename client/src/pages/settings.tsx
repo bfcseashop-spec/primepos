@@ -10,15 +10,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import {
   Save, AppWindow, Coins, Building2, ScrollText,
-  Trash2, Clock, User, ArrowRightLeft, Upload, X, ImageIcon,
+  Trash2, Clock, User, ArrowRightLeft, Upload, X, ImageIcon, FileText,
 } from "lucide-react";
 import type { ClinicSettings, ActivityLog } from "@shared/schema";
 
 const tabsList = [
   { id: "metadata", label: "Application Metadata", icon: AppWindow },
-  { id: "currency", label: "Currency & Localization", icon: Coins },
+  { id: "currency", label: "Invoice Settings", icon: Coins },
   { id: "company", label: "Company Details", icon: Building2 },
   { id: "logs", label: "Activity Logs", icon: ScrollText },
 ] as const;
@@ -64,7 +66,9 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("metadata");
 
   const [primaryCurrency, setPrimaryCurrency] = useState("USD");
-  const [secondaryCurrency, setSecondaryCurrency] = useState("none");
+  const [secondaryCurrency, setSecondaryCurrency] = useState("KHR");
+  const [dualCurrencyEnabled, setDualCurrencyEnabled] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState("4100");
   const [currencyDisplay, setCurrencyDisplay] = useState("symbol");
   const [dateFormat, setDateFormat] = useState("MM/DD/YYYY");
   const [timezone, setTimezone] = useState("UTC");
@@ -80,7 +84,10 @@ export default function SettingsPage() {
   useEffect(() => {
     if (settings) {
       setPrimaryCurrency(settings.currency || "USD");
-      setSecondaryCurrency(settings.secondaryCurrency || "none");
+      const hasDual = !!settings.secondaryCurrency && settings.secondaryCurrency !== settings.currency;
+      setDualCurrencyEnabled(hasDual);
+      setSecondaryCurrency(settings.secondaryCurrency || "KHR");
+      setExchangeRate(settings.exchangeRate || "4100");
       setCurrencyDisplay(settings.currencyDisplay || "symbol");
       setDateFormat(settings.dateFormat || "MM/DD/YYYY");
       setTimezone(settings.timezone || "UTC");
@@ -185,8 +192,8 @@ export default function SettingsPage() {
     updateMutation.mutate({
       ...settingsToPayload(settings),
       currency: primaryCurrency,
-      secondaryCurrency: secondaryCurrency === "none" ? null : secondaryCurrency,
-      exchangeRate: form.get("exchangeRate") || "1",
+      secondaryCurrency: dualCurrencyEnabled ? secondaryCurrency : null,
+      exchangeRate: exchangeRate || "1",
       currencyDisplay: currencyDisplay,
       dateFormat: dateFormat,
       timezone: timezone,
@@ -343,117 +350,167 @@ export default function SettingsPage() {
           </form>
         )}
 
-        {activeTab === "currency" && (
-          <form onSubmit={handleSaveCurrency} className="space-y-4 max-w-2xl">
+        {activeTab === "currency" && (() => {
+          const pCur = currencies.find(c => c.code === primaryCurrency);
+          const sCur = currencies.find(c => c.code === secondaryCurrency);
+          const pSym = pCur?.symbol || "$";
+          const sSym = sCur?.symbol || "៛";
+          const rate = Number(exchangeRate) || 1;
+          const pDecimals = ["JPY", "KRW", "VND", "KHR"].includes(primaryCurrency) ? 0 : 2;
+          const sDecimals = ["JPY", "KRW", "VND", "KHR"].includes(secondaryCurrency) ? 0 : 2;
+          const sampleItems = [
+            { desc: "Consultation Fee", amount: 50 },
+            { desc: "Lab Test - Blood Work", amount: 75 },
+            { desc: "Medication", amount: 25 },
+          ];
+          const sampleTotal = sampleItems.reduce((s, i) => s + i.amount, 0);
+          const commonPairs = [
+            { p: "USD", s: "KHR" }, { p: "USD", s: "BDT" }, { p: "USD", s: "INR" },
+            { p: "BDT", s: "USD" }, { p: "KHR", s: "USD" },
+          ];
+          return (
+          <form onSubmit={handleSaveCurrency} className="space-y-4 max-w-3xl">
+            <div className="grid grid-cols-[1fr,auto] gap-4 items-start">
+              <div>
+                <Label>Primary Currency</Label>
+                <Select value={primaryCurrency} onValueChange={setPrimaryCurrency}>
+                  <SelectTrigger data-testid="select-primary-currency"><SelectValue placeholder="Select currency" /></SelectTrigger>
+                  <SelectContent>
+                    {currencies.map(c => (
+                      <SelectItem key={c.code} value={c.code}>{c.code} - {c.name} ({c.symbol})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="taxRate">Tax Rate (%)</Label>
+                <Input id="taxRate" name="taxRate" type="number" step="0.01" defaultValue={settings?.taxRate || "0"} data-testid="input-tax-rate" />
+              </div>
+            </div>
+
             <Card>
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Coins className="h-4 w-4" /> Dual Currency Selection
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-4">
                   <div>
-                    <Label>Primary Currency</Label>
-                    <Select value={primaryCurrency} onValueChange={setPrimaryCurrency}>
-                      <SelectTrigger data-testid="select-primary-currency"><SelectValue placeholder="Select currency" /></SelectTrigger>
-                      <SelectContent>
-                        {currencies.map(c => (
-                          <SelectItem key={c.code} value={c.code}>{c.symbol} {c.name} ({c.code})</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">Main currency for billing and reports</p>
+                    <p className="text-sm font-semibold">Enable Dual Currency</p>
+                    <p className="text-xs text-muted-foreground">Show amounts in both primary and secondary currencies on invoices</p>
                   </div>
-                  <div>
-                    <Label>Secondary Currency</Label>
-                    <Select value={secondaryCurrency} onValueChange={setSecondaryCurrency}>
-                      <SelectTrigger data-testid="select-secondary-currency"><SelectValue placeholder="None" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {currencies.map(c => (
-                          <SelectItem key={c.code} value={c.code}>{c.symbol} {c.name} ({c.code})</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">Optional secondary display currency</p>
-                  </div>
+                  <Switch
+                    checked={dualCurrencyEnabled}
+                    onCheckedChange={setDualCurrencyEnabled}
+                    data-testid="switch-dual-currency"
+                  />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="exchangeRate" className="flex items-center gap-1">
-                      <ArrowRightLeft className="h-3 w-3" /> Exchange Rate
-                    </Label>
-                    <Input
-                      id="exchangeRate"
-                      name="exchangeRate"
-                      type="number"
-                      step="0.0001"
-                      defaultValue={settings?.exchangeRate || "1"}
-                      data-testid="input-exchange-rate"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">1 primary = X secondary</p>
+                {dualCurrencyEnabled && (
+                  <div className="mt-4 space-y-4">
+                    <Separator />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Secondary Currency</Label>
+                        <Select value={secondaryCurrency} onValueChange={setSecondaryCurrency}>
+                          <SelectTrigger data-testid="select-secondary-currency"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {currencies.filter(c => c.code !== primaryCurrency).map(c => (
+                              <SelectItem key={c.code} value={c.code}>{c.code} - {c.name} ({c.symbol})</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Exchange Rate (1 {primaryCurrency} = ? {secondaryCurrency})</Label>
+                        <Input
+                          type="number"
+                          step="0.0001"
+                          value={exchangeRate}
+                          onChange={(e) => setExchangeRate(e.target.value)}
+                          data-testid="input-exchange-rate"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Example: {pSym}100 {primaryCurrency} = {(100 * rate).toLocaleString()} {secondaryCurrency}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Common Currency Pairs</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {commonPairs.map(pair => (
+                          <Button
+                            key={`${pair.p}/${pair.s}`}
+                            type="button"
+                            variant={primaryCurrency === pair.p && secondaryCurrency === pair.s ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                              setPrimaryCurrency(pair.p);
+                              setSecondaryCurrency(pair.s);
+                            }}
+                            data-testid={`button-pair-${pair.p}-${pair.s}`}
+                          >
+                            {pair.p} / {pair.s}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <Label>Display Format</Label>
-                    <Select value={currencyDisplay} onValueChange={setCurrencyDisplay}>
-                      <SelectTrigger data-testid="select-currency-display"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="symbol">Symbol ($, \u20AC, \u00A3)</SelectItem>
-                        <SelectItem value="code">Code (USD, EUR, GBP)</SelectItem>
-                        <SelectItem value="both">Both ($ USD)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-base">Localization</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Date Format</Label>
-                    <Select value={dateFormat} onValueChange={setDateFormat}>
-                      <SelectTrigger data-testid="select-date-format"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {dateFormats.map(f => (
-                          <SelectItem key={f} value={f}>{f}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            {dualCurrencyEnabled && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Invoice Preview</p>
+                <div className="border rounded-md overflow-hidden bg-white dark:bg-card">
+                  <div className="bg-slate-800 dark:bg-slate-900 text-white p-4 flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-bold text-sm">{settings?.clinicName || "Prime Clinic"}</p>
+                      {settings?.address && <p className="text-[10px] text-slate-300">{settings.address}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="font-extrabold text-sm tracking-wide">INVOICE</p>
+                      <p className="text-[10px] text-slate-300">{settings?.invoicePrefix || "INV"}-1001</p>
+                    </div>
                   </div>
-                  <div>
-                    <Label>Timezone</Label>
-                    <Select value={timezone} onValueChange={setTimezone}>
-                      <SelectTrigger data-testid="select-timezone"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {timezones.map(tz => (
-                          <SelectItem key={tz} value={tz}>{tz}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+
+                  <div className="text-sm">
+                    <div className="grid grid-cols-[1fr,auto,auto] border-b bg-muted/30">
+                      <span className="p-2.5 font-semibold text-xs">Description</span>
+                      <span className="p-2.5 font-semibold text-xs text-right w-28">{primaryCurrency}</span>
+                      <span className="p-2.5 font-semibold text-xs text-right w-32">{secondaryCurrency}</span>
+                    </div>
+                    {sampleItems.map((item, i) => (
+                      <div key={i} className="grid grid-cols-[1fr,auto,auto] border-b">
+                        <span className="p-2.5 text-xs">{item.desc}</span>
+                        <span className="p-2.5 text-xs text-right w-28">{item.amount.toFixed(pDecimals)}</span>
+                        <span className="p-2.5 text-xs text-right w-32">{(item.amount * rate).toLocaleString(undefined, { minimumFractionDigits: sDecimals, maximumFractionDigits: sDecimals })}</span>
+                      </div>
+                    ))}
+                    <div className="grid grid-cols-[1fr,auto,auto] border-b">
+                      <span className="p-2.5 text-xs font-semibold">Subtotal</span>
+                      <span className="p-2.5 text-xs text-right font-semibold w-28">{sampleTotal.toFixed(pDecimals)}</span>
+                      <span className="p-2.5 text-xs text-right font-semibold w-32">{(sampleTotal * rate).toLocaleString(undefined, { minimumFractionDigits: sDecimals, maximumFractionDigits: sDecimals })}</span>
+                    </div>
+                    <div className="grid grid-cols-[1fr,auto,auto] bg-slate-800 dark:bg-slate-900 text-white">
+                      <span className="p-2.5 text-xs font-bold">TOTAL</span>
+                      <span className="p-2.5 text-xs text-right font-bold w-28">{primaryCurrency} {sampleTotal.toFixed(pDecimals)}</span>
+                      <span className="p-2.5 text-xs text-right font-bold w-32">{secondaryCurrency} {(sampleTotal * rate).toLocaleString(undefined, { minimumFractionDigits: sDecimals, maximumFractionDigits: sDecimals })}</span>
+                    </div>
                   </div>
+
+                  <p className="text-center text-[10px] text-muted-foreground py-2">
+                    Exchange Rate: 1 {primaryCurrency} = {Number(exchangeRate).toLocaleString()} {secondaryCurrency}
+                  </p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="taxRate">Tax Rate (%)</Label>
-                    <Input id="taxRate" name="taxRate" type="number" step="0.01" defaultValue={settings?.taxRate || "0"} data-testid="input-tax-rate" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            )}
 
             <Button type="submit" disabled={updateMutation.isPending} data-testid="button-save-currency">
               <Save className="h-4 w-4 mr-1" />
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </form>
-        )}
+          );
+        })()}
 
         {activeTab === "company" && (
           <form onSubmit={handleSaveCompany} className="space-y-4 max-w-2xl">
