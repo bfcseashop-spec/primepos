@@ -1,0 +1,38 @@
+# Deploy PrimePOS to server on push to main (or manual run).
+# Required secrets: DEPLOY_HOST, DEPLOY_USER
+# Plus either SSH_PRIVATE_KEY (recommended) or DEPLOY_PASSWORD.
+
+name: Deploy PrimePOS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          DEPLOY_PASSWORD: ${{ secrets.DEPLOY_PASSWORD }}
+        run: |
+          set -e
+          if [ -n "$SSH_PRIVATE_KEY" ]; then
+            mkdir -p ~/.ssh
+            echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+            RUN="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new ${DEPLOY_USER}@${DEPLOY_HOST}"
+          elif [ -n "$DEPLOY_PASSWORD" ]; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
+            RUN="sshpass -p $DEPLOY_PASSWORD ssh -o StrictHostKeyChecking=accept-new ${DEPLOY_USER}@${DEPLOY_HOST}"
+          else
+            echo "Add GitHub secrets: SSH_PRIVATE_KEY (preferred) or DEPLOY_PASSWORD"
+            exit 1
+          fi
+          $RUN 'cd /var/www/primepos && git pull && npm ci --omit=dev && npm run build && (pm2 restart primepos 2>/dev/null || sudo systemctl restart primepos 2>/dev/null || (pkill -f "node dist/index.cjs" 2>/dev/null; sleep 1; nohup env NODE_ENV=production node dist/index.cjs >> /tmp/primepos.log 2>&1 &))'
+          echo "Deploy finished."
