@@ -16,6 +16,38 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, CalendarDays } from "lucide-react";
 import type { Patient, Service, Medicine, BillItem, User, ClinicSettings } from "@shared/schema";
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$", EUR: "\u20AC", GBP: "\u00A3", JPY: "\u00A5", KHR: "\u17DB",
+  THB: "\u0E3F", VND: "\u20AB", CNY: "\u00A5", MYR: "RM", SGD: "S$",
+  INR: "\u20B9", AUD: "A$", CAD: "C$", CHF: "CHF", KRW: "\u20A9",
+};
+
+function formatDualCurrency(amount: number, settings?: ClinicSettings | null) {
+  const primary = settings?.currency || "USD";
+  const pSym = CURRENCY_SYMBOLS[primary] || primary;
+  const secondary = settings?.secondaryCurrency;
+  const rate = Number(settings?.exchangeRate) || 1;
+  const primaryStr = `${pSym}${amount.toFixed(2)}`;
+  if (!secondary || secondary === primary) return primaryStr;
+  const sSym = CURRENCY_SYMBOLS[secondary] || secondary;
+  const converted = amount * rate;
+  const decimals = ["JPY", "KRW", "VND", "KHR"].includes(secondary) ? 0 : 2;
+  return `${primaryStr} / ${sSym}${converted.toFixed(decimals)}`;
+}
+
+function dualCurrencyHTML(amount: number, settings?: ClinicSettings | null) {
+  const primary = settings?.currency || "USD";
+  const pSym = CURRENCY_SYMBOLS[primary] || primary;
+  const secondary = settings?.secondaryCurrency;
+  const rate = Number(settings?.exchangeRate) || 1;
+  const primaryStr = `${pSym}${amount.toFixed(2)}`;
+  if (!secondary || secondary === primary) return primaryStr;
+  const sSym = CURRENCY_SYMBOLS[secondary] || secondary;
+  const converted = amount * rate;
+  const decimals = ["JPY", "KRW", "VND", "KHR"].includes(secondary) ? 0 : 2;
+  return `${primaryStr} <span style="color:#6b7280;font-size:0.85em;">/ ${sSym}${converted.toFixed(decimals)}</span>`;
+}
+
 const PAYMENT_METHODS = [
   { value: "cash", label: "Cash Pay", icon: Banknote, color: "text-green-600 bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-800" },
   { value: "aba", label: "ABA", icon: Building2, color: "text-blue-600 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800" },
@@ -207,13 +239,14 @@ export default function BillingPage() {
     const dateStr = bill.paymentDate || new Date().toISOString().split("T")[0];
     const formattedDate = new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
+    const pSym = CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$";
     const itemRows = (Array.isArray(items) ? items : []).map((item: any, idx: number) => `
       <tr>
         <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;color:#6b7280;">${idx + 1}</td>
         <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;">${item.name}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;">$${Number(item.unitPrice).toFixed(2)}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;">${pSym}${Number(item.unitPrice).toFixed(2)}</td>
         <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;">${item.quantity}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;">$${Number(item.total).toFixed(2)}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;">${pSym}${Number(item.total).toFixed(2)}</td>
       </tr>
     `).join("");
 
@@ -271,7 +304,7 @@ export default function BillingPage() {
               <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;">Description</th>
               <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;width:80px;">Price</th>
               <th style="padding:8px 10px;text-align:center;font-size:11px;font-weight:600;width:50px;">Qty</th>
-              <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;width:90px;">Total (USD)</th>
+              <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;width:90px;">Total (${settings?.currency || "USD"})</th>
             </tr>
           </thead>
           <tbody>
@@ -287,15 +320,15 @@ export default function BillingPage() {
               <table style="width:100%;border-collapse:collapse;">
                 <tr>
                   <td style="padding:5px 10px;font-size:12px;color:#6b7280;">Subtotal</td>
-                  <td style="padding:5px 10px;text-align:right;font-size:12px;">$${Number(bill.subtotal).toFixed(2)}</td>
+                  <td style="padding:5px 10px;text-align:right;font-size:12px;">${dualCurrencyHTML(Number(bill.subtotal), settings)}</td>
                 </tr>
                 <tr>
                   <td style="padding:5px 10px;font-size:12px;color:#6b7280;">Discount</td>
-                  <td style="padding:5px 10px;text-align:right;font-size:12px;color:#ef4444;">-$${Number(bill.discount).toFixed(2)}</td>
+                  <td style="padding:5px 10px;text-align:right;font-size:12px;color:#ef4444;">-${dualCurrencyHTML(Number(bill.discount), settings)}</td>
                 </tr>
                 <tr style="border-top:2px solid #0f766e;">
                   <td style="padding:8px 10px;font-size:14px;font-weight:700;color:#0f766e;">Grand Total</td>
-                  <td style="padding:8px 10px;text-align:right;font-size:14px;font-weight:700;color:#0f766e;">$${Number(bill.total).toFixed(2)}</td>
+                  <td style="padding:8px 10px;text-align:right;font-size:14px;font-weight:700;color:#0f766e;">${dualCurrencyHTML(Number(bill.total), settings)}</td>
                 </tr>
               </table>
             </td>
@@ -306,7 +339,7 @@ export default function BillingPage() {
         <div style="background:#f0fdfa;border:1px solid #ccfbf1;border-radius:6px;padding:12px 14px;margin-bottom:20px;">
           <div style="font-size:11px;font-weight:600;color:#0f766e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Payment Information</div>
           <div style="font-size:12px;color:#374151;">Payment for the above medical services at ${clinicName}.</div>
-          <div style="font-size:11px;color:#6b7280;margin-top:4px;">Amount Paid: <strong>$${Number(bill.paidAmount).toFixed(2)}</strong> via <strong>${getPaymentLabel(bill.paymentMethod)}</strong></div>
+          <div style="font-size:11px;color:#6b7280;margin-top:4px;">Amount Paid: <strong>${dualCurrencyHTML(Number(bill.paidAmount), settings)}</strong> via <strong>${getPaymentLabel(bill.paymentMethod)}</strong></div>
         </div>
 
         <!-- Footer -->
@@ -439,9 +472,9 @@ export default function BillingPage() {
       const items = Array.isArray(row.items) ? row.items : [];
       return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 text-[11px] font-medium border border-violet-200 dark:border-violet-800">{items.length} items</span>;
     }},
-    { header: "Total", accessor: (row: any) => <span className="font-semibold text-sm">${Number(row.total).toFixed(2)}</span> },
+    { header: "Total", accessor: (row: any) => <span className="font-semibold text-sm">{formatDualCurrency(Number(row.total), settings)}</span> },
     { header: "Paid", accessor: (row: any) => (
-      <span className="text-sm text-green-600 dark:text-green-400 font-medium">${Number(row.paidAmount).toFixed(2)}</span>
+      <span className="text-sm text-green-600 dark:text-green-400 font-medium">{formatDualCurrency(Number(row.paidAmount), settings)}</span>
     )},
     { header: "Method", accessor: (row: any) => getPaymentBadge(row.paymentMethod) },
     { header: "Doctor", accessor: (row: any) => (
@@ -765,18 +798,18 @@ export default function BillingPage() {
                 <div className="bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/30 dark:to-emerald-950/30 rounded-md p-3 space-y-1 border border-teal-200 dark:border-teal-800">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span>{formatDualCurrency(subtotal, settings)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
                       Discount{discountType === "percentage" ? ` (${discountValue}%)` : ""}
                     </span>
-                    <span className="text-red-500">-${discountAmount.toFixed(2)}</span>
+                    <span className="text-red-500">-{formatDualCurrency(discountAmount, settings)}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-bold text-base text-teal-700 dark:text-teal-400">
                     <span>Grand Total</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>{formatDualCurrency(total, settings)}</span>
                   </div>
                 </div>
 
@@ -843,7 +876,7 @@ export default function BillingPage() {
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Revenue</p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-total-revenue">${totalRevenue.toFixed(2)}</p>
+                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-total-revenue">{formatDualCurrency(totalRevenue, settings)}</p>
               </div>
             </CardContent>
           </Card>
@@ -1013,27 +1046,27 @@ export default function BillingPage() {
                       <div key={i} className="grid grid-cols-[36px,1fr,70px,46px,80px] text-sm border-b last:border-b-0">
                         <span className="p-2 text-center text-muted-foreground text-xs">{i + 1}</span>
                         <span className="p-2">{item.name}</span>
-                        <span className="p-2 text-right text-muted-foreground">${Number(item.unitPrice).toFixed(2)}</span>
+                        <span className="p-2 text-right text-muted-foreground">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{Number(item.unitPrice).toFixed(2)}</span>
                         <span className="p-2 text-center">{item.quantity}</span>
-                        <span className="p-2 text-right font-medium">${Number(item.total).toFixed(2)}</span>
+                        <span className="p-2 text-right font-medium">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{Number(item.total).toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
 
                   <div className="flex justify-end mb-4">
-                    <div className="w-52 space-y-1 text-sm">
-                      <div className="flex justify-between">
+                    <div className="w-64 space-y-1 text-sm">
+                      <div className="flex justify-between gap-2">
                         <span className="text-muted-foreground">Subtotal</span>
-                        <span>${vSubtotal.toFixed(2)}</span>
+                        <span className="text-right">{formatDualCurrency(vSubtotal, settings)}</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between gap-2">
                         <span className="text-muted-foreground">Discount</span>
-                        <span className="text-red-500">-${vDiscount.toFixed(2)}</span>
+                        <span className="text-right text-red-500">-{formatDualCurrency(vDiscount, settings)}</span>
                       </div>
                       <Separator />
-                      <div className="flex justify-between font-bold text-teal-700 dark:text-teal-400 text-base pt-0.5">
+                      <div className="flex justify-between gap-2 font-bold text-teal-700 dark:text-teal-400 text-base pt-0.5">
                         <span>Grand Total</span>
-                        <span>${vTotal.toFixed(2)}</span>
+                        <span className="text-right">{formatDualCurrency(vTotal, settings)}</span>
                       </div>
                     </div>
                   </div>
@@ -1041,7 +1074,7 @@ export default function BillingPage() {
                   <div className="rounded-md bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 p-3 mb-4">
                     <p className="text-[10px] uppercase text-teal-700 dark:text-teal-400 font-semibold tracking-wide mb-1">Payment Information</p>
                     <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || "Prime Clinic"}.</p>
-                    <p className="text-[11px] text-muted-foreground mt-1">Amount Paid: <span className="font-semibold text-foreground">${Number(viewBill.paidAmount).toFixed(2)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
+                    <p className="text-[11px] text-muted-foreground mt-1">Amount Paid: <span className="font-semibold text-foreground">{formatDualCurrency(Number(viewBill.paidAmount), settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
                   </div>
 
                   <Separator className="mb-3" />
