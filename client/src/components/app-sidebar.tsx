@@ -2,7 +2,7 @@ import { useLocation, Link } from "wouter";
 import {
   LayoutDashboard, Users, FileText, Stethoscope, Pill,
   Receipt, Landmark, TrendingUp, UserCog, Settings,
-  Cable, BarChart3, Activity
+  Cable, BarChart3, Activity, FlaskConical
 } from "lucide-react";
 import {
   Sidebar,
@@ -22,6 +22,7 @@ const mainItems = [
   { title: "OPD Management", url: "/opd", icon: Stethoscope },
   { title: "Billing", url: "/billing", icon: FileText },
   { title: "Services", url: "/services", icon: Activity },
+  { title: "Lab Tests", url: "/lab-tests", icon: FlaskConical },
   { title: "Medicines", url: "/medicines", icon: Pill },
 ];
 

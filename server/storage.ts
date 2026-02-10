@@ -2,7 +2,7 @@ import { eq, desc, sql, and, gte, lte, count, sum } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, roles, patients, services, medicines, opdVisits, bills,
-  expenses, bankTransactions, investments, integrations, clinicSettings,
+  expenses, bankTransactions, investments, integrations, clinicSettings, labTests,
   type InsertUser, type User, type InsertRole, type Role,
   type InsertPatient, type Patient, type InsertService, type Service,
   type InsertMedicine, type Medicine, type InsertOpdVisit, type OpdVisit,
@@ -10,7 +10,8 @@ import {
   type InsertBankTransaction, type BankTransaction,
   type InsertInvestment, type Investment,
   type InsertIntegration, type Integration,
-  type InsertClinicSettings, type ClinicSettings
+  type InsertClinicSettings, type ClinicSettings,
+  type InsertLabTest, type LabTest
 } from "@shared/schema";
 
 export interface IStorage {
@@ -65,6 +66,12 @@ export interface IStorage {
 
   getSettings(): Promise<ClinicSettings | undefined>;
   upsertSettings(settings: InsertClinicSettings): Promise<ClinicSettings>;
+
+  getLabTests(): Promise<LabTest[]>;
+  getLabTest(id: number): Promise<LabTest | undefined>;
+  createLabTest(test: InsertLabTest): Promise<LabTest>;
+  updateLabTest(id: number, data: Partial<InsertLabTest>): Promise<LabTest | undefined>;
+  deleteLabTest(id: number): Promise<void>;
 
   getDashboardStats(): Promise<any>;
   getRecentVisits(): Promise<any[]>;
@@ -444,6 +451,29 @@ export class DatabaseStorage implements IStorage {
       revenue: sql<number>`CAST(${services.price} AS numeric)`,
     }).from(services).where(eq(services.isActive, true)).orderBy(desc(services.price)).limit(10);
     return result;
+  }
+
+  async getLabTests(): Promise<LabTest[]> {
+    return db.select().from(labTests).orderBy(labTests.testName);
+  }
+
+  async getLabTest(id: number): Promise<LabTest | undefined> {
+    const [test] = await db.select().from(labTests).where(eq(labTests.id, id));
+    return test;
+  }
+
+  async createLabTest(test: InsertLabTest): Promise<LabTest> {
+    const [created] = await db.insert(labTests).values(test).returning();
+    return created;
+  }
+
+  async updateLabTest(id: number, data: Partial<InsertLabTest>): Promise<LabTest | undefined> {
+    const [updated] = await db.update(labTests).set(data).where(eq(labTests.id, id)).returning();
+    return updated;
+  }
+
+  async deleteLabTest(id: number): Promise<void> {
+    await db.delete(labTests).where(eq(labTests.id, id));
   }
 }
 

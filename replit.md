@@ -32,15 +32,16 @@ shared/
 1. **Dashboard** - Overview stats, revenue chart, recent visits
 2. **OPD Management** - Patient registration + visit management
 3. **Billing** - Create bills with services/medicines, payment tracking
-4. **Service Management** - Consultation fees, lab tests, radiology costs
-5. **Medicine Management** - Enhanced inventory with unit types (Box/Pieces/Liter/Jar/Bottle), complex pricing (box price, qty per box, auto-calculated per-med price), dual selling prices (local/foreigner), stock alerts, CRUD operations, category/status filters, search, Print Label & Barcode actions, List/Grid view toggle, category management
-6. **Expense Management** - Track clinic expenses by category
-7. **Bank Transactions** - Deposits, withdrawals, transfers
-8. **Investment Management** - Track clinic investments and returns
-9. **Staff & Roles** - Staff management with granular role permissions
-10. **Integrations** - Medical device connections (ultrasound, X-ray, ECG, printer)
-11. **Reports** - Revenue trends, expense breakdowns, service analytics
-12. **Settings** - Clinic info, billing config, ID prefixes
+4. **Service Management** - Consultation fees, radiology costs, image upload, category management, View/Edit/Delete actions
+5. **Lab Test Management** - Laboratory test catalog with test name, category, sample type, price, status, CRUD operations, barcode generation, category filter, search
+6. **Medicine Management** - Enhanced inventory with unit types (Box/Pieces/Liter/Jar/Bottle), complex pricing (box price, qty per box, auto-calculated per-med price), dual selling prices (local/foreigner), stock alerts, CRUD operations, category/status filters, search, Print Label & Barcode actions, List/Grid view toggle, category management
+7. **Expense Management** - Track clinic expenses by category
+8. **Bank Transactions** - Deposits, withdrawals, transfers
+9. **Investment Management** - Track clinic investments and returns
+10. **Staff & Roles** - Staff management with granular role permissions
+11. **Integrations** - Medical device connections (ultrasound, X-ray, ECG, printer)
+12. **Reports** - Revenue trends, expense breakdowns, service analytics
+13. **Settings** - Clinic info, billing config, ID prefixes
 
 ## Database
 - PostgreSQL with Drizzle ORM
@@ -48,6 +49,9 @@ shared/
 - Seed data auto-populated on first run
 
 ## Recent Changes
+- 2026-02-10: Added Lab Test Management module with full CRUD, barcode, category filter, search, summary stats
+- 2026-02-10: Added '+ Category' button to Service Management with category management dialog
+- 2026-02-10: Added Service image upload, View/Edit/Delete actions with image thumbnails
 - 2026-02-10: Added Medicine filters (category dropdown, status filter: In Stock/Low Stock/Out of Stock), enhanced search (name/generic/batch/manufacturer), Print Label & Barcode actions, enhanced summary stats (Total Items, In Stock, Low Stock, Out of Stock, Purchase Value, Sales Value)
 - 2026-02-10: Added Medicine toolbar with Category management, List/Grid view toggle, Refresh button
 - 2026-02-10: Enhanced Medicine module with complex pricing (box price / qty per box = per med price), unit types, dual selling prices (local/foreigner), stock count with alerts, full CRUD

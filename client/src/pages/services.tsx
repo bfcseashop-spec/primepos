@@ -14,15 +14,27 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, ImagePlus, X } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, ImagePlus, X, FolderPlus } from "lucide-react";
 import type { Service } from "@shared/schema";
 
-const SERVICE_CATEGORIES = [
+const DEFAULT_SERVICE_CATEGORIES = [
   "General", "Emergency", "Preventive", "Cardiology", "Therapy",
   "Consultation", "Laboratory", "Radiology", "Ultrasound",
   "ECG", "Physiotherapy", "Dental", "Ophthalmology",
   "Surgery", "Other"
 ];
+
+function getServiceCategories(): string[] {
+  const stored = localStorage.getItem("service_categories");
+  if (stored) {
+    try { return JSON.parse(stored); } catch { return DEFAULT_SERVICE_CATEGORIES; }
+  }
+  return DEFAULT_SERVICE_CATEGORIES;
+}
+
+function saveServiceCategories(cats: string[]) {
+  localStorage.setItem("service_categories", JSON.stringify(cats));
+}
 
 const defaultForm = {
   name: "", category: "", price: "", description: "", imageUrl: "",
@@ -35,6 +47,9 @@ export default function ServicesPage() {
   const [viewService, setViewService] = useState<Service | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [form, setForm] = useState(defaultForm);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [categories, setCategories] = useState<string[]>(getServiceCategories());
+  const [newCategory, setNewCategory] = useState("");
 
   const { data: services = [], isLoading } = useQuery<Service[]>({
     queryKey: ["/api/services"],
@@ -175,7 +190,7 @@ export default function ServicesPage() {
             <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
               <SelectTrigger data-testid="select-service-category"><SelectValue placeholder="Select category" /></SelectTrigger>
               <SelectContent>
-                {SERVICE_CATEGORIES.map(cat => (
+                {categories.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
@@ -263,22 +278,99 @@ export default function ServicesPage() {
         title="Service Management"
         description="Manage consultation fees, test costs, and other services"
         actions={
-          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setForm(defaultForm); }}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-new-service">
-                <Plus className="h-4 w-4 mr-1" /> New Service
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Add New Service</DialogTitle>
-              </DialogHeader>
-              {formContent}
-              <Button className="w-full" onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-service">
-                {createMutation.isPending ? "Creating..." : "Add Service"}
-              </Button>
-            </DialogContent>
-          </Dialog>
+          <>
+            <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" data-testid="button-category-manage">
+                  <FolderPlus className="h-4 w-4 mr-1" /> Category
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Manage Service Categories</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="New category name"
+                      value={newCategory}
+                      onChange={e => setNewCategory(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && newCategory.trim()) {
+                          if (categories.includes(newCategory.trim())) {
+                            toast({ title: "Category already exists", variant: "destructive" });
+                            return;
+                          }
+                          const updated = [...categories, newCategory.trim()].sort();
+                          setCategories(updated);
+                          saveServiceCategories(updated);
+                          setNewCategory("");
+                          toast({ title: "Category added" });
+                        }
+                      }}
+                      data-testid="input-new-category"
+                    />
+                    <Button
+                      onClick={() => {
+                        if (!newCategory.trim()) return;
+                        if (categories.includes(newCategory.trim())) {
+                          toast({ title: "Category already exists", variant: "destructive" });
+                          return;
+                        }
+                        const updated = [...categories, newCategory.trim()].sort();
+                        setCategories(updated);
+                        saveServiceCategories(updated);
+                        setNewCategory("");
+                        toast({ title: "Category added" });
+                      }}
+                      data-testid="button-add-category"
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-1">
+                    {categories.map(cat => (
+                      <div key={cat} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md hover-elevate">
+                        <span className="text-sm">{cat}</span>
+                        {!DEFAULT_SERVICE_CATEGORIES.includes(cat) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => {
+                              const updated = categories.filter(c => c !== cat);
+                              setCategories(updated);
+                              saveServiceCategories(updated);
+                              toast({ title: "Category removed" });
+                            }}
+                            data-testid={`button-remove-category-${cat}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setForm(defaultForm); }}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-new-service">
+                  <Plus className="h-4 w-4 mr-1" /> New Service
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Add New Service</DialogTitle>
+                </DialogHeader>
+                {formContent}
+                <Button className="w-full" onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-service">
+                  {createMutation.isPending ? "Creating..." : "Add Service"}
+                </Button>
+              </DialogContent>
+            </Dialog>
+          </>
         }
       />
 

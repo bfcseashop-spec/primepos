@@ -209,6 +209,21 @@ export const insertClinicSettingsSchema = createInsertSchema(clinicSettings).omi
 export type InsertClinicSettings = z.infer<typeof insertClinicSettingsSchema>;
 export type ClinicSettings = typeof clinicSettings.$inferSelect;
 
+export const labTests = pgTable("lab_tests", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  testName: text("test_name").notNull(),
+  category: text("category").notNull(),
+  sampleType: text("sample_type").notNull(),
+  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+  description: text("description"),
+  turnaroundTime: text("turnaround_time"),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const insertLabTestSchema = createInsertSchema(labTests).omit({ id: true });
+export type InsertLabTest = z.infer<typeof insertLabTestSchema>;
+export type LabTest = typeof labTests.$inferSelect;
+
 export type BillItem = {
   name: string;
   type: "service" | "medicine";

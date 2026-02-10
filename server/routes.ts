@@ -6,7 +6,7 @@ import {
   insertServiceSchema, insertMedicineSchema, insertExpenseSchema,
   insertBankTransactionSchema, insertInvestmentSchema,
   insertUserSchema, insertRoleSchema, insertIntegrationSchema,
-  insertClinicSettingsSchema
+  insertClinicSettingsSchema, insertLabTestSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -483,6 +483,55 @@ export async function registerRoutes(
     try {
       const data = await storage.getTopServices();
       res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Lab Tests
+  app.get("/api/lab-tests", async (_req, res) => {
+    try {
+      const result = await storage.getLabTests();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/lab-tests", async (req, res) => {
+    try {
+      const data = validateBody(insertLabTestSchema, req.body);
+      const test = await storage.createLabTest(data);
+      res.status(201).json(test);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/lab-tests/:id", async (req, res) => {
+    try {
+      const updateSchema = z.object({
+        testName: z.string().optional(),
+        category: z.string().optional(),
+        sampleType: z.string().optional(),
+        price: z.string().optional(),
+        description: z.string().nullable().optional(),
+        turnaroundTime: z.string().nullable().optional(),
+        isActive: z.boolean().optional(),
+      });
+      const data = validateBody(updateSchema, req.body);
+      const test = await storage.updateLabTest(Number(req.params.id), data);
+      if (!test) return res.status(404).json({ message: "Lab test not found" });
+      res.json(test);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/lab-tests/:id", async (req, res) => {
+    try {
+      await storage.deleteLabTest(Number(req.params.id));
+      res.json({ message: "Deleted" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

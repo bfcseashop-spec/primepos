@@ -19,6 +19,7 @@ import StaffPage from "@/pages/staff";
 import IntegrationsPage from "@/pages/integrations";
 import ReportsPage from "@/pages/reports";
 import SettingsPage from "@/pages/settings";
+import LabTestsPage from "@/pages/lab-tests";
 
 function Router() {
   return (
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/opd" component={OpdPage} />
       <Route path="/billing" component={BillingPage} />
       <Route path="/services" component={ServicesPage} />
+      <Route path="/lab-tests" component={LabTestsPage} />
       <Route path="/medicines" component={MedicinesPage} />
       <Route path="/expenses" component={ExpensesPage} />
       <Route path="/bank" component={BankTransactionsPage} />
