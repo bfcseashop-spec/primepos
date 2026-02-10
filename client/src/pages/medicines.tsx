@@ -18,7 +18,7 @@ import {
   Box, Droplets, FlaskConical, MoreHorizontal, Eye, Pencil, Trash2,
   Calculator, Users, Globe, ShieldAlert, CheckCircle2, X,
   List, LayoutGrid, RefreshCw, Tag, FolderPlus, Printer, Barcode,
-  PackageX, PackageCheck, Filter
+  PackageX, PackageCheck, Filter, ImagePlus, Trash
 } from "lucide-react";
 import type { Medicine } from "@shared/schema";
 
@@ -42,7 +42,7 @@ const defaultForm = {
   batchNo: "", expiryDate: "", unit: "Box",
   unitCount: 1, boxPrice: 0, qtyPerBox: 1,
   sellingPriceLocal: 0, sellingPriceForeigner: 0,
-  stockAlert: 10,
+  stockAlert: 10, imageUrl: "",
 };
 
 export default function MedicinesPage() {
@@ -167,6 +167,7 @@ export default function MedicinesPage() {
       sellingPriceForeigner: String(form.sellingPriceForeigner),
       stockCount: form.unitCount * form.qtyPerBox,
       stockAlert: form.stockAlert,
+      imageUrl: form.imageUrl || null,
       quantity: form.unitCount * form.qtyPerBox,
       unitPrice: String(perMedPrice.toFixed(2)),
       sellingPrice: String(form.sellingPriceLocal),
@@ -195,6 +196,7 @@ export default function MedicinesPage() {
       sellingPriceLocal: Number(med.sellingPriceLocal) || 0,
       sellingPriceForeigner: Number(med.sellingPriceForeigner) || 0,
       stockAlert: med.stockAlert || 10,
+      imageUrl: med.imageUrl || "",
     });
     setEditMed(med);
   };
@@ -436,6 +438,67 @@ export default function MedicinesPage() {
         </div>
       </div>
 
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-purple-700 dark:text-purple-400">
+          <ImagePlus className="h-4 w-4" />
+          Medicine Image <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {form.imageUrl ? (
+            <div className="relative group">
+              <img
+                src={form.imageUrl}
+                alt="Medicine"
+                className="w-20 h-20 object-cover rounded-md border"
+                data-testid="img-medicine-preview"
+              />
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ visibility: form.imageUrl ? "visible" : "hidden" }}
+                onClick={() => setForm(f => ({ ...f, imageUrl: "" }))}
+                data-testid="button-remove-image"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          ) : (
+            <label
+              className="flex flex-col items-center justify-center w-20 h-20 rounded-md border-2 border-dashed border-muted-foreground/30 cursor-pointer hover-elevate"
+              data-testid="label-upload-image"
+            >
+              <ImagePlus className="h-5 w-5 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                data-testid="input-medicine-image"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 2 * 1024 * 1024) {
+                    toast({ title: "Image too large", description: "Maximum size is 2MB", variant: "destructive" });
+                    return;
+                  }
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    setForm(f => ({ ...f, imageUrl: ev.target?.result as string }));
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </label>
+          )}
+          <div className="text-xs text-muted-foreground space-y-0.5">
+            <p>Upload a photo of the medicine</p>
+            <p>Max size: 2MB (JPG, PNG)</p>
+          </div>
+        </div>
+      </div>
+
       <Separator />
 
       <div className="space-y-3">
@@ -629,6 +692,11 @@ export default function MedicinesPage() {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
+              {viewMed.imageUrl && (
+                <div className="w-full h-40 rounded-md overflow-hidden">
+                  <img src={viewMed.imageUrl} alt={viewMed.name} className="w-full h-full object-cover" data-testid="img-medicine-detail" />
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground">Medicine Name</p>
@@ -918,6 +986,11 @@ export default function MedicinesPage() {
                   return (
                     <Card key={med.id} className="hover-elevate" data-testid={`card-medicine-${med.id}`}>
                       <CardContent className="p-3 space-y-2">
+                        {med.imageUrl && (
+                          <div className="w-full h-28 rounded-md overflow-hidden mb-2">
+                            <img src={med.imageUrl} alt={med.name} className="w-full h-full object-cover" data-testid={`img-medicine-${med.id}`} />
+                          </div>
+                        )}
                         <div className="flex items-start justify-between gap-1">
                           <div className="min-w-0">
                             <p className="font-semibold text-sm truncate">{med.name}</p>

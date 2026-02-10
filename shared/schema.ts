@@ -77,6 +77,7 @@ export const medicines = pgTable("medicines", {
   sellingPriceForeigner: numeric("selling_price_foreigner", { precision: 10, scale: 2 }).notNull().default("0"),
   stockCount: integer("stock_count").notNull().default(0),
   stockAlert: integer("stock_alert").notNull().default(10),
+  imageUrl: text("image_url"),
   quantity: integer("quantity").notNull().default(0),
   unitPrice: numeric("unit_price", { precision: 10, scale: 2 }).notNull().default("0"),
   sellingPrice: numeric("selling_price", { precision: 10, scale: 2 }).notNull().default("0"),
