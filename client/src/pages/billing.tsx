@@ -103,61 +103,125 @@ export default function BillingPage() {
   const printReceipt = (bill: any) => {
     const patient = patients.find(p => p.id === Number(selectedPatient || bill.patientId));
     const items = bill.items || billItems;
-    const printWindow = window.open("", "_blank", "width=400,height=600");
+    const printWindow = window.open("", "_blank", "width=800,height=900");
     if (!printWindow) return;
     const clinicName = settings?.clinicName || "Prime Clinic";
     const clinicEmail = settings?.email || "info@primeclinic.com";
+    const clinicPhone = settings?.phone || "";
+    const clinicAddress = settings?.address || "";
+    const statusLabel = bill.status === "paid" ? "Paid" : "Pending";
+    const statusColor = bill.status === "paid" ? "#16a34a" : "#f59e0b";
+    const dateStr = bill.paymentDate || new Date().toISOString().split("T")[0];
+    const formattedDate = new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+
+    const itemRows = (Array.isArray(items) ? items : []).map((item: any, idx: number) => `
+      <tr>
+        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;color:#6b7280;">${idx + 1}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;">${item.name}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;">$${Number(item.unitPrice).toFixed(2)}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;">${item.quantity}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;">$${Number(item.total).toFixed(2)}</td>
+      </tr>
+    `).join("");
+
     printWindow.document.write(`
-      <html><head><title>Receipt - ${clinicName}</title>
+      <html><head><title>Invoice - ${bill.billNo}</title>
       <style>
-        body { font-family: monospace; padding: 20px; max-width: 350px; margin: 0 auto; font-size: 13px; }
-        .center { text-align: center; }
-        .bold { font-weight: bold; }
-        .line { border-top: 1px dashed #333; margin: 8px 0; }
-        .row { display: flex; justify-content: space-between; margin: 3px 0; }
-        .items { margin: 8px 0; }
-        h2 { margin: 4px 0; }
-        h3 { margin: 2px 0; font-size: 11px; font-weight: normal; color: #666; }
-        p { margin: 2px 0; }
-        .logo { max-height: 48px; margin: 0 auto 6px; display: block; }
-        .footer { margin-top: 12px; font-size: 11px; color: #666; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937; padding: 30px; max-width: 800px; margin: 0 auto; font-size: 13px; }
+        @media print { body { padding: 15px; } }
       </style></head><body>
-        <div class="center">
-          ${settings?.logo ? `<img src="${settings.logo}" alt="Logo" class="logo" />` : ""}
-          <h2>${clinicName}</h2>
-          ${settings?.address ? `<h3>${settings.address}</h3>` : ""}
-          ${settings?.phone ? `<h3>${settings.phone}</h3>` : ""}
+
+        <!-- Header -->
+        <table style="width:100%;margin-bottom:20px;">
+          <tr>
+            <td style="width:50%;vertical-align:middle;">
+              ${settings?.logo ? `<img src="${settings.logo}" alt="Logo" style="max-height:50px;margin-bottom:4px;display:block;" />` : ""}
+              <div style="font-size:18px;font-weight:700;color:#0f766e;">${clinicName}</div>
+              ${clinicAddress ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">${clinicAddress}</div>` : ""}
+              ${clinicPhone ? `<div style="font-size:11px;color:#6b7280;">${clinicPhone}</div>` : ""}
+              ${clinicEmail ? `<div style="font-size:11px;color:#6b7280;">${clinicEmail}</div>` : ""}
+            </td>
+            <td style="width:50%;text-align:right;vertical-align:top;">
+              <div style="font-size:24px;font-weight:800;color:#1f2937;letter-spacing:1px;">INVOICE</div>
+              <div style="font-size:12px;color:#6b7280;margin-top:4px;">Invoice #: <strong>${bill.billNo}</strong></div>
+              <div style="font-size:12px;color:#6b7280;">Date: ${formattedDate}</div>
+              <div style="margin-top:6px;">
+                <span style="display:inline-block;padding:3px 12px;border-radius:4px;font-size:11px;font-weight:600;color:white;background:${statusColor};">${statusLabel}</span>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Patient & Payment Info -->
+        <table style="width:100%;margin-bottom:18px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;">
+          <tr>
+            <td style="padding:12px 14px;width:50%;vertical-align:top;">
+              <div style="font-size:10px;text-transform:uppercase;color:#9ca3af;font-weight:600;letter-spacing:0.5px;margin-bottom:4px;">Patient</div>
+              <div style="font-size:13px;font-weight:600;">${patient?.name || "N/A"}</div>
+              ${patient?.patientId ? `<div style="font-size:11px;color:#6b7280;">ID: ${patient.patientId}</div>` : ""}
+              ${patient?.gender ? `<div style="font-size:11px;color:#6b7280;">Gender: ${patient.gender}</div>` : ""}
+            </td>
+            <td style="padding:12px 14px;width:50%;vertical-align:top;border-left:1px solid #e5e7eb;">
+              <div style="font-size:10px;text-transform:uppercase;color:#9ca3af;font-weight:600;letter-spacing:0.5px;margin-bottom:4px;">Details</div>
+              ${bill.referenceDoctor ? `<div style="font-size:12px;"><span style="color:#6b7280;">Ref Doctor:</span> <strong>${bill.referenceDoctor}</strong></div>` : ""}
+              <div style="font-size:12px;"><span style="color:#6b7280;">Payment:</span> <strong>${getPaymentLabel(bill.paymentMethod)}</strong></div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Items Table -->
+        <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
+          <thead>
+            <tr style="background:#0f766e;color:white;">
+              <th style="padding:8px 10px;text-align:center;font-size:11px;font-weight:600;width:40px;">#</th>
+              <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;">Description</th>
+              <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;width:80px;">Price</th>
+              <th style="padding:8px 10px;text-align:center;font-size:11px;font-weight:600;width:50px;">Qty</th>
+              <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;width:90px;">Total (USD)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRows}
+          </tbody>
+        </table>
+
+        <!-- Totals -->
+        <table style="width:100%;margin-bottom:20px;">
+          <tr>
+            <td style="width:60%;"></td>
+            <td style="width:40%;">
+              <table style="width:100%;border-collapse:collapse;">
+                <tr>
+                  <td style="padding:5px 10px;font-size:12px;color:#6b7280;">Subtotal</td>
+                  <td style="padding:5px 10px;text-align:right;font-size:12px;">$${Number(bill.subtotal).toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td style="padding:5px 10px;font-size:12px;color:#6b7280;">Discount</td>
+                  <td style="padding:5px 10px;text-align:right;font-size:12px;color:#ef4444;">-$${Number(bill.discount).toFixed(2)}</td>
+                </tr>
+                <tr style="border-top:2px solid #0f766e;">
+                  <td style="padding:8px 10px;font-size:14px;font-weight:700;color:#0f766e;">Grand Total</td>
+                  <td style="padding:8px 10px;text-align:right;font-size:14px;font-weight:700;color:#0f766e;">$${Number(bill.total).toFixed(2)}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Payment Information -->
+        <div style="background:#f0fdfa;border:1px solid #ccfbf1;border-radius:6px;padding:12px 14px;margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:600;color:#0f766e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Payment Information</div>
+          <div style="font-size:12px;color:#374151;">Payment for the above medical services at ${clinicName}.</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:4px;">Amount Paid: <strong>$${Number(bill.paidAmount).toFixed(2)}</strong> via <strong>${getPaymentLabel(bill.paymentMethod)}</strong></div>
         </div>
-        <div class="line"></div>
-        <div class="center">
-          <p class="bold">INVOICE</p>
-          <p>Invoice #: ${bill.billNo}</p>
-          <p>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+
+        <!-- Footer -->
+        <div style="text-align:center;padding-top:16px;border-top:1px solid #e5e7eb;">
+          <div style="font-size:13px;font-weight:600;color:#1f2937;margin-bottom:3px;">Thank you for choosing ${clinicName}!</div>
+          <div style="font-size:11px;color:#6b7280;">For questions, contact ${clinicEmail}</div>
         </div>
-        <div class="line"></div>
-        <p><span class="bold">Patient:</span> ${patient?.name || "N/A"}</p>
-        ${bill.referenceDoctor ? `<p><span class="bold">Doctor:</span> ${bill.referenceDoctor}</p>` : ""}
-        <div class="line"></div>
-        <div class="items">
-          ${(Array.isArray(items) ? items : []).map((item: any) => `
-            <div class="row">
-              <span>${item.name} x${item.quantity}</span>
-              <span>$${Number(item.total).toFixed(2)}</span>
-            </div>
-          `).join("")}
-        </div>
-        <div class="line"></div>
-        <div class="row"><span>Subtotal</span><span>$${bill.subtotal}</span></div>
-        <div class="row"><span>Discount</span><span>-$${bill.discount}</span></div>
-        <div class="line"></div>
-        <div class="row bold"><span>Total</span><span>$${bill.total}</span></div>
-        <div class="row"><span>Paid</span><span>$${bill.paidAmount}</span></div>
-        <div class="row"><span>Method</span><span>${getPaymentLabel(bill.paymentMethod)}</span></div>
-        <div class="line"></div>
-        <div class="center footer">
-          <p class="bold">Thank you for choosing ${clinicName}!</p>
-          <p>For questions, contact ${clinicEmail}</p>
-        </div>
+
         <script>window.onload = function() { window.print(); }</script>
       </body></html>
     `);
@@ -290,90 +354,97 @@ export default function BillingPage() {
               {showPreview ? (
                 <div className="space-y-4">
                   <div className="border rounded-md p-5 bg-white dark:bg-card" data-testid="invoice-preview">
-                    <div className="text-center mb-4">
-                      {settings?.logo && (
-                        <img src={settings.logo} alt="Clinic Logo" className="h-12 mx-auto mb-2 object-contain" data-testid="img-clinic-logo" />
-                      )}
-                      <h2 className="text-lg font-bold">{settings?.clinicName || "Prime Clinic"}</h2>
-                      {settings?.address && <p className="text-[11px] text-muted-foreground">{settings.address}</p>}
-                      {(settings?.phone || settings?.email) && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {[settings?.phone, settings?.email].filter(Boolean).join(" | ")}
-                        </p>
-                      )}
-                      <Separator className="my-2" />
-                      <h3 className="text-xl font-bold tracking-wide">INVOICE</h3>
-                      <p className="text-xs text-muted-foreground">Invoice #: {settings?.invoicePrefix || "INV"}-{String(bills.length + 1).padStart(4, "0")}</p>
-                      <p className="text-xs text-muted-foreground">{paymentDate || new Date().toISOString().split("T")[0]}</p>
-                    </div>
-
-                    <Separator className="my-3" />
-
-                    <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                    {/* Header: Logo + Clinic Info | INVOICE + Number */}
+                    <div className="flex items-start justify-between gap-4 mb-4">
                       <div>
-                        <span className="text-muted-foreground">Patient:</span>{" "}
-                        <span className="font-medium">{patients.find(p => p.id === Number(selectedPatient))?.name || "-"}</span>
+                        {settings?.logo && (
+                          <img src={settings.logo} alt="Clinic Logo" className="h-10 mb-1.5 object-contain" data-testid="img-clinic-logo" />
+                        )}
+                        <h2 className="text-base font-bold text-teal-700 dark:text-teal-400">{settings?.clinicName || "Prime Clinic"}</h2>
+                        {settings?.address && <p className="text-[10px] text-muted-foreground">{settings.address}</p>}
+                        {settings?.phone && <p className="text-[10px] text-muted-foreground">{settings.phone}</p>}
+                        {settings?.email && <p className="text-[10px] text-muted-foreground">{settings.email}</p>}
                       </div>
-                      {referenceDoctor && referenceDoctor !== "none" && (
-                        <div>
-                          <span className="text-muted-foreground">Doctor:</span>{" "}
-                          <span className="font-medium">{referenceDoctor}</span>
-                        </div>
-                      )}
+                      <div className="text-right">
+                        <h3 className="text-xl font-extrabold tracking-wide">INVOICE</h3>
+                        <p className="text-xs text-muted-foreground mt-1">Invoice #: <span className="font-semibold text-foreground">{settings?.invoicePrefix || "INV"}-{String(bills.length + 1).padStart(4, "0")}</span></p>
+                        <p className="text-xs text-muted-foreground">Date: {new Date(paymentDate || new Date()).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+                        <Badge className="mt-1.5 bg-amber-500 text-white border-amber-600">Pending</Badge>
+                      </div>
                     </div>
 
-                    <Separator className="my-3" />
+                    {/* Patient & Details */}
+                    <div className="grid grid-cols-2 gap-0 rounded-md border bg-muted/30 mb-4">
+                      <div className="p-3">
+                        <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-1">Patient</p>
+                        <p className="text-sm font-semibold">{patients.find(p => p.id === Number(selectedPatient))?.name || "-"}</p>
+                        {(() => { const p = patients.find(pt => pt.id === Number(selectedPatient)); return p ? (
+                          <>
+                            <p className="text-[11px] text-muted-foreground">ID: {p.patientId}</p>
+                            {p.gender && <p className="text-[11px] text-muted-foreground">Gender: {p.gender}</p>}
+                          </>
+                        ) : null; })()}
+                      </div>
+                      <div className="p-3 border-l">
+                        <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-1">Details</p>
+                        {referenceDoctor && referenceDoctor !== "none" && (
+                          <p className="text-[11px]"><span className="text-muted-foreground">Ref Doctor:</span> <span className="font-medium">{referenceDoctor}</span></p>
+                        )}
+                        <p className="text-[11px]"><span className="text-muted-foreground">Payment:</span> <span className="font-medium">{getPaymentLabel(paymentMethod)}</span></p>
+                      </div>
+                    </div>
 
-                    <div className="mb-3">
-                      <div className="grid grid-cols-[1fr,60px,60px,80px] gap-2 text-xs font-semibold text-muted-foreground pb-1 border-b">
-                        <span>Item</span>
-                        <span className="text-right">Price</span>
-                        <span className="text-center">Qty</span>
-                        <span className="text-right">Amount</span>
+                    {/* Items Table */}
+                    <div className="mb-4 rounded-md overflow-hidden border">
+                      <div className="grid grid-cols-[36px,1fr,70px,46px,80px] bg-teal-700 text-white text-[11px] font-semibold">
+                        <span className="p-2 text-center">#</span>
+                        <span className="p-2">Description</span>
+                        <span className="p-2 text-right">Price</span>
+                        <span className="p-2 text-center">Qty</span>
+                        <span className="p-2 text-right">Total (USD)</span>
                       </div>
                       {billItems.map((item, i) => (
-                        <div key={i} className="grid grid-cols-[1fr,60px,60px,80px] gap-2 py-1.5 text-sm border-b border-dashed">
-                          <div className="flex items-center gap-1">
-                            <Badge variant="outline" className="text-[9px] px-1">{item.type === "service" ? "SVC" : "MED"}</Badge>
-                            <span>{item.name}</span>
-                          </div>
-                          <span className="text-right text-muted-foreground">${item.unitPrice.toFixed(2)}</span>
-                          <span className="text-center">{item.quantity}</span>
-                          <span className="text-right font-medium">${item.total.toFixed(2)}</span>
+                        <div key={i} className="grid grid-cols-[36px,1fr,70px,46px,80px] text-sm border-b last:border-b-0">
+                          <span className="p-2 text-center text-muted-foreground text-xs">{i + 1}</span>
+                          <span className="p-2">{item.name}</span>
+                          <span className="p-2 text-right text-muted-foreground">${item.unitPrice.toFixed(2)}</span>
+                          <span className="p-2 text-center">{item.quantity}</span>
+                          <span className="p-2 text-right font-medium">${item.total.toFixed(2)}</span>
                         </div>
                       ))}
                     </div>
 
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span>${subtotal.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Discount{discountType === "percentage" ? ` (${Number(discount) || 0}%)` : ""}
-                        </span>
-                        <span>-${discountAmount.toFixed(2)}</span>
-                      </div>
-                      <Separator className="my-1" />
-                      <div className="flex justify-between font-bold text-base">
-                        <span>Total</span>
-                        <span>${total.toFixed(2)}</span>
+                    {/* Totals */}
+                    <div className="flex justify-end mb-4">
+                      <div className="w-52 space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Subtotal</span>
+                          <span>${subtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Discount{discountType === "percentage" ? ` (${Number(discount) || 0}%)` : ""}</span>
+                          <span className="text-red-500">-${discountAmount.toFixed(2)}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between font-bold text-teal-700 dark:text-teal-400 text-base pt-0.5">
+                          <span>Grand Total</span>
+                          <span>${total.toFixed(2)}</span>
+                        </div>
                       </div>
                     </div>
 
-                    <Separator className="my-3" />
-
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Payment Method</span>
-                      <Badge variant="outline">{getPaymentLabel(paymentMethod)}</Badge>
+                    {/* Payment Information */}
+                    <div className="rounded-md bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 p-3 mb-4">
+                      <p className="text-[10px] uppercase text-teal-700 dark:text-teal-400 font-semibold tracking-wide mb-1">Payment Information</p>
+                      <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || "Prime Clinic"}.</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Amount: <span className="font-semibold text-foreground">${total.toFixed(2)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(paymentMethod)}</span></p>
                     </div>
 
-                    <Separator className="my-3" />
-
-                    <div className="text-center text-xs text-muted-foreground space-y-0.5 pt-1" data-testid="invoice-footer">
-                      <p className="font-medium">Thank you for choosing {settings?.clinicName || "Prime Clinic"}!</p>
-                      <p>For questions, contact {settings?.email || "info@primeclinic.com"}</p>
+                    {/* Footer */}
+                    <Separator className="mb-3" />
+                    <div className="text-center space-y-0.5" data-testid="invoice-footer">
+                      <p className="text-sm font-semibold">Thank you for choosing {settings?.clinicName || "Prime Clinic"}!</p>
+                      <p className="text-xs text-muted-foreground">For questions, contact {settings?.email || "info@primeclinic.com"}</p>
                     </div>
                   </div>
 
