@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard } from "lucide-react";
+import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X } from "lucide-react";
 import type { Patient, Service, Medicine, BillItem, User } from "@shared/schema";
 
 const PAYMENT_METHODS = [
@@ -63,6 +63,7 @@ export default function BillingPage() {
     .map((u) => u.fullName);
 
   const [billAction, setBillAction] = useState<"create" | "print" | "payment">("create");
+  const [showPreview, setShowPreview] = useState(false);
 
   const getPaymentLabel = (method: string) => {
     const found = PAYMENT_METHODS.find(p => p.value === method);
@@ -152,6 +153,7 @@ export default function BillingPage() {
     setPaymentMethod("cash");
     setReferenceDoctor("");
     setPaymentDate(new Date().toISOString().split("T")[0]);
+    setShowPreview(false);
   };
 
   const addServiceItem = (serviceId: string) => {
@@ -262,9 +264,104 @@ export default function BillingPage() {
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create New Bill</DialogTitle>
-                <DialogDescription>Add services, medicines and payment details for the bill.</DialogDescription>
+                <DialogTitle>{showPreview ? "Invoice Preview" : "Create New Bill"}</DialogTitle>
+                <DialogDescription>{showPreview ? "Review the invoice before printing." : "Add services, medicines and payment details for the bill."}</DialogDescription>
               </DialogHeader>
+
+              {showPreview ? (
+                <div className="space-y-4">
+                  <div className="border rounded-md p-5 bg-white dark:bg-card" data-testid="invoice-preview">
+                    <div className="text-center mb-4">
+                      <h2 className="text-xl font-bold">INVOICE</h2>
+                      <p className="text-xs text-muted-foreground">Bill #: BILL-PREVIEW</p>
+                      <p className="text-xs text-muted-foreground">{paymentDate || new Date().toISOString().split("T")[0]}</p>
+                    </div>
+
+                    <Separator className="my-3" />
+
+                    <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                      <div>
+                        <span className="text-muted-foreground">Patient:</span>{" "}
+                        <span className="font-medium">{patients.find(p => p.id === Number(selectedPatient))?.name || "-"}</span>
+                      </div>
+                      {referenceDoctor && referenceDoctor !== "none" && (
+                        <div>
+                          <span className="text-muted-foreground">Doctor:</span>{" "}
+                          <span className="font-medium">{referenceDoctor}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <Separator className="my-3" />
+
+                    <div className="mb-3">
+                      <div className="grid grid-cols-[1fr,60px,60px,80px] gap-2 text-xs font-semibold text-muted-foreground pb-1 border-b">
+                        <span>Item</span>
+                        <span className="text-right">Price</span>
+                        <span className="text-center">Qty</span>
+                        <span className="text-right">Amount</span>
+                      </div>
+                      {billItems.map((item, i) => (
+                        <div key={i} className="grid grid-cols-[1fr,60px,60px,80px] gap-2 py-1.5 text-sm border-b border-dashed">
+                          <div className="flex items-center gap-1">
+                            <Badge variant="outline" className="text-[9px] px-1">{item.type === "service" ? "SVC" : "MED"}</Badge>
+                            <span>{item.name}</span>
+                          </div>
+                          <span className="text-right text-muted-foreground">${item.unitPrice.toFixed(2)}</span>
+                          <span className="text-center">{item.quantity}</span>
+                          <span className="text-right font-medium">${item.total.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>${subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          Discount{discountType === "percentage" ? ` (${Number(discount) || 0}%)` : ""}
+                        </span>
+                        <span>-${discountAmount.toFixed(2)}</span>
+                      </div>
+                      <Separator className="my-1" />
+                      <div className="flex justify-between font-bold text-base">
+                        <span>Total</span>
+                        <span>${total.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <Separator className="my-3" />
+
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Payment Method</span>
+                      <Badge variant="outline">{getPaymentLabel(paymentMethod)}</Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowPreview(false)}
+                      data-testid="button-back-to-form"
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-1.5" />
+                      Back to Edit
+                    </Button>
+                    <Button
+                      onClick={() => { setBillAction("print"); handleCreateBill(); }}
+                      disabled={createBillMutation.isPending}
+                      className="bg-blue-600 hover:bg-blue-600 text-white border-blue-700"
+                      data-testid="button-confirm-print"
+                    >
+                      <Printer className="h-4 w-4 mr-1.5" />
+                      {createBillMutation.isPending ? "Printing..." : "Confirm & Print"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+
               <div className="space-y-4">
                 <div>
                   <Label>Patient *</Label>
@@ -436,13 +533,19 @@ export default function BillingPage() {
                     {createBillMutation.isPending && billAction === "create" ? "Creating..." : "Create Bill"}
                   </Button>
                   <Button
-                    onClick={() => { setBillAction("print"); handleCreateBill(); }}
+                    onClick={() => {
+                      if (!selectedPatient || billItems.length === 0) {
+                        toast({ title: "Please select a patient and add items", variant: "destructive" });
+                        return;
+                      }
+                      setShowPreview(true);
+                    }}
                     disabled={createBillMutation.isPending}
                     className="bg-blue-600 hover:bg-blue-600 text-white border-blue-700"
                     data-testid="button-print-receipt"
                   >
                     <Printer className="h-4 w-4 mr-1.5" />
-                    {createBillMutation.isPending && billAction === "print" ? "Printing..." : "Print Receipt"}
+                    Print Receipt
                   </Button>
                   <Button
                     onClick={() => { setBillAction("payment"); handleCreateBill(); }}
@@ -455,6 +558,7 @@ export default function BillingPage() {
                   </Button>
                 </div>
               </div>
+              )}
             </DialogContent>
           </Dialog>
         }
