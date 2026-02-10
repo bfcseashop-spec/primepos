@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw, LayoutGrid, List, Eye, Camera, X } from "lucide-react";
+import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw, LayoutGrid, List, Eye, Camera, X, UserCheck, UserX, Activity, BedDouble } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Doctor } from "@shared/schema";
@@ -131,13 +132,21 @@ export default function DoctorManagementPage() {
 
   const getStatusBadge = (status: string) => {
     if (status === "active") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300";
+    if (status === "busy") return "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300";
+    if (status === "in_surgery") return "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300";
     if (status === "on_leave") return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300";
     return "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300";
   };
   const getStatusLabel = (status: string) => {
     if (status === "active") return "Available";
+    if (status === "busy") return "Busy";
+    if (status === "in_surgery") return "In Surgery";
     if (status === "on_leave") return "On Leave";
     return "Unavailable";
+  };
+
+  const setDoctorStatus = (id: number, status: string) => {
+    updateMutation.mutate({ id, data: { status } });
   };
 
   const openEdit = (doc: Doctor) => {
@@ -190,6 +199,8 @@ export default function DoctorManagementPage() {
             <SelectContent>
               <SelectItem value="all">Status: All</SelectItem>
               <SelectItem value="active">Available</SelectItem>
+              <SelectItem value="busy">Busy</SelectItem>
+              <SelectItem value="in_surgery">In Surgery</SelectItem>
               <SelectItem value="on_leave">On Leave</SelectItem>
               <SelectItem value="inactive">Unavailable</SelectItem>
             </SelectContent>
@@ -239,11 +250,22 @@ export default function DoctorManagementPage() {
                       <DropdownMenuItem onClick={() => { setViewingDoctor(doc); setViewDialog(true); }} data-testid={`button-view-${doc.id}`}>
                         <Eye className="h-4 w-4 mr-2" /> View Profile
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openEdit(doc)} data-testid={`button-edit-${doc.id}`}>
-                        <Edit className="h-4 w-4 mr-2" /> Edit
+                      <Separator className="my-1" />
+                      <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "active")} data-testid={`button-set-available-${doc.id}`}>
+                        <UserCheck className="h-4 w-4 mr-2 text-emerald-600" /> Set Available
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "busy")} data-testid={`button-set-busy-${doc.id}`}>
+                        <UserX className="h-4 w-4 mr-2 text-orange-600" /> Set Busy
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "in_surgery")} data-testid={`button-set-surgery-${doc.id}`}>
+                        <Activity className="h-4 w-4 mr-2 text-blue-600" /> Set In Surgery
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "on_leave")} data-testid={`button-set-leave-${doc.id}`}>
+                        <BedDouble className="h-4 w-4 mr-2 text-amber-600" /> Set On Leave
+                      </DropdownMenuItem>
+                      <Separator className="my-1" />
                       <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(doc.id)} data-testid={`button-delete-${doc.id}`}>
-                        <Trash2 className="h-4 w-4 mr-2" /> Delete
+                        <Trash2 className="h-4 w-4 mr-2" /> Remove Doctor
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -340,9 +362,6 @@ export default function DoctorManagementPage() {
                 </div>
                 {doc.phone && <div className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="h-3 w-3" />{doc.phone}</div>}
                 <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => { setViewingDoctor(doc); setViewDialog(true); }} data-testid={`link-view-profile-${doc.id}`}>
-                    <Eye className="h-4 w-4" />
-                  </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="icon" variant="ghost" data-testid={`button-menu-${doc.id}`}>
@@ -350,11 +369,25 @@ export default function DoctorManagementPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(doc)} data-testid={`button-edit-${doc.id}`}>
-                        <Edit className="h-4 w-4 mr-2" /> Edit
+                      <DropdownMenuItem onClick={() => { setViewingDoctor(doc); setViewDialog(true); }} data-testid={`button-view-${doc.id}`}>
+                        <Eye className="h-4 w-4 mr-2" /> View Profile
                       </DropdownMenuItem>
+                      <Separator className="my-1" />
+                      <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "active")}>
+                        <UserCheck className="h-4 w-4 mr-2 text-emerald-600" /> Set Available
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "busy")}>
+                        <UserX className="h-4 w-4 mr-2 text-orange-600" /> Set Busy
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "in_surgery")}>
+                        <Activity className="h-4 w-4 mr-2 text-blue-600" /> Set In Surgery
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "on_leave")}>
+                        <BedDouble className="h-4 w-4 mr-2 text-amber-600" /> Set On Leave
+                      </DropdownMenuItem>
+                      <Separator className="my-1" />
                       <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(doc.id)} data-testid={`button-delete-${doc.id}`}>
-                        <Trash2 className="h-4 w-4 mr-2" /> Delete
+                        <Trash2 className="h-4 w-4 mr-2" /> Remove Doctor
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -515,6 +548,8 @@ export default function DoctorManagementPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Available</SelectItem>
+                    <SelectItem value="busy">Busy</SelectItem>
+                    <SelectItem value="in_surgery">In Surgery</SelectItem>
                     <SelectItem value="on_leave">On Leave</SelectItem>
                     <SelectItem value="inactive">Unavailable</SelectItem>
                   </SelectContent>
