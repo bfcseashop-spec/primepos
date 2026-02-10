@@ -156,7 +156,7 @@ export default function StaffPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Staff & Roles"
+        title="User and Role"
         description="Manage staff members and role permissions"
         actions={
           <div className="flex gap-2 flex-wrap">

@@ -37,7 +37,7 @@ const financeItems = [
 ];
 
 const systemItems = [
-  { title: "Staff & Roles", url: "/staff", icon: UserCog, color: "text-sky-500 dark:text-sky-400", bg: "bg-sky-500/10 dark:bg-sky-400/10" },
+  { title: "User and Role", url: "/staff", icon: UserCog, color: "text-sky-500 dark:text-sky-400", bg: "bg-sky-500/10 dark:bg-sky-400/10" },
   { title: "Authentication", url: "/authentication", icon: Shield, color: "text-red-500 dark:text-red-400", bg: "bg-red-500/10 dark:bg-red-400/10" },
   { title: "Integrations", url: "/integrations", icon: Cable, color: "text-purple-500 dark:text-purple-400", bg: "bg-purple-500/10 dark:bg-purple-400/10" },
   { title: "Reports", url: "/reports", icon: BarChart3, color: "text-lime-500 dark:text-lime-400", bg: "bg-lime-500/10 dark:bg-lime-400/10" },

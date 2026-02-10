@@ -252,7 +252,7 @@ export default function AuthenticationPage() {
         </CardHeader>
         <CardContent className="p-0">
           {users.length === 0 ? (
-            <div className="p-6 text-center text-muted-foreground">No staff accounts found. Create staff accounts from Staff & Roles.</div>
+            <div className="p-6 text-center text-muted-foreground">No staff accounts found. Create staff accounts from User and Role.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
