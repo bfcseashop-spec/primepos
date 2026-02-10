@@ -2,7 +2,8 @@ import { useLocation, Link } from "wouter";
 import {
   LayoutDashboard, Users, FileText, Stethoscope, Pill,
   Receipt, Landmark, TrendingUp, UserCog, Settings,
-  Cable, BarChart3, Activity, FlaskConical
+  Cable, BarChart3, Activity, FlaskConical, CalendarCheck,
+  UserRound, DollarSign, Shield
 } from "lucide-react";
 import {
   Sidebar,
@@ -20,20 +21,24 @@ import {
 const mainItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "OPD Management", url: "/opd", icon: Stethoscope },
+  { title: "Appointments", url: "/appointments", icon: CalendarCheck },
   { title: "Billing", url: "/billing", icon: FileText },
   { title: "Services", url: "/services", icon: Activity },
   { title: "Lab Tests", url: "/lab-tests", icon: FlaskConical },
   { title: "Medicines", url: "/medicines", icon: Pill },
+  { title: "Doctor Management", url: "/doctors", icon: UserRound },
 ];
 
 const financeItems = [
   { title: "Expenses", url: "/expenses", icon: Receipt },
   { title: "Bank Transactions", url: "/bank", icon: Landmark },
   { title: "Investments", url: "/investments", icon: TrendingUp },
+  { title: "Salary", url: "/salary", icon: DollarSign },
 ];
 
 const systemItems = [
   { title: "Staff & Roles", url: "/staff", icon: UserCog },
+  { title: "Authentication", url: "/authentication", icon: Shield },
   { title: "Integrations", url: "/integrations", icon: Cable },
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Settings", url: "/settings", icon: Settings },

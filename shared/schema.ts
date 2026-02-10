@@ -261,6 +261,51 @@ export const insertLabTestSchema = createInsertSchema(labTests).omit({ id: true,
 export type InsertLabTest = z.infer<typeof insertLabTestSchema>;
 export type LabTest = typeof labTests.$inferSelect;
 
+export const doctors = pgTable("doctors", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  doctorId: text("doctor_id").notNull().unique(),
+  name: text("name").notNull(),
+  specialization: text("specialization").notNull(),
+  qualification: text("qualification"),
+  phone: text("phone"),
+  email: text("email"),
+  address: text("address"),
+  consultationFee: numeric("consultation_fee", { precision: 10, scale: 2 }).default("0"),
+  schedule: text("schedule"),
+  status: text("status").notNull().default("active"),
+  joiningDate: text("joining_date"),
+  photoUrl: text("photo_url"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDoctorSchema = createInsertSchema(doctors).omit({ id: true, createdAt: true });
+export type InsertDoctor = z.infer<typeof insertDoctorSchema>;
+export type Doctor = typeof doctors.$inferSelect;
+
+export const salaries = pgTable("salaries", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  staffId: integer("staff_id"),
+  staffName: text("staff_name").notNull(),
+  role: text("role"),
+  department: text("department"),
+  baseSalary: numeric("base_salary", { precision: 10, scale: 2 }).notNull(),
+  allowances: numeric("allowances", { precision: 10, scale: 2 }).default("0"),
+  deductions: numeric("deductions", { precision: 10, scale: 2 }).default("0"),
+  netSalary: numeric("net_salary", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: text("payment_method").default("bank_transfer"),
+  paymentDate: text("payment_date").notNull(),
+  month: text("month").notNull(),
+  year: text("year").notNull(),
+  status: text("status").notNull().default("pending"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSalarySchema = createInsertSchema(salaries).omit({ id: true, createdAt: true });
+export type InsertSalary = z.infer<typeof insertSalarySchema>;
+export type Salary = typeof salaries.$inferSelect;
+
 export type BillItem = {
   name: string;
   type: "service" | "medicine";

@@ -42,6 +42,10 @@ shared/
 11. **Integrations** - Medical device connections (ultrasound, X-ray, ECG, printer)
 12. **Reports** - Revenue trends, expense breakdowns, service analytics
 13. **Settings** - Clinic info, billing config, ID prefixes
+14. **Appointments** - View/manage all appointments with status filters, edit status, delete
+15. **Doctor Management** - Doctor profiles with specialization, qualification, schedule, consultation fee, CRUD operations, card view
+16. **Salary Management** - Staff salary records with base/allowances/deductions/net calculation, month/year tracking, payment status, mark as paid
+17. **Authentication** - Login/Logout/Change Password with bcrypt password hashing, staff account listing
 
 ## Database
 - PostgreSQL with Drizzle ORM

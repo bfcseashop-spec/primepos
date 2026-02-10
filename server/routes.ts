@@ -6,13 +6,15 @@ import {
   insertServiceSchema, insertMedicineSchema, insertExpenseSchema,
   insertBankTransactionSchema, insertInvestmentSchema,
   insertUserSchema, insertRoleSchema, insertIntegrationSchema,
-  insertClinicSettingsSchema, insertLabTestSchema, insertAppointmentSchema
+  insertClinicSettingsSchema, insertLabTestSchema, insertAppointmentSchema,
+  insertDoctorSchema, insertSalarySchema
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import bcrypt from "bcryptjs";
 
 const uploadsDir = path.join(process.cwd(), "uploads", "lab-reports");
 if (!fs.existsSync(uploadsDir)) {
@@ -698,6 +700,162 @@ export async function registerRoutes(
     try {
       await storage.deleteAppointment(Number(req.params.id));
       res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Doctors
+  app.get("/api/doctors", async (_req, res) => {
+    try {
+      const result = await storage.getDoctors();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/doctors/next-id", async (_req, res) => {
+    try {
+      const id = await storage.getNextDoctorId();
+      res.json({ id });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/doctors", async (req, res) => {
+    try {
+      const data = validateBody(insertDoctorSchema, req.body);
+      const doctor = await storage.createDoctor(data);
+      res.status(201).json(doctor);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/doctors/:id", async (req, res) => {
+    try {
+      const doctorUpdateSchema = z.object({
+        name: z.string().optional(), specialization: z.string().optional(),
+        qualification: z.string().nullable().optional(), phone: z.string().nullable().optional(),
+        email: z.string().nullable().optional(), address: z.string().nullable().optional(),
+        consultationFee: z.string().nullable().optional(), schedule: z.string().nullable().optional(),
+        status: z.string().optional(), joiningDate: z.string().nullable().optional(),
+        photoUrl: z.string().nullable().optional(), notes: z.string().nullable().optional(),
+      });
+      const data = validateBody(doctorUpdateSchema, req.body);
+      const doctor = await storage.updateDoctor(Number(req.params.id), data);
+      if (!doctor) return res.status(404).json({ message: "Doctor not found" });
+      res.json(doctor);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/doctors/:id", async (req, res) => {
+    try {
+      await storage.deleteDoctor(Number(req.params.id));
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Salaries
+  app.get("/api/salaries", async (_req, res) => {
+    try {
+      const result = await storage.getSalaries();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/salaries", async (req, res) => {
+    try {
+      const data = validateBody(insertSalarySchema, req.body);
+      const salary = await storage.createSalary(data);
+      res.status(201).json(salary);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/salaries/:id", async (req, res) => {
+    try {
+      const salaryUpdateSchema = z.object({
+        staffName: z.string().optional(), role: z.string().nullable().optional(),
+        department: z.string().nullable().optional(),
+        baseSalary: z.string().optional(), allowances: z.string().nullable().optional(),
+        deductions: z.string().nullable().optional(), netSalary: z.string().optional(),
+        paymentMethod: z.string().nullable().optional(), paymentDate: z.string().optional(),
+        month: z.string().optional(), year: z.string().optional(),
+        status: z.string().optional(), notes: z.string().nullable().optional(),
+      });
+      const data = validateBody(salaryUpdateSchema, req.body);
+      const salary = await storage.updateSalary(Number(req.params.id), data);
+      if (!salary) return res.status(404).json({ message: "Salary not found" });
+      res.json(salary);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/salaries/:id", async (req, res) => {
+    try {
+      await storage.deleteSalary(Number(req.params.id));
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Authentication
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      const isHashed = user.password.startsWith("$2");
+      const isMatch = isHashed ? await bcrypt.compare(password, user.password) : user.password === password;
+      if (!isMatch) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      if (!user.isActive) {
+        return res.status(403).json({ message: "Account is deactivated" });
+      }
+      if (!isHashed) {
+        const hashed = await bcrypt.hash(password, 10);
+        await storage.changePassword(user.id, hashed);
+      }
+      res.json({ id: user.id, username: user.username, fullName: user.fullName, email: user.email, roleId: user.roleId });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/auth/change-password", async (req, res) => {
+    try {
+      const { userId, currentPassword, newPassword } = req.body;
+      if (!userId || !currentPassword || !newPassword) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+      const user = await storage.getUser(Number(userId));
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const isHashed = user.password.startsWith("$2");
+      const isMatch = isHashed ? await bcrypt.compare(currentPassword, user.password) : user.password === currentPassword;
+      if (!isMatch) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+      const hashedNew = await bcrypt.hash(newPassword, 10);
+      await storage.changePassword(Number(userId), hashedNew);
+      res.json({ message: "Password changed successfully" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

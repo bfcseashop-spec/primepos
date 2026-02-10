@@ -21,6 +21,10 @@ import ReportsPage from "@/pages/reports";
 import SettingsPage from "@/pages/settings";
 import LabTestsPage from "@/pages/lab-tests";
 import RegisterPatientPage from "@/pages/register-patient";
+import AppointmentsPage from "@/pages/appointments";
+import DoctorManagementPage from "@/pages/doctor-management";
+import SalaryPage from "@/pages/salary";
+import AuthenticationPage from "@/pages/authentication";
 
 function Router() {
   return (
@@ -38,6 +42,10 @@ function Router() {
       <Route path="/staff" component={StaffPage} />
       <Route path="/integrations" component={IntegrationsPage} />
       <Route path="/reports" component={ReportsPage} />
+      <Route path="/appointments" component={AppointmentsPage} />
+      <Route path="/doctors" component={DoctorManagementPage} />
+      <Route path="/salary" component={SalaryPage} />
+      <Route path="/authentication" component={AuthenticationPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route component={NotFound} />
     </Switch>

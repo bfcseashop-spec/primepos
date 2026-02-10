@@ -3,6 +3,7 @@ import { db } from "./db";
 import {
   users, roles, patients, services, medicines, opdVisits, bills,
   expenses, bankTransactions, investments, integrations, clinicSettings, labTests, appointments,
+  doctors, salaries,
   type InsertUser, type User, type InsertRole, type Role,
   type InsertPatient, type Patient, type InsertService, type Service,
   type InsertMedicine, type Medicine, type InsertOpdVisit, type OpdVisit,
@@ -12,7 +13,9 @@ import {
   type InsertIntegration, type Integration,
   type InsertClinicSettings, type ClinicSettings,
   type InsertLabTest, type LabTest,
-  type InsertAppointment, type Appointment
+  type InsertAppointment, type Appointment,
+  type InsertDoctor, type Doctor,
+  type InsertSalary, type Salary,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -80,6 +83,22 @@ export interface IStorage {
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: number, data: Partial<InsertAppointment>): Promise<Appointment | undefined>;
   deleteAppointment(id: number): Promise<void>;
+
+  getDoctors(): Promise<Doctor[]>;
+  getDoctor(id: number): Promise<Doctor | undefined>;
+  createDoctor(doctor: InsertDoctor): Promise<Doctor>;
+  updateDoctor(id: number, data: Partial<InsertDoctor>): Promise<Doctor | undefined>;
+  deleteDoctor(id: number): Promise<void>;
+  getNextDoctorId(): Promise<string>;
+
+  getSalaries(): Promise<Salary[]>;
+  getSalary(id: number): Promise<Salary | undefined>;
+  createSalary(salary: InsertSalary): Promise<Salary>;
+  updateSalary(id: number, data: Partial<InsertSalary>): Promise<Salary | undefined>;
+  deleteSalary(id: number): Promise<void>;
+
+  getUserByUsername(username: string): Promise<User | undefined>;
+  changePassword(id: number, newPassword: string): Promise<void>;
 
   getDashboardStats(): Promise<any>;
   getRecentVisits(): Promise<any[]>;
@@ -533,6 +552,67 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAppointment(id: number): Promise<void> {
     await db.delete(appointments).where(eq(appointments.id, id));
+  }
+
+  async getDoctors(): Promise<Doctor[]> {
+    return db.select().from(doctors).orderBy(desc(doctors.createdAt));
+  }
+
+  async getDoctor(id: number): Promise<Doctor | undefined> {
+    const [doc] = await db.select().from(doctors).where(eq(doctors.id, id));
+    return doc;
+  }
+
+  async createDoctor(doctor: InsertDoctor): Promise<Doctor> {
+    const [created] = await db.insert(doctors).values(doctor).returning();
+    return created;
+  }
+
+  async updateDoctor(id: number, data: Partial<InsertDoctor>): Promise<Doctor | undefined> {
+    const [updated] = await db.update(doctors).set(data).where(eq(doctors.id, id)).returning();
+    return updated;
+  }
+
+  async deleteDoctor(id: number): Promise<void> {
+    await db.delete(doctors).where(eq(doctors.id, id));
+  }
+
+  async getNextDoctorId(): Promise<string> {
+    const [result] = await db.select({ maxId: sql<number>`COALESCE(MAX(id), 0)` }).from(doctors);
+    const num = (result.maxId || 0) + 1;
+    return `DOC-${String(num).padStart(4, '0')}`;
+  }
+
+  async getSalaries(): Promise<Salary[]> {
+    return db.select().from(salaries).orderBy(desc(salaries.createdAt));
+  }
+
+  async getSalary(id: number): Promise<Salary | undefined> {
+    const [sal] = await db.select().from(salaries).where(eq(salaries.id, id));
+    return sal;
+  }
+
+  async createSalary(salary: InsertSalary): Promise<Salary> {
+    const [created] = await db.insert(salaries).values(salary).returning();
+    return created;
+  }
+
+  async updateSalary(id: number, data: Partial<InsertSalary>): Promise<Salary | undefined> {
+    const [updated] = await db.update(salaries).set(data).where(eq(salaries.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSalary(id: number): Promise<void> {
+    await db.delete(salaries).where(eq(salaries.id, id));
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async changePassword(id: number, newPassword: string): Promise<void> {
+    await db.update(users).set({ password: newPassword }).where(eq(users.id, id));
   }
 }
 
