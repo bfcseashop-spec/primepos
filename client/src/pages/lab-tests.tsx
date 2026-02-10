@@ -349,7 +349,30 @@ export default function LabTestsPage() {
       <LiveTimer createdAt={row.createdAt} status={row.status} turnaroundTime={row.turnaroundTime} />
     )},
     { header: "Status", accessor: (row: LabTestWithPatient) => (
-      <span data-testid={`badge-status-${row.id}`}>{getStatusBadge(row.status)}</span>
+      <Select
+        value={row.status}
+        onValueChange={(val) => {
+          updateMutation.mutate({ id: row.id, data: { status: val } });
+        }}
+      >
+        <SelectTrigger className="h-8 w-[140px] text-xs" data-testid={`select-status-${row.id}`}>
+          <SelectValue>{getStatusBadge(row.status)}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="processing">
+            <div className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 text-blue-500" /> Processing</div>
+          </SelectItem>
+          <SelectItem value="complete">
+            <div className="flex items-center gap-1.5"><CheckCircle className="h-3 w-3 text-green-500" /> Complete</div>
+          </SelectItem>
+          <SelectItem value="sample_missing">
+            <div className="flex items-center gap-1.5"><AlertTriangle className="h-3 w-3 text-amber-500" /> Sample Missing</div>
+          </SelectItem>
+          <SelectItem value="cancel">
+            <div className="flex items-center gap-1.5"><XCircle className="h-3 w-3 text-red-500" /> Cancel</div>
+          </SelectItem>
+        </SelectContent>
+      </Select>
     )},
     { header: "Refer Name", accessor: (row: LabTestWithPatient) => (
       <span className="text-sm" data-testid={`text-referrer-${row.id}`}>
@@ -380,6 +403,51 @@ export default function LabTestsPage() {
           )}
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBarcodeTest(row); }} className="gap-2" data-testid={`action-barcode-${row.id}`}>
             <QrCode className="h-4 w-4 text-purple-500" /> Barcode
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => {
+            e.stopPropagation();
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+              const categories = row.category.split(",").map(c => c.trim()).filter(Boolean).join(", ");
+              const sampleTypes = row.sampleType.split(",").map(s => s.trim()).filter(Boolean).join(", ");
+              const statusLabels: Record<string, string> = { processing: "Processing", complete: "Complete", sample_missing: "Sample Missing", cancel: "Cancelled" };
+              printWindow.document.write(`
+                <html><head><title>Lab Test - ${row.testCode}</title>
+                <style>
+                  body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+                  h1 { font-size: 22px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                  .info { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+                  .field { margin-bottom: 8px; }
+                  .label { font-weight: bold; font-size: 12px; color: #666; text-transform: uppercase; }
+                  .value { font-size: 15px; margin-top: 2px; }
+                  .status { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: bold; font-size: 13px; }
+                  .status-processing { background: #dbeafe; color: #1d4ed8; }
+                  .status-complete { background: #dcfce7; color: #15803d; }
+                  .status-sample_missing { background: #fef3c7; color: #b45309; }
+                  .status-cancel { background: #fee2e2; color: #dc2626; }
+                  @media print { body { padding: 20px; } }
+                </style></head><body>
+                <h1>Lab Test Report - ${row.testCode}</h1>
+                <div class="info">
+                  <div class="field"><div class="label">Test Name</div><div class="value">${row.testName}</div></div>
+                  <div class="field"><div class="label">Test ID</div><div class="value">${row.testCode}</div></div>
+                  <div class="field"><div class="label">Patient</div><div class="value">${row.patientName || "-"}</div></div>
+                  <div class="field"><div class="label">Category</div><div class="value">${categories}</div></div>
+                  <div class="field"><div class="label">Sample Type</div><div class="value">${sampleTypes}</div></div>
+                  <div class="field"><div class="label">Price</div><div class="value">$${row.price}</div></div>
+                  <div class="field"><div class="label">Status</div><div class="value"><span class="status status-${row.status}">${statusLabels[row.status] || row.status}</span></div></div>
+                  <div class="field"><div class="label">Turnaround Time</div><div class="value">${row.turnaroundTime || "-"}</div></div>
+                  <div class="field"><div class="label">Referrer</div><div class="value">${row.referrerName || "-"}</div></div>
+                  <div class="field"><div class="label">Description</div><div class="value">${row.description || "-"}</div></div>
+                  <div class="field"><div class="label">Created</div><div class="value">${row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-"}</div></div>
+                </div>
+                </body></html>
+              `);
+              printWindow.document.close();
+              printWindow.print();
+            }
+          }} className="gap-2" data-testid={`action-print-${row.id}`}>
+            <Printer className="h-4 w-4 text-teal-500" /> Print
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => { e.stopPropagation(); if (confirm("Delete this lab test?")) deleteMutation.mutate(row.id); }}
