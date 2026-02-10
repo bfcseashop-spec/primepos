@@ -86,6 +86,7 @@ function getCountdownTime(createdAt: string | Date | null, turnaroundTime: strin
 }
 
 function LiveTimer({ createdAt, status, turnaroundTime }: { createdAt: string | Date | null; status: string; turnaroundTime: string | null }) {
+  const { t } = useTranslation();
   const [, setTick] = useState(0);
   useEffect(() => {
     if (status !== "processing") return;
@@ -93,19 +94,19 @@ function LiveTimer({ createdAt, status, turnaroundTime }: { createdAt: string | 
     return () => clearInterval(interval);
   }, [status]);
 
-  if (status === "complete") return <span className="text-xs text-green-600 dark:text-green-400 font-medium">Completed</span>;
-  if (status === "cancel") return <span className="text-xs text-red-600 dark:text-red-400 font-medium">Cancelled</span>;
-  if (status === "sample_missing") return <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Waiting</span>;
+  if (status === "complete") return <span className="text-xs text-green-600 dark:text-green-400 font-medium">{t("labTests.completed")}</span>;
+  if (status === "cancel") return <span className="text-xs text-red-600 dark:text-red-400 font-medium">{t("labTests.cancelled")}</span>;
+  if (status === "sample_missing") return <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">{t("labTests.waiting")}</span>;
 
   const { text, overdue } = getCountdownTime(createdAt, turnaroundTime);
   if (text === "-") {
-    return <span className="text-xs text-muted-foreground">No TAT set</span>;
+    return <span className="text-xs text-muted-foreground">{t("labTests.noTatSet")}</span>;
   }
   return (
     <div className="flex items-center gap-1">
       <Clock className={`h-3 w-3 ${overdue ? "text-red-500" : "text-amber-500"} animate-pulse`} />
       <span className={`text-xs font-medium ${overdue ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
-        {overdue ? `Overdue ${text}` : text}
+        {overdue ? `${t("labTests.overdue")} ${text}` : text}
       </span>
     </div>
   );
@@ -186,10 +187,10 @@ export default function LabTestsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
       setDialogOpen(false);
       setForm(defaultForm);
-      toast({ title: "Lab test created successfully" });
+      toast({ title: t("labTests.createdSuccess") });
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -202,10 +203,10 @@ export default function LabTestsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
       setEditTest(null);
       setForm(defaultForm);
-      toast({ title: "Lab test updated successfully" });
+      toast({ title: t("labTests.updatedSuccess") });
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -215,13 +216,13 @@ export default function LabTestsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
-      toast({ title: "Lab test deleted" });
+      toast({ title: t("labTests.deleted") });
     },
   });
 
   const handleSubmit = () => {
     if (!form.testName || form.categories.length === 0 || form.sampleTypes.length === 0 || !form.price) {
-      return toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return toast({ title: t("common.fillRequired"), variant: "destructive" });
     }
     const payload: any = {
       testName: form.testName,
@@ -272,12 +273,12 @@ export default function LabTestsPage() {
         throw new Error(err.message);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
-      toast({ title: "Report uploaded successfully" });
+      toast({ title: t("labTests.reportUploaded") });
       setUploadTest(null);
       setUploadReferrer("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+      toast({ title: t("labTests.uploadFailed"), description: err.message, variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -476,7 +477,7 @@ export default function LabTestsPage() {
           <Select value={form.patientId} onValueChange={v => setForm(f => ({ ...f, patientId: v === "none" ? "" : v }))}>
             <SelectTrigger data-testid="select-patient"><SelectValue placeholder={t("billing.selectPatient")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">No Patient</SelectItem>
+              <SelectItem value="none">{t("common.noPatient")}</SelectItem>
               {patients.map(p => (
                 <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.patientId})</SelectItem>
               ))}
@@ -490,7 +491,7 @@ export default function LabTestsPage() {
               options={LAB_CATEGORIES}
               selected={form.categories}
               onChange={v => setForm(f => ({ ...f, categories: v }))}
-              placeholder="Select categories"
+              placeholder={t("labTests.selectCategories")}
               testId="select-test-category"
             />
           </div>
@@ -500,7 +501,7 @@ export default function LabTestsPage() {
               options={SAMPLE_TYPES}
               selected={form.sampleTypes}
               onChange={v => setForm(f => ({ ...f, sampleTypes: v }))}
-              placeholder="Select sample types"
+              placeholder={t("labTests.selectSampleTypes")}
               testId="select-sample-type"
             />
           </div>
@@ -511,13 +512,13 @@ export default function LabTestsPage() {
             <Input id="test-price" type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} data-testid="input-test-price" />
           </div>
           <div>
-            <Label htmlFor="test-tat">Turnaround Time</Label>
-            <Input id="test-tat" placeholder="e.g. 2 hours, 1 day" value={form.turnaroundTime} onChange={e => setForm(f => ({ ...f, turnaroundTime: e.target.value }))} data-testid="input-test-tat" />
+            <Label htmlFor="test-tat">{t("labTests.turnaroundTime")}</Label>
+            <Input id="test-tat" placeholder={t("labTests.tatPlaceholder")} value={form.turnaroundTime} onChange={e => setForm(f => ({ ...f, turnaroundTime: e.target.value }))} data-testid="input-test-tat" />
           </div>
         </div>
         <div>
           <Label htmlFor="test-referrer">{t("labTests.referName")}</Label>
-          <Input id="test-referrer" placeholder="Person who referred/uploaded" value={form.referrerName} onChange={e => setForm(f => ({ ...f, referrerName: e.target.value }))} data-testid="input-referrer-name" />
+          <Input id="test-referrer" placeholder={t("labTests.referrerPlaceholder")} value={form.referrerName} onChange={e => setForm(f => ({ ...f, referrerName: e.target.value }))} data-testid="input-referrer-name" />
         </div>
         <div>
           <Label htmlFor="test-desc">{t("common.description")}</Label>
@@ -615,7 +616,7 @@ export default function LabTestsPage() {
                   {getStatusBadge(viewTest.status)}
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Turnaround Time</p>
+                  <p className="text-xs text-muted-foreground">{t("labTests.turnaroundTime")}</p>
                   <p className="text-sm">{viewTest.turnaroundTime || "-"}</p>
                 </div>
                 <div>
@@ -623,16 +624,16 @@ export default function LabTestsPage() {
                   <p className="text-sm">{viewTest.referrerName || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Report</p>
+                  <p className="text-xs text-muted-foreground">{t("labTests.report")}</p>
                   {viewTest.reportFileUrl ? (
                     <div className="flex items-center gap-1">
                       <FileText className="h-3.5 w-3.5 text-green-500" />
                       <a href={viewTest.reportFileUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 dark:text-blue-400 underline" data-testid="link-view-report">
-                        {viewTest.reportFileName || "Download"}
+                        {viewTest.reportFileName || t("common.download")}
                       </a>
                     </div>
                   ) : (
-                    <span className="text-sm text-muted-foreground">No report</span>
+                    <span className="text-sm text-muted-foreground">{t("labTests.noReport")}</span>
                   )}
                 </div>
                 <div className="col-span-2">
@@ -670,16 +671,16 @@ export default function LabTestsPage() {
             </DialogHeader>
             <div className="space-y-3">
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Test: {uploadTest.testCode} - {uploadTest.testName}</p>
+                <p className="text-xs text-muted-foreground mb-1">{t("labTests.test")}: {uploadTest.testCode} - {uploadTest.testName}</p>
                 {uploadTest.reportFileName && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
                     <FileText className="h-3 w-3" />
-                    Current: {uploadTest.reportFileName}
+                    {t("labTests.current")}: {uploadTest.reportFileName}
                   </div>
                 )}
               </div>
               <div>
-                <Label htmlFor="report-file">Report File (PDF, Excel, CSV) *</Label>
+                <Label htmlFor="report-file">{t("labTests.reportFile")} *</Label>
                 <Input
                   id="report-file"
                   type="file"
@@ -692,7 +693,7 @@ export default function LabTestsPage() {
                 <Label htmlFor="upload-referrer">{t("labTests.referName")}</Label>
                 <Input
                   id="upload-referrer"
-                  placeholder="Person uploading the report"
+                  placeholder={t("labTests.uploadReferrerPlaceholder")}
                   value={uploadReferrer}
                   onChange={e => setUploadReferrer(e.target.value)}
                   data-testid="input-upload-referrer"
@@ -774,14 +775,14 @@ export default function LabTestsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-            <CardTitle className="text-sm font-semibold">All Lab Tests</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t("labTests.allLabTests")}</CardTitle>
             <div className="flex items-center gap-2 flex-wrap">
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-40 h-8 text-sm" data-testid="select-filter-category">
-                  <SelectValue placeholder="All Categories" />
+                  <SelectValue placeholder={t("common.allCategories")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="all">{t("common.allCategories")}</SelectItem>
                   {uniqueCategories.map(cat => (
                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
@@ -790,7 +791,7 @@ export default function LabTestsPage() {
               <div className="relative w-64">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  placeholder="Search tests..."
+                  placeholder={t("labTests.searchTests")}
                   className="pl-8 h-8 text-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -800,7 +801,7 @@ export default function LabTestsPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No lab tests yet. Click 'Add Lab Test' to create one." />
+            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={t("labTests.noLabTests")} />
           </CardContent>
         </Card>
       </div>

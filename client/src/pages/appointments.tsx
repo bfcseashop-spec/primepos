@@ -62,6 +62,7 @@ const avatarGradients = [
 ];
 
 export default function AppointmentsPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -118,11 +119,11 @@ export default function AppointmentsPage() {
   };
 
   const statCards = [
-    { key: "total", label: "Total Appointments", gradient: "from-blue-500 to-blue-600", value: stats.total, icon: CalendarDays },
-    { key: "scheduled", label: "Scheduled", gradient: "from-violet-500 to-violet-600", value: stats.scheduled, icon: Calendar },
-    { key: "confirmed", label: "Confirmed", gradient: "from-emerald-500 to-emerald-600", value: stats.confirmed, icon: UserCheck },
-    { key: "completed", label: "Completed", gradient: "from-cyan-500 to-cyan-600", value: stats.completed, icon: CheckCircle2 },
-    { key: "cancelled", label: "Cancelled", gradient: "from-red-500 to-red-600", value: stats.cancelled, icon: XCircle },
+    { key: "total", label: t("appointments.totalAppointments"), gradient: "from-blue-500 to-blue-600", value: stats.total, icon: CalendarDays },
+    { key: "scheduled", label: t("appointments.scheduled"), gradient: "from-violet-500 to-violet-600", value: stats.scheduled, icon: Calendar },
+    { key: "confirmed", label: t("appointments.confirmed"), gradient: "from-emerald-500 to-emerald-600", value: stats.confirmed, icon: UserCheck },
+    { key: "completed", label: t("appointments.completed"), gradient: "from-cyan-500 to-cyan-600", value: stats.completed, icon: CheckCircle2 },
+    { key: "cancelled", label: t("appointments.cancelled"), gradient: "from-red-500 to-red-600", value: stats.cancelled, icon: XCircle },
   ];
 
   const getInitials = (name: string) => {
@@ -167,21 +168,21 @@ export default function AppointmentsPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => setViewAppointment(apt)} data-testid={`button-view-${apt.id}`}>
-                    <CalendarCheck className="h-3.5 w-3.5 mr-2 text-blue-500" /> View Details
+                    <CalendarCheck className="h-3.5 w-3.5 mr-2 text-blue-500" /> {t("common.view")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => {
                     setEditingAppointment(apt);
                     setEditStatus(apt.status);
                     setEditDialog(true);
                   }} data-testid={`button-edit-${apt.id}`}>
-                    <Edit className="h-3.5 w-3.5 mr-2 text-amber-500" /> Edit Status
+                    <Edit className="h-3.5 w-3.5 mr-2 text-amber-500" /> {t("common.edit")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-destructive"
                     onClick={() => setDeleteAppointment(apt)}
                     data-testid={`button-delete-${apt.id}`}
                   >
-                    <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                    <Trash2 className="h-3.5 w-3.5 mr-2" /> {t("common.delete")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -273,8 +274,8 @@ export default function AppointmentsPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Appointments"
-        description="View and manage all clinic appointments"
+        title={t("appointments.title")}
+        description={t("appointments.subtitle")}
         actions={
           <Button variant="outline" size="icon" onClick={handleRefresh} data-testid="button-refresh">
             <RefreshCw className="h-4 w-4" />
@@ -308,7 +309,7 @@ export default function AppointmentsPage() {
                 <div className="relative w-64">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    placeholder="Search patient, doctor, dept..."
+                    placeholder={t("common.search")}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="pl-8"
@@ -320,12 +321,12 @@ export default function AppointmentsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                    <SelectItem value="no-show">No Show</SelectItem>
+                    <SelectItem value="all">{t("common.all")}</SelectItem>
+                    <SelectItem value="scheduled">{t("appointments.scheduled")}</SelectItem>
+                    <SelectItem value="confirmed">{t("appointments.confirmed")}</SelectItem>
+                    <SelectItem value="completed">{t("appointments.completed")}</SelectItem>
+                    <SelectItem value="cancelled">{t("appointments.cancelled")}</SelectItem>
+                    <SelectItem value="no-show">{t("appointments.noShow")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -361,15 +362,15 @@ export default function AppointmentsPage() {
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
                 <CalendarCheck className="h-8 w-8 text-muted-foreground/50" />
               </div>
-              <p className="text-sm font-medium text-muted-foreground">No appointments found</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">Create appointments from the OPD Management page</p>
+              <p className="text-sm font-medium text-muted-foreground">{t("common.noData")}</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">{t("appointments.subtitle")}</p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-6">
-            {renderSection("Today", todayAppointments, CalendarCheck, "text-emerald-600 dark:text-emerald-400")}
-            {renderSection("Upcoming", upcomingAppointments, CalendarDays, "text-blue-600 dark:text-blue-400")}
-            {renderSection("Past", pastAppointments, Clock, "text-muted-foreground")}
+            {renderSection(t("appointments.today"), todayAppointments, CalendarCheck, "text-emerald-600 dark:text-emerald-400")}
+            {renderSection(t("appointments.upcoming"), upcomingAppointments, CalendarDays, "text-blue-600 dark:text-blue-400")}
+            {renderSection(t("appointments.past"), pastAppointments, Clock, "text-muted-foreground")}
             {todayAppointments.length === 0 && upcomingAppointments.length === 0 && pastAppointments.length === 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {filtered.map(renderAppointmentCard)}
@@ -382,8 +383,8 @@ export default function AppointmentsPage() {
       <Dialog open={!!viewAppointment} onOpenChange={(open) => { if (!open) setViewAppointment(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle data-testid="text-view-appointment-title">Appointment Details</DialogTitle>
-            <DialogDescription>Full appointment information</DialogDescription>
+            <DialogTitle data-testid="text-view-appointment-title">{t("appointments.title")}</DialogTitle>
+            <DialogDescription>{t("appointments.subtitle")}</DialogDescription>
           </DialogHeader>
           {viewAppointment && (() => {
             const style = statusConfig[viewAppointment.status] || statusConfig.scheduled;
@@ -410,7 +411,7 @@ export default function AppointmentsPage() {
                         <Stethoscope className="h-4 w-4 text-violet-500 dark:text-violet-400" />
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Department</p>
+                        <p className="text-[10px] text-muted-foreground">{t("appointments.department")}</p>
                         <p className="text-sm font-medium">{viewAppointment.department}</p>
                       </div>
                     </div>
@@ -421,7 +422,7 @@ export default function AppointmentsPage() {
                         <User className="h-4 w-4 text-blue-500 dark:text-blue-400" />
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Doctor</p>
+                        <p className="text-[10px] text-muted-foreground">{t("dashboard.doctor")}</p>
                         <p className="text-sm font-medium">{viewAppointment.doctorName}</p>
                       </div>
                     </div>
@@ -432,7 +433,7 @@ export default function AppointmentsPage() {
                         <Calendar className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Date</p>
+                        <p className="text-[10px] text-muted-foreground">{t("appointments.date")}</p>
                         <p className="text-sm font-medium">{viewAppointment.appointmentDate}</p>
                       </div>
                     </div>
@@ -443,7 +444,7 @@ export default function AppointmentsPage() {
                         <Clock className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Time</p>
+                        <p className="text-[10px] text-muted-foreground">{t("appointments.startTime")}</p>
                         <p className="text-sm font-medium">{viewAppointment.startTime}{viewAppointment.endTime ? ` - ${viewAppointment.endTime}` : ""}</p>
                       </div>
                     </div>
@@ -454,7 +455,7 @@ export default function AppointmentsPage() {
                         <Video className="h-4 w-4 text-pink-500 dark:text-pink-400" />
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Mode</p>
+                        <p className="text-[10px] text-muted-foreground">{t("appointments.consultationMode")}</p>
                         <p className="text-sm font-medium">{viewAppointment.consultationMode}</p>
                       </div>
                     </div>
@@ -465,7 +466,7 @@ export default function AppointmentsPage() {
                         <CreditCard className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Payment</p>
+                        <p className="text-[10px] text-muted-foreground">{t("billing.paymentMethod")}</p>
                         <p className="text-sm font-medium">{viewAppointment.paymentMode}</p>
                       </div>
                     </div>
@@ -473,13 +474,13 @@ export default function AppointmentsPage() {
                 </div>
                 {viewAppointment.reason && (
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Reason</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{t("appointments.reason")}</p>
                     <p className="text-sm bg-muted/50 rounded-md p-2.5">{viewAppointment.reason}</p>
                   </div>
                 )}
                 {viewAppointment.notes && (
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{t("appointments.notes")}</p>
                     <p className="text-sm bg-muted/50 rounded-md p-2.5">{viewAppointment.notes}</p>
                   </div>
                 )}
@@ -490,10 +491,10 @@ export default function AppointmentsPage() {
                     setEditStatus(viewAppointment.status);
                     setEditDialog(true);
                   }} data-testid="button-view-to-edit">
-                    <Edit className="h-4 w-4 mr-1 text-amber-500" /> Edit Status
+                    <Edit className="h-4 w-4 mr-1 text-amber-500" /> {t("common.edit")}
                   </Button>
                   <Button variant="outline" onClick={() => setViewAppointment(null)} data-testid="button-close-view">
-                    Close
+                    {t("common.close")}
                   </Button>
                 </div>
               </div>
@@ -505,8 +506,8 @@ export default function AppointmentsPage() {
       <Dialog open={editDialog} onOpenChange={setEditDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle data-testid="text-edit-dialog-title">Update Appointment Status</DialogTitle>
-            <DialogDescription>Change the status for this appointment</DialogDescription>
+            <DialogTitle data-testid="text-edit-dialog-title">{t("appointments.updateStatus")}</DialogTitle>
+            <DialogDescription>{t("appointments.subtitle")}</DialogDescription>
           </DialogHeader>
           {editingAppointment && (
             <div className="space-y-4 py-2">
@@ -522,24 +523,24 @@ export default function AppointmentsPage() {
                 </div>
               </div>
               <div>
-                <Label className="mb-1.5 block">Status</Label>
+                <Label className="mb-1.5 block">{t("common.status")}</Label>
                 <Select value={editStatus} onValueChange={setEditStatus}>
                   <SelectTrigger data-testid="select-edit-status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                    <SelectItem value="no-show">No Show</SelectItem>
+                    <SelectItem value="scheduled">{t("appointments.scheduled")}</SelectItem>
+                    <SelectItem value="confirmed">{t("appointments.confirmed")}</SelectItem>
+                    <SelectItem value="completed">{t("appointments.completed")}</SelectItem>
+                    <SelectItem value="cancelled">{t("appointments.cancelled")}</SelectItem>
+                    <SelectItem value="no-show">{t("appointments.noShow")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialog(false)} data-testid="button-cancel-edit">Cancel</Button>
+            <Button variant="outline" onClick={() => setEditDialog(false)} data-testid="button-cancel-edit">{t("common.cancel")}</Button>
             <Button
               onClick={() => {
                 if (editingAppointment) {
@@ -549,7 +550,7 @@ export default function AppointmentsPage() {
               disabled={updateMutation.isPending}
               data-testid="button-save-edit"
             >
-              {updateMutation.isPending ? "Saving..." : "Save"}
+              {updateMutation.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -558,19 +559,19 @@ export default function AppointmentsPage() {
       <AlertDialog open={!!deleteAppointment} onOpenChange={(open) => { if (!open) setDeleteAppointment(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle data-testid="text-delete-confirm-title">Delete Appointment</AlertDialogTitle>
+            <AlertDialogTitle data-testid="text-delete-confirm-title">{t("common.delete")}</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete the appointment for <span className="font-semibold">{deleteAppointment?.patientName}</span>? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteAppointment && deleteMutation.mutate(deleteAppointment.id)}
               className="bg-destructive text-destructive-foreground"
               data-testid="button-confirm-delete"
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteMutation.isPending ? t("common.loading") : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

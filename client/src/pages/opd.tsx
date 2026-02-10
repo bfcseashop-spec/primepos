@@ -28,6 +28,7 @@ import { useLocation } from "wouter";
 import type { Patient } from "@shared/schema";
 
 export default function OpdPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
@@ -209,10 +210,10 @@ export default function OpdPage() {
   };
 
   const listColumns = [
-    { header: "Patient ID", accessor: (row: any) => (
+    { header: t("opd.patientType"), accessor: (row: any) => (
       <span className="font-mono text-xs text-blue-600 dark:text-blue-400 font-medium">#{row.patientId}</span>
     )},
-    { header: "Name", accessor: (row: any) => (
+    { header: t("common.name"), accessor: (row: any) => (
       <div className="flex items-center gap-2.5">
         <Avatar className="h-8 w-8">
           <AvatarImage src={row.photoUrl || undefined} />
@@ -226,10 +227,10 @@ export default function OpdPage() {
         </div>
       </div>
     )},
-    { header: "Phone", accessor: (row: any) => (
+    { header: t("common.phone"), accessor: (row: any) => (
       <span className="text-sm">{row.phone || "-"}</span>
     )},
-    { header: "Type", accessor: (row: any) => {
+    { header: t("common.type"), accessor: (row: any) => {
       const style = patientTypeBadge(row.patientType);
       return (
         <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${style.bg} ${style.text} ${style.border}`}>
@@ -238,10 +239,10 @@ export default function OpdPage() {
         </Badge>
       );
     }},
-    { header: "Location", accessor: (row: any) => (
+    { header: t("common.address"), accessor: (row: any) => (
       <span className="text-sm">{row.city || "-"}</span>
     )},
-    { header: "Last Visit", accessor: (row: any) => {
+    { header: t("opd.lastVisit"), accessor: (row: any) => {
       const lv = getLastVisit(row.id);
       return lv ? (
         <span className="text-xs text-muted-foreground">{new Date(lv.visitDate).toLocaleDateString()}</span>
@@ -249,7 +250,7 @@ export default function OpdPage() {
         <span className="text-xs text-muted-foreground">-</span>
       );
     }},
-    { header: "Actions", accessor: (row: any) => (
+    { header: t("common.actions"), accessor: (row: any) => (
       <div className="flex gap-1.5">
         <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setViewPatient(row); }} data-testid={`button-view-list-${row.id}`}>
           <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" />
@@ -267,11 +268,11 @@ export default function OpdPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="OPD Management"
-        description="Manage outpatient department visits and patient records"
+        title={t("opd.title")}
+        description={t("opd.subtitle")}
         actions={
           <Button variant="default" onClick={() => navigate("/register-patient")} className="bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-700 text-white" data-testid="button-register-patient">
-            <UserPlus className="h-4 w-4 mr-1.5" /> Register Patient
+            <UserPlus className="h-4 w-4 mr-1.5" /> {t("opd.addPatient")}
           </Button>
         }
       />
@@ -285,7 +286,7 @@ export default function OpdPage() {
                   <Users className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Patients</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("opd.totalPatients")}</p>
                   <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{patients.length}</p>
                 </div>
               </div>
@@ -298,7 +299,7 @@ export default function OpdPage() {
                   <UserCheck className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Out Patients</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("opd.activeVisits")}</p>
                   <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{outPatients.length}</p>
                 </div>
               </div>
@@ -311,7 +312,7 @@ export default function OpdPage() {
                   <Stethoscope className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">In Patients</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("opd.completedToday")}</p>
                   <p className="text-xl font-bold text-violet-600 dark:text-violet-400">{inPatients.length}</p>
                 </div>
               </div>
@@ -324,7 +325,7 @@ export default function OpdPage() {
                   <Activity className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Emergency</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("opd.pendingFollow")}</p>
                   <p className="text-xl font-bold text-red-600 dark:text-red-400">{emergencyPatients.length}</p>
                 </div>
               </div>
@@ -339,7 +340,7 @@ export default function OpdPage() {
                 <div className="relative w-64">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    placeholder="Search by name, ID, phone..."
+                    placeholder={t("opd.searchPatients")}
                     className="pl-8"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -351,7 +352,7 @@ export default function OpdPage() {
                     <SelectValue placeholder="All Types" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="all">{t("common.all")}</SelectItem>
                     <SelectItem value="Out Patient">Out Patient</SelectItem>
                     <SelectItem value="In Patient">In Patient</SelectItem>
                     <SelectItem value="Emergency">Emergency</SelectItem>
@@ -405,10 +406,10 @@ export default function OpdPage() {
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
                   <UserIcon className="h-8 w-8 text-muted-foreground/50" />
                 </div>
-                <p className="text-sm font-medium text-muted-foreground">No patients found</p>
-                <p className="text-xs text-muted-foreground/70 mt-1">Try adjusting your search or filters</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("common.noData")}</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">{t("opd.searchPatients")}</p>
                 <Button variant="outline" onClick={() => navigate("/register-patient")} className="mt-4" data-testid="button-register-empty">
-                  <UserPlus className="h-4 w-4 mr-1.5" /> Register New Patient
+                  <UserPlus className="h-4 w-4 mr-1.5" /> {t("opd.addPatient")}
                 </Button>
               </CardContent>
             </Card>
@@ -444,17 +445,17 @@ export default function OpdPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => setViewPatient(patient)} data-testid={`menu-view-${patient.id}`}>
-                                <Eye className="h-3.5 w-3.5 mr-2 text-blue-500" /> View Details
+                                <Eye className="h-3.5 w-3.5 mr-2 text-blue-500" /> {t("common.view")}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEditPatient(patient)} data-testid={`menu-edit-${patient.id}`}>
-                                <Pencil className="h-3.5 w-3.5 mr-2 text-amber-500" /> Edit Patient
+                                <Pencil className="h-3.5 w-3.5 mr-2 text-amber-500" /> {t("common.edit")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-destructive"
                                 onClick={() => setDeletePatient(patient)}
                                 data-testid={`menu-delete-${patient.id}`}
                               >
-                                <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                                <Trash2 className="h-3.5 w-3.5 mr-2" /> {t("common.delete")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -499,7 +500,7 @@ export default function OpdPage() {
                         {lastVisit && (
                           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-3">
                             <Clock className="h-3 w-3 text-blue-500 dark:text-blue-400" />
-                            <span>Last visit: {new Date(lastVisit.visitDate).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" })}</span>
+                            <span>{t("opd.lastVisit")}: {new Date(lastVisit.visitDate).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" })}</span>
                           </div>
                         )}
 
@@ -519,7 +520,7 @@ export default function OpdPage() {
                           onClick={() => setViewPatient(patient)}
                           data-testid={`button-view-patient-${patient.id}`}
                         >
-                          <Eye className="h-3.5 w-3.5 mr-1 text-blue-500 dark:text-blue-400" /> View
+                          <Eye className="h-3.5 w-3.5 mr-1 text-blue-500 dark:text-blue-400" /> {t("common.view")}
                         </Button>
                         <Button
                           variant="ghost"
@@ -528,7 +529,7 @@ export default function OpdPage() {
                           onClick={() => openAppointmentDialog(patient)}
                           data-testid={`button-add-appointment-${patient.id}`}
                         >
-                          <CalendarPlus className="h-3.5 w-3.5 mr-1 text-emerald-500 dark:text-emerald-400" /> Appoint
+                          <CalendarPlus className="h-3.5 w-3.5 mr-1 text-emerald-500 dark:text-emerald-400" /> {t("opd.addAppointment")}
                         </Button>
                       </div>
                     </CardContent>
@@ -549,8 +550,8 @@ export default function OpdPage() {
       <Dialog open={!!viewPatient} onOpenChange={(open) => { if (!open) setViewPatient(null); }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle data-testid="text-view-patient-title">Patient Details</DialogTitle>
-            <DialogDescription>Complete patient information</DialogDescription>
+            <DialogTitle data-testid="text-view-patient-title">{t("opd.totalPatients")}</DialogTitle>
+            <DialogDescription>{t("opd.subtitle")}</DialogDescription>
           </DialogHeader>
           {viewPatient && (
             <div className="space-y-4">
@@ -581,7 +582,7 @@ export default function OpdPage() {
                       <Phone className="h-4 w-4 text-blue-500 dark:text-blue-400" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">Phone</p>
+                      <p className="text-[10px] text-muted-foreground">{t("common.phone")}</p>
                       <p className="text-sm" data-testid="text-view-phone">{viewPatient.phone}</p>
                     </div>
                   </div>
@@ -592,7 +593,7 @@ export default function OpdPage() {
                       <Mail className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">Email</p>
+                      <p className="text-[10px] text-muted-foreground">{t("common.email")}</p>
                       <p className="text-sm" data-testid="text-view-email">{viewPatient.email}</p>
                     </div>
                   </div>
@@ -603,7 +604,7 @@ export default function OpdPage() {
                       <UserIcon className="h-4 w-4 text-violet-500 dark:text-violet-400" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">Gender</p>
+                      <p className="text-[10px] text-muted-foreground">{t("registerPatient.gender")}</p>
                       <p className="text-sm" data-testid="text-view-gender">{viewPatient.gender}</p>
                     </div>
                   </div>
@@ -614,7 +615,7 @@ export default function OpdPage() {
                       <Calendar className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">Date of Birth</p>
+                      <p className="text-[10px] text-muted-foreground">{t("registerPatient.dateOfBirth")}</p>
                       <p className="text-sm" data-testid="text-view-dob">{viewPatient.dateOfBirth}</p>
                     </div>
                   </div>
@@ -625,7 +626,7 @@ export default function OpdPage() {
                       <Droplets className="h-4 w-4 text-red-500 dark:text-red-400" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">Blood Group</p>
+                      <p className="text-[10px] text-muted-foreground">{t("registerPatient.bloodType")}</p>
                       <p className="text-sm" data-testid="text-view-blood">{viewPatient.bloodGroup}</p>
                     </div>
                   </div>
@@ -636,7 +637,7 @@ export default function OpdPage() {
                       <MapPin className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">Address</p>
+                      <p className="text-[10px] text-muted-foreground">{t("common.address")}</p>
                       <p className="text-sm" data-testid="text-view-address">{[viewPatient.address, viewPatient.city].filter(Boolean).join(", ")}</p>
                     </div>
                   </div>
@@ -647,18 +648,18 @@ export default function OpdPage() {
                   <Separator />
                   <div>
                     <h4 className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" /> Emergency Contact
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" /> {t("registerPatient.emergencyContact")}
                     </h4>
                     <div className="grid grid-cols-2 gap-3">
                       {viewPatient.emergencyContactName && (
                         <div>
-                          <p className="text-[10px] text-muted-foreground">Name</p>
+                          <p className="text-[10px] text-muted-foreground">{t("common.name")}</p>
                           <p className="text-sm">{viewPatient.emergencyContactName}</p>
                         </div>
                       )}
                       {viewPatient.emergencyContactPhone && (
                         <div>
-                          <p className="text-[10px] text-muted-foreground">Phone</p>
+                          <p className="text-[10px] text-muted-foreground">{t("common.phone")}</p>
                           <p className="text-sm">{viewPatient.emergencyContactPhone}</p>
                         </div>
                       )}
@@ -671,7 +672,7 @@ export default function OpdPage() {
                   <Separator />
                   <div>
                     <h4 className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <FileText className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" /> Medical History
+                      <FileText className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" /> {t("registerPatient.medicalHistory")}
                     </h4>
                     <p className="text-sm bg-muted/50 rounded-md p-3">{viewPatient.medicalHistory}</p>
                   </div>
@@ -682,7 +683,7 @@ export default function OpdPage() {
                   <Separator />
                   <div>
                     <h4 className="text-xs font-semibold text-pink-600 dark:text-pink-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <Heart className="h-3.5 w-3.5 text-pink-500 dark:text-pink-400" /> Allergies
+                      <Heart className="h-3.5 w-3.5 text-pink-500 dark:text-pink-400" /> {t("registerPatient.allergies")}
                     </h4>
                     <p className="text-sm bg-muted/50 rounded-md p-3">{viewPatient.allergies}</p>
                   </div>
@@ -690,10 +691,10 @@ export default function OpdPage() {
               )}
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" onClick={() => { setViewPatient(null); openEditPatient(viewPatient); }} data-testid="button-view-to-edit">
-                  <Pencil className="h-4 w-4 mr-1 text-amber-500" /> Edit
+                  <Pencil className="h-4 w-4 mr-1 text-amber-500" /> {t("common.edit")}
                 </Button>
                 <Button variant="outline" onClick={() => setViewPatient(null)} data-testid="button-close-view">
-                  Close
+                  {t("common.close")}
                 </Button>
               </div>
             </div>
@@ -704,49 +705,49 @@ export default function OpdPage() {
       <Dialog open={!!editPatient} onOpenChange={(open) => { if (!open) setEditPatient(null); }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle data-testid="text-edit-patient-title">Edit Patient</DialogTitle>
-            <DialogDescription>Update patient information</DialogDescription>
+            <DialogTitle data-testid="text-edit-patient-title">{t("common.edit")}</DialogTitle>
+            <DialogDescription>{t("opd.subtitle")}</DialogDescription>
           </DialogHeader>
           {editPatient && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>First Name</Label>
+                  <Label>{t("registerPatient.firstName")}</Label>
                   <Input value={editForm.firstName} onChange={(e) => setEditForm(f => ({ ...f, firstName: e.target.value }))} data-testid="input-edit-first-name" />
                 </div>
                 <div>
-                  <Label>Last Name</Label>
+                  <Label>{t("registerPatient.lastName")}</Label>
                   <Input value={editForm.lastName} onChange={(e) => setEditForm(f => ({ ...f, lastName: e.target.value }))} data-testid="input-edit-last-name" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Phone</Label>
+                  <Label>{t("common.phone")}</Label>
                   <Input value={editForm.phone} onChange={(e) => setEditForm(f => ({ ...f, phone: e.target.value }))} data-testid="input-edit-phone" />
                 </div>
                 <div>
-                  <Label>Email</Label>
+                  <Label>{t("common.email")}</Label>
                   <Input value={editForm.email} onChange={(e) => setEditForm(f => ({ ...f, email: e.target.value }))} data-testid="input-edit-email" />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <Label>Gender</Label>
+                  <Label>{t("registerPatient.gender")}</Label>
                   <Select value={editForm.gender} onValueChange={(v) => setEditForm(f => ({ ...f, gender: v }))}>
-                    <SelectTrigger data-testid="select-edit-gender"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectTrigger data-testid="select-edit-gender"><SelectValue placeholder={t("common.filter")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="male">{t("registerPatient.male")}</SelectItem>
+                      <SelectItem value="female">{t("registerPatient.female")}</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label>Date of Birth</Label>
+                  <Label>{t("registerPatient.dateOfBirth")}</Label>
                   <Input type="date" value={editForm.dateOfBirth} onChange={(e) => setEditForm(f => ({ ...f, dateOfBirth: e.target.value }))} data-testid="input-edit-dob" />
                 </div>
                 <div>
-                  <Label>Blood Group</Label>
+                  <Label>{t("registerPatient.bloodType")}</Label>
                   <Select value={editForm.bloodGroup} onValueChange={(v) => setEditForm(f => ({ ...f, bloodGroup: v }))}>
                     <SelectTrigger data-testid="select-edit-blood"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
@@ -759,16 +760,16 @@ export default function OpdPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Address</Label>
+                  <Label>{t("common.address")}</Label>
                   <Input value={editForm.address} onChange={(e) => setEditForm(f => ({ ...f, address: e.target.value }))} data-testid="input-edit-address" />
                 </div>
                 <div>
-                  <Label>City</Label>
+                  <Label>{t("registerPatient.city")}</Label>
                   <Input value={editForm.city} onChange={(e) => setEditForm(f => ({ ...f, city: e.target.value }))} data-testid="input-edit-city" />
                 </div>
               </div>
               <div>
-                <Label>Patient Type</Label>
+                <Label>{t("opd.patientType")}</Label>
                 <Select value={editForm.patientType} onValueChange={(v) => setEditForm(f => ({ ...f, patientType: v }))}>
                   <SelectTrigger data-testid="select-edit-patient-type"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -781,26 +782,26 @@ export default function OpdPage() {
               <Separator />
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Emergency Contact Name</Label>
+                  <Label>{t("registerPatient.contactName")}</Label>
                   <Input value={editForm.emergencyContactName} onChange={(e) => setEditForm(f => ({ ...f, emergencyContactName: e.target.value }))} data-testid="input-edit-emergency-name" />
                 </div>
                 <div>
-                  <Label>Emergency Contact Phone</Label>
+                  <Label>{t("registerPatient.contactPhone")}</Label>
                   <Input value={editForm.emergencyContactPhone} onChange={(e) => setEditForm(f => ({ ...f, emergencyContactPhone: e.target.value }))} data-testid="input-edit-emergency-phone" />
                 </div>
               </div>
               <div>
-                <Label>Medical History</Label>
+                <Label>{t("registerPatient.medicalHistory")}</Label>
                 <Textarea value={editForm.medicalHistory} onChange={(e) => setEditForm(f => ({ ...f, medicalHistory: e.target.value }))} rows={3} data-testid="input-edit-medical-history" />
               </div>
               <div>
-                <Label>Allergies</Label>
+                <Label>{t("registerPatient.allergies")}</Label>
                 <Textarea value={editForm.allergies} onChange={(e) => setEditForm(f => ({ ...f, allergies: e.target.value }))} rows={2} data-testid="input-edit-allergies" />
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setEditPatient(null)} data-testid="button-cancel-edit">Cancel</Button>
+                <Button variant="outline" onClick={() => setEditPatient(null)} data-testid="button-cancel-edit">{t("common.cancel")}</Button>
                 <Button onClick={handleSaveEdit} disabled={updatePatientMutation.isPending} data-testid="button-save-edit">
-                  {updatePatientMutation.isPending ? "Saving..." : "Save Changes"}
+                  {updatePatientMutation.isPending ? t("common.saving") : t("common.save")}
                 </Button>
               </div>
             </div>
@@ -811,19 +812,19 @@ export default function OpdPage() {
       <AlertDialog open={!!deletePatient} onOpenChange={(open) => { if (!open) setDeletePatient(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle data-testid="text-delete-confirm-title">Delete Patient</AlertDialogTitle>
+            <AlertDialogTitle data-testid="text-delete-confirm-title">{t("common.delete")}</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete <span className="font-semibold">{deletePatient ? getDisplayName(deletePatient) : ""}</span>? This action cannot be undone and will permanently remove all patient data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletePatient && deletePatientMutation.mutate(deletePatient.id)}
               className="bg-destructive text-destructive-foreground"
               data-testid="button-confirm-delete"
             >
-              {deletePatientMutation.isPending ? "Deleting..." : "Delete"}
+              {deletePatientMutation.isPending ? t("common.loading") : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -832,12 +833,12 @@ export default function OpdPage() {
       <Dialog open={appointmentDialogOpen} onOpenChange={(open) => { setAppointmentDialogOpen(open); if (!open) setSelectedPatient(null); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle data-testid="text-appointment-dialog-title">New Appointment</DialogTitle>
+            <DialogTitle data-testid="text-appointment-dialog-title">{t("appointments.newAppointment")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateAppointment} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Select Patient</Label>
+                <Label>{t("billing.selectPatient")}</Label>
                 <Select
                   name="patientId"
                   value={selectedPatient ? String(selectedPatient.id) : ""}
@@ -857,7 +858,7 @@ export default function OpdPage() {
                 </Select>
               </div>
               <div>
-                <Label>Patient Type</Label>
+                <Label>{t("opd.patientType")}</Label>
                 <Select name="patientType" defaultValue={selectedPatient?.patientType || "Out Patient"}>
                   <SelectTrigger data-testid="select-appointment-patient-type">
                     <SelectValue placeholder="Select" />
@@ -873,7 +874,7 @@ export default function OpdPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Select Department <span className="text-destructive">*</span></Label>
+                <Label>{t("appointments.department")} <span className="text-destructive">*</span></Label>
                 <Select name="department" required>
                   <SelectTrigger data-testid="select-appointment-department">
                     <SelectValue placeholder="Select" />
@@ -895,7 +896,7 @@ export default function OpdPage() {
                 </Select>
               </div>
               <div>
-                <Label>Select Doctor <span className="text-destructive">*</span></Label>
+                <Label>{t("dashboard.doctor")} <span className="text-destructive">*</span></Label>
                 <Select name="doctorName" required>
                   <SelectTrigger data-testid="select-appointment-doctor">
                     <SelectValue placeholder="Select" />
@@ -912,7 +913,7 @@ export default function OpdPage() {
             </div>
 
             <div>
-              <Label>Preferred Mode of Consultation <span className="text-destructive">*</span></Label>
+              <Label>{t("appointments.consultationMode")} <span className="text-destructive">*</span></Label>
               <Select name="consultationMode" required>
                 <SelectTrigger data-testid="select-appointment-consultation-mode">
                   <SelectValue placeholder="Select" />
@@ -927,31 +928,31 @@ export default function OpdPage() {
 
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <Label>Date</Label>
+                <Label>{t("appointments.date")}</Label>
                 <Input type="date" name="appointmentDate" data-testid="input-appointment-date" />
               </div>
               <div>
-                <Label>Start Time</Label>
+                <Label>{t("appointments.startTime")}</Label>
                 <Input type="time" name="startTime" data-testid="input-appointment-start-time" />
               </div>
               <div>
-                <Label>End Time</Label>
+                <Label>{t("appointments.endTime")}</Label>
                 <Input type="time" name="endTime" data-testid="input-appointment-end-time" />
               </div>
             </div>
 
             <div>
-              <Label>Reason</Label>
-              <Input name="reason" placeholder="Reason for appointment" data-testid="input-appointment-reason" />
+              <Label>{t("appointments.reason")}</Label>
+              <Input name="reason" placeholder={t("appointments.reason")} data-testid="input-appointment-reason" />
             </div>
 
             <div>
-              <Label>Quick Notes</Label>
-              <Textarea name="notes" placeholder="Additional Information" rows={3} data-testid="input-appointment-notes" />
+              <Label>{t("appointments.notes")}</Label>
+              <Textarea name="notes" placeholder={t("appointments.notes")} rows={3} data-testid="input-appointment-notes" />
             </div>
 
             <div>
-              <Label>Mode of Payment</Label>
+              <Label>{t("billing.paymentMethod")}</Label>
               <Select name="paymentMode">
                 <SelectTrigger data-testid="select-appointment-payment">
                   <SelectValue placeholder="Select" />
@@ -970,10 +971,10 @@ export default function OpdPage() {
 
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => { setAppointmentDialogOpen(false); setSelectedPatient(null); }} data-testid="button-cancel-appointment">
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={createAppointmentMutation.isPending} data-testid="button-submit-appointment">
-                {createAppointmentMutation.isPending ? "Adding..." : "Add Appointment"}
+                {createAppointmentMutation.isPending ? t("common.loading") : t("opd.addAppointment")}
               </Button>
             </div>
           </form>

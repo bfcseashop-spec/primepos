@@ -94,12 +94,12 @@ export default function MedicinesPage() {
       if (res.ok) {
         setImportResult(data);
         queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
-        toast({ title: `Imported ${data.imported} medicines`, description: data.skipped > 0 ? `${data.skipped} rows skipped` : undefined });
+        toast({ title: t("medicines.importedCount", { count: data.imported }), description: data.skipped > 0 ? t("medicines.rowsSkipped", { count: data.skipped }) : undefined });
       } else {
-        toast({ title: "Import failed", description: data.message, variant: "destructive" });
+        toast({ title: t("medicines.importFailed"), description: data.message, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Import failed", variant: "destructive" });
+      toast({ title: t("medicines.importFailed"), variant: "destructive" });
     } finally {
       setImporting(false);
       e.target.value = "";
@@ -122,10 +122,10 @@ export default function MedicinesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
       setDialogOpen(false);
       setForm(defaultForm);
-      toast({ title: "Medicine added successfully" });
+      toast({ title: t("medicines.createdSuccess") });
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -138,10 +138,10 @@ export default function MedicinesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
       setEditMed(null);
       setForm(defaultForm);
-      toast({ title: "Medicine updated successfully" });
+      toast({ title: t("medicines.updatedSuccess") });
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -151,10 +151,10 @@ export default function MedicinesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
-      toast({ title: "Medicine deleted" });
+      toast({ title: t("medicines.deleted") });
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -162,32 +162,32 @@ export default function MedicinesPage() {
     const trimmed = newCategory.trim();
     if (!trimmed) return;
     if (allCategories.includes(trimmed)) {
-      toast({ title: "Category already exists", variant: "destructive" });
+      toast({ title: t("common.categoryExists"), variant: "destructive" });
       return;
     }
     const updated = [...customCategories, trimmed];
     setCustomCategories(updated);
     localStorage.setItem("medicine_custom_categories", JSON.stringify(updated));
     setNewCategory("");
-    toast({ title: `Category "${trimmed}" added` });
+    toast({ title: t("common.categoryAdded") });
   };
 
   const removeCategory = (cat: string) => {
     const updated = customCategories.filter(c => c !== cat);
     setCustomCategories(updated);
     localStorage.setItem("medicine_custom_categories", JSON.stringify(updated));
-    toast({ title: `Category "${cat}" removed` });
+    toast({ title: t("common.categoryRemoved") });
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
     setTimeout(() => setIsRefreshing(false), 600);
-    toast({ title: "Medicines refreshed" });
+    toast({ title: t("medicines.refreshed") });
   };
 
   const handleSubmit = () => {
-    if (!form.name) return toast({ title: "Medicine name is required", variant: "destructive" });
+    if (!form.name) return toast({ title: t("medicines.nameRequired"), variant: "destructive" });
 
     const payload = {
       name: form.name,

@@ -98,10 +98,10 @@ export default function ServicesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
       setDialogOpen(false);
       setForm(defaultForm);
-      toast({ title: "Service created successfully" });
+      toast({ title: t("services.createdSuccess") });
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -114,10 +114,10 @@ export default function ServicesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
       setEditService(null);
       setForm(defaultForm);
-      toast({ title: "Service updated successfully" });
+      toast({ title: t("services.updatedSuccess") });
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -127,14 +127,14 @@ export default function ServicesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-      toast({ title: "Service deleted" });
+      toast({ title: t("services.deleted") });
       setDeleteService(null);
     },
   });
 
   const handleSubmit = () => {
     if (!form.name || !form.category || !form.price) {
-      return toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return toast({ title: t("common.fillRequired"), variant: "destructive" });
     }
     const payload = {
       name: form.name,
@@ -164,7 +164,7 @@ export default function ServicesPage() {
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-    toast({ title: "Data refreshed" });
+    toast({ title: t("common.dataRefreshed") });
   };
 
   const filtered = services.filter(s => {
@@ -236,7 +236,7 @@ export default function ServicesPage() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-purple-700 dark:text-purple-400">
           <ImagePlus className="h-4 w-4" />
-          {t("services.uploadImage")} <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
+          {t("services.uploadImage")} <span className="text-xs font-normal text-muted-foreground">({t("common.optional")})</span>
         </div>
         <div className="flex items-center gap-3">
           {form.imageUrl ? (
@@ -265,7 +265,7 @@ export default function ServicesPage() {
               data-testid="label-upload-image"
             >
               <ImagePlus className="h-5 w-5 text-muted-foreground" />
-              <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
+              <span className="text-[10px] text-muted-foreground mt-1">{t("common.upload")}</span>
               <input
                 type="file"
                 accept="image/*"
@@ -275,7 +275,7 @@ export default function ServicesPage() {
                   const file = e.target.files?.[0];
                   if (!file) return;
                   if (file.size > 2 * 1024 * 1024) {
-                    toast({ title: "Image too large", description: "Maximum size is 2MB", variant: "destructive" });
+                    toast({ title: t("common.imageTooLarge"), description: t("common.maxSize2MB"), variant: "destructive" });
                     return;
                   }
                   const reader = new FileReader();
@@ -288,8 +288,8 @@ export default function ServicesPage() {
             </label>
           )}
           <div className="text-xs text-muted-foreground space-y-0.5">
-            <p>Upload a photo of the service</p>
-            <p>Max size: 2MB (JPG, PNG)</p>
+            <p>{t("services.uploadServicePhoto")}</p>
+            <p>{t("common.maxSizeHint")}</p>
           </div>
         </div>
       </div>
@@ -458,26 +458,26 @@ export default function ServicesPage() {
               </DialogTrigger>
               <DialogContent className="max-w-sm">
                 <DialogHeader>
-                  <DialogTitle>Manage Service Categories</DialogTitle>
-                  <DialogDescription>Add or remove categories for services</DialogDescription>
+                  <DialogTitle>{t("services.manageCategories")}</DialogTitle>
+                  <DialogDescription>{t("services.manageCategoriesDesc")}</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3">
                   <div className="flex gap-2">
                     <Input
-                      placeholder="New category name"
+                      placeholder={t("services.newCategoryPlaceholder")}
                       value={newCategory}
                       onChange={e => setNewCategory(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === "Enter" && newCategory.trim()) {
                           if (categories.includes(newCategory.trim())) {
-                            toast({ title: "Category already exists", variant: "destructive" });
+                            toast({ title: t("common.categoryExists"), variant: "destructive" });
                             return;
                           }
                           const updated = [...categories, newCategory.trim()].sort();
                           setCategories(updated);
                           saveServiceCategories(updated);
                           setNewCategory("");
-                          toast({ title: "Category added" });
+                          toast({ title: t("common.categoryAdded") });
                         }
                       }}
                       data-testid="input-new-category"
@@ -486,18 +486,18 @@ export default function ServicesPage() {
                       onClick={() => {
                         if (!newCategory.trim()) return;
                         if (categories.includes(newCategory.trim())) {
-                          toast({ title: "Category already exists", variant: "destructive" });
+                          toast({ title: t("common.categoryExists"), variant: "destructive" });
                           return;
                         }
                         const updated = [...categories, newCategory.trim()].sort();
                         setCategories(updated);
                         saveServiceCategories(updated);
                         setNewCategory("");
-                        toast({ title: "Category added" });
+                        toast({ title: t("common.categoryAdded") });
                       }}
                       data-testid="button-add-category"
                     >
-                      Add
+                      {t("common.add")}
                     </Button>
                   </div>
                   <div className="max-h-60 overflow-y-auto space-y-1">
@@ -517,7 +517,7 @@ export default function ServicesPage() {
                                 const updated = categories.filter(c => c !== cat);
                                 setCategories(updated);
                                 saveServiceCategories(updated);
-                                toast({ title: "Category removed" });
+                                toast({ title: t("common.categoryRemoved") });
                               }}
                               data-testid={`button-remove-category-${cat}`}
                             >
@@ -581,7 +581,7 @@ export default function ServicesPage() {
                 <div className="relative w-64">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    placeholder="Search services..."
+                    placeholder={t("services.searchServices")}
                     className="pl-8"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -619,7 +619,7 @@ export default function ServicesPage() {
                 </Button>
               </div>
               <div className="text-xs text-muted-foreground">
-                Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {services.length} services
+                {t("common.showing")} <span className="font-semibold text-foreground">{filtered.length}</span> {t("common.of")} {services.length} {t("sidebar.services")}
               </div>
             </div>
           </CardContent>
@@ -653,7 +653,7 @@ export default function ServicesPage() {
                 <Stethoscope className="h-8 w-8 text-muted-foreground/50" />
               </div>
               <p className="text-sm font-medium text-muted-foreground">{t("common.noData")}</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">Add your first service to get started</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">{t("services.addFirstService")}</p>
             </CardContent>
           </Card>
         ) : viewMode === "grid" ? (
@@ -781,7 +781,7 @@ export default function ServicesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle data-testid="text-delete-confirm-title">{t("services.deleteService")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <span className="font-semibold">{deleteService?.name}</span>? This action cannot be undone.
+              {t("common.deleteConfirmPrefix")} <span className="font-semibold">{deleteService?.name}</span>? {t("common.cannotBeUndone")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -980,13 +980,13 @@ export default function BillingPage() {
               <span className="text-xs font-medium text-muted-foreground shrink-0">{t("common.filter")}:</span>
               {([
                 { key: "all", label: t("common.all") },
-                { key: "today", label: "Today" },
-                { key: "yesterday", label: "Yesterday" },
-                { key: "this_week", label: "This Week" },
-                { key: "last_week", label: "Last Week" },
-                { key: "this_month", label: "This Month" },
-                { key: "last_month", label: "Last Month" },
-                { key: "custom", label: "Custom Range" },
+                { key: "today", label: t("billing.today") },
+                { key: "yesterday", label: t("billing.yesterday") },
+                { key: "this_week", label: t("billing.thisWeek") },
+                { key: "last_week", label: t("billing.lastWeek") },
+                { key: "this_month", label: t("billing.thisMonth") },
+                { key: "last_month", label: t("billing.lastMonth") },
+                { key: "custom", label: t("billing.customRange") },
               ] as { key: DatePreset | "all"; label: string }[]).map((item) => (
                 <Button
                   key={item.key}
@@ -1039,7 +1039,7 @@ export default function BillingPage() {
             <div className="relative w-64">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search bills..."
+                placeholder={t("common.search")}
                 className="pl-8 h-8 text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -1048,7 +1048,7 @@ export default function BillingPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <DataTable columns={billColumns} data={filteredBills} isLoading={isLoading} emptyMessage="No bills yet" />
+            <DataTable columns={billColumns} data={filteredBills} isLoading={isLoading} emptyMessage={t("common.noData")} />
           </CardContent>
         </Card>
       </div>
