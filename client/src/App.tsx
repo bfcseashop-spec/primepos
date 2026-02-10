@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -25,6 +26,7 @@ import AppointmentsPage from "@/pages/appointments";
 import DoctorManagementPage from "@/pages/doctor-management";
 import SalaryPage from "@/pages/salary";
 import AuthenticationPage from "@/pages/authentication";
+import SignInPage from "@/pages/sign-in";
 
 function Router() {
   return (
@@ -53,10 +55,40 @@ function Router() {
 }
 
 function App() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("clinicpos_user");
+    if (saved) {
+      try { setCurrentUser(JSON.parse(saved)); } catch {}
+    }
+    const onLogout = () => { setCurrentUser(null); };
+    window.addEventListener("clinicpos_logout", onLogout);
+    return () => window.removeEventListener("clinicpos_logout", onLogout);
+  }, []);
+
+  const handleLogin = (user: any) => {
+    setCurrentUser(user);
+    localStorage.setItem("clinicpos_user", JSON.stringify(user));
+  };
+
   const sidebarStyle = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
   };
+
+  if (!currentUser) {
+    return (
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <SignInPage onLogin={handleLogin} />
+            <Toaster />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider>

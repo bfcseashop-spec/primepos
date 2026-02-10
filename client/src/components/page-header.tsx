@@ -60,9 +60,28 @@ function LiveDateTime() {
   );
 }
 
+function getUser() {
+  try {
+    const saved = localStorage.getItem("clinicpos_user");
+    return saved ? JSON.parse(saved) : null;
+  } catch { return null; }
+}
+
+function getInitials(name: string) {
+  return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
 function ProfileMenu() {
-  const [, setLocation] = useLocation();
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const user = getUser();
+  const displayName = user?.fullName || "Admin";
+  const displayEmail = user?.email || "";
+  const initials = getInitials(displayName);
+
+  const handleLogout = () => {
+    localStorage.removeItem("clinicpos_user");
+    window.dispatchEvent(new Event("clinicpos_logout"));
+  };
 
   return (
     <>
@@ -71,15 +90,15 @@ function ProfileMenu() {
           <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-profile-menu">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="text-xs bg-gradient-to-br from-blue-500 to-cyan-400 text-white">
-                AD
+                {initials}
               </AvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           <div className="px-2 py-1.5">
-            <p className="text-sm font-medium">Admin</p>
-            <p className="text-xs text-muted-foreground">admin@clinic.com</p>
+            <p className="text-sm font-medium">{displayName}</p>
+            {displayEmail && <p className="text-xs text-muted-foreground">{displayEmail}</p>}
           </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setEditProfileOpen(true)} data-testid="menu-edit-profile">
@@ -87,7 +106,7 @@ function ProfileMenu() {
             Edit Profile
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setLocation("/authentication")} data-testid="menu-logout">
+          <DropdownMenuItem onClick={handleLogout} data-testid="menu-logout">
             <LogOut className="h-4 w-4 mr-2" />
             Log out
           </DropdownMenuItem>
@@ -106,21 +125,21 @@ function ProfileMenu() {
             <div className="flex justify-center">
               <Avatar className="h-20 w-20">
                 <AvatarFallback className="text-2xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white">
-                  AD
+                  {initials}
                 </AvatarFallback>
               </Avatar>
             </div>
             <div>
               <Label htmlFor="profileName">Full Name</Label>
-              <Input id="profileName" defaultValue="Admin" data-testid="input-profile-name" />
+              <Input id="profileName" defaultValue={displayName} data-testid="input-profile-name" />
             </div>
             <div>
               <Label htmlFor="profileEmail">Email</Label>
-              <Input id="profileEmail" type="email" defaultValue="admin@clinic.com" data-testid="input-profile-email" />
+              <Input id="profileEmail" type="email" defaultValue={displayEmail} data-testid="input-profile-email" />
             </div>
             <div>
               <Label htmlFor="profilePhone">Phone</Label>
-              <Input id="profilePhone" defaultValue="" data-testid="input-profile-phone" />
+              <Input id="profilePhone" defaultValue={user?.phone || ""} data-testid="input-profile-phone" />
             </div>
             <Button type="submit" className="w-full" data-testid="button-save-profile">
               Save Changes
