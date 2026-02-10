@@ -451,11 +451,14 @@ export default function OpdPage() {
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Cash">Cash</SelectItem>
-                  <SelectItem value="Card">Card</SelectItem>
-                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="Insurance">Insurance</SelectItem>
-                  <SelectItem value="Mobile Payment">Mobile Payment</SelectItem>
+                  <SelectItem value="Cash Pay">Cash Pay</SelectItem>
+                  <SelectItem value="ABA">ABA</SelectItem>
+                  <SelectItem value="Acleda">Acleda</SelectItem>
+                  <SelectItem value="Card Pay">Card Pay</SelectItem>
+                  <SelectItem value="Wechat Pay">Wechat Pay</SelectItem>
+                  <SelectItem value="Other Bank">Other Bank</SelectItem>
+                  <SelectItem value="GPay">GPay</SelectItem>
+                  <SelectItem value="Others Pay">Others Pay</SelectItem>
                 </SelectContent>
               </Select>
             </div>
