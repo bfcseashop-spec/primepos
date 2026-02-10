@@ -829,6 +829,25 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/roles/:id", async (req, res) => {
+    try {
+      const role = await storage.updateRole(Number(req.params.id), req.body);
+      if (!role) return res.status(404).json({ message: "Role not found" });
+      res.json(role);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/roles/:id", async (req, res) => {
+    try {
+      await storage.deleteRole(Number(req.params.id));
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
   // Integrations
   app.get("/api/integrations", async (_req, res) => {
     try {

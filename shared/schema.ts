@@ -6,6 +6,7 @@ import { z } from "zod";
 export const roles = pgTable("roles", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   name: text("name").notNull().unique(),
+  description: text("description").default(""),
   permissions: jsonb("permissions").notNull().default({}),
 });
 

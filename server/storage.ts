@@ -34,6 +34,8 @@ export interface IStorage {
   getRoles(): Promise<Role[]>;
   getRole(id: number): Promise<Role | undefined>;
   createRole(role: InsertRole): Promise<Role>;
+  updateRole(id: number, data: Partial<InsertRole>): Promise<Role | undefined>;
+  deleteRole(id: number): Promise<void>;
 
   getPatients(): Promise<Patient[]>;
   getPatient(id: number): Promise<Patient | undefined>;
@@ -193,6 +195,15 @@ export class DatabaseStorage implements IStorage {
   async createRole(role: InsertRole): Promise<Role> {
     const [created] = await db.insert(roles).values(role).returning();
     return created;
+  }
+
+  async updateRole(id: number, data: Partial<InsertRole>): Promise<Role | undefined> {
+    const [updated] = await db.update(roles).set(data).where(eq(roles.id, id)).returning();
+    return updated;
+  }
+
+  async deleteRole(id: number): Promise<void> {
+    await db.delete(roles).where(eq(roles.id, id));
   }
 
   async getPatients(): Promise<Patient[]> {
