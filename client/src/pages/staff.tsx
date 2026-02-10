@@ -3,16 +3,65 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Eye, Edit, Trash2 } from "lucide-react";
+import { Plus, Eye, Edit, Trash2, ShieldCheck, Check, X } from "lucide-react";
 import type { Role } from "@shared/schema";
+
+const PERMISSION_MODULES = [
+  { key: "dashboard", label: "Dashboard" },
+  { key: "make_payment", label: "Make Payment (POS)" },
+  { key: "opd", label: "OPD Management" },
+  { key: "appointments", label: "Appointments" },
+  { key: "services", label: "Services" },
+  { key: "lab_tests", label: "Lab Tests" },
+  { key: "medicines", label: "Medicines" },
+  { key: "doctors", label: "Doctor Management" },
+  { key: "patients", label: "Patient Registration" },
+  { key: "expenses", label: "Expenses" },
+  { key: "bank_transactions", label: "Bank Transactions" },
+  { key: "investments", label: "Investments" },
+  { key: "salary", label: "Salary" },
+  { key: "user_role", label: "User & Role" },
+  { key: "authentication", label: "Authentication" },
+  { key: "integrations", label: "Integrations" },
+  { key: "reports", label: "Reports" },
+  { key: "settings", label: "Settings" },
+] as const;
+
+const PERMISSION_ACTIONS = ["view", "add", "edit", "delete"] as const;
+
+type PermissionMap = Record<string, Record<string, boolean>>;
+
+function getDefaultPermissions(): PermissionMap {
+  const perms: PermissionMap = {};
+  PERMISSION_MODULES.forEach(m => {
+    perms[m.key] = {};
+    PERMISSION_ACTIONS.forEach(a => { perms[m.key][a] = false; });
+  });
+  return perms;
+}
+
+function mergePermissions(saved: any): PermissionMap {
+  const defaults = getDefaultPermissions();
+  if (!saved || typeof saved !== "object") return defaults;
+  PERMISSION_MODULES.forEach(m => {
+    if (saved[m.key] && typeof saved[m.key] === "object") {
+      PERMISSION_ACTIONS.forEach(a => {
+        defaults[m.key][a] = !!saved[m.key][a];
+      });
+    }
+  });
+  return defaults;
+}
 
 export default function StaffPage() {
   const { toast } = useToast();
@@ -22,6 +71,9 @@ export default function StaffPage() {
   const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
+  const [permissionRole, setPermissionRole] = useState<Role | null>(null);
+  const [permissionMap, setPermissionMap] = useState<PermissionMap>(getDefaultPermissions());
   const [roleName, setRoleName] = useState("");
   const [roleDescription, setRoleDescription] = useState("");
 
@@ -177,6 +229,78 @@ export default function StaffPage() {
     });
   };
 
+  const openPermissionDialog = (role: Role) => {
+    setPermissionRole(role);
+    setPermissionMap(mergePermissions(role.permissions));
+    setPermissionDialogOpen(true);
+  };
+
+  const togglePermission = (moduleKey: string, action: string) => {
+    setPermissionMap(prev => ({
+      ...prev,
+      [moduleKey]: {
+        ...prev[moduleKey],
+        [action]: !prev[moduleKey][action],
+      },
+    }));
+  };
+
+  const toggleModuleAll = (moduleKey: string) => {
+    const allChecked = PERMISSION_ACTIONS.every(a => permissionMap[moduleKey]?.[a]);
+    setPermissionMap(prev => ({
+      ...prev,
+      [moduleKey]: PERMISSION_ACTIONS.reduce((acc, a) => ({ ...acc, [a]: !allChecked }), {} as Record<string, boolean>),
+    }));
+  };
+
+  const toggleActionAll = (action: string) => {
+    const allChecked = PERMISSION_MODULES.every(m => permissionMap[m.key]?.[action]);
+    setPermissionMap(prev => {
+      const next = { ...prev };
+      PERMISSION_MODULES.forEach(m => {
+        next[m.key] = { ...next[m.key], [action]: !allChecked };
+      });
+      return next;
+    });
+  };
+
+  const selectAllPermissions = () => {
+    const allChecked = PERMISSION_MODULES.every(m => PERMISSION_ACTIONS.every(a => permissionMap[m.key]?.[a]));
+    const val = !allChecked;
+    const next: PermissionMap = {};
+    PERMISSION_MODULES.forEach(m => {
+      next[m.key] = {};
+      PERMISSION_ACTIONS.forEach(a => { next[m.key][a] = val; });
+    });
+    setPermissionMap(next);
+  };
+
+  const savePermissions = () => {
+    if (!permissionRole) return;
+    updateRoleMutation.mutate({
+      id: permissionRole.id,
+      data: { permissions: permissionMap },
+    }, {
+      onSuccess: () => {
+        setPermissionDialogOpen(false);
+        setPermissionRole(null);
+        toast({ title: "Permissions saved successfully" });
+      },
+    });
+  };
+
+  const getPermissionCount = (role: Role) => {
+    const perms = role.permissions as PermissionMap;
+    if (!perms || typeof perms !== "object") return 0;
+    let count = 0;
+    Object.values(perms).forEach(actions => {
+      if (actions && typeof actions === "object") {
+        Object.values(actions).forEach(v => { if (v) count++; });
+      }
+    });
+    return count;
+  };
+
   return (
     <div className="flex flex-col h-full overflow-auto">
       <div className="p-6 space-y-6">
@@ -307,16 +431,35 @@ export default function StaffPage() {
                 <tr className="border-b bg-muted/30">
                   <th className="p-3 text-left font-medium text-muted-foreground">Role Name</th>
                   <th className="p-3 text-left font-medium text-muted-foreground">Description</th>
+                  <th className="p-3 text-left font-medium text-muted-foreground">Permissions</th>
                   <th className="p-3 text-right font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {roles.length === 0 ? (
-                  <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">No roles defined</td></tr>
-                ) : roles.map((role) => (
+                  <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">No roles defined</td></tr>
+                ) : roles.map((role) => {
+                  const permCount = getPermissionCount(role);
+                  const totalPerms = PERMISSION_MODULES.length * PERMISSION_ACTIONS.length;
+                  return (
                   <tr key={role.id} className="border-b last:border-b-0" data-testid={`row-role-${role.id}`}>
                     <td className="p-3 font-medium">{role.name}</td>
                     <td className="p-3 text-muted-foreground">{role.description || "-"}</td>
+                    <td className="p-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openPermissionDialog(role)}
+                        data-testid={`button-permission-role-${role.id}`}
+                      >
+                        <ShieldCheck className="h-4 w-4 mr-1" />
+                        {permCount > 0 ? (
+                          <span>{permCount}/{totalPerms}</span>
+                        ) : (
+                          <span className="text-muted-foreground">Set Permissions</span>
+                        )}
+                      </Button>
+                    </td>
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button
@@ -338,7 +481,8 @@ export default function StaffPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -495,6 +639,108 @@ export default function StaffPage() {
               </Button>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={permissionDialogOpen} onOpenChange={(open) => { if (!open) { setPermissionDialogOpen(false); setPermissionRole(null); } }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              Role Permission
+            </DialogTitle>
+            <DialogDescription>
+              {permissionRole ? `Configure access permissions for "${permissionRole.name}" role` : "Configure access permissions"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={PERMISSION_MODULES.every(m => PERMISSION_ACTIONS.every(a => permissionMap[m.key]?.[a]))}
+                onCheckedChange={selectAllPermissions}
+                data-testid="switch-select-all-permissions"
+              />
+              <Label className="text-sm font-medium">Select All</Label>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {(() => {
+                let enabled = 0;
+                PERMISSION_MODULES.forEach(m => PERMISSION_ACTIONS.forEach(a => { if (permissionMap[m.key]?.[a]) enabled++; }));
+                const total = PERMISSION_MODULES.length * PERMISSION_ACTIONS.length;
+                return <span>{enabled} of {total} permissions enabled</span>;
+              })()}
+            </div>
+          </div>
+          <div className="border rounded-md overflow-auto flex-1">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
+                <tr className="border-b">
+                  <th className="p-3 text-left font-medium text-muted-foreground min-w-[180px]">Module</th>
+                  {PERMISSION_ACTIONS.map(action => (
+                    <th key={action} className="p-3 text-center font-medium text-muted-foreground min-w-[80px]">
+                      <button
+                        className="flex flex-col items-center gap-1 w-full cursor-pointer"
+                        onClick={() => toggleActionAll(action)}
+                        data-testid={`button-toggle-all-${action}`}
+                      >
+                        <span className="capitalize">{action}</span>
+                        <Checkbox
+                          checked={PERMISSION_MODULES.every(m => permissionMap[m.key]?.[action])}
+                          className="pointer-events-none"
+                          data-testid={`checkbox-all-${action}`}
+                        />
+                      </button>
+                    </th>
+                  ))}
+                  <th className="p-3 text-center font-medium text-muted-foreground min-w-[70px]">All</th>
+                </tr>
+              </thead>
+              <tbody>
+                {PERMISSION_MODULES.map((mod, i) => {
+                  const allChecked = PERMISSION_ACTIONS.every(a => permissionMap[mod.key]?.[a]);
+                  const someChecked = PERMISSION_ACTIONS.some(a => permissionMap[mod.key]?.[a]);
+                  return (
+                    <tr
+                      key={mod.key}
+                      className={`border-b last:border-b-0 ${i % 2 === 0 ? "" : "bg-muted/20"}`}
+                      data-testid={`row-permission-${mod.key}`}
+                    >
+                      <td className="p-3 font-medium">{mod.label}</td>
+                      {PERMISSION_ACTIONS.map(action => (
+                        <td key={action} className="p-3 text-center">
+                          <div className="flex justify-center">
+                            <Checkbox
+                              checked={!!permissionMap[mod.key]?.[action]}
+                              onCheckedChange={() => togglePermission(mod.key, action)}
+                              data-testid={`checkbox-${mod.key}-${action}`}
+                            />
+                          </div>
+                        </td>
+                      ))}
+                      <td className="p-3 text-center">
+                        <div className="flex justify-center">
+                          <Checkbox
+                            checked={allChecked}
+                            onCheckedChange={() => toggleModuleAll(mod.key)}
+                            data-testid={`checkbox-${mod.key}-all`}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => { setPermissionDialogOpen(false); setPermissionRole(null); }} data-testid="button-cancel-permissions">
+              Cancel
+            </Button>
+            <Button onClick={savePermissions} disabled={updateRoleMutation.isPending} data-testid="button-save-permissions">
+              <Check className="h-4 w-4 mr-1" />
+              {updateRoleMutation.isPending ? "Saving..." : "Save Permissions"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
