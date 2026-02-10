@@ -38,6 +38,30 @@ if (!fs.existsSync(salaryUploadsDir)) {
   fs.mkdirSync(salaryUploadsDir, { recursive: true });
 }
 
+const logoUploadsDir = path.join(process.cwd(), "uploads", "logos");
+if (!fs.existsSync(logoUploadsDir)) {
+  fs.mkdirSync(logoUploadsDir, { recursive: true });
+}
+
+const logoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, logoUploadsDir),
+    filename: (_req, file, cb) => {
+      const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+      cb(null, uniqueName);
+    },
+  }),
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only JPG, PNG, GIF, WebP, SVG image files are allowed"));
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
 const doctorPhotoUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, doctorPhotosDir),
@@ -903,6 +927,50 @@ export async function registerRoutes(
         });
         return res.json(created);
       }
+      res.json(settings);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.use("/uploads/logos", express.static(logoUploadsDir));
+
+  app.post("/api/settings/upload-logo", logoUpload.single('logo'), async (req: any, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const logoUrl = `/uploads/logos/${req.file.filename}`;
+      const current = await storage.getSettings();
+      if (current?.logo) {
+        const oldPath = path.join(process.cwd(), current.logo);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
+      const settings = await storage.upsertSettings({ ...current, logo: logoUrl });
+      await storage.createActivityLog({
+        action: "update",
+        module: "settings",
+        description: "Clinic logo updated",
+        userName: "System",
+      });
+      res.json(settings);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/settings/logo", async (_req, res) => {
+    try {
+      const current = await storage.getSettings();
+      if (current?.logo) {
+        const oldPath = path.join(process.cwd(), current.logo);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
+      const settings = await storage.upsertSettings({ ...current, logo: null });
+      await storage.createActivityLog({
+        action: "update",
+        module: "settings",
+        description: "Clinic logo removed",
+        userName: "System",
+      });
       res.json(settings);
     } catch (err: any) {
       res.status(500).json({ message: err.message });

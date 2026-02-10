@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Save, AppWindow, Coins, Building2, ScrollText,
-  Trash2, Clock, User, ArrowRightLeft,
+  Trash2, Clock, User, ArrowRightLeft, Upload, X, ImageIcon,
 } from "lucide-react";
 import type { ClinicSettings, ActivityLog } from "@shared/schema";
 
