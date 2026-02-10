@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -7,15 +7,28 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, MoreVertical, Trash2, Edit, DollarSign, Calendar, Filter, Download } from "lucide-react";
+import { Search, Plus, MoreVertical, Trash2, Edit, DollarSign, Calendar, Filter, Download, X, Building2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Salary } from "@shared/schema";
 
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 5 }, (_, i) => String(currentYear - i));
+
+const DEFAULT_DEPARTMENTS = [
+  "General Medicine", "Radiology", "Cardiology", "Orthopedics",
+  "Pediatrics", "Pharmacy", "Laboratory", "Administration", "Nursing", "Other"
+];
+
+function loadDepartments(): string[] {
+  try {
+    const stored = localStorage.getItem("salary_departments");
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return DEFAULT_DEPARTMENTS;
+}
 
 export default function SalaryPage() {
   const { toast } = useToast();
@@ -25,12 +38,36 @@ export default function SalaryPage() {
   const [addDialog, setAddDialog] = useState(false);
   const [editDialog, setEditDialog] = useState(false);
   const [editingSalary, setEditingSalary] = useState<Salary | null>(null);
+  const [deptDialogOpen, setDeptDialogOpen] = useState(false);
+  const [departments, setDepartments] = useState<string[]>(loadDepartments);
+  const [newDepartment, setNewDepartment] = useState("");
   const [form, setForm] = useState({
     staffName: "", role: "", department: "", baseSalary: "", allowances: "0",
     deductions: "0", netSalary: "", paymentMethod: "cash",
     paymentDate: "", month: months[new Date().getMonth()], year: String(currentYear),
     status: "pending", notes: "",
   });
+
+  useEffect(() => {
+    localStorage.setItem("salary_departments", JSON.stringify(departments));
+  }, [departments]);
+
+  const addDepartment = () => {
+    const trimmed = newDepartment.trim();
+    if (!trimmed) return;
+    if (departments.some(d => d.toLowerCase() === trimmed.toLowerCase())) {
+      toast({ title: "Department already exists", variant: "destructive" });
+      return;
+    }
+    setDepartments([...departments, trimmed]);
+    setNewDepartment("");
+    toast({ title: `Department "${trimmed}" added` });
+  };
+
+  const removeDepartment = (dept: string) => {
+    setDepartments(departments.filter(d => d !== dept));
+    toast({ title: `Department "${dept}" removed` });
+  };
 
   const { data: salaries = [], isLoading } = useQuery<Salary[]>({ queryKey: ["/api/salaries"] });
 
@@ -99,9 +136,51 @@ export default function SalaryPage() {
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Salary Management</h1>
           <p className="text-sm text-muted-foreground">Track and manage staff salaries</p>
         </div>
-        <Button onClick={() => { resetForm(); setAddDialog(true); }} data-testid="button-add-salary">
-          <Plus className="h-4 w-4 mr-2" /> Add Salary Record
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Dialog open={deptDialogOpen} onOpenChange={setDeptDialogOpen}>
+            <Button variant="outline" onClick={() => setDeptDialogOpen(true)} data-testid="button-manage-departments">
+              <Building2 className="h-4 w-4 mr-1" /> + Department
+            </Button>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Manage Departments</DialogTitle>
+                <DialogDescription>Add or remove salary departments</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="New department name..."
+                    value={newDepartment}
+                    onChange={(e) => setNewDepartment(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addDepartment())}
+                    data-testid="input-new-department"
+                  />
+                  <Button onClick={addDepartment} disabled={!newDepartment.trim()} data-testid="button-add-department">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                  {departments.map(dept => (
+                    <Badge key={dept} variant="secondary" className="gap-1 pr-1" data-testid={`badge-department-${dept}`}>
+                      {dept}
+                      <button
+                        type="button"
+                        onClick={() => removeDepartment(dept)}
+                        className="ml-0.5 rounded-full p-0.5 hover-elevate"
+                        data-testid={`button-remove-department-${dept}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button onClick={() => { resetForm(); setAddDialog(true); }} data-testid="button-add-salary">
+            <Plus className="h-4 w-4 mr-2" /> Add Salary Record
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -241,7 +320,16 @@ export default function SalaryPage() {
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Department</label>
-                <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} data-testid="input-department" />
+                <Select value={form.department} onValueChange={(v) => setForm({ ...form, department: v })}>
+                  <SelectTrigger data-testid="select-department">
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map(dept => (
+                      <SelectItem key={dept} value={dept} data-testid={`option-department-${dept}`}>{dept}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
