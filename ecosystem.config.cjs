@@ -7,7 +7,7 @@ module.exports = {
       name: "primepos",
       script: "dist/index.cjs",
       cwd: __dirname,
-      env: { NODE_ENV: "production" },
+      env: { NODE_ENV: "production", PORT: "5010" },
       env_file: ".env",
       instances: 1,
       autorestart: true,
