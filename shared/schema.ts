@@ -211,16 +211,22 @@ export type ClinicSettings = typeof clinicSettings.$inferSelect;
 
 export const labTests = pgTable("lab_tests", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  testCode: text("test_code").notNull().unique(),
   testName: text("test_name").notNull(),
   category: text("category").notNull(),
   sampleType: text("sample_type").notNull(),
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
   turnaroundTime: text("turnaround_time"),
+  patientId: integer("patient_id").references(() => patients.id),
+  reportFileUrl: text("report_file_url"),
+  reportFileName: text("report_file_name"),
+  referrerName: text("referrer_name"),
   isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertLabTestSchema = createInsertSchema(labTests).omit({ id: true });
+export const insertLabTestSchema = createInsertSchema(labTests).omit({ id: true, createdAt: true });
 export type InsertLabTest = z.infer<typeof insertLabTestSchema>;
 export type LabTest = typeof labTests.$inferSelect;
 

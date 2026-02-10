@@ -67,11 +67,12 @@ export interface IStorage {
   getSettings(): Promise<ClinicSettings | undefined>;
   upsertSettings(settings: InsertClinicSettings): Promise<ClinicSettings>;
 
-  getLabTests(): Promise<LabTest[]>;
+  getLabTests(): Promise<any[]>;
   getLabTest(id: number): Promise<LabTest | undefined>;
   createLabTest(test: InsertLabTest): Promise<LabTest>;
   updateLabTest(id: number, data: Partial<InsertLabTest>): Promise<LabTest | undefined>;
   deleteLabTest(id: number): Promise<void>;
+  getNextLabTestCode(): Promise<string>;
 
   getDashboardStats(): Promise<any>;
   getRecentVisits(): Promise<any[]>;
@@ -453,8 +454,25 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getLabTests(): Promise<LabTest[]> {
-    return db.select().from(labTests).orderBy(labTests.testName);
+  async getLabTests(): Promise<any[]> {
+    const result = await db.select({
+      id: labTests.id,
+      testCode: labTests.testCode,
+      testName: labTests.testName,
+      category: labTests.category,
+      sampleType: labTests.sampleType,
+      price: labTests.price,
+      description: labTests.description,
+      turnaroundTime: labTests.turnaroundTime,
+      patientId: labTests.patientId,
+      reportFileUrl: labTests.reportFileUrl,
+      reportFileName: labTests.reportFileName,
+      referrerName: labTests.referrerName,
+      isActive: labTests.isActive,
+      createdAt: labTests.createdAt,
+      patientName: patients.name,
+    }).from(labTests).leftJoin(patients, eq(labTests.patientId, patients.id)).orderBy(desc(labTests.createdAt));
+    return result;
   }
 
   async getLabTest(id: number): Promise<LabTest | undefined> {
@@ -474,6 +492,12 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLabTest(id: number): Promise<void> {
     await db.delete(labTests).where(eq(labTests.id, id));
+  }
+
+  async getNextLabTestCode(): Promise<string> {
+    const [result] = await db.select({ maxId: sql<number>`COALESCE(MAX(id), 0)` }).from(labTests);
+    const num = (result.maxId || 0) + 1;
+    return `LAB-${String(num).padStart(4, '0')}`;
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
@@ -13,8 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, QrCode, FlaskConical, TestTubes, DollarSign, CheckCircle } from "lucide-react";
-import type { LabTest } from "@shared/schema";
+import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, QrCode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User } from "lucide-react";
+import type { LabTest, Patient } from "@shared/schema";
 
 const LAB_CATEGORIES = [
   "Hematology", "Biochemistry", "Microbiology", "Immunology",
@@ -30,25 +30,38 @@ const SAMPLE_TYPES = [
 const defaultForm = {
   testName: "", category: "", sampleType: "", price: "",
   description: "", turnaroundTime: "", isActive: true,
+  patientId: "", referrerName: "",
 };
+
+type LabTestWithPatient = LabTest & { patientName?: string | null };
 
 export default function LabTestsPage() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editTest, setEditTest] = useState<LabTest | null>(null);
-  const [viewTest, setViewTest] = useState<LabTest | null>(null);
-  const [barcodeTest, setBarcodeTest] = useState<LabTest | null>(null);
+  const [editTest, setEditTest] = useState<LabTestWithPatient | null>(null);
+  const [viewTest, setViewTest] = useState<LabTestWithPatient | null>(null);
+  const [barcodeTest, setBarcodeTest] = useState<LabTestWithPatient | null>(null);
+  const [uploadTest, setUploadTest] = useState<LabTestWithPatient | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [form, setForm] = useState(defaultForm);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadReferrer, setUploadReferrer] = useState("");
+  const [uploading, setUploading] = useState(false);
 
-  const { data: labTests = [], isLoading } = useQuery<LabTest[]>({
+  const { data: labTests = [], isLoading } = useQuery<LabTestWithPatient[]>({
     queryKey: ["/api/lab-tests"],
+  });
+
+  const { data: patients = [] } = useQuery<Patient[]>({
+    queryKey: ["/api/patients"],
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/lab-tests", data);
+      const codeRes = await fetch("/api/lab-tests/next-code");
+      const { code } = await codeRes.json();
+      const res = await apiRequest("POST", "/api/lab-tests", { ...data, testCode: code });
       return res.json();
     },
     onSuccess: () => {
@@ -92,7 +105,7 @@ export default function LabTestsPage() {
     if (!form.testName || !form.category || !form.sampleType || !form.price) {
       return toast({ title: "Please fill in all required fields", variant: "destructive" });
     }
-    const payload = {
+    const payload: any = {
       testName: form.testName,
       category: form.category,
       sampleType: form.sampleType,
@@ -100,6 +113,8 @@ export default function LabTestsPage() {
       description: form.description || null,
       turnaroundTime: form.turnaroundTime || null,
       isActive: form.isActive,
+      patientId: form.patientId ? Number(form.patientId) : null,
+      referrerName: form.referrerName || null,
     };
     if (editTest) {
       updateMutation.mutate({ id: editTest.id, data: payload });
@@ -108,7 +123,7 @@ export default function LabTestsPage() {
     }
   };
 
-  const openEdit = (test: LabTest) => {
+  const openEdit = (test: LabTestWithPatient) => {
     setForm({
       testName: test.testName,
       category: test.category,
@@ -117,41 +132,93 @@ export default function LabTestsPage() {
       description: test.description || "",
       turnaroundTime: test.turnaroundTime || "",
       isActive: test.isActive,
+      patientId: test.patientId ? String(test.patientId) : "",
+      referrerName: test.referrerName || "",
     });
     setEditTest(test);
+  };
+
+  const handleFileUpload = async () => {
+    if (!uploadTest || !fileInputRef.current?.files?.[0]) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('report', fileInputRef.current.files[0]);
+      if (uploadReferrer) formData.append('referrerName', uploadReferrer);
+      const res = await fetch(`/api/lab-tests/${uploadTest.id}/upload-report`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      toast({ title: "Report uploaded successfully" });
+      setUploadTest(null);
+      setUploadReferrer("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const filtered = labTests.filter(t => {
     const matchSearch = searchTerm === "" ||
       t.testName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.sampleType.toLowerCase().includes(searchTerm.toLowerCase());
+      t.sampleType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (t.testCode && t.testCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (t.patientName && t.patientName.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchCategory = categoryFilter === "all" || t.category === categoryFilter;
     return matchSearch && matchCategory;
   });
 
   const activeCount = labTests.filter(t => t.isActive).length;
   const uniqueCategories = Array.from(new Set(labTests.map(t => t.category)));
+  const withReports = labTests.filter(t => t.reportFileUrl).length;
 
   const columns = [
-    { header: "Test Name", accessor: (row: LabTest) => (
+    { header: "Test ID", accessor: (row: LabTestWithPatient) => (
+      <span className="font-mono text-xs text-muted-foreground" data-testid={`text-test-code-${row.id}`}>{row.testCode}</span>
+    )},
+    { header: "Test Name", accessor: (row: LabTestWithPatient) => (
       <span className="font-medium" data-testid={`text-test-name-${row.id}`}>{row.testName}</span>
     )},
-    { header: "Category", accessor: (row: LabTest) => (
+    { header: "Patient", accessor: (row: LabTestWithPatient) => (
+      <span className="text-sm" data-testid={`text-patient-${row.id}`}>
+        {row.patientName || <span className="text-muted-foreground">-</span>}
+      </span>
+    )},
+    { header: "Category", accessor: (row: LabTestWithPatient) => (
       <Badge variant="outline" data-testid={`badge-category-${row.id}`}>{row.category}</Badge>
     )},
-    { header: "Sample Type", accessor: (row: LabTest) => (
+    { header: "Sample Type", accessor: (row: LabTestWithPatient) => (
       <Badge variant="secondary" data-testid={`badge-sample-${row.id}`}>{row.sampleType}</Badge>
     )},
-    { header: "Price", accessor: (row: LabTest) => (
+    { header: "Price", accessor: (row: LabTestWithPatient) => (
       <span className="font-medium" data-testid={`text-price-${row.id}`}>${row.price}</span>
     )},
-    { header: "Status", accessor: (row: LabTest) => (
+    { header: "Report", accessor: (row: LabTestWithPatient) => (
+      row.reportFileUrl ? (
+        <div className="flex items-center gap-1">
+          <Badge variant="default" className="text-xs">
+            <FileText className="h-3 w-3 mr-1" />
+            Uploaded
+          </Badge>
+        </div>
+      ) : (
+        <span className="text-xs text-muted-foreground">No report</span>
+      )
+    )},
+    { header: "Status", accessor: (row: LabTestWithPatient) => (
       <Badge variant={row.isActive ? "default" : "secondary"} data-testid={`badge-status-${row.id}`}>
         {row.isActive ? "active" : "inactive"}
       </Badge>
     )},
-    { header: "Actions", accessor: (row: LabTest) => (
+    { header: "Actions", accessor: (row: LabTestWithPatient) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" data-testid={`button-actions-${row.id}`}>
@@ -165,6 +232,19 @@ export default function LabTestsPage() {
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="gap-2" data-testid={`action-edit-${row.id}`}>
             <Pencil className="h-4 w-4 text-amber-500" /> Edit
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setUploadTest(row); setUploadReferrer(row.referrerName || ""); }} className="gap-2" data-testid={`action-upload-${row.id}`}>
+            <Upload className="h-4 w-4 text-green-500" /> {row.reportFileUrl ? "Update Report" : "Upload Report"}
+          </DropdownMenuItem>
+          {row.reportFileUrl && (
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); window.open(row.reportFileUrl!, '_blank'); }} className="gap-2" data-testid={`action-download-${row.id}`}>
+              <Download className="h-4 w-4 text-indigo-500" /> Download Report
+            </DropdownMenuItem>
+          )}
+          {row.reportFileUrl && (
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); const w = window.open(row.reportFileUrl!, '_blank'); if (w) setTimeout(() => w.print(), 1000); }} className="gap-2" data-testid={`action-print-${row.id}`}>
+              <Printer className="h-4 w-4 text-cyan-500" /> Print Report
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBarcodeTest(row); }} className="gap-2" data-testid={`action-barcode-${row.id}`}>
             <QrCode className="h-4 w-4 text-purple-500" /> Barcode
           </DropdownMenuItem>
@@ -186,6 +266,18 @@ export default function LabTestsPage() {
         <div>
           <Label htmlFor="test-name">Test Name *</Label>
           <Input id="test-name" value={form.testName} onChange={e => setForm(f => ({ ...f, testName: e.target.value }))} data-testid="input-test-name" />
+        </div>
+        <div>
+          <Label>Patient</Label>
+          <Select value={form.patientId} onValueChange={v => setForm(f => ({ ...f, patientId: v === "none" ? "" : v }))}>
+            <SelectTrigger data-testid="select-patient"><SelectValue placeholder="Select patient (optional)" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No Patient</SelectItem>
+              {patients.map(p => (
+                <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.patientId})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -220,6 +312,10 @@ export default function LabTestsPage() {
             <Label htmlFor="test-tat">Turnaround Time</Label>
             <Input id="test-tat" placeholder="e.g. 2 hours, 1 day" value={form.turnaroundTime} onChange={e => setForm(f => ({ ...f, turnaroundTime: e.target.value }))} data-testid="input-test-tat" />
           </div>
+        </div>
+        <div>
+          <Label htmlFor="test-referrer">Referrer Name</Label>
+          <Input id="test-referrer" placeholder="Person who referred/updated" value={form.referrerName} onChange={e => setForm(f => ({ ...f, referrerName: e.target.value }))} data-testid="input-referrer-name" />
         </div>
         <div>
           <Label htmlFor="test-desc">Description</Label>
@@ -278,8 +374,16 @@ export default function LabTestsPage() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
+                  <p className="text-xs text-muted-foreground">Test ID</p>
+                  <p className="font-mono font-semibold" data-testid="text-view-test-code">{viewTest.testCode}</p>
+                </div>
+                <div>
                   <p className="text-xs text-muted-foreground">Test Name</p>
                   <p className="font-semibold" data-testid="text-view-test-name">{viewTest.testName}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Patient</p>
+                  <p className="text-sm">{viewTest.patientName || "-"}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Category</p>
@@ -298,10 +402,27 @@ export default function LabTestsPage() {
                   <p className="text-sm">{viewTest.turnaroundTime || "-"}</p>
                 </div>
                 <div>
+                  <p className="text-xs text-muted-foreground">Referrer</p>
+                  <p className="text-sm">{viewTest.referrerName || "-"}</p>
+                </div>
+                <div>
                   <p className="text-xs text-muted-foreground">Status</p>
                   <Badge variant={viewTest.isActive ? "default" : "secondary"}>
                     {viewTest.isActive ? "Active" : "Inactive"}
                   </Badge>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Report</p>
+                  {viewTest.reportFileUrl ? (
+                    <div className="flex items-center gap-1">
+                      <FileText className="h-3.5 w-3.5 text-green-500" />
+                      <a href={viewTest.reportFileUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 dark:text-blue-400 underline" data-testid="link-view-report">
+                        {viewTest.reportFileName || "Download"}
+                      </a>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No report</span>
+                  )}
                 </div>
                 <div className="col-span-2">
                   <p className="text-xs text-muted-foreground">Description</p>
@@ -317,12 +438,59 @@ export default function LabTestsPage() {
         <Dialog open={!!editTest} onOpenChange={(open) => { if (!open) { setEditTest(null); setForm(defaultForm); } }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Edit Lab Test</DialogTitle>
+              <DialogTitle>Edit Lab Test ({editTest.testCode})</DialogTitle>
             </DialogHeader>
             {formContent}
             <Button className="w-full" onClick={handleSubmit} disabled={updateMutation.isPending} data-testid="button-update-lab-test">
               {updateMutation.isPending ? "Updating..." : "Update Lab Test"}
             </Button>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {uploadTest && (
+        <Dialog open={!!uploadTest} onOpenChange={(open) => { if (!open) { setUploadTest(null); setUploadReferrer(""); } }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5 text-green-500" />
+                {uploadTest.reportFileUrl ? "Update Report" : "Upload Report"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Test: {uploadTest.testCode} - {uploadTest.testName}</p>
+                {uploadTest.reportFileName && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+                    <FileText className="h-3 w-3" />
+                    Current: {uploadTest.reportFileName}
+                  </div>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="report-file">Report File (PDF, Excel, CSV) *</Label>
+                <Input
+                  id="report-file"
+                  type="file"
+                  accept=".pdf,.xls,.xlsx,.csv"
+                  ref={fileInputRef}
+                  data-testid="input-report-file"
+                />
+              </div>
+              <div>
+                <Label htmlFor="upload-referrer">Referrer Name</Label>
+                <Input
+                  id="upload-referrer"
+                  placeholder="Person uploading the report"
+                  value={uploadReferrer}
+                  onChange={e => setUploadReferrer(e.target.value)}
+                  data-testid="input-upload-referrer"
+                />
+              </div>
+              <Button className="w-full" onClick={handleFileUpload} disabled={uploading} data-testid="button-upload-report">
+                {uploading ? "Uploading..." : "Upload Report"}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       )}
@@ -340,7 +508,7 @@ export default function LabTestsPage() {
               <div className="p-4 bg-white rounded-md border">
                 <svg viewBox="0 0 200 200" width="180" height="180" data-testid="img-barcode-qr">
                   {(() => {
-                    const data = `LAB-TEST|${barcodeTest.id}|${barcodeTest.testName}|${barcodeTest.category}|$${barcodeTest.price}`;
+                    const data = `LAB-TEST|${barcodeTest.testCode}|${barcodeTest.testName}|${barcodeTest.category}|$${barcodeTest.price}`;
                     const cells: JSX.Element[] = [];
                     let seed = 0;
                     for (let i = 0; i < data.length; i++) seed = ((seed << 5) - seed + data.charCodeAt(i)) | 0;
@@ -359,9 +527,9 @@ export default function LabTestsPage() {
                 </svg>
               </div>
               <div className="text-center space-y-1">
+                <p className="font-mono text-sm font-bold">{barcodeTest.testCode}</p>
                 <p className="font-semibold text-sm">{barcodeTest.testName}</p>
                 <p className="text-xs text-muted-foreground">{barcodeTest.category} | {barcodeTest.sampleType}</p>
-                <p className="text-xs font-mono text-muted-foreground">ID: LAB-{String(barcodeTest.id).padStart(4, "0")}</p>
               </div>
             </div>
           </DialogContent>
@@ -406,13 +574,11 @@ export default function LabTestsPage() {
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
               <div className="p-2 rounded-md bg-amber-100 dark:bg-amber-900/30">
-                <DollarSign className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Avg Price</p>
-                <p className="text-xl font-bold" data-testid="text-avg-price">
-                  ${labTests.length > 0 ? (labTests.reduce((a, t) => a + Number(t.price), 0) / labTests.length).toFixed(2) : "0.00"}
-                </p>
+                <p className="text-xs text-muted-foreground">Reports Uploaded</p>
+                <p className="text-xl font-bold" data-testid="text-reports-count">{withReports}</p>
               </div>
             </CardContent>
           </Card>

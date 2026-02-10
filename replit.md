@@ -49,6 +49,7 @@ shared/
 - Seed data auto-populated on first run
 
 ## Recent Changes
+- 2026-02-10: Enhanced Lab Test Management with unique test IDs (LAB-0001), patient selection, report file upload/download/print (PDF/Excel/CSV), referrer name tracking, created date
 - 2026-02-10: Added Lab Test Management module with full CRUD, barcode, category filter, search, summary stats
 - 2026-02-10: Added '+ Category' button to Service Management with category management dialog
 - 2026-02-10: Added Service image upload, View/Edit/Delete actions with image thumbnails

@@ -10,6 +10,38 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+const uploadsDir = path.join(process.cwd(), "uploads", "lab-reports");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const reportUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsDir),
+    filename: (_req, file, cb) => {
+      const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+      cb(null, uniqueName);
+    },
+  }),
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv',
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF, Excel, and CSV files are allowed'));
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 function validateBody<T>(schema: z.ZodSchema<T>, body: unknown): T {
   const result = schema.safeParse(body);
@@ -498,6 +530,15 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/lab-tests/next-code", async (_req, res) => {
+    try {
+      const code = await storage.getNextLabTestCode();
+      res.json({ code });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/lab-tests", async (req, res) => {
     try {
       const data = validateBody(insertLabTestSchema, req.body);
@@ -517,6 +558,10 @@ export async function registerRoutes(
         price: z.string().optional(),
         description: z.string().nullable().optional(),
         turnaroundTime: z.string().nullable().optional(),
+        patientId: z.number().nullable().optional(),
+        referrerName: z.string().nullable().optional(),
+        reportFileUrl: z.string().nullable().optional(),
+        reportFileName: z.string().nullable().optional(),
         isActive: z.boolean().optional(),
       });
       const data = validateBody(updateSchema, req.body);
@@ -528,8 +573,43 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/lab-tests/:id/upload-report", reportUpload.single('report'), async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const file = req.file;
+      if (!file) return res.status(400).json({ message: "No file uploaded" });
+      const referrerName = req.body.referrerName || null;
+      const updateData: any = {
+        reportFileUrl: `/api/lab-tests/reports/${file.filename}`,
+        reportFileName: file.originalname,
+      };
+      if (referrerName) updateData.referrerName = referrerName;
+      const test = await storage.updateLabTest(id, updateData);
+      if (!test) return res.status(404).json({ message: "Lab test not found" });
+      res.json(test);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/lab-tests/reports/:filename", (req, res) => {
+    const filePath = path.join(uploadsDir, req.params.filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "File not found" });
+    }
+    res.download(filePath);
+  });
+
   app.delete("/api/lab-tests/:id", async (req, res) => {
     try {
+      const test = await storage.getLabTest(Number(req.params.id));
+      if (test?.reportFileUrl) {
+        const filename = test.reportFileUrl.split('/').pop();
+        if (filename) {
+          const filePath = path.join(uploadsDir, filename);
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        }
+      }
       await storage.deleteLabTest(Number(req.params.id));
       res.json({ message: "Deleted" });
     } catch (err: any) {
