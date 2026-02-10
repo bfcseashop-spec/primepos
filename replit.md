@@ -53,6 +53,7 @@ shared/
 - Seed data auto-populated on first run
 
 ## Recent Changes
+- 2026-02-10: Redesigned Bank Transactions with tabbed interface (Bill Collections/Bank Transactions), payment method summary cards (ABA, Acleda, Cash, Card, WeChat, GPay) with totals/counts/percentages, filterable bill payment records table, 4-card summary stats
 - 2026-02-10: Added New Appointment dialog to OPD Management with patient selection, department, doctor, consultation mode, date/time, reason, notes, payment mode
 - 2026-02-10: Redesigned OPD to patient-centric grid/list view with patient cards (photo, type badge, last visit, gender, location), Add Appointment action, three-dot menu
 - 2026-02-10: Added full-page Patient Registration (/register-patient) with photo upload, personal info (first/last name, DOB, gender, blood type), address/city, patient type, emergency contact, medical history, allergies
