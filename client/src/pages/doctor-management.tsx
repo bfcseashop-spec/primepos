@@ -44,15 +44,13 @@ function saveList(key: string, list: string[]) {
   localStorage.setItem(key, JSON.stringify(list));
 }
 
-const avatarColors = [
-  "bg-pink-100 text-pink-600 dark:bg-pink-900/40 dark:text-pink-300",
-  "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300",
-  "bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-300",
-  "bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300",
-  "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300",
-  "bg-cyan-100 text-cyan-600 dark:bg-cyan-900/40 dark:text-cyan-300",
-  "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300",
-  "bg-teal-100 text-teal-600 dark:bg-teal-900/40 dark:text-teal-300",
+const avatarGradients = [
+  "from-blue-500 to-cyan-400",
+  "from-violet-500 to-purple-400",
+  "from-emerald-500 to-teal-400",
+  "from-pink-500 to-rose-400",
+  "from-amber-500 to-orange-400",
+  "from-indigo-500 to-blue-400",
 ];
 
 export default function DoctorManagementPage() {
@@ -151,7 +149,7 @@ export default function DoctorManagementPage() {
   });
 
   const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
-  const getAvatarColor = (id: number) => avatarColors[id % avatarColors.length];
+  const getAvatarGradient = (id: number) => avatarGradients[id % avatarGradients.length];
 
   const getStatusBadge = (status: string) => {
     if (status === "active") return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20";
@@ -197,7 +195,8 @@ export default function DoctorManagementPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <Button
               size="icon"
-              variant={viewMode === "grid" ? "default" : "outline"}
+              variant="ghost"
+              className={`toggle-elevate ${viewMode === "grid" ? "toggle-elevated" : ""}`}
               onClick={() => setViewMode("grid")}
               data-testid="button-grid-view"
             >
@@ -205,7 +204,8 @@ export default function DoctorManagementPage() {
             </Button>
             <Button
               size="icon"
-              variant={viewMode === "list" ? "default" : "outline"}
+              variant="ghost"
+              className={`toggle-elevate ${viewMode === "list" ? "toggle-elevated" : ""}`}
               onClick={() => setViewMode("list")}
               data-testid="button-list-view"
             >
@@ -241,50 +241,26 @@ export default function DoctorManagementPage() {
       />
       <div className="flex-1 overflow-auto p-4 space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card data-testid="stat-total-doctors">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="rounded-md p-2.5 bg-blue-500/10 dark:bg-blue-400/10">
-              <Users className="h-5 w-5 text-blue-500 dark:text-blue-400" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total Doctors</p>
-              <p className="text-xl font-bold text-blue-500 dark:text-blue-400">{doctors.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card data-testid="stat-active-doctors">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="rounded-md p-2.5 bg-emerald-500/10 dark:bg-emerald-400/10">
-              <CircleCheck className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Active</p>
-              <p className="text-xl font-bold text-emerald-500 dark:text-emerald-400">{doctors.filter(d => d.status === "active").length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card data-testid="stat-onleave-doctors">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="rounded-md p-2.5 bg-amber-500/10 dark:bg-amber-400/10">
-              <CalendarOff className="h-5 w-5 text-amber-500 dark:text-amber-400" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">On Leave</p>
-              <p className="text-xl font-bold text-amber-500 dark:text-amber-400">{doctors.filter(d => d.status === "on_leave").length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card data-testid="stat-inactive-doctors">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="rounded-md p-2.5 bg-red-500/10 dark:bg-red-400/10">
-              <CircleOff className="h-5 w-5 text-red-500 dark:text-red-400" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Inactive</p>
-              <p className="text-xl font-bold text-red-500 dark:text-red-400">{doctors.filter(d => d.status === "inactive").length}</p>
-            </div>
-          </CardContent>
-        </Card>
+        {[
+          { key: "total", label: "Total Doctors", gradient: "from-blue-500 to-blue-600", value: doctors.length, icon: Users },
+          { key: "active", label: "Active", gradient: "from-emerald-500 to-emerald-600", value: doctors.filter(d => d.status === "active").length, icon: CircleCheck },
+          { key: "onleave", label: "On Leave", gradient: "from-amber-500 to-amber-600", value: doctors.filter(d => d.status === "on_leave").length, icon: CalendarOff },
+          { key: "inactive", label: "Inactive", gradient: "from-red-500 to-red-600", value: doctors.filter(d => d.status === "inactive").length, icon: CircleOff },
+        ].map((s) => (
+          <Card key={s.key} data-testid={`stat-${s.key}-doctors`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br ${s.gradient} shrink-0`}>
+                  <s.icon className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{s.label}</p>
+                  <p className="text-xl font-bold">{s.value}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -310,8 +286,10 @@ export default function DoctorManagementPage() {
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map((doc) => (
-            <Card key={doc.id} className="relative" data-testid={`card-doctor-${doc.id}`}>
-              <CardContent className="p-5">
+            <Card key={doc.id} className="overflow-visible hover-elevate" data-testid={`card-doctor-${doc.id}`}>
+              <CardContent className="p-0">
+                <div className="h-1 rounded-t-md bg-gradient-to-r from-blue-500 to-violet-500" />
+                <div className="p-5">
                 <div className="flex items-start justify-between">
                   <Badge className={`no-default-hover-elevate no-default-active-elevate text-xs ${getStatusBadge(doc.status)}`}>
                     {getStatusLabel(doc.status)}
@@ -351,9 +329,9 @@ export default function DoctorManagementPage() {
                 </div>
 
                 <div className="flex flex-col items-center mt-2 mb-3">
-                  <Avatar className={`h-16 w-16 ${getAvatarColor(doc.id)}`}>
+                  <Avatar className="h-16 w-16">
                     {doc.photoUrl && <AvatarImage src={doc.photoUrl} alt={doc.name} />}
-                    <AvatarFallback className="text-lg font-bold bg-transparent">{getInitials(doc.name)}</AvatarFallback>
+                    <AvatarFallback className={`text-lg font-bold bg-gradient-to-br ${getAvatarGradient(doc.id)} text-white`}>{getInitials(doc.name)}</AvatarFallback>
                   </Avatar>
                   <p className="text-xs text-muted-foreground mt-2">{doc.doctorId}</p>
                   <p className="font-semibold text-sm mt-0.5" data-testid={`text-doctor-name-${doc.id}`}>{doc.name}</p>
@@ -410,6 +388,7 @@ export default function DoctorManagementPage() {
                     View Profile
                   </button>
                 </div>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -417,11 +396,13 @@ export default function DoctorManagementPage() {
       ) : (
         <div className="space-y-2">
           {filtered.map((doc) => (
-            <Card key={doc.id} data-testid={`card-doctor-${doc.id}`}>
-              <CardContent className="p-4 flex items-center gap-4 flex-wrap">
-                <Avatar className={`h-12 w-12 ${getAvatarColor(doc.id)}`}>
+            <Card key={doc.id} className="overflow-visible hover-elevate" data-testid={`card-doctor-${doc.id}`}>
+              <CardContent className="p-0">
+                <div className="h-1 rounded-t-md bg-gradient-to-r from-blue-500 to-violet-500" />
+                <div className="p-4 flex items-center gap-4 flex-wrap">
+                <Avatar className="h-12 w-12">
                   {doc.photoUrl && <AvatarImage src={doc.photoUrl} alt={doc.name} />}
-                  <AvatarFallback className="font-bold bg-transparent">{getInitials(doc.name)}</AvatarFallback>
+                  <AvatarFallback className={`font-bold bg-gradient-to-br ${getAvatarGradient(doc.id)} text-white`}>{getInitials(doc.name)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-[150px]">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -479,6 +460,7 @@ export default function DoctorManagementPage() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -495,9 +477,9 @@ export default function DoctorManagementPage() {
               </DialogTitle>
             </DialogHeader>
             <div className="flex flex-col items-center py-4">
-              <Avatar className={`h-20 w-20 ${getAvatarColor(viewingDoctor.id)}`}>
+              <Avatar className="h-20 w-20">
                 {viewingDoctor.photoUrl && <AvatarImage src={viewingDoctor.photoUrl} alt={viewingDoctor.name} />}
-                <AvatarFallback className="text-2xl font-bold bg-transparent">{getInitials(viewingDoctor.name)}</AvatarFallback>
+                <AvatarFallback className={`text-2xl font-bold bg-gradient-to-br ${getAvatarGradient(viewingDoctor.id)} text-white`}>{getInitials(viewingDoctor.name)}</AvatarFallback>
               </Avatar>
               <p className="text-xs text-muted-foreground mt-2">{viewingDoctor.doctorId}</p>
               <p className="text-lg font-bold mt-0.5">{viewingDoctor.name}</p>

@@ -345,10 +345,10 @@ export default function MedicinesPage() {
       Pack: "bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800",
     };
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border ${colors[unit] || colors.Box}`}>
-        <Package className="h-3 w-3" />
+      <Badge variant="outline" className={`text-[11px] no-default-hover-elevate no-default-active-elevate ${colors[unit] || colors.Box}`}>
+        <Package className="h-3 w-3 mr-1" />
         {unit}
-      </span>
+      </Badge>
     );
   };
 
@@ -359,9 +359,9 @@ export default function MedicinesPage() {
     const diffMs = exp.getTime() - now.getTime();
     const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays < 0) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"><X className="h-3 w-3" />Expired</span>;
-    if (diffDays < 90) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"><AlertTriangle className="h-3 w-3" />{date}</span>;
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"><CheckCircle2 className="h-3 w-3" />{date}</span>;
+    if (diffDays < 0) return <Badge variant="outline" className="text-[11px] no-default-hover-elevate no-default-active-elevate bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800"><X className="h-3 w-3 mr-1" />Expired</Badge>;
+    if (diffDays < 90) return <Badge variant="outline" className="text-[11px] no-default-hover-elevate no-default-active-elevate bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"><AlertTriangle className="h-3 w-3 mr-1" />{date}</Badge>;
+    return <Badge variant="outline" className="text-[11px] no-default-hover-elevate no-default-active-elevate bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"><CheckCircle2 className="h-3 w-3 mr-1" />{date}</Badge>;
   };
 
   const columns = [
@@ -403,19 +403,19 @@ export default function MedicinesPage() {
         <div className="flex items-center gap-1.5">
           <span className={`text-sm font-semibold ${isOut ? "text-red-600 dark:text-red-400" : isLow ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>{row.stockCount}</span>
           {isOut && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">
-              <PackageX className="h-3 w-3" /> Out
-            </span>
+            <Badge variant="outline" className="text-[10px] no-default-hover-elevate no-default-active-elevate bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
+              <PackageX className="h-3 w-3 mr-1" /> Out
+            </Badge>
           )}
           {isLow && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-              <AlertTriangle className="h-3 w-3 animate-pulse" /> Low
-            </span>
+            <Badge variant="outline" className="text-[10px] no-default-hover-elevate no-default-active-elevate bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20">
+              <AlertTriangle className="h-3 w-3 mr-1 animate-pulse" /> Low
+            </Badge>
           )}
           {isInStock && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+            <Badge variant="outline" className="text-[10px] no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">
               <CheckCircle2 className="h-3 w-3" />
-            </span>
+            </Badge>
           )}
         </div>
       );
@@ -836,9 +836,9 @@ export default function MedicinesPage() {
                   <span className={`font-bold ${viewMed.stockCount < (viewMed.stockAlert || 10) ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>{viewMed.stockCount}</span>
                 </div>
                 {viewMed.stockCount < (viewMed.stockAlert || 10) && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">
-                    <AlertTriangle className="h-3 w-3" /> Low Stock
-                  </span>
+                  <Badge variant="outline" className="text-[11px] no-default-hover-elevate no-default-active-elevate bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800">
+                    <AlertTriangle className="h-3 w-3 mr-1" /> Low Stock
+                  </Badge>
                 )}
               </div>
             </div>
@@ -910,72 +910,28 @@ export default function MedicinesPage() {
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="medicine-stats">
-          <Card>
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Pill className="h-5 w-5 text-blue-500 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-[11px] text-blue-500 dark:text-blue-400 font-medium uppercase tracking-wide">Total Items</p>
-                <p className="text-xl font-bold text-blue-600 dark:text-blue-400" data-testid="stat-total-meds">{totalMeds}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/10">
-                <PackageCheck className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-[11px] text-emerald-500 dark:text-emerald-400 font-medium uppercase tracking-wide">In Stock</p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-in-stock">{inStock.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-500/10">
-                <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-[11px] text-amber-500 dark:text-amber-400 font-medium uppercase tracking-wide">Low Stock</p>
-                <p className="text-xl font-bold text-amber-600 dark:text-amber-400" data-testid="stat-low-stock">{lowStock.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-red-500/10">
-                <PackageX className="h-5 w-5 text-red-500 dark:text-red-400" />
-              </div>
-              <div>
-                <p className="text-[11px] text-red-500 dark:text-red-400 font-medium uppercase tracking-wide">Out of Stock</p>
-                <p className="text-xl font-bold text-red-600 dark:text-red-400" data-testid="stat-out-stock">{outOfStock.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-violet-500/10">
-                <DollarSign className="h-5 w-5 text-violet-500 dark:text-violet-400" />
-              </div>
-              <div>
-                <p className="text-[11px] text-violet-500 dark:text-violet-400 font-medium uppercase tracking-wide">Purchase Value</p>
-                <p className="text-lg font-bold text-violet-600 dark:text-violet-400" data-testid="stat-purchase-value">${totalPurchaseValue.toFixed(2)}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-cyan-500/10">
-                <TrendingUp className="h-5 w-5 text-cyan-500 dark:text-cyan-400" />
-              </div>
-              <div>
-                <p className="text-[11px] text-cyan-500 dark:text-cyan-400 font-medium uppercase tracking-wide">Sales Value</p>
-                <p className="text-lg font-bold text-cyan-600 dark:text-cyan-400" data-testid="stat-sales-value">${totalSalesValue.toFixed(2)}</p>
-              </div>
-            </CardContent>
-          </Card>
+          {[
+            { key: "total", label: "Total Items", gradient: "from-blue-500 to-blue-600", value: totalMeds, icon: Package, testId: "stat-total-meds" },
+            { key: "in-stock", label: "In Stock", gradient: "from-emerald-500 to-emerald-600", value: inStock.length, icon: PackageCheck, testId: "stat-in-stock" },
+            { key: "low-stock", label: "Low Stock", gradient: "from-amber-500 to-amber-600", value: lowStock.length, icon: AlertTriangle, testId: "stat-low-stock" },
+            { key: "out-stock", label: "Out of Stock", gradient: "from-red-500 to-red-600", value: outOfStock.length, icon: PackageX, testId: "stat-out-stock" },
+            { key: "purchase", label: "Purchase Value", gradient: "from-violet-500 to-violet-600", value: `$${totalPurchaseValue.toFixed(2)}`, icon: DollarSign, testId: "stat-purchase-value" },
+            { key: "sales", label: "Sales Value", gradient: "from-cyan-500 to-cyan-600", value: `$${totalSalesValue.toFixed(2)}`, icon: TrendingUp, testId: "stat-sales-value" },
+          ].map((s) => (
+            <Card key={s.key} data-testid={s.testId}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br ${s.gradient} shrink-0`}>
+                    <s.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{s.label}</p>
+                    <p className="text-xl font-bold">{s.value}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {lowStock.length > 0 && (
@@ -989,10 +945,10 @@ export default function MedicinesPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {lowStock.map(m => (
-                  <span key={m.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">
-                    <ShieldAlert className="h-3 w-3" />
+                  <Badge key={m.id} variant="outline" className="text-xs no-default-hover-elevate no-default-active-elevate bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800">
+                    <ShieldAlert className="h-3 w-3 mr-1" />
                     {m.name} ({m.stockCount} left)
-                  </span>
+                  </Badge>
                 ))}
               </div>
             </CardContent>
@@ -1140,19 +1096,19 @@ export default function MedicinesPage() {
                               {med.stockCount} in stock
                             </span>
                             {med.stockCount === 0 && (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">
-                                <PackageX className="h-2.5 w-2.5" /> Out
-                              </span>
+                              <Badge variant="outline" className="text-[9px] no-default-hover-elevate no-default-active-elevate bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
+                                <PackageX className="h-2.5 w-2.5 mr-0.5" /> Out
+                              </Badge>
                             )}
                             {isLow && med.stockCount > 0 && (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-                                <AlertTriangle className="h-2.5 w-2.5 animate-pulse" /> Low
-                              </span>
+                              <Badge variant="outline" className="text-[9px] no-default-hover-elevate no-default-active-elevate bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20">
+                                <AlertTriangle className="h-2.5 w-2.5 mr-0.5 animate-pulse" /> Low
+                              </Badge>
                             )}
                             {!isLow && med.stockCount > 0 && (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                              <Badge variant="outline" className="text-[9px] no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">
                                 <CheckCircle2 className="h-2.5 w-2.5" />
-                              </span>
+                              </Badge>
                             )}
                           </div>
                           {getExpiryBadge(med.expiryDate)}

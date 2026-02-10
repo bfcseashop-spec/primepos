@@ -87,13 +87,13 @@ function DashboardTab({ profiles, loans, payrollRuns, salaries }: {
     alerts.push({ type: "warning", message: `${formatCurrency(totalPendingSalaries)} in pending salary payments` });
   }
 
-  const kpiCards = [
-    { label: "Active Employees", value: activeEmployees, icon: Users, iconBg: "bg-blue-500/10", iconColor: "text-blue-500 dark:text-blue-400", textColor: "text-blue-500 dark:text-blue-400" },
-    { label: "Monthly Gross Payable", value: formatCurrency(totalGross), icon: CircleDollarSign, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-500 dark:text-emerald-400", textColor: "text-emerald-500 dark:text-emerald-400" },
-    { label: "Outstanding Loans", value: formatCurrency(outstandingLoanTotal), icon: HandCoins, iconBg: "bg-amber-500/10", iconColor: "text-amber-500 dark:text-amber-400", textColor: "text-amber-500 dark:text-amber-400" },
-    { label: "Monthly Loan Deductions", value: formatCurrency(monthlyLoanDeductions), icon: ArrowUpDown, iconBg: "bg-red-500/10", iconColor: "text-red-500 dark:text-red-400", textColor: "text-red-500 dark:text-red-400" },
-    { label: "Total Paid (All Time)", value: formatCurrency(totalPaidSalaries), icon: CheckCircle2, iconBg: "bg-violet-500/10", iconColor: "text-violet-500 dark:text-violet-400", textColor: "text-violet-500 dark:text-violet-400" },
-    { label: "Pending Payments", value: formatCurrency(totalPendingSalaries), icon: Clock, iconBg: "bg-cyan-500/10", iconColor: "text-cyan-500 dark:text-cyan-400", textColor: "text-cyan-500 dark:text-cyan-400" },
+  const statCards = [
+    { key: "active-employees", label: "Active Employees", value: activeEmployees, icon: Users, gradient: "from-blue-500 to-blue-600" },
+    { key: "monthly-gross", label: "Monthly Gross Payable", value: formatCurrency(totalGross), icon: CircleDollarSign, gradient: "from-emerald-500 to-emerald-600" },
+    { key: "outstanding-loans", label: "Outstanding Loans", value: formatCurrency(outstandingLoanTotal), icon: HandCoins, gradient: "from-amber-500 to-amber-600" },
+    { key: "monthly-deductions", label: "Monthly Loan Deductions", value: formatCurrency(monthlyLoanDeductions), icon: ArrowUpDown, gradient: "from-red-500 to-red-600" },
+    { key: "total-paid", label: "Total Paid (All Time)", value: formatCurrency(totalPaidSalaries), icon: CheckCircle2, gradient: "from-violet-500 to-violet-600" },
+    { key: "pending-payments", label: "Pending Payments", value: formatCurrency(totalPendingSalaries), icon: Clock, gradient: "from-cyan-500 to-cyan-600" },
   ];
 
   return (
@@ -116,16 +116,18 @@ function DashboardTab({ profiles, loans, payrollRuns, salaries }: {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {kpiCards.map((kpi) => (
-          <Card key={kpi.label} data-testid={`kpi-card-${kpi.label.replace(/\s+/g, '-').toLowerCase()}`}>
+        {statCards.map((s) => (
+          <Card key={s.key} data-testid={`kpi-card-${s.key}`}>
             <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`p-1.5 rounded-md ${kpi.iconBg}`}>
-                  <kpi.icon className={`h-4 w-4 ${kpi.iconColor}`} />
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br ${s.gradient} shrink-0`}>
+                  <s.icon className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{s.label}</p>
+                  <p className="text-xl font-bold">{s.value}</p>
                 </div>
               </div>
-              <p className={`text-lg font-bold ${kpi.textColor}`}>{kpi.value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{kpi.label}</p>
             </CardContent>
           </Card>
         ))}
@@ -157,7 +159,7 @@ function DashboardTab({ profiles, loans, payrollRuns, salaries }: {
                         <span className="text-muted-foreground">{val.count} staff &middot; {formatCurrency(val.total)}</span>
                       </div>
                       <div className="h-2 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full rounded-full bg-blue-500 dark:bg-blue-400 transition-all" style={{ width: `${(val.total / maxTotal) * 100}%` }} />
+                        <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500 transition-all" style={{ width: `${(val.total / maxTotal) * 100}%` }} />
                       </div>
                     </div>
                   ))}

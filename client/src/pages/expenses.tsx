@@ -51,11 +51,11 @@ function saveExpenseCategories(custom: string[]) {
 function getStatusBadge(status: string | null) {
   switch (status) {
     case "approved":
-      return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">Approved</Badge>;
+      return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 no-default-hover-elevate no-default-active-elevate">Approved</Badge>;
     case "rejected":
-      return <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">Rejected</Badge>;
+      return <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20 no-default-hover-elevate no-default-active-elevate">Rejected</Badge>;
     default:
-      return <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">Pending</Badge>;
+      return <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 no-default-hover-elevate no-default-active-elevate">Pending</Badge>;
   }
 }
 
@@ -262,7 +262,7 @@ export default function ExpensesPage() {
       <span className="font-semibold text-red-600 dark:text-red-400">${Number(row.amount).toFixed(2)}</span>
     )},
     { header: "Method", accessor: (row: Expense) => (
-      <Badge variant="outline" className={getPaymentBadgeClass(row.paymentMethod)}>
+      <Badge variant="outline" className={`${getPaymentBadgeClass(row.paymentMethod)} no-default-hover-elevate no-default-active-elevate`}>
         <span className="flex items-center gap-1.5">
           {getPaymentIcon(row.paymentMethod)}
           <span className="text-xs capitalize">{row.paymentMethod || "cash"}</span>
@@ -442,53 +442,56 @@ export default function ExpensesPage() {
       />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold" data-testid="text-expense-heading">Expense Management</h2>
-          <p className="text-xs text-muted-foreground">Home &gt; Manage &gt; Expense</p>
-        </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Card data-testid="card-total-expenses">
-            <CardContent className="flex items-center justify-between gap-2 p-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Total Expenses</p>
-                <p className="text-xl font-bold text-blue-600 dark:text-blue-400">${totalExpenses.toFixed(2)}</p>
-              </div>
-              <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shrink-0">
+                  <DollarSign className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Expenses</p>
+                  <p className="text-xl font-bold">${totalExpenses.toFixed(2)}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
           <Card data-testid="card-approved-expenses">
-            <CardContent className="flex items-center justify-between gap-2 p-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Approved</p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">${approvedExpenses.toFixed(2)}</p>
-              </div>
-              <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                <CheckCircle2 className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shrink-0">
+                  <CheckCircle2 className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Approved</p>
+                  <p className="text-xl font-bold">${approvedExpenses.toFixed(2)}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
           <Card data-testid="card-pending-expenses">
-            <CardContent className="flex items-center justify-between gap-2 p-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Pending</p>
-                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">${pendingExpenses.toFixed(2)}</p>
-              </div>
-              <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <Clock className="h-5 w-5 text-amber-500 dark:text-amber-400" />
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-amber-500 to-amber-600 shrink-0">
+                  <Clock className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Pending</p>
+                  <p className="text-xl font-bold">${pendingExpenses.toFixed(2)}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
           <Card data-testid="card-categories-count">
-            <CardContent className="flex items-center justify-between gap-2 p-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Categories</p>
-                <p className="text-xl font-bold text-violet-600 dark:text-violet-400">{usedCategories.length}</p>
-              </div>
-              <div className="h-10 w-10 rounded-full bg-violet-500/10 flex items-center justify-center">
-                <FolderPlus className="h-5 w-5 text-violet-500 dark:text-violet-400" />
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600 shrink-0">
+                  <FolderPlus className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Categories</p>
+                  <p className="text-xl font-bold">{usedCategories.length}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -612,7 +615,7 @@ export default function ExpensesPage() {
 
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-lg font-bold text-red-600 dark:text-red-400">${Number(exp.amount).toFixed(2)}</span>
-                      <Badge variant="outline" className={getPaymentBadgeClass(exp.paymentMethod)}>
+                      <Badge variant="outline" className={`${getPaymentBadgeClass(exp.paymentMethod)} no-default-hover-elevate no-default-active-elevate`}>
                         <span className="flex items-center gap-1">
                           {getPaymentIcon(exp.paymentMethod)}
                           <span className="text-xs capitalize">{exp.paymentMethod || "cash"}</span>

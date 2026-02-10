@@ -298,28 +298,22 @@ export default function LabTestsPage() {
   const uniqueCategories = Array.from(new Set(labTests.flatMap(t => t.category.split(",").map(s => s.trim()))));
   const withReports = labTests.filter(t => t.reportFileUrl).length;
 
+  const statusBadgeConfig: Record<string, { dot: string; bg: string; text: string; border: string }> = {
+    processing: { dot: "bg-amber-500", bg: "bg-amber-500/10 dark:bg-amber-400/10", text: "text-amber-700 dark:text-amber-300", border: "border-amber-500/20" },
+    complete: { dot: "bg-emerald-500", bg: "bg-emerald-500/10 dark:bg-emerald-400/10", text: "text-emerald-700 dark:text-emerald-300", border: "border-emerald-500/20" },
+    sample_missing: { dot: "bg-red-500", bg: "bg-red-500/10 dark:bg-red-400/10", text: "text-red-700 dark:text-red-300", border: "border-red-500/20" },
+    cancel: { dot: "bg-slate-500", bg: "bg-slate-500/10 dark:bg-slate-400/10", text: "text-slate-700 dark:text-slate-300", border: "border-slate-500/20" },
+  };
+
   const getStatusBadge = (status: string) => {
     const opt = STATUS_OPTIONS.find(s => s.value === status);
     if (!opt) return <Badge variant="secondary">{status}</Badge>;
-    const icons: Record<string, typeof CheckCircle> = {
-      processing: Loader2,
-      complete: CheckCircle,
-      sample_missing: AlertTriangle,
-      cancel: XCircle,
-    };
-    const statusStyles: Record<string, string> = {
-      processing: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20",
-      complete: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20",
-      sample_missing: "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20",
-      cancel: "bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/20",
-    };
-    const Icon = icons[status] || CheckCircle;
-    const styleClass = statusStyles[status] || "";
+    const style = statusBadgeConfig[status] || statusBadgeConfig.processing;
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${styleClass}`}>
-        <Icon className={`h-3 w-3 ${status === "processing" ? "animate-spin" : ""}`} />
+      <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${style.bg} ${style.text} ${style.border}`}>
+        <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${style.dot}`} />
         {opt.label}
-      </span>
+      </Badge>
     );
   };
 
@@ -752,51 +746,28 @@ export default function LabTestsPage() {
       )}
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card>
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className="p-2 rounded-md bg-blue-500/10">
-                <FlaskConical className="h-5 w-5 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Total Tests</p>
-                <p className="text-xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-total-tests">{labTests.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className="p-2 rounded-md bg-amber-500/10">
-                <Loader2 className="h-5 w-5 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Processing</p>
-                <p className="text-xl font-bold text-amber-600 dark:text-amber-400" data-testid="text-processing-tests">{processingCount}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className="p-2 rounded-md bg-emerald-500/10">
-                <CheckCircle className="h-5 w-5 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Complete</p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="text-complete-tests">{completeCount}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className="p-2 rounded-md bg-rose-500/10">
-                <TestTubes className="h-5 w-5 text-rose-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Categories</p>
-                <p className="text-xl font-bold text-rose-600 dark:text-rose-400" data-testid="text-categories-count">{uniqueCategories.length}</p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[
+            { key: "total", label: "Total Tests", gradient: "from-blue-500 to-blue-600", value: labTests.length, icon: FlaskConical, testId: "text-total-tests" },
+            { key: "processing", label: "Processing", gradient: "from-amber-500 to-amber-600", value: processingCount, icon: Loader2, testId: "text-processing-tests" },
+            { key: "complete", label: "Complete", gradient: "from-emerald-500 to-emerald-600", value: completeCount, icon: CheckCircle, testId: "text-complete-tests" },
+            { key: "reports", label: "With Reports", gradient: "from-violet-500 to-violet-600", value: withReports, icon: FileText, testId: "text-with-reports" },
+            { key: "categories", label: "Categories", gradient: "from-cyan-500 to-cyan-600", value: uniqueCategories.length, icon: TestTubes, testId: "text-categories-count" },
+          ].map((s) => (
+            <Card key={s.key} data-testid={`stat-${s.key}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br ${s.gradient} shrink-0`}>
+                    <s.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{s.label}</p>
+                    <p className="text-xl font-bold" data-testid={s.testId}>{s.value}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         <Card>

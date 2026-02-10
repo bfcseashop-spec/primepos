@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
-import { StatsCard } from "@/components/stats-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,6 +95,7 @@ export default function InvestmentsPage() {
   const totalInvested = investments.reduce((s, i) => s + Number(i.amount), 0);
   const totalReturns = investments.reduce((s, i) => s + Number(i.returnAmount || 0), 0);
   const activeCount = investments.filter(i => i.status === "active").length;
+  const netROI = totalReturns - totalInvested;
 
   const filtered = investments.filter(i =>
     i.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -104,18 +104,18 @@ export default function InvestmentsPage() {
 
   const columns = [
     { header: "Title", accessor: "title" as keyof Investment },
-    { header: "Category", accessor: (row: Investment) => <Badge variant="outline" className="text-violet-600 dark:text-violet-400">{row.category}</Badge> },
+    { header: "Category", accessor: (row: Investment) => <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-violet-600 dark:text-violet-400">{row.category}</Badge> },
     { header: "Amount", accessor: (row: Investment) => <span className="font-medium text-emerald-600 dark:text-emerald-400">${row.amount}</span> },
     { header: "Returns", accessor: (row: Investment) => <span className="font-medium text-emerald-600 dark:text-emerald-400">${row.returnAmount || "0"}</span> },
     { header: "Investor", accessor: (row: Investment) => row.investorName || "-" },
     { header: "Status", accessor: (row: Investment) => (
-      <Badge variant="outline" className={
+      <Badge variant="outline" className={`no-default-hover-elevate no-default-active-elevate ${
         row.status === "active"
           ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
           : row.status === "completed"
           ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
           : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20"
-      }>
+      }`}>
         {row.status}
       </Badge>
     )},
@@ -237,10 +237,62 @@ export default function InvestmentsPage() {
       />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <StatsCard title="Total Invested" value={`$${totalInvested.toFixed(2)}`} icon={DollarSign} iconColor="text-blue-500 dark:text-blue-400" iconBg="bg-blue-500/10 dark:bg-blue-400/10" />
-          <StatsCard title="Total Returns" value={`$${totalReturns.toFixed(2)}`} icon={TrendingUp} iconColor="text-emerald-500 dark:text-emerald-400" iconBg="bg-emerald-500/10 dark:bg-emerald-400/10" />
-          <StatsCard title="Active Investments" value={activeCount} icon={Briefcase} iconColor="text-amber-500 dark:text-amber-400" iconBg="bg-amber-500/10 dark:bg-amber-400/10" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Card data-testid="stat-total-invested">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shrink-0">
+                  <DollarSign className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Invested</p>
+                  <p className="text-xl font-bold">${totalInvested.toFixed(2)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="stat-total-returns">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shrink-0">
+                  <TrendingUp className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Returns</p>
+                  <p className="text-xl font-bold">${totalReturns.toFixed(2)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="stat-active-investments">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-amber-500 to-amber-600 shrink-0">
+                  <Briefcase className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Active Investments</p>
+                  <p className="text-xl font-bold">{activeCount}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="stat-net-roi">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600 shrink-0">
+                  <TrendingUp className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Net ROI</p>
+                  <p className="text-xl font-bold">${netROI.toFixed(2)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <Card>

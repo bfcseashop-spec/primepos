@@ -113,16 +113,16 @@ export default function BankTransactionsPage() {
       const cfg = PAYMENT_METHOD_CONFIG[row.paymentMethod] || { label: row.paymentMethod, icon: Banknote, color: "text-muted-foreground", bgColor: "bg-muted" };
       const Icon = cfg.icon;
       return (
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border ${cfg.bgColor} ${cfg.color}`} data-testid={`badge-method-${row.id}`}>
-          <Icon className="h-3 w-3" />
+        <Badge variant="outline" className={`no-default-hover-elevate no-default-active-elevate ${cfg.bgColor} ${cfg.color} border text-[10px]`} data-testid={`badge-method-${row.id}`}>
+          <Icon className="h-3 w-3 mr-1" />
           {cfg.label}
-        </span>
+        </Badge>
       );
     }},
     { header: "Status", accessor: (row: any) => {
-      if (row.status === "paid") return <Badge variant="default" style={{ backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderColor: "rgba(16, 185, 129, 0.3)" }} className="border text-[10px]" data-testid={`badge-status-${row.id}`}>Paid</Badge>;
-      if (row.status === "partial") return <Badge variant="secondary" style={{ backgroundColor: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", borderColor: "rgba(245, 158, 11, 0.3)" }} className="border text-[10px]" data-testid={`badge-status-${row.id}`}>Partial</Badge>;
-      return <Badge variant="outline" style={{ backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.25)" }} className="border text-[10px]" data-testid={`badge-status-${row.id}`}>Unpaid</Badge>;
+      if (row.status === "paid") return <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[10px]" data-testid={`badge-status-${row.id}`}>Paid</Badge>;
+      if (row.status === "partial") return <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-[10px]" data-testid={`badge-status-${row.id}`}>Partial</Badge>;
+      return <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20 text-[10px]" data-testid={`badge-status-${row.id}`}>Unpaid</Badge>;
     }},
     { header: "Date", accessor: (row: any) => (
       <span className="text-xs text-muted-foreground">{row.paymentDate || "-"}</span>
@@ -141,13 +141,10 @@ export default function BankTransactionsPage() {
             <ArrowUpRight className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
           </div>
         )}
-        <Badge variant={row.type === "deposit" ? "default" : "secondary"}
-          style={row.type === "deposit"
-            ? { backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderColor: "rgba(16, 185, 129, 0.3)" }
-            : { backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.25)" }
-          }
-          className="border"
-        >
+        <Badge variant="outline" className={row.type === "deposit"
+          ? "no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
+          : "no-default-hover-elevate no-default-active-elevate bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
+        }>
           {row.type}
         </Badge>
       </div>
@@ -234,47 +231,55 @@ export default function BankTransactionsPage() {
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {/* Overall Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="bank-summary-stats">
-          <Card>
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/10">
-                <ArrowDownLeft className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Deposits</p>
-                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-deposits">${totalDeposits.toFixed(2)}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-red-500/10">
-                <ArrowUpRight className="h-5 w-5 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Withdrawals</p>
-                <p className="text-lg font-bold text-red-600 dark:text-red-400" data-testid="stat-withdrawals">${totalWithdrawals.toFixed(2)}</p>
+          <Card data-testid="stat-deposits-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shrink-0`}>
+                  <ArrowDownLeft className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Deposits</p>
+                  <p className="text-xl font-bold" data-testid="stat-deposits">${totalDeposits.toFixed(2)}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Landmark className="h-5 w-5 text-blue-500 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Net Balance</p>
-                <p className="text-lg font-bold" data-testid="stat-net-balance">${(totalDeposits - totalWithdrawals).toFixed(2)}</p>
+          <Card data-testid="stat-withdrawals-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-red-500 to-red-600 shrink-0`}>
+                  <ArrowUpRight className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Withdrawals</p>
+                  <p className="text-xl font-bold" data-testid="stat-withdrawals">${totalWithdrawals.toFixed(2)}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-violet-500/10">
-                <Receipt className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+          <Card data-testid="stat-net-balance-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shrink-0`}>
+                  <Landmark className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Net Balance</p>
+                  <p className="text-xl font-bold" data-testid="stat-net-balance">${(totalDeposits - totalWithdrawals).toFixed(2)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Bill Collections</p>
-                <p className="text-lg font-bold text-violet-600 dark:text-violet-400" data-testid="stat-bill-collections">${totalBillCollections.toFixed(2)}</p>
+            </CardContent>
+          </Card>
+          <Card data-testid="stat-bill-collections-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600 shrink-0`}>
+                  <Receipt className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Bill Collections</p>
+                  <p className="text-xl font-bold" data-testid="stat-bill-collections">${totalBillCollections.toFixed(2)}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
