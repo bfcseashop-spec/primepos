@@ -8,6 +8,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LayoutHeader } from "@/components/page-header";
+import { I18nProvider } from "@/i18n";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import OpdPage from "@/pages/opd";
@@ -111,9 +112,11 @@ function App() {
   if (!authChecked) {
     return (
       <ThemeProvider>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-muted-foreground text-sm">Loading...</div>
-        </div>
+        <I18nProvider>
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-muted-foreground text-sm">Loading...</div>
+          </div>
+        </I18nProvider>
       </ThemeProvider>
     );
   }
@@ -121,34 +124,38 @@ function App() {
   if (!currentUser) {
     return (
       <ThemeProvider>
-        <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <SignInPage onLogin={handleLogin} />
-            <Toaster />
-          </TooltipProvider>
-        </QueryClientProvider>
+        <I18nProvider>
+          <QueryClientProvider client={queryClient}>
+            <TooltipProvider>
+              <SignInPage onLogin={handleLogin} />
+              <Toaster />
+            </TooltipProvider>
+          </QueryClientProvider>
+        </I18nProvider>
       </ThemeProvider>
     );
   }
 
   return (
     <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <SidebarProvider style={sidebarStyle as React.CSSProperties}>
-            <div className="flex h-screen w-full">
-              <AppSidebar />
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <LayoutHeader />
-                <main className="flex-1 overflow-hidden">
-                  <Router />
-                </main>
+      <I18nProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <SidebarProvider style={sidebarStyle as React.CSSProperties}>
+              <div className="flex h-screen w-full">
+                <AppSidebar />
+                <div className="flex flex-col flex-1 overflow-hidden">
+                  <LayoutHeader />
+                  <main className="flex-1 overflow-hidden">
+                    <Router />
+                  </main>
+                </div>
               </div>
-            </div>
-          </SidebarProvider>
-          <Toaster />
-        </TooltipProvider>
-      </QueryClientProvider>
+            </SidebarProvider>
+            <Toaster />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </I18nProvider>
     </ThemeProvider>
   );
 }

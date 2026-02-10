@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, TrendingUp, DollarSign, Briefcase, X, Tag } from "lucide-react";
 import type { Investment } from "@shared/schema";
+import { useTranslation } from "@/i18n";
 
 const DEFAULT_INVESTMENT_CATEGORIES = [
   "Equipment", "Real Estate", "Expansion", "Technology",
@@ -30,6 +31,7 @@ function loadCategories(): string[] {
 
 export default function InvestmentsPage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
@@ -104,11 +106,11 @@ export default function InvestmentsPage() {
 
   const columns = [
     { header: "Title", accessor: "title" as keyof Investment },
-    { header: "Category", accessor: (row: Investment) => <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-violet-600 dark:text-violet-400">{row.category}</Badge> },
-    { header: "Amount", accessor: (row: Investment) => <span className="font-medium text-emerald-600 dark:text-emerald-400">${row.amount}</span> },
-    { header: "Returns", accessor: (row: Investment) => <span className="font-medium text-emerald-600 dark:text-emerald-400">${row.returnAmount || "0"}</span> },
-    { header: "Investor", accessor: (row: Investment) => row.investorName || "-" },
-    { header: "Status", accessor: (row: Investment) => (
+    { header: t("common.category"), accessor: (row: Investment) => <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-violet-600 dark:text-violet-400">{row.category}</Badge> },
+    { header: t("common.amount"), accessor: (row: Investment) => <span className="font-medium text-emerald-600 dark:text-emerald-400">${row.amount}</span> },
+    { header: t("investments.totalReturns"), accessor: (row: Investment) => <span className="font-medium text-emerald-600 dark:text-emerald-400">${row.returnAmount || "0"}</span> },
+    { header: t("investments.investorName"), accessor: (row: Investment) => row.investorName || "-" },
+    { header: t("common.status"), accessor: (row: Investment) => (
       <Badge variant="outline" className={`no-default-hover-elevate no-default-active-elevate ${
         row.status === "active"
           ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
@@ -119,21 +121,21 @@ export default function InvestmentsPage() {
         {row.status}
       </Badge>
     )},
-    { header: "Start Date", accessor: "startDate" as keyof Investment },
-    { header: "End Date", accessor: (row: Investment) => row.endDate || "-" },
+    { header: t("common.date"), accessor: "startDate" as keyof Investment },
+    { header: t("investments.returnDate"), accessor: (row: Investment) => row.endDate || "-" },
   ];
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Investment Management"
-        description="Track clinic investments and returns"
+        title={t("investments.title")}
+        description={t("investments.subtitle")}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
           <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-manage-categories">
-                <Tag className="h-4 w-4 mr-1" /> + Category
+                <Tag className="h-4 w-4 mr-1" /> + {t("common.category")}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-sm">
@@ -175,12 +177,12 @@ export default function InvestmentsPage() {
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-new-investment">
-                <Plus className="h-4 w-4 mr-1" /> Add Investment
+                <Plus className="h-4 w-4 mr-1" /> {t("investments.addInvestment")}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Record New Investment</DialogTitle>
+                <DialogTitle>{t("investments.addInvestment")}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-3">
                 <div>
@@ -188,7 +190,7 @@ export default function InvestmentsPage() {
                   <Input id="title" name="title" required data-testid="input-investment-title" />
                 </div>
                 <div>
-                  <Label>Category *</Label>
+                  <Label>{t("common.category")} *</Label>
                   <Select name="category" required>
                     <SelectTrigger data-testid="select-investment-category"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
@@ -200,7 +202,7 @@ export default function InvestmentsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="amount">Amount ($) *</Label>
+                    <Label htmlFor="amount">{t("common.amount")} ($) *</Label>
                     <Input id="amount" name="amount" type="number" step="0.01" required data-testid="input-investment-amount" />
                   </div>
                   <div>
@@ -209,25 +211,25 @@ export default function InvestmentsPage() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="investorName">Investor Name</Label>
+                  <Label htmlFor="investorName">{t("investments.investorName")}</Label>
                   <Input id="investorName" name="investorName" data-testid="input-investment-investor" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="startDate">Start Date *</Label>
+                    <Label htmlFor="startDate">{t("common.date")} *</Label>
                     <Input id="startDate" name="startDate" type="date" required data-testid="input-investment-start" />
                   </div>
                   <div>
-                    <Label htmlFor="endDate">End Date</Label>
+                    <Label htmlFor="endDate">{t("investments.returnDate")}</Label>
                     <Input id="endDate" name="endDate" type="date" data-testid="input-investment-end" />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="notes">{t("common.notes")}</Label>
                   <Textarea id="notes" name="notes" rows={2} data-testid="input-investment-notes" />
                 </div>
                 <Button type="submit" className="w-full" disabled={createMutation.isPending} data-testid="button-submit-investment">
-                  {createMutation.isPending ? "Recording..." : "Record Investment"}
+                  {createMutation.isPending ? "Recording..." : t("investments.addInvestment")}
                 </Button>
               </form>
             </DialogContent>
@@ -245,7 +247,7 @@ export default function InvestmentsPage() {
                   <DollarSign className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Invested</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("investments.totalInvestments")}</p>
                   <p className="text-xl font-bold">${totalInvested.toFixed(2)}</p>
                 </div>
               </div>
@@ -259,7 +261,7 @@ export default function InvestmentsPage() {
                   <TrendingUp className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Returns</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("investments.totalReturns")}</p>
                   <p className="text-xl font-bold">${totalReturns.toFixed(2)}</p>
                 </div>
               </div>
@@ -273,7 +275,7 @@ export default function InvestmentsPage() {
                   <Briefcase className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Active Investments</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("investments.activeInvestments")}</p>
                   <p className="text-xl font-bold">{activeCount}</p>
                 </div>
               </div>
@@ -297,7 +299,7 @@ export default function InvestmentsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-            <CardTitle className="text-sm font-semibold">All Investments</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t("investments.title")}</CardTitle>
             <div className="relative w-64">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input

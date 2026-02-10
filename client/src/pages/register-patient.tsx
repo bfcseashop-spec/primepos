@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import { ArrowLeft, Upload, Camera, Link as LinkIcon, UserCircle, User, Phone, H
 import { useLocation } from "wouter";
 
 export default function RegisterPatientPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -135,11 +137,11 @@ export default function RegisterPatientPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Add Patient"
-        description="Register a new patient"
+        title={t("registerPatient.title")}
+        description={t("registerPatient.subtitle")}
         actions={
           <Button variant="ghost" size="sm" onClick={() => navigate("/opd")} data-testid="button-back-patients">
-            <ArrowLeft className="h-4 w-4 mr-1" /> Back to Patients
+            <ArrowLeft className="h-4 w-4 mr-1" /> {t("common.back")}
           </Button>
         }
       />
@@ -147,7 +149,7 @@ export default function RegisterPatientPage() {
       <div className="flex-1 overflow-auto px-6 pb-6 space-y-4">
         <Card>
           <CardContent className="pt-6">
-            <h2 className="text-base font-semibold border-b pb-2 mb-4 flex items-center gap-2" data-testid="text-section-personal"><User className="h-4 w-4 text-blue-500" /> Personal Information</h2>
+            <h2 className="text-base font-semibold border-b pb-2 mb-4 flex items-center gap-2" data-testid="text-section-personal"><User className="h-4 w-4 text-blue-500" /> {t("registerPatient.personalInfo")}</h2>
 
             <div className="flex flex-col items-center mb-6">
               <div
@@ -170,7 +172,7 @@ export default function RegisterPatientPage() {
               >
                 <p className="text-xs text-muted-foreground mb-1">Drag and drop a photo here, or click to browse</p>
                 <Button variant="outline" size="sm" type="button" disabled={uploading}>
-                  <Upload className="h-3 w-3 mr-1" /> {uploading ? "Uploading..." : "Upload Photo"}
+                  <Upload className="h-3 w-3 mr-1" /> {uploading ? t("common.loading") : t("services.uploadImage")}
                 </Button>
                 <input
                   ref={fileInputRef}
@@ -206,40 +208,40 @@ export default function RegisterPatientPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="firstName">First Name *</Label>
-                <Input id="firstName" placeholder="Enter first name" value={form.firstName} onChange={e => update("firstName", e.target.value)} data-testid="input-first-name" />
+                <Label htmlFor="firstName">{t("registerPatient.firstName")} *</Label>
+                <Input id="firstName" placeholder={t("registerPatient.firstName")} value={form.firstName} onChange={e => update("firstName", e.target.value)} data-testid="input-first-name" />
               </div>
               <div>
-                <Label htmlFor="lastName">Last Name *</Label>
-                <Input id="lastName" placeholder="Enter last name" value={form.lastName} onChange={e => update("lastName", e.target.value)} data-testid="input-last-name" />
+                <Label htmlFor="lastName">{t("registerPatient.lastName")} *</Label>
+                <Input id="lastName" placeholder={t("registerPatient.lastName")} value={form.lastName} onChange={e => update("lastName", e.target.value)} data-testid="input-last-name" />
               </div>
               <div>
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t("common.email")}</Label>
                 <Input id="email" type="email" placeholder="patient@email.com" value={form.email} onChange={e => update("email", e.target.value)} data-testid="input-email" />
               </div>
               <div>
-                <Label htmlFor="phone">Phone Number *</Label>
+                <Label htmlFor="phone">{t("common.phone")} *</Label>
                 <Input id="phone" placeholder="+855 XX XXX XXX" value={form.phone} onChange={e => update("phone", e.target.value)} data-testid="input-phone" />
               </div>
               <div>
-                <Label htmlFor="dob">Date of Birth</Label>
+                <Label htmlFor="dob">{t("registerPatient.dateOfBirth")}</Label>
                 <Input id="dob" type="date" value={form.dateOfBirth} onChange={e => update("dateOfBirth", e.target.value)} data-testid="input-dob" />
               </div>
               <div>
-                <Label>Gender</Label>
+                <Label>{t("registerPatient.gender")}</Label>
                 <Select value={form.gender} onValueChange={v => update("gender", v)}>
-                  <SelectTrigger data-testid="select-gender"><SelectValue placeholder="Select gender" /></SelectTrigger>
+                  <SelectTrigger data-testid="select-gender"><SelectValue placeholder={t("registerPatient.gender")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="male">{t("registerPatient.male")}</SelectItem>
+                    <SelectItem value="female">{t("registerPatient.female")}</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Blood Type</Label>
+                <Label>{t("registerPatient.bloodType")}</Label>
                 <Select value={form.bloodGroup} onValueChange={v => update("bloodGroup", v)}>
-                  <SelectTrigger data-testid="select-blood-type"><SelectValue placeholder="Select blood type" /></SelectTrigger>
+                  <SelectTrigger data-testid="select-blood-type"><SelectValue placeholder={t("registerPatient.bloodType")} /></SelectTrigger>
                   <SelectContent>
                     {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bg => (
                       <SelectItem key={bg} value={bg}>{bg}</SelectItem>
@@ -251,19 +253,19 @@ export default function RegisterPatientPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
-                <Label htmlFor="address">Address</Label>
-                <Input id="address" placeholder="Street address" value={form.address} onChange={e => update("address", e.target.value)} data-testid="input-address" />
+                <Label htmlFor="address">{t("common.address")}</Label>
+                <Input id="address" placeholder={t("common.address")} value={form.address} onChange={e => update("address", e.target.value)} data-testid="input-address" />
               </div>
               <div>
-                <Label htmlFor="city">City</Label>
-                <Input id="city" placeholder="City" value={form.city} onChange={e => update("city", e.target.value)} data-testid="input-city" />
+                <Label htmlFor="city">{t("registerPatient.city")}</Label>
+                <Input id="city" placeholder={t("registerPatient.city")} value={form.city} onChange={e => update("city", e.target.value)} data-testid="input-city" />
               </div>
             </div>
 
             <div className="mt-4">
-              <Label>Patient Type</Label>
+              <Label>{t("opd.patientType")}</Label>
               <Select value={form.patientType} onValueChange={v => update("patientType", v)}>
-                <SelectTrigger data-testid="select-patient-type"><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectTrigger data-testid="select-patient-type"><SelectValue placeholder={t("opd.patientType")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Out Patient">Out Patient</SelectItem>
                   <SelectItem value="In Patient">In Patient</SelectItem>
@@ -276,14 +278,14 @@ export default function RegisterPatientPage() {
 
         <Card>
           <CardContent className="pt-6">
-            <h2 className="text-base font-semibold border-b pb-2 mb-4 flex items-center gap-2" data-testid="text-section-emergency"><AlertTriangle className="h-4 w-4 text-amber-500" /> Emergency Contact</h2>
+            <h2 className="text-base font-semibold border-b pb-2 mb-4 flex items-center gap-2" data-testid="text-section-emergency"><AlertTriangle className="h-4 w-4 text-amber-500" /> {t("registerPatient.emergencyContact")}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="emergencyName">Contact Name</Label>
-                <Input id="emergencyName" placeholder="Emergency contact name" value={form.emergencyContactName} onChange={e => update("emergencyContactName", e.target.value)} data-testid="input-emergency-name" />
+                <Label htmlFor="emergencyName">{t("registerPatient.contactName")}</Label>
+                <Input id="emergencyName" placeholder={t("registerPatient.contactName")} value={form.emergencyContactName} onChange={e => update("emergencyContactName", e.target.value)} data-testid="input-emergency-name" />
               </div>
               <div>
-                <Label htmlFor="emergencyPhone">Contact Phone</Label>
+                <Label htmlFor="emergencyPhone">{t("registerPatient.contactPhone")}</Label>
                 <Input id="emergencyPhone" placeholder="+855 XX XXX XXX" value={form.emergencyContactPhone} onChange={e => update("emergencyContactPhone", e.target.value)} data-testid="input-emergency-phone" />
               </div>
             </div>
@@ -292,14 +294,14 @@ export default function RegisterPatientPage() {
 
         <Card>
           <CardContent className="pt-6">
-            <h2 className="text-base font-semibold border-b pb-2 mb-4 flex items-center gap-2" data-testid="text-section-medical"><Heart className="h-4 w-4 text-violet-500" /> Medical Information</h2>
+            <h2 className="text-base font-semibold border-b pb-2 mb-4 flex items-center gap-2" data-testid="text-section-medical"><Heart className="h-4 w-4 text-violet-500" /> {t("registerPatient.medicalHistory")}</h2>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="medicalHistory">Medical History</Label>
+                <Label htmlFor="medicalHistory">{t("registerPatient.medicalHistory")}</Label>
                 <Textarea id="medicalHistory" placeholder="Previous conditions, surgeries, ongoing treatments..." rows={3} value={form.medicalHistory} onChange={e => update("medicalHistory", e.target.value)} data-testid="input-medical-history" />
               </div>
               <div>
-                <Label htmlFor="allergies">Allergies</Label>
+                <Label htmlFor="allergies">{t("registerPatient.allergies")}</Label>
                 <Textarea id="allergies" placeholder="Known allergies to medications, foods, etc..." rows={3} value={form.allergies} onChange={e => update("allergies", e.target.value)} data-testid="input-allergies" />
               </div>
             </div>
@@ -307,10 +309,10 @@ export default function RegisterPatientPage() {
         </Card>
 
         <div className="flex justify-end gap-3 pb-4">
-          <Button variant="outline" onClick={() => navigate("/opd")} data-testid="button-cancel">Cancel</Button>
+          <Button variant="outline" onClick={() => navigate("/opd")} data-testid="button-cancel">{t("common.cancel")}</Button>
           <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-register-patient">
             <UserCircle className="h-4 w-4 mr-1" />
-            {createMutation.isPending ? "Registering..." : "Register Patient"}
+            {createMutation.isPending ? t("common.creating") : t("registerPatient.registerPatient")}
           </Button>
         </div>
       </div>

@@ -6,7 +6,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Heart, User, Lock, Eye, EyeOff } from "lucide-react";
+import { Heart, User, Lock, Eye, EyeOff, Globe } from "lucide-react";
+import { useTranslation, LANGUAGES, type Language } from "@/i18n";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface SignInPageProps {
   onLogin: (user: any) => void;
@@ -14,6 +21,7 @@ interface SignInPageProps {
 
 export default function SignInPage({ onLogin }: SignInPageProps) {
   const { toast } = useToast();
+  const { t, language, setLanguage } = useTranslation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -24,11 +32,11 @@ export default function SignInPage({ onLogin }: SignInPageProps) {
       return res.json();
     },
     onSuccess: (data) => {
-      toast({ title: "Welcome back!", description: `Signed in as ${data.fullName}` });
+      toast({ title: t("signIn.welcomeBack"), description: `${t("signIn.signedInAs")} ${data.fullName}` });
       onLogin(data);
     },
     onError: (err: any) => {
-      toast({ title: "Sign in failed", description: err.message, variant: "destructive" });
+      toast({ title: t("signIn.signInFailed"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -63,29 +71,48 @@ export default function SignInPage({ onLogin }: SignInPageProps) {
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg mb-4">
             <Heart className="h-10 w-10 text-white" fill="white" />
           </div>
+          <div className="absolute top-4 right-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-1.5 rounded-lg bg-white/20 backdrop-blur-sm px-3 py-1.5 text-white text-sm font-medium" data-testid="button-signin-language">
+                  <Globe className="h-3.5 w-3.5" />
+                  {LANGUAGES.find(l => l.code === language)?.flag}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                {LANGUAGES.map((lang) => (
+                  <DropdownMenuItem key={lang.code} onClick={() => setLanguage(lang.code)} data-testid={`menu-signin-lang-${lang.code}`}>
+                    <span className="text-xs font-bold w-6 text-center">{lang.flag}</span>
+                    <span>{lang.nativeLabel}</span>
+                    {language === lang.code && <span className="ml-auto text-emerald-500">&#10003;</span>}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           <h1 className="text-3xl font-bold text-white tracking-tight" data-testid="text-app-title">
-            ClinicPOS
+            {t("common.appName")}
           </h1>
-          <p className="text-white/70 text-sm mt-1">Clinic Management System</p>
+          <p className="text-white/70 text-sm mt-1">{t("common.appTagline")}</p>
         </div>
 
         <Card className="border-0 shadow-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md">
           <CardContent className="p-8">
             <div className="text-center mb-6">
-              <h2 className="text-xl font-semibold" data-testid="text-sign-in-title">Sign In</h2>
-              <p className="text-sm text-muted-foreground mt-1">Enter your credentials to continue</p>
+              <h2 className="text-xl font-semibold" data-testid="text-sign-in-title">{t("signIn.title")}</h2>
+              <p className="text-sm text-muted-foreground mt-1">{t("signIn.subtitle")}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="signin-username">Username</Label>
+                <Label htmlFor="signin-username">{t("signIn.username")}</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="signin-username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter your username"
+                    placeholder={t("signIn.usernamePlaceholder")}
                     className="pl-10"
                     autoComplete="username"
                     data-testid="input-signin-username"
@@ -94,7 +121,7 @@ export default function SignInPage({ onLogin }: SignInPageProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="signin-password">Password</Label>
+                <Label htmlFor="signin-password">{t("signIn.password")}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -102,7 +129,7 @@ export default function SignInPage({ onLogin }: SignInPageProps) {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder={t("signIn.passwordPlaceholder")}
                     className="pl-10 pr-10"
                     autoComplete="current-password"
                     data-testid="input-signin-password"
@@ -125,14 +152,14 @@ export default function SignInPage({ onLogin }: SignInPageProps) {
                 disabled={!username.trim() || !password.trim() || loginMutation.isPending}
                 data-testid="button-signin"
               >
-                {loginMutation.isPending ? "Signing in..." : "Sign In"}
+                {loginMutation.isPending ? t("signIn.signingIn") : t("signIn.signInButton")}
               </Button>
             </form>
           </CardContent>
         </Card>
 
         <p className="text-center text-white/50 text-xs mt-6">
-          ClinicPOS v1.0 &middot; Clinic Management System
+          {t("common.appName")} {t("common.version")} &middot; {t("common.appTagline")}
         </p>
       </div>
     </div>

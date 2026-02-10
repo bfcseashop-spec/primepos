@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +71,7 @@ const defaultForm = {
 };
 
 export default function ServicesPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editService, setEditService] = useState<Service | null>(null);
@@ -183,11 +185,11 @@ export default function ServicesPage() {
   const getInitials = (name: string) => name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
 
   const statCards = [
-    { label: "Total Services", value: services.length, gradient: "from-blue-500 to-blue-600", icon: Activity },
-    { label: "Active", value: activeCount, gradient: "from-emerald-500 to-emerald-600", icon: CheckCircle2 },
-    { label: "Inactive", value: inactiveCount, gradient: "from-red-500 to-red-600", icon: XCircle },
-    { label: "Categories", value: uniqueCategories.length, gradient: "from-violet-500 to-violet-600", icon: Layers },
-    { label: "Total Value", value: `$${totalValue.toFixed(0)}`, gradient: "from-amber-500 to-amber-600", icon: DollarSign },
+    { label: t("services.totalServices"), value: services.length, gradient: "from-blue-500 to-blue-600", icon: Activity },
+    { label: t("common.active"), value: activeCount, gradient: "from-emerald-500 to-emerald-600", icon: CheckCircle2 },
+    { label: t("common.inactive"), value: inactiveCount, gradient: "from-red-500 to-red-600", icon: XCircle },
+    { label: t("services.categories"), value: uniqueCategories.length, gradient: "from-violet-500 to-violet-600", icon: Layers },
+    { label: t("common.total"), value: `$${totalValue.toFixed(0)}`, gradient: "from-amber-500 to-amber-600", icon: DollarSign },
   ];
 
   const cardTopGradients = [
@@ -203,14 +205,14 @@ export default function ServicesPage() {
     <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
       <div className="space-y-3">
         <div>
-          <Label htmlFor="svc-name">Service Name *</Label>
+          <Label htmlFor="svc-name">{t("services.serviceName")} *</Label>
           <Input id="svc-name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} data-testid="input-service-name" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Category *</Label>
+            <Label>{t("common.category")} *</Label>
             <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-              <SelectTrigger data-testid="select-service-category"><SelectValue placeholder="Select category" /></SelectTrigger>
+              <SelectTrigger data-testid="select-service-category"><SelectValue placeholder={t("common.category")} /></SelectTrigger>
               <SelectContent>
                 {categories.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
@@ -219,12 +221,12 @@ export default function ServicesPage() {
             </Select>
           </div>
           <div>
-            <Label htmlFor="svc-price">Price ($) *</Label>
+            <Label htmlFor="svc-price">{t("common.price")} ($) *</Label>
             <Input id="svc-price" type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} data-testid="input-service-price" />
           </div>
         </div>
         <div>
-          <Label htmlFor="svc-description">Description</Label>
+          <Label htmlFor="svc-description">{t("common.description")}</Label>
           <Textarea id="svc-description" rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} data-testid="input-service-description" />
         </div>
       </div>
@@ -234,7 +236,7 @@ export default function ServicesPage() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-purple-700 dark:text-purple-400">
           <ImagePlus className="h-4 w-4" />
-          Service Image <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
+          {t("services.uploadImage")} <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
         </div>
         <div className="flex items-center gap-3">
           {form.imageUrl ? (
@@ -333,13 +335,13 @@ export default function ServicesPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => setViewService(svc)} className="gap-2" data-testid={`action-view-${svc.id}`}>
-                    <Eye className="h-3.5 w-3.5 text-blue-500" /> View Details
+                    <Eye className="h-3.5 w-3.5 text-blue-500" /> {t("services.viewDetails")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => openEdit(svc)} className="gap-2" data-testid={`action-edit-${svc.id}`}>
-                    <Pencil className="h-3.5 w-3.5 text-amber-500" /> Edit
+                    <Pencil className="h-3.5 w-3.5 text-amber-500" /> {t("common.edit")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setDeleteService(svc)} className="text-destructive gap-2" data-testid={`action-delete-${svc.id}`}>
-                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                    <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -366,7 +368,7 @@ export default function ServicesPage() {
                 data-testid={`badge-status-${svc.id}`}
               >
                 <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${svc.isActive ? "bg-emerald-500" : "bg-red-500"}`} />
-                {svc.isActive ? "Active" : "Inactive"}
+                {svc.isActive ? t("common.active") : t("common.inactive")}
               </Badge>
             </div>
           </div>
@@ -414,7 +416,7 @@ export default function ServicesPage() {
                 }`}
               >
                 <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${svc.isActive ? "bg-emerald-500" : "bg-red-500"}`} />
-                {svc.isActive ? "Active" : "Inactive"}
+                {svc.isActive ? t("common.active") : t("common.inactive")}
               </Badge>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -424,13 +426,13 @@ export default function ServicesPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => setViewService(svc)} className="gap-2" data-testid={`action-view-${svc.id}`}>
-                    <Eye className="h-3.5 w-3.5 text-blue-500" /> View Details
+                    <Eye className="h-3.5 w-3.5 text-blue-500" /> {t("services.viewDetails")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => openEdit(svc)} className="gap-2" data-testid={`action-edit-${svc.id}`}>
-                    <Pencil className="h-3.5 w-3.5 text-amber-500" /> Edit
+                    <Pencil className="h-3.5 w-3.5 text-amber-500" /> {t("common.edit")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setDeleteService(svc)} className="text-destructive gap-2" data-testid={`action-delete-${svc.id}`}>
-                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                    <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -444,14 +446,14 @@ export default function ServicesPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Service Management"
-        description="Manage consultation fees, test costs, and other services"
+        title={t("services.title")}
+        description={t("services.subtitle")}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" data-testid="button-category-manage">
-                  <FolderPlus className="h-4 w-4 mr-1" /> Category
+                  <FolderPlus className="h-4 w-4 mr-1" /> {t("common.category")}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-sm">
@@ -535,17 +537,17 @@ export default function ServicesPage() {
             <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setForm(defaultForm); }}>
               <DialogTrigger asChild>
                 <Button data-testid="button-new-service">
-                  <Plus className="h-4 w-4 mr-1" /> New Service
+                  <Plus className="h-4 w-4 mr-1" /> {t("services.addService")}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Add New Service</DialogTitle>
-                  <DialogDescription>Fill in the details to add a new service</DialogDescription>
+                  <DialogTitle>{t("services.addService")}</DialogTitle>
+                  <DialogDescription>{t("services.subtitle")}</DialogDescription>
                 </DialogHeader>
                 {formContent}
                 <Button className="w-full" onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-service">
-                  {createMutation.isPending ? "Creating..." : "Add Service"}
+                  {createMutation.isPending ? t("common.creating") : t("services.addService")}
                 </Button>
               </DialogContent>
             </Dialog>
@@ -591,7 +593,7 @@ export default function ServicesPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="all">{t("common.all")} {t("services.categories")}</SelectItem>
                     {uniqueCategories.map(cat => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
@@ -650,7 +652,7 @@ export default function ServicesPage() {
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
                 <Stethoscope className="h-8 w-8 text-muted-foreground/50" />
               </div>
-              <p className="text-sm font-medium text-muted-foreground">No services found</p>
+              <p className="text-sm font-medium text-muted-foreground">{t("common.noData")}</p>
               <p className="text-xs text-muted-foreground/70 mt-1">Add your first service to get started</p>
             </CardContent>
           </Card>
@@ -668,8 +670,8 @@ export default function ServicesPage() {
       <Dialog open={!!viewService} onOpenChange={(open) => { if (!open) setViewService(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle data-testid="text-view-service-title">Service Details</DialogTitle>
-            <DialogDescription>Full service information</DialogDescription>
+            <DialogTitle data-testid="text-view-service-title">{t("services.viewDetails")}</DialogTitle>
+            <DialogDescription>{t("services.subtitle")}</DialogDescription>
           </DialogHeader>
           {viewService && (() => {
             const catColor = getCatColor(viewService.category);
@@ -702,7 +704,7 @@ export default function ServicesPage() {
                       <DollarSign className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">Price</p>
+                      <p className="text-[10px] text-muted-foreground">{t("common.price")}</p>
                       <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">${viewService.price}</p>
                     </div>
                   </div>
@@ -711,7 +713,7 @@ export default function ServicesPage() {
                       <Activity className="h-4 w-4 text-blue-500 dark:text-blue-400" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">Status</p>
+                      <p className="text-[10px] text-muted-foreground">{t("common.status")}</p>
                       <Badge
                         variant="outline"
                         className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${
@@ -721,7 +723,7 @@ export default function ServicesPage() {
                         }`}
                       >
                         <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${viewService.isActive ? "bg-emerald-500" : "bg-red-500"}`} />
-                        {viewService.isActive ? "Active" : "Inactive"}
+                        {viewService.isActive ? t("common.active") : t("common.inactive")}
                       </Badge>
                     </div>
                   </div>
@@ -730,7 +732,7 @@ export default function ServicesPage() {
                       <Tag className="h-4 w-4 text-violet-500 dark:text-violet-400" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">Category</p>
+                      <p className="text-[10px] text-muted-foreground">{t("common.category")}</p>
                       <p className="text-sm font-medium">{viewService.category}</p>
                     </div>
                   </div>
@@ -739,7 +741,7 @@ export default function ServicesPage() {
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
                       <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Description</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{t("common.description")}</p>
                     </div>
                     <p className="text-sm bg-muted/50 rounded-md p-2.5">{viewService.description}</p>
                   </div>
@@ -749,10 +751,10 @@ export default function ServicesPage() {
                     setViewService(null);
                     openEdit(viewService);
                   }} data-testid="button-view-to-edit">
-                    <Pencil className="h-4 w-4 mr-1 text-amber-500" /> Edit
+                    <Pencil className="h-4 w-4 mr-1 text-amber-500" /> {t("common.edit")}
                   </Button>
                   <Button variant="outline" onClick={() => setViewService(null)} data-testid="button-close-view">
-                    Close
+                    {t("common.close")}
                   </Button>
                 </div>
               </div>
@@ -764,12 +766,12 @@ export default function ServicesPage() {
       <Dialog open={!!editService} onOpenChange={(open) => { if (!open) { setEditService(null); setForm(defaultForm); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle data-testid="text-edit-service-title">Edit Service</DialogTitle>
-            <DialogDescription>Update the service details</DialogDescription>
+            <DialogTitle data-testid="text-edit-service-title">{t("services.editService")}</DialogTitle>
+            <DialogDescription>{t("services.subtitle")}</DialogDescription>
           </DialogHeader>
           {formContent}
           <Button className="w-full" onClick={handleSubmit} disabled={updateMutation.isPending} data-testid="button-update-service">
-            {updateMutation.isPending ? "Updating..." : "Update Service"}
+            {updateMutation.isPending ? t("common.updating") : t("common.update")}
           </Button>
         </DialogContent>
       </Dialog>
@@ -777,19 +779,19 @@ export default function ServicesPage() {
       <AlertDialog open={!!deleteService} onOpenChange={(open) => { if (!open) setDeleteService(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle data-testid="text-delete-confirm-title">Delete Service</AlertDialogTitle>
+            <AlertDialogTitle data-testid="text-delete-confirm-title">{t("services.deleteService")}</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete <span className="font-semibold">{deleteService?.name}</span>? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteService && deleteMutation.mutate(deleteService.id)}
               className="bg-destructive text-destructive-foreground"
               data-testid="button-confirm-delete"
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteMutation.isPending ? t("common.loading") : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

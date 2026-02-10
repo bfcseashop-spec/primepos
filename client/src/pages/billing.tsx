@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
@@ -99,6 +100,7 @@ function getDateRange(preset: DatePreset): { from: Date; to: Date } | null {
 }
 
 export default function BillingPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -165,10 +167,10 @@ export default function BillingPage() {
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; icon: typeof CheckCircle2 }> = {
-      paid: { variant: "default", label: "Paid", icon: CheckCircle2 },
-      partial: { variant: "secondary", label: "Partial", icon: Clock },
-      pending: { variant: "outline", label: "Pending", icon: Clock },
-      cancelled: { variant: "destructive", label: "Cancelled", icon: X },
+      paid: { variant: "default", label: t("billing.paid"), icon: CheckCircle2 },
+      partial: { variant: "secondary", label: t("billing.partial"), icon: Clock },
+      pending: { variant: "outline", label: t("billing.pending"), icon: Clock },
+      cancelled: { variant: "destructive", label: t("billing.cancelled"), icon: X },
     };
     const cfg = statusMap[status] || { variant: "destructive" as const, label: "Unpaid", icon: X };
     const StatusIcon = cfg.icon;
@@ -479,32 +481,32 @@ export default function BillingPage() {
   const pendingCount = dateFilteredBills.filter((b: any) => b.status !== "paid").length;
 
   const billColumns = [
-    { header: "Bill #", accessor: (row: any) => (
+    { header: t("billing.billNo"), accessor: (row: any) => (
       <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">{row.billNo}</span>
     )},
-    { header: "Patient", accessor: (row: any) => (
+    { header: t("billing.patient"), accessor: (row: any) => (
       <span className="font-medium text-sm">{row.patientName}</span>
     )},
-    { header: "Items", accessor: (row: any) => {
+    { header: t("common.quantity"), accessor: (row: any) => {
       const items = Array.isArray(row.items) ? row.items : [];
       return <Badge variant="secondary" className="text-[11px]">{items.length} items</Badge>;
     }},
-    { header: "Total", accessor: (row: any) => <span className="font-semibold text-sm text-emerald-600 dark:text-emerald-400">{formatDualCurrency(Number(row.total), settings)}</span> },
-    { header: "Paid", accessor: (row: any) => (
+    { header: t("common.total"), accessor: (row: any) => <span className="font-semibold text-sm text-emerald-600 dark:text-emerald-400">{formatDualCurrency(Number(row.total), settings)}</span> },
+    { header: t("billing.paid"), accessor: (row: any) => (
       <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">{formatDualCurrency(Number(row.paidAmount), settings)}</span>
     )},
-    { header: "Method", accessor: (row: any) => getPaymentBadge(row.paymentMethod) },
-    { header: "Doctor", accessor: (row: any) => (
+    { header: t("billing.paymentMethod"), accessor: (row: any) => getPaymentBadge(row.paymentMethod) },
+    { header: t("dashboard.doctor"), accessor: (row: any) => (
       row.referenceDoctor
         ? <span className="text-xs font-medium">{row.referenceDoctor}</span>
         : <span className="text-xs text-muted-foreground">-</span>
     )},
-    { header: "Status", accessor: (row: any) => getStatusBadge(row.status) },
-    { header: "Date", accessor: (row: any) => {
+    { header: t("common.status"), accessor: (row: any) => getStatusBadge(row.status) },
+    { header: t("common.date"), accessor: (row: any) => {
       const d = row.paymentDate || (row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-");
       return <span className="text-xs text-muted-foreground">{d}</span>;
     }},
-    { header: "Actions", accessor: (row: any) => (
+    { header: t("common.actions"), accessor: (row: any) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" data-testid={`button-actions-${row.id}`} onClick={(e) => e.stopPropagation()}>
@@ -513,16 +515,16 @@ export default function BillingPage() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewBill(row); }} data-testid={`action-view-${row.id}`} className="gap-2">
-            <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" /> View Invoice
+            <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" /> {t("common.view")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printReceipt(row); }} data-testid={`action-print-${row.id}`} className="gap-2">
-            <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" /> Print
+            <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" /> {t("common.print")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditBill(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
-            <Pencil className="h-4 w-4 text-amber-500 dark:text-amber-400" /> Edit
+            <Pencil className="h-4 w-4 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (confirm("Are you sure you want to delete this bill?")) deleteBillMutation.mutate(row.id); }} className="text-red-600 dark:text-red-400 gap-2" data-testid={`action-delete-${row.id}`}>
-            <Trash2 className="h-4 w-4" /> Delete
+            <Trash2 className="h-4 w-4" /> {t("common.delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -532,19 +534,19 @@ export default function BillingPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Make Payment (POS)"
-        description="Manage patient bills and invoices"
+        title={t("billing.title")}
+        description={t("billing.subtitle")}
         actions={
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button data-testid="button-new-bill">
-                <Plus className="h-4 w-4 mr-1" /> New Bill
+                <Plus className="h-4 w-4 mr-1" /> {t("billing.createBill")}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{showPreview ? "Invoice Preview" : "Create New Bill"}</DialogTitle>
-                <DialogDescription>{showPreview ? "Review the invoice before printing." : "Add services, medicines and payment details for the bill."}</DialogDescription>
+                <DialogTitle>{showPreview ? t("billing.invoice") : t("billing.createBill")}</DialogTitle>
+                <DialogDescription>{showPreview ? t("billing.invoice") : t("billing.subtitle")}</DialogDescription>
               </DialogHeader>
 
               {showPreview ? (
@@ -562,17 +564,17 @@ export default function BillingPage() {
                         {settings?.email && <p className="text-[10px] text-muted-foreground">{settings.email}</p>}
                       </div>
                       <div className="text-right">
-                        <h3 className="text-xl font-extrabold tracking-wide">INVOICE</h3>
+                        <h3 className="text-xl font-extrabold tracking-wide">{t("billing.invoice")}</h3>
                         <p className="text-xs text-muted-foreground mt-1">Invoice #: <span className="font-semibold text-foreground">{settings?.invoicePrefix || "INV"}-{String(bills.length + 1).padStart(4, "0")}</span></p>
                         <p className="text-xs text-muted-foreground">Date: {new Date(paymentDate || new Date()).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
-                        <Badge className="mt-1.5 bg-amber-500 text-white border-amber-600">Pending</Badge>
+                        <Badge className="mt-1.5 bg-amber-500 text-white border-amber-600">{t("billing.pending")}</Badge>
                       </div>
                     </div>
 
                     {/* Patient & Details */}
                     <div className="grid grid-cols-2 gap-0 rounded-md border bg-muted/30 mb-4">
                       <div className="p-3">
-                        <p className="text-[10px] uppercase text-blue-600 dark:text-blue-400 font-semibold tracking-wide mb-1">Patient</p>
+                        <p className="text-[10px] uppercase text-blue-600 dark:text-blue-400 font-semibold tracking-wide mb-1">{t("billing.patient")}</p>
                         <p className="text-sm font-semibold">{patients.find(p => p.id === Number(selectedPatient))?.name || "-"}</p>
                         {(() => { const p = patients.find(pt => pt.id === Number(selectedPatient)); return p ? (
                           <>
@@ -614,11 +616,11 @@ export default function BillingPage() {
                     <div className="flex justify-end mb-4">
                       <div className="w-64 space-y-1 text-sm">
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">Subtotal</span>
+                          <span className="text-muted-foreground">{t("common.subtotal")}</span>
                           <span className="text-right text-emerald-600 dark:text-emerald-400">{formatDualCurrency(subtotal, settings)}</span>
                         </div>
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">Discount{discountType === "percentage" ? ` (${Number(discount) || 0}%)` : ""}</span>
+                          <span className="text-muted-foreground">{t("billing.discount")}{discountType === "percentage" ? ` (${Number(discount) || 0}%)` : ""}</span>
                           <span className="text-right text-red-500">-{formatDualCurrency(discountAmount, settings)}</span>
                         </div>
                         <Separator />
@@ -627,12 +629,12 @@ export default function BillingPage() {
                           return (
                             <>
                               <div className="flex justify-between gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-base pt-0.5">
-                                <span>Grand Total</span>
+                                <span>{t("billing.grandTotal")}</span>
                                 <span className="text-right">{primaryStr}</span>
                               </div>
                               {secondaryStr && (
                                 <div className="flex justify-between gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-base">
-                                  <span>Grand Total</span>
+                                  <span>{t("billing.grandTotal")}</span>
                                   <span className="text-right">{secondaryStr}</span>
                                 </div>
                               )}
@@ -644,9 +646,9 @@ export default function BillingPage() {
 
                     {/* Payment Information */}
                     <div className="rounded-md bg-violet-500/10 border border-violet-500/20 p-3 mb-4">
-                      <p className="text-[10px] uppercase text-violet-700 dark:text-violet-400 font-semibold tracking-wide mb-1">Payment Information</p>
+                      <p className="text-[10px] uppercase text-violet-700 dark:text-violet-400 font-semibold tracking-wide mb-1">{t("billing.paymentMethod")}</p>
                       <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || "Prime Clinic"}.</p>
-                      <p className="text-[11px] text-muted-foreground mt-1">Amount: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatDualCurrency(total, settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(paymentMethod)}</span></p>
+                      <p className="text-[11px] text-muted-foreground mt-1">{t("common.amount")}: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatDualCurrency(total, settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(paymentMethod)}</span></p>
                     </div>
 
                     {/* Footer */}
@@ -664,7 +666,7 @@ export default function BillingPage() {
                       data-testid="button-back-to-form"
                     >
                       <ArrowLeft className="h-4 w-4 mr-1.5" />
-                      Back to Edit
+                      {t("common.back")}
                     </Button>
                     <Button
                       onClick={() => { setBillAction("print"); handleCreateBill(); }}
@@ -673,7 +675,7 @@ export default function BillingPage() {
                       data-testid="button-confirm-print"
                     >
                       <Printer className="h-4 w-4 mr-1.5" />
-                      {createBillMutation.isPending ? "Printing..." : "Confirm & Print"}
+                      {createBillMutation.isPending ? t("common.loading") : t("billing.printInvoice")}
                     </Button>
                   </div>
                 </div>
@@ -681,9 +683,9 @@ export default function BillingPage() {
 
               <div className="space-y-4">
                 <div>
-                  <Label>Patient *</Label>
+                  <Label>{t("billing.patient")} *</Label>
                   <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-                    <SelectTrigger data-testid="select-bill-patient"><SelectValue placeholder="Select patient" /></SelectTrigger>
+                    <SelectTrigger data-testid="select-bill-patient"><SelectValue placeholder={t("billing.selectPatient")} /></SelectTrigger>
                     <SelectContent>
                       {patients.map(p => (
                         <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.patientId})</SelectItem>
@@ -694,9 +696,9 @@ export default function BillingPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>Add Service</Label>
+                    <Label>{t("billing.services")}</Label>
                     <Select onValueChange={addServiceItem}>
-                      <SelectTrigger data-testid="select-add-service"><SelectValue placeholder="Select service" /></SelectTrigger>
+                      <SelectTrigger data-testid="select-add-service"><SelectValue placeholder={t("billing.selectService")} /></SelectTrigger>
                       <SelectContent>
                         {services.filter(s => s.isActive).map(s => (
                           <SelectItem key={s.id} value={String(s.id)}>{s.name} - ${s.price}</SelectItem>
@@ -705,9 +707,9 @@ export default function BillingPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label>Add Medicine</Label>
+                    <Label>{t("billing.medicines")}</Label>
                     <Select onValueChange={addMedicineItem}>
-                      <SelectTrigger data-testid="select-add-medicine"><SelectValue placeholder="Select medicine" /></SelectTrigger>
+                      <SelectTrigger data-testid="select-add-medicine"><SelectValue placeholder={t("billing.selectMedicine")} /></SelectTrigger>
                       <SelectContent>
                         {medicines.filter(m => m.isActive).map(m => (
                           <SelectItem key={m.id} value={String(m.id)}>{m.name} - ${m.sellingPrice}</SelectItem>
@@ -758,7 +760,7 @@ export default function BillingPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>Discount</Label>
+                    <Label>{t("billing.discount")}</Label>
                     <div className="flex gap-1">
                       <Input
                         type="number"
@@ -789,7 +791,7 @@ export default function BillingPage() {
                     </div>
                   </div>
                   <div>
-                    <Label>Payment Method</Label>
+                    <Label>{t("billing.paymentMethod")}</Label>
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                       <SelectTrigger data-testid="select-payment-method"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -803,7 +805,7 @@ export default function BillingPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>Reference Doctor <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                    <Label>{t("dashboard.doctor")} <span className="text-xs text-muted-foreground">(optional)</span></Label>
                     <Select value={referenceDoctor} onValueChange={setReferenceDoctor}>
                       <SelectTrigger data-testid="select-reference-doctor"><SelectValue placeholder="Select doctor" /></SelectTrigger>
                       <SelectContent>
@@ -815,7 +817,7 @@ export default function BillingPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label>Date of Payment <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                    <Label>{t("billing.billDate")} <span className="text-xs text-muted-foreground">(optional)</span></Label>
                     <Input
                       type="date"
                       value={paymentDate}
@@ -827,12 +829,12 @@ export default function BillingPage() {
 
                 <div className="bg-gradient-to-r from-blue-500/5 to-violet-500/5 dark:from-blue-500/10 dark:to-violet-500/10 rounded-md p-3 space-y-1 border border-blue-500/20">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
+                    <span className="text-muted-foreground">{t("common.subtotal")}</span>
                     <span className="text-emerald-600 dark:text-emerald-400">{formatDualCurrency(subtotal, settings)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      Discount{discountType === "percentage" ? ` (${discountValue}%)` : ""}
+                      {t("billing.discount")}{discountType === "percentage" ? ` (${discountValue}%)` : ""}
                     </span>
                     <span className="text-red-500">-{formatDualCurrency(discountAmount, settings)}</span>
                   </div>
@@ -842,12 +844,12 @@ export default function BillingPage() {
                     return (
                       <>
                         <div className="flex justify-between font-bold text-base text-emerald-700 dark:text-emerald-400">
-                          <span>Grand Total</span>
+                          <span>{t("billing.grandTotal")}</span>
                           <span>{primaryStr}</span>
                         </div>
                         {secondaryStr && (
                           <div className="flex justify-between font-bold text-base text-emerald-700 dark:text-emerald-400">
-                            <span>Grand Total</span>
+                            <span>{t("billing.grandTotal")}</span>
                             <span>{secondaryStr}</span>
                           </div>
                         )}
@@ -864,7 +866,7 @@ export default function BillingPage() {
                     data-testid="button-submit-bill"
                   >
                     <FileText className="h-4 w-4 mr-1.5" />
-                    {createBillMutation.isPending && billAction === "create" ? "Creating..." : "Create Bill"}
+                    {createBillMutation.isPending && billAction === "create" ? t("common.creating") : t("billing.createBill")}
                   </Button>
                   <Button
                     onClick={() => {
@@ -879,7 +881,7 @@ export default function BillingPage() {
                     data-testid="button-print-receipt"
                   >
                     <Printer className="h-4 w-4 mr-1.5" />
-                    Print Receipt
+                    {t("billing.printInvoice")}
                   </Button>
                   <Button
                     onClick={() => { setBillAction("payment"); handleCreateBill(); }}
@@ -888,7 +890,7 @@ export default function BillingPage() {
                     data-testid="button-make-payment"
                   >
                     <CreditCard className="h-4 w-4 mr-1.5" />
-                    {createBillMutation.isPending && billAction === "payment" ? "Processing..." : "Make Payment"}
+                    {createBillMutation.isPending && billAction === "payment" ? t("common.loading") : t("billing.title")}
                   </Button>
                 </div>
               </div>
@@ -906,8 +908,8 @@ export default function BillingPage() {
                 <Receipt className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-white">Point of Sale</h2>
-                <p className="text-blue-100 text-xs">Manage billing, invoices and payments</p>
+                <h2 className="text-lg font-bold text-white">{t("billing.title")}</h2>
+                <p className="text-blue-100 text-xs">{t("billing.subtitle")}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -917,7 +919,7 @@ export default function BillingPage() {
               </div>
               <div className="flex items-center gap-1.5 rounded-md bg-white/15 backdrop-blur-sm px-3 py-1.5">
                 <FileText className="h-3.5 w-3.5 text-blue-200" />
-                <span className="text-sm text-white font-semibold" data-testid="stat-total-bills">{bills.length} Bills</span>
+                <span className="text-sm text-white font-semibold" data-testid="stat-total-bills">{bills.length} {t("billing.totalBills")}</span>
               </div>
             </div>
           </div>
@@ -930,7 +932,7 @@ export default function BillingPage() {
                 <Receipt className="h-5 w-5 text-blue-500 dark:text-blue-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Bills</p>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("billing.totalBills")}</p>
                 <p className="text-xl font-bold text-blue-700 dark:text-blue-300 tabular-nums">{bills.length}</p>
               </div>
             </CardContent>
@@ -941,7 +943,7 @@ export default function BillingPage() {
                 <TrendingUp className="h-5 w-5 text-violet-500 dark:text-violet-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Paid</p>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("billing.paid")}</p>
                 <p className="text-xl font-bold text-violet-700 dark:text-violet-300 tabular-nums">{formatDualCurrency(totalPaid, settings)}</p>
               </div>
             </CardContent>
@@ -952,7 +954,7 @@ export default function BillingPage() {
                 <CheckCircle2 className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Paid</p>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("billing.paidBills")}</p>
                 <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300 tabular-nums" data-testid="stat-paid">{paidCount}</p>
               </div>
             </CardContent>
@@ -963,7 +965,7 @@ export default function BillingPage() {
                 <Clock className="h-5 w-5 text-amber-500 dark:text-amber-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Pending</p>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("billing.pending")}</p>
                 <p className="text-xl font-bold text-amber-700 dark:text-amber-300 tabular-nums" data-testid="stat-pending">{pendingCount}</p>
               </div>
             </CardContent>
@@ -975,9 +977,9 @@ export default function BillingPage() {
           <CardContent className="p-3">
             <div className="flex items-center gap-2 flex-wrap">
               <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-xs font-medium text-muted-foreground shrink-0">Filter by:</span>
+              <span className="text-xs font-medium text-muted-foreground shrink-0">{t("common.filter")}:</span>
               {([
-                { key: "all", label: "All" },
+                { key: "all", label: t("common.all") },
                 { key: "today", label: "Today" },
                 { key: "yesterday", label: "Yesterday" },
                 { key: "this_week", label: "This Week" },
@@ -1031,7 +1033,7 @@ export default function BillingPage() {
           <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
             <div className="flex items-center gap-2 flex-wrap">
               <FileText className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-sm font-semibold">All Bills</CardTitle>
+              <CardTitle className="text-sm font-semibold">{t("billing.totalBills")}</CardTitle>
               <Badge variant="secondary" className="text-[10px]">{filteredBills.length}</Badge>
             </div>
             <div className="relative w-64">
@@ -1055,8 +1057,8 @@ export default function BillingPage() {
       <Dialog open={!!viewBill} onOpenChange={(open) => { if (!open) setViewBill(null); }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Invoice - {viewBill?.billNo}</DialogTitle>
-            <DialogDescription>View invoice details</DialogDescription>
+            <DialogTitle>{t("billing.invoice")} - {viewBill?.billNo}</DialogTitle>
+            <DialogDescription>{t("billing.subtitle")}</DialogDescription>
           </DialogHeader>
           {viewBill && (() => {
             const patient = patients.find(p => p.id === viewBill.patientId);
@@ -1077,18 +1079,18 @@ export default function BillingPage() {
                       {settings?.email && <p className="text-[10px] text-muted-foreground">{settings.email}</p>}
                     </div>
                     <div className="text-right">
-                      <h3 className="text-xl font-extrabold tracking-wide">INVOICE</h3>
+                      <h3 className="text-xl font-extrabold tracking-wide">{t("billing.invoice")}</h3>
                       <p className="text-xs text-muted-foreground mt-1">Invoice #: <span className="font-semibold text-foreground">{viewBill.billNo}</span></p>
-                      <p className="text-xs text-muted-foreground">Date: {new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+                      <p className="text-xs text-muted-foreground">{t("common.date")}: {new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
                       <Badge className={`mt-1.5 ${viewBill.status === "paid" ? "bg-emerald-600 border-emerald-700" : "bg-amber-500 border-amber-600"} text-white`}>
-                        {viewBill.status === "paid" ? "Paid" : "Pending"}
+                        {viewBill.status === "paid" ? t("billing.paid") : t("billing.pending")}
                       </Badge>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-0 rounded-md border bg-muted/30 mb-4">
                     <div className="p-3">
-                      <p className="text-[10px] uppercase text-blue-600 dark:text-blue-400 font-semibold tracking-wide mb-1">Patient</p>
+                      <p className="text-[10px] uppercase text-blue-600 dark:text-blue-400 font-semibold tracking-wide mb-1">{t("billing.patient")}</p>
                       <p className="text-sm font-semibold">{viewBill.patientName || patient?.name || "-"}</p>
                       {patient?.patientId && <p className="text-[11px] text-muted-foreground">ID: {patient.patientId}</p>}
                       {patient?.gender && <p className="text-[11px] text-muted-foreground">Gender: {patient.gender}</p>}
@@ -1103,10 +1105,10 @@ export default function BillingPage() {
                   <div className="mb-4 rounded-md overflow-hidden border">
                     <div className="grid grid-cols-[36px,1fr,70px,46px,80px] bg-gradient-to-r from-blue-600 to-violet-600 text-white text-[11px] font-semibold">
                       <span className="p-2 text-center">#</span>
-                      <span className="p-2">Description</span>
-                      <span className="p-2 text-right">Price</span>
-                      <span className="p-2 text-center">Qty</span>
-                      <span className="p-2 text-right">Total</span>
+                      <span className="p-2">{t("common.description")}</span>
+                      <span className="p-2 text-right">{t("common.price")}</span>
+                      <span className="p-2 text-center">{t("common.quantity")}</span>
+                      <span className="p-2 text-right">{t("common.total")}</span>
                     </div>
                     {items.map((item: any, i: number) => (
                       <div key={i} className="grid grid-cols-[36px,1fr,70px,46px,80px] text-sm border-b last:border-b-0">
@@ -1122,11 +1124,11 @@ export default function BillingPage() {
                   <div className="flex justify-end mb-4">
                     <div className="w-64 space-y-1 text-sm">
                       <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="text-muted-foreground">{t("common.subtotal")}</span>
                         <span className="text-right text-emerald-600 dark:text-emerald-400">{formatDualCurrency(vSubtotal, settings)}</span>
                       </div>
                       <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Discount</span>
+                        <span className="text-muted-foreground">{t("billing.discount")}</span>
                         <span className="text-right text-red-500">-{formatDualCurrency(vDiscount, settings)}</span>
                       </div>
                       <Separator />
@@ -1135,12 +1137,12 @@ export default function BillingPage() {
                         return (
                           <>
                             <div className="flex justify-between gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-base pt-0.5">
-                              <span>Grand Total</span>
+                              <span>{t("billing.grandTotal")}</span>
                               <span className="text-right">{primaryStr}</span>
                             </div>
                             {secondaryStr && (
                               <div className="flex justify-between gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-base">
-                                <span>Grand Total</span>
+                                <span>{t("billing.grandTotal")}</span>
                                 <span className="text-right">{secondaryStr}</span>
                               </div>
                             )}
@@ -1151,9 +1153,9 @@ export default function BillingPage() {
                   </div>
 
                   <div className="rounded-md bg-violet-500/10 border border-violet-500/20 p-3 mb-4">
-                    <p className="text-[10px] uppercase text-violet-700 dark:text-violet-400 font-semibold tracking-wide mb-1">Payment Information</p>
+                    <p className="text-[10px] uppercase text-violet-700 dark:text-violet-400 font-semibold tracking-wide mb-1">{t("billing.paymentMethod")}</p>
                     <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || "Prime Clinic"}.</p>
-                    <p className="text-[11px] text-muted-foreground mt-1">Amount Paid: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatDualCurrency(Number(viewBill.paidAmount), settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
+                    <p className="text-[11px] text-muted-foreground mt-1">{t("billing.paid")}: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatDualCurrency(Number(viewBill.paidAmount), settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
                   </div>
 
                   <Separator className="mb-3" />
@@ -1164,7 +1166,7 @@ export default function BillingPage() {
                 </div>
 
                 <Button onClick={() => { printReceipt(viewBill); }} className="w-full bg-blue-600 hover:bg-blue-600 text-white border-blue-700" data-testid="button-view-print">
-                  <Printer className="h-4 w-4 mr-1.5" /> Print Invoice
+                  <Printer className="h-4 w-4 mr-1.5" /> {t("billing.printInvoice")}
                 </Button>
               </div>
             );
@@ -1176,8 +1178,8 @@ export default function BillingPage() {
       <Dialog open={!!editBill} onOpenChange={(open) => { if (!open) setEditBill(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Bill - {editBill?.billNo}</DialogTitle>
-            <DialogDescription>Update bill details</DialogDescription>
+            <DialogTitle>{t("common.edit")} - {editBill?.billNo}</DialogTitle>
+            <DialogDescription>{t("billing.subtitle")}</DialogDescription>
           </DialogHeader>
           {editBill && (() => {
             const [editStatus, setEditStatus] = [editBill._editStatus || editBill.status, (v: string) => setEditBill({ ...editBill, _editStatus: v })];
@@ -1187,22 +1189,22 @@ export default function BillingPage() {
             return (
               <div className="space-y-3">
                 <div>
-                  <Label>Status</Label>
+                  <Label>{t("common.status")}</Label>
                   <Select value={editStatus} onValueChange={setEditStatus}>
                     <SelectTrigger data-testid="edit-bill-status"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="partial">Partial</SelectItem>
-                      <SelectItem value="unpaid">Unpaid</SelectItem>
+                      <SelectItem value="paid">{t("billing.paid")}</SelectItem>
+                      <SelectItem value="partial">{t("billing.partial")}</SelectItem>
+                      <SelectItem value="unpaid">{t("billing.pending")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label>Paid Amount ($)</Label>
+                  <Label>{t("billing.paid")} ($)</Label>
                   <Input type="number" step="0.01" value={editPaid} onChange={(e) => setEditPaid(e.target.value)} data-testid="edit-bill-paid" />
                 </div>
                 <div>
-                  <Label>Payment Method</Label>
+                  <Label>{t("billing.paymentMethod")}</Label>
                   <Select value={editMethod} onValueChange={setEditMethod}>
                     <SelectTrigger data-testid="edit-bill-method"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -1213,7 +1215,7 @@ export default function BillingPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Reference Doctor</Label>
+                  <Label>{t("dashboard.doctor")}</Label>
                   <Select value={editDoctor || "none"} onValueChange={(v) => setEditDoctor(v === "none" ? "" : v)}>
                     <SelectTrigger data-testid="edit-bill-doctor"><SelectValue placeholder="None" /></SelectTrigger>
                     <SelectContent>
@@ -1238,7 +1240,7 @@ export default function BillingPage() {
                     });
                   }}
                 >
-                  {updateBillMutation.isPending ? "Saving..." : "Save Changes"}
+                  {updateBillMutation.isPending ? t("common.saving") : t("common.save")}
                 </Button>
               </div>
             );

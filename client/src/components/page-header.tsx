@@ -16,24 +16,29 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileText, User, LogOut, Calendar, Clock, ShoppingCart, Activity } from "lucide-react";
+import { FileText, User, LogOut, Calendar, Clock, ShoppingCart, Activity, Globe } from "lucide-react";
+import { useTranslation, LANGUAGES } from "@/i18n";
+
+const LOCALE_MAP: Record<string, string> = { en: "en-US", km: "km-KH", zh: "zh-CN" };
 
 function LiveDateTime() {
   const [now, setNow] = useState(new Date());
+  const { language } = useTranslation();
+  const locale = LOCALE_MAP[language] || "en-US";
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const dateStr = now.toLocaleDateString("en-US", {
+  const dateStr = now.toLocaleDateString(locale, {
     weekday: "short",
     year: "numeric",
     month: "short",
     day: "numeric",
   });
 
-  const timeStr = now.toLocaleTimeString("en-US", {
+  const timeStr = now.toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -66,8 +71,40 @@ function getInitials(name: string) {
   return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
+function LanguageSwitcher() {
+  const { language, setLanguage, t } = useTranslation();
+  const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" data-testid="button-language-switcher">
+          <Globe className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{t("header.language")}</div>
+        <DropdownMenuSeparator />
+        {LANGUAGES.map((lang) => (
+          <DropdownMenuItem
+            key={lang.code}
+            onClick={() => setLanguage(lang.code)}
+            className={`gap-2 ${language === lang.code ? "bg-accent" : ""}`}
+            data-testid={`menu-lang-${lang.code}`}
+          >
+            <span className="text-xs font-bold w-6 text-center rounded bg-muted px-1 py-0.5">{lang.flag}</span>
+            <span className="flex-1">{lang.nativeLabel}</span>
+            {language === lang.code && <span className="text-xs text-emerald-500">&#10003;</span>}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function ProfileMenu() {
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const { t } = useTranslation();
   const user = getUser();
   const displayName = user?.fullName || "Admin";
   const displayEmail = user?.email || "";
@@ -109,12 +146,12 @@ function ProfileMenu() {
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setEditProfileOpen(true)} data-testid="menu-edit-profile" className="gap-2">
             <User className="h-4 w-4 text-blue-500" />
-            Edit Profile
+            {t("header.editProfile")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout} data-testid="menu-logout" className="gap-2 text-red-600 dark:text-red-400">
             <LogOut className="h-4 w-4" />
-            Log out
+            {t("header.logOut")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -122,7 +159,7 @@ function ProfileMenu() {
       <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
+            <DialogTitle>{t("header.editProfile")}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => { e.preventDefault(); setEditProfileOpen(false); }}
@@ -136,19 +173,19 @@ function ProfileMenu() {
               </Avatar>
             </div>
             <div>
-              <Label htmlFor="profileName">Full Name</Label>
+              <Label htmlFor="profileName">{t("header.fullName")}</Label>
               <Input id="profileName" defaultValue={displayName} data-testid="input-profile-name" />
             </div>
             <div>
-              <Label htmlFor="profileEmail">Email</Label>
+              <Label htmlFor="profileEmail">{t("common.email")}</Label>
               <Input id="profileEmail" type="email" defaultValue={displayEmail} data-testid="input-profile-email" />
             </div>
             <div>
-              <Label htmlFor="profilePhone">Phone</Label>
+              <Label htmlFor="profilePhone">{t("common.phone")}</Label>
               <Input id="profilePhone" defaultValue={user?.phone || ""} data-testid="input-profile-phone" />
             </div>
             <Button type="submit" className="w-full" data-testid="button-save-profile">
-              Save Changes
+              {t("common.save")}
             </Button>
           </form>
         </DialogContent>
@@ -159,6 +196,7 @@ function ProfileMenu() {
 
 export function LayoutHeader() {
   const [, setLocation] = useLocation();
+  const { t } = useTranslation();
 
   return (
     <header className="flex items-center justify-between gap-3 px-3 py-2 border-b bg-background sticky top-0 z-50" data-testid="layout-header">
@@ -167,7 +205,7 @@ export function LayoutHeader() {
         <Separator orientation="vertical" className="h-5 hidden sm:block" />
         <div className="hidden sm:flex items-center gap-1.5">
           <Activity className="h-3.5 w-3.5 text-emerald-500" />
-          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Online</span>
+          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{t("common.online")}</span>
         </div>
       </div>
       <div className="hidden md:flex items-center">
@@ -181,9 +219,10 @@ export function LayoutHeader() {
           data-testid="button-header-pos"
         >
           <ShoppingCart className="h-4 w-4 mr-1.5" />
-          <span className="hidden sm:inline">Make Payment (POS)</span>
-          <span className="sm:hidden">POS</span>
+          <span className="hidden sm:inline">{t("header.makePayment")}</span>
+          <span className="sm:hidden">{t("header.pos")}</span>
         </Button>
+        <LanguageSwitcher />
         <ThemeToggle />
         <ProfileMenu />
       </div>

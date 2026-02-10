@@ -11,6 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend, Area, AreaChart
 } from "recharts";
+import { useTranslation } from "@/i18n";
 
 const COLORS = [
   "hsl(221, 83%, 53%)", "hsl(160, 84%, 39%)", "hsl(38, 92%, 50%)",
@@ -18,6 +19,8 @@ const COLORS = [
 ];
 
 export default function ReportsPage() {
+  const { t } = useTranslation();
+
   const { data: stats, isLoading } = useQuery<any>({
     queryKey: ["/api/reports/summary"],
   });
@@ -36,7 +39,7 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Analytics & Reports" description="Comprehensive clinic performance analytics" />
+      <PageHeader title={t("reports.title")} description={t("reports.subtitle")} />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -51,7 +54,7 @@ export default function ReportsPage() {
                       <DollarSign className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Revenue</p>
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("reports.totalRevenue")}</p>
                       <p className="text-xl font-bold">${stats?.totalRevenue ?? "0"}</p>
                     </div>
                   </div>
@@ -64,7 +67,7 @@ export default function ReportsPage() {
                       <Receipt className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Expenses</p>
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("reports.totalExpenses")}</p>
                       <p className="text-xl font-bold">${stats?.totalExpenses ?? "0"}</p>
                     </div>
                   </div>
@@ -77,7 +80,7 @@ export default function ReportsPage() {
                       <TrendingUp className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Net Profit</p>
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("reports.netProfit")}</p>
                       <p className="text-xl font-bold">${stats?.netProfit ?? "0"}</p>
                     </div>
                   </div>
@@ -90,7 +93,7 @@ export default function ReportsPage() {
                       <Users className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Patients</p>
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("reports.totalPatients")}</p>
                       <p className="text-xl font-bold">{stats?.totalPatients ?? 0}</p>
                     </div>
                   </div>
@@ -108,7 +111,7 @@ export default function ReportsPage() {
                   <Stethoscope className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Visits</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("reports.totalVisits")}</p>
                   <p className="text-xl font-bold">{stats?.totalVisits ?? 0}</p>
                 </div>
               </div>
@@ -121,7 +124,7 @@ export default function ReportsPage() {
                   <FileText className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Bills</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("reports.totalBills")}</p>
                   <p className="text-xl font-bold">{stats?.totalBills ?? 0}</p>
                 </div>
               </div>
@@ -134,7 +137,7 @@ export default function ReportsPage() {
                   <Pill className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Medicines</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("reports.medicinesCount")}</p>
                   <p className="text-xl font-bold">{stats?.totalMedicines ?? 0}</p>
                 </div>
               </div>
@@ -147,7 +150,7 @@ export default function ReportsPage() {
                   <BarChart3 className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Services</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("reports.servicesCount")}</p>
                   <p className="text-xl font-bold">{stats?.totalServices ?? 0}</p>
                 </div>
               </div>
@@ -157,9 +160,9 @@ export default function ReportsPage() {
 
         <Tabs defaultValue="revenue">
           <TabsList>
-            <TabsTrigger value="revenue" data-testid="tab-revenue" className="gap-1.5"><div className="h-1.5 w-1.5 rounded-full bg-blue-500" />Revenue</TabsTrigger>
-            <TabsTrigger value="expenses" data-testid="tab-expenses" className="gap-1.5"><div className="h-1.5 w-1.5 rounded-full bg-amber-500" />Expenses</TabsTrigger>
-            <TabsTrigger value="services" data-testid="tab-services" className="gap-1.5"><div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Services</TabsTrigger>
+            <TabsTrigger value="revenue" data-testid="tab-revenue" className="gap-1.5"><div className="h-1.5 w-1.5 rounded-full bg-blue-500" />{t("reports.revenueAnalytics")}</TabsTrigger>
+            <TabsTrigger value="expenses" data-testid="tab-expenses" className="gap-1.5"><div className="h-1.5 w-1.5 rounded-full bg-amber-500" />{t("reports.expenseBreakdown")}</TabsTrigger>
+            <TabsTrigger value="services" data-testid="tab-services" className="gap-1.5"><div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{t("reports.serviceAnalytics")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="revenue" className="mt-3">
@@ -167,7 +170,7 @@ export default function ReportsPage() {
               <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-blue-500" />
-                  Monthly Revenue Trend
+                  {t("reports.monthlyRevenue")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0">
@@ -213,7 +216,7 @@ export default function ReportsPage() {
               <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-amber-500" />
-                  Expenses by Category
+                  {t("reports.expenseBreakdown")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0">
@@ -265,7 +268,7 @@ export default function ReportsPage() {
               <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                  Top Services
+                  {t("reports.topServices")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0">

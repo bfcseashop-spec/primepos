@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +13,7 @@ import { LogIn, LogOut, KeyRound, Shield, User, Lock, Users, UserCheck, UserX } 
 import type { User as UserType } from "@shared/schema";
 
 export default function AuthenticationPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("login");
 
@@ -59,14 +61,14 @@ export default function AuthenticationPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Authentication" description="Login, logout, and manage passwords" />
+      <PageHeader title={t("authentication.title")} description={t("authentication.subtitle")} />
       <div className="flex-1 overflow-auto p-6 space-y-6">
 
       <div className="grid grid-cols-3 gap-3">
         {[
-          { key: "total", label: "Total Accounts", gradient: "from-blue-500 to-blue-600", value: users.length, icon: Users },
-          { key: "active", label: "Active Users", gradient: "from-emerald-500 to-emerald-600", value: users.filter((u: any) => u.isActive).length, icon: UserCheck },
-          { key: "inactive", label: "Inactive Users", gradient: "from-red-500 to-red-600", value: users.filter((u: any) => !u.isActive).length, icon: UserX },
+          { key: "total", label: t("authentication.totalAccounts"), gradient: "from-blue-500 to-blue-600", value: users.length, icon: Users },
+          { key: "active", label: t("authentication.activeAccounts"), gradient: "from-emerald-500 to-emerald-600", value: users.filter((u: any) => u.isActive).length, icon: UserCheck },
+          { key: "inactive", label: t("authentication.inactiveAccounts"), gradient: "from-red-500 to-red-600", value: users.filter((u: any) => !u.isActive).length, icon: UserX },
         ].map((s) => (
           <Card key={s.key} data-testid={`stat-${s.key}`}>
             <CardContent className="p-4">
@@ -98,7 +100,7 @@ export default function AuthenticationPage() {
                 </div>
               </div>
               <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">
-                Logged In
+                {t("authentication.loggedInAs")}
               </Badge>
             </div>
           </CardContent>
@@ -108,13 +110,13 @@ export default function AuthenticationPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList data-testid="tabs-auth">
           <TabsTrigger value="login" data-testid="tab-login">
-            <LogIn className="h-4 w-4 mr-2" /> Login
+            <LogIn className="h-4 w-4 mr-2" /> {t("authentication.staffLogin")}
           </TabsTrigger>
           <TabsTrigger value="logout" data-testid="tab-logout">
-            <LogOut className="h-4 w-4 mr-2" /> Logout
+            <LogOut className="h-4 w-4 mr-2" /> {t("authentication.staffLogout")}
           </TabsTrigger>
           <TabsTrigger value="change-password" data-testid="tab-change-password">
-            <KeyRound className="h-4 w-4 mr-2" /> Change Password
+            <KeyRound className="h-4 w-4 mr-2" /> {t("authentication.changePassword")}
           </TabsTrigger>
         </TabsList>
 
@@ -125,33 +127,33 @@ export default function AuthenticationPage() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600">
                   <LogIn className="h-4 w-4 text-white" />
                 </div>
-                Staff Login
+                {t("authentication.staffLogin")}
               </CardTitle>
-              <CardDescription>Enter your credentials to access the system</CardDescription>
+              <CardDescription>{t("signIn.subtitle")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 max-w-md">
               <div>
-                <label className="text-sm font-medium mb-1 block">Username</label>
+                <label className="text-sm font-medium mb-1 block">{t("staff.username")}</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     value={loginForm.username}
                     onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                    placeholder="Enter username"
+                    placeholder={t("signIn.usernamePlaceholder")}
                     className="pl-9"
                     data-testid="input-login-username"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Password</label>
+                <label className="text-sm font-medium mb-1 block">{t("staff.password")}</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="password"
                     value={loginForm.password}
                     onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                    placeholder="Enter password"
+                    placeholder={t("signIn.passwordPlaceholder")}
                     className="pl-9"
                     data-testid="input-login-password"
                   />
@@ -163,7 +165,7 @@ export default function AuthenticationPage() {
                 onClick={() => loginMutation.mutate(loginForm)}
                 data-testid="button-login"
               >
-                {loginMutation.isPending ? "Logging in..." : "Login"}
+                {loginMutation.isPending ? t("signIn.signingIn") : t("signIn.signInButton")}
               </Button>
             </CardContent>
           </Card>
@@ -176,25 +178,25 @@ export default function AuthenticationPage() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-amber-500 to-amber-600">
                   <LogOut className="h-4 w-4 text-white" />
                 </div>
-                Logout
+                {t("authentication.staffLogout")}
               </CardTitle>
-              <CardDescription>End your current session</CardDescription>
+              <CardDescription>{t("header.logOut")}</CardDescription>
             </CardHeader>
             <CardContent className="max-w-md">
               {loggedInUser ? (
                 <div className="space-y-4">
-                  <p className="text-sm">You are currently logged in as <strong>{loggedInUser.fullName}</strong> (@{loggedInUser.username})</p>
+                  <p className="text-sm">{t("signIn.signedInAs")} <strong>{loggedInUser.fullName}</strong> (@{loggedInUser.username})</p>
                   <Button
                     variant="destructive"
                     className="w-full"
                     onClick={handleLogout}
                     data-testid="button-logout"
                   >
-                    <LogOut className="h-4 w-4 mr-2" /> Logout
+                    <LogOut className="h-4 w-4 mr-2" /> {t("header.logOut")}
                   </Button>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">You are not logged in. Please login first.</p>
+                <p className="text-sm text-muted-foreground">{t("authentication.staffLogin")}</p>
               )}
             </CardContent>
           </Card>
@@ -207,42 +209,42 @@ export default function AuthenticationPage() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600">
                   <Shield className="h-4 w-4 text-white" />
                 </div>
-                Change Password
+                {t("authentication.changePassword")}
               </CardTitle>
-              <CardDescription>Update your account password</CardDescription>
+              <CardDescription>{t("authentication.changePassword")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 max-w-md">
               {!loggedInUser ? (
-                <p className="text-sm text-muted-foreground">Please login first to change your password.</p>
+                <p className="text-sm text-muted-foreground">{t("authentication.staffLogin")}</p>
               ) : (
                 <>
                   <div>
-                    <label className="text-sm font-medium mb-1 block">Current Password</label>
+                    <label className="text-sm font-medium mb-1 block">{t("authentication.currentPassword")}</label>
                     <Input
                       type="password"
                       value={passwordForm.currentPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                      placeholder="Enter current password"
+                      placeholder={t("authentication.currentPassword")}
                       data-testid="input-current-password"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-1 block">New Password</label>
+                    <label className="text-sm font-medium mb-1 block">{t("authentication.newPassword")}</label>
                     <Input
                       type="password"
                       value={passwordForm.newPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                      placeholder="Enter new password"
+                      placeholder={t("authentication.newPassword")}
                       data-testid="input-new-password"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-1 block">Confirm New Password</label>
+                    <label className="text-sm font-medium mb-1 block">{t("authentication.confirmPassword")}</label>
                     <Input
                       type="password"
                       value={passwordForm.confirmPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                      placeholder="Confirm new password"
+                      placeholder={t("authentication.confirmPassword")}
                       data-testid="input-confirm-password"
                     />
                   </div>
@@ -264,7 +266,7 @@ export default function AuthenticationPage() {
                     })}
                     data-testid="button-change-password"
                   >
-                    {changePasswordMutation.isPending ? "Changing..." : "Change Password"}
+                    {changePasswordMutation.isPending ? t("common.updating") : t("authentication.changePassword")}
                   </Button>
                 </>
               )}
@@ -279,23 +281,23 @@ export default function AuthenticationPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600">
               <Shield className="h-4 w-4 text-white" />
             </div>
-            Registered Staff Accounts
+            {t("authentication.registeredStaff")}
           </CardTitle>
-          <CardDescription>All staff members with system access</CardDescription>
+          <CardDescription>{t("authentication.registeredStaff")}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {users.length === 0 ? (
-            <div className="p-6 text-center text-muted-foreground">No staff accounts found. Create staff accounts from User and Role.</div>
+            <div className="p-6 text-center text-muted-foreground">{t("staff.noUsers")}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 font-medium">Username</th>
-                    <th className="text-left p-3 font-medium">Full Name</th>
-                    <th className="text-left p-3 font-medium">Email</th>
-                    <th className="text-left p-3 font-medium">Role</th>
-                    <th className="text-left p-3 font-medium">Status</th>
+                    <th className="text-left p-3 font-medium">{t("staff.username")}</th>
+                    <th className="text-left p-3 font-medium">{t("staff.fullName")}</th>
+                    <th className="text-left p-3 font-medium">{t("common.email")}</th>
+                    <th className="text-left p-3 font-medium">{t("staff.role")}</th>
+                    <th className="text-left p-3 font-medium">{t("common.status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -325,7 +327,7 @@ export default function AuthenticationPage() {
                       </td>
                       <td className="p-3">
                         <Badge className={`no-default-hover-elevate no-default-active-elevate ${u.isActive ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20" : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"}`}>
-                          {u.isActive ? "Active" : "Inactive"}
+                          {u.isActive ? t("common.active") : t("common.inactive")}
                         </Badge>
                       </td>
                     </tr>

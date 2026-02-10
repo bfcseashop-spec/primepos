@@ -21,6 +21,7 @@ import {
   FileSpreadsheet, FileDown, File
 } from "lucide-react";
 import type { Expense } from "@shared/schema";
+import { useTranslation } from "@/i18n";
 
 const DEFAULT_EXPENSE_CATEGORIES = [
   "Rent", "Salaries", "Utilities", "Medical Supplies", "Equipment",
@@ -85,6 +86,7 @@ function getPaymentBadgeClass(method: string | null): string {
 
 export default function ExpensesPage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
   const [viewExpense, setViewExpense] = useState<Expense | null>(null);
@@ -279,10 +281,10 @@ export default function ExpensesPage() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => setViewExpense(row)} data-testid={`button-view-expense-${row.id}`}>
-            <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> View Details
+            <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> {t("common.view")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setEditExpense(row)} data-testid={`button-edit-expense-${row.id}`}>
-            <Pencil className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> Edit
+            <Pencil className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {(row.status !== "approved") && (
@@ -301,7 +303,7 @@ export default function ExpensesPage() {
             onClick={() => { if (confirm("Delete this expense?")) deleteMutation.mutate(row.id); }}
             data-testid={`button-delete-expense-${row.id}`}
           >
-            <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> Delete
+            <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> {t("common.delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -374,8 +376,8 @@ export default function ExpensesPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Expense Management"
-        description="Track and manage clinic expenses"
+        title={t("expenses.title")}
+        description={t("expenses.subtitle")}
         actions={
           <div className="flex items-center gap-1.5 flex-wrap">
             <div className="flex items-center border rounded-md overflow-visible">
@@ -410,7 +412,7 @@ export default function ExpensesPage() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" data-testid="button-export-expenses">
-                  <Download className="h-4 w-4 mr-1" /> Export
+                  <Download className="h-4 w-4 mr-1" /> {t("common.export")}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -427,7 +429,7 @@ export default function ExpensesPage() {
             </DropdownMenu>
 
             <Button variant="outline" onClick={() => setImportDialog(true)} data-testid="button-import-expenses">
-              <Upload className="h-4 w-4 mr-1" /> Import
+              <Upload className="h-4 w-4 mr-1" /> {t("common.import")}
             </Button>
 
             <Button variant="outline" onClick={() => setCategoryDialog(true)} data-testid="button-add-category">
@@ -435,7 +437,7 @@ export default function ExpensesPage() {
             </Button>
 
             <Button onClick={() => setDialogOpen(true)} data-testid="button-new-expense">
-              <Plus className="h-4 w-4 mr-1" /> New Expense
+              <Plus className="h-4 w-4 mr-1" /> {t("expenses.addExpense")}
             </Button>
           </div>
         }
@@ -450,7 +452,7 @@ export default function ExpensesPage() {
                   <DollarSign className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Expenses</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("expenses.totalExpenses")}</p>
                   <p className="text-xl font-bold">${totalExpenses.toFixed(2)}</p>
                 </div>
               </div>
@@ -489,7 +491,7 @@ export default function ExpensesPage() {
                   <FolderPlus className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Categories</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("expenses.categories")}</p>
                   <p className="text-xl font-bold">{usedCategories.length}</p>
                 </div>
               </div>
@@ -578,10 +580,10 @@ export default function ExpensesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => setViewExpense(exp)} data-testid={`button-grid-view-expense-${exp.id}`}>
-                            <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> View
+                            <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> {t("common.view")}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setEditExpense(exp)} data-testid={`button-grid-edit-expense-${exp.id}`}>
-                            <Pencil className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> Edit
+                            <Pencil className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {exp.status !== "approved" && (
@@ -600,7 +602,7 @@ export default function ExpensesPage() {
                             onClick={() => { if (confirm("Delete this expense?")) deleteMutation.mutate(exp.id); }}
                             data-testid={`button-grid-delete-expense-${exp.id}`}
                           >
-                            <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> Delete
+                            <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> {t("common.delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -652,10 +654,10 @@ export default function ExpensesPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Pencil className="h-5 w-5 text-blue-500" />
-                Edit Expense
+                {t("common.edit")}
               </DialogTitle>
             </DialogHeader>
-            <ExpenseForm onSubmit={handleEdit} expense={editExpense} isPending={updateMutation.isPending} submitLabel="Update Expense" />
+            <ExpenseForm onSubmit={handleEdit} expense={editExpense} isPending={updateMutation.isPending} submitLabel={t("common.update")} />
           </DialogContent>
         </Dialog>
       )}
@@ -699,7 +701,7 @@ export default function ExpensesPage() {
                   onClick={() => { setViewExpense(null); setEditExpense(viewExpense); }}
                   data-testid="button-view-edit-expense"
                 >
-                  <Pencil className="h-3 w-3 mr-1" /> Edit
+                  <Pencil className="h-3 w-3 mr-1" /> {t("common.edit")}
                 </Button>
                 {viewExpense.status !== "approved" && (
                   <Button

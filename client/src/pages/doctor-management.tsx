@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +55,7 @@ const avatarGradients = [
 ];
 
 export default function DoctorManagementPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -189,8 +191,8 @@ export default function DoctorManagementPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Doctors"
-        description="Manage doctor profiles and schedules"
+        title={t("doctors.title")}
+        description={t("doctors.subtitle")}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <Button
@@ -219,12 +221,12 @@ export default function DoctorManagementPage() {
                 <SelectValue placeholder="Status: All" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Status: All</SelectItem>
-                <SelectItem value="active">Available</SelectItem>
+                <SelectItem value="all">{t("common.status")}: {t("common.all")}</SelectItem>
+                <SelectItem value="active">{t("common.active")}</SelectItem>
                 <SelectItem value="busy">Busy</SelectItem>
                 <SelectItem value="in_surgery">In Surgery</SelectItem>
                 <SelectItem value="on_leave">On Leave</SelectItem>
-                <SelectItem value="inactive">Unavailable</SelectItem>
+                <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={() => setDeptDialog(true)} data-testid="button-add-department">
@@ -234,7 +236,7 @@ export default function DoctorManagementPage() {
               <Briefcase className="h-4 w-4 mr-1" /> + Position
             </Button>
             <Button size="sm" onClick={() => { resetForm(); setAddDialog(true); }} data-testid="button-add-doctor">
-              <Plus className="h-4 w-4 mr-1" /> Add New Doctor
+              <Plus className="h-4 w-4 mr-1" /> {t("doctors.addDoctor")}
             </Button>
           </div>
         }
@@ -242,10 +244,10 @@ export default function DoctorManagementPage() {
       <div className="flex-1 overflow-auto p-4 space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { key: "total", label: "Total Doctors", gradient: "from-blue-500 to-blue-600", value: doctors.length, icon: Users },
-          { key: "active", label: "Active", gradient: "from-emerald-500 to-emerald-600", value: doctors.filter(d => d.status === "active").length, icon: CircleCheck },
+          { key: "total", label: t("doctors.totalDoctors"), gradient: "from-blue-500 to-blue-600", value: doctors.length, icon: Users },
+          { key: "active", label: t("doctors.activeDoctors"), gradient: "from-emerald-500 to-emerald-600", value: doctors.filter(d => d.status === "active").length, icon: CircleCheck },
           { key: "onleave", label: "On Leave", gradient: "from-amber-500 to-amber-600", value: doctors.filter(d => d.status === "on_leave").length, icon: CalendarOff },
-          { key: "inactive", label: "Inactive", gradient: "from-red-500 to-red-600", value: doctors.filter(d => d.status === "inactive").length, icon: CircleOff },
+          { key: "inactive", label: t("common.inactive"), gradient: "from-red-500 to-red-600", value: doctors.filter(d => d.status === "inactive").length, icon: CircleOff },
         ].map((s) => (
           <Card key={s.key} data-testid={`stat-${s.key}-doctors`}>
             <CardContent className="p-4">
@@ -302,27 +304,27 @@ export default function DoctorManagementPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => { setViewingDoctor(doc); setViewDialog(true); }} data-testid={`button-view-${doc.id}`}>
-                        <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> View Profile
+                        <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> {t("common.view")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openEdit(doc)} data-testid={`button-edit-${doc.id}`}>
-                        <Edit className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> Edit
+                        <Edit className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
                       </DropdownMenuItem>
                       <Separator className="my-1" />
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "active")} data-testid={`button-set-available-${doc.id}`}>
-                        <UserCheck className="h-4 w-4 mr-2 text-emerald-600" /> Set Available
+                        <UserCheck className="h-4 w-4 mr-2 text-emerald-600" /> {t("common.active")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "busy")} data-testid={`button-set-busy-${doc.id}`}>
-                        <UserX className="h-4 w-4 mr-2 text-orange-600" /> Set Busy
+                        <UserX className="h-4 w-4 mr-2 text-orange-600" /> Busy
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "in_surgery")} data-testid={`button-set-surgery-${doc.id}`}>
-                        <Activity className="h-4 w-4 mr-2 text-blue-600" /> Set In Surgery
+                        <Activity className="h-4 w-4 mr-2 text-blue-600" /> In Surgery
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "on_leave")} data-testid={`button-set-leave-${doc.id}`}>
-                        <BedDouble className="h-4 w-4 mr-2 text-amber-600" /> Set On Leave
+                        <BedDouble className="h-4 w-4 mr-2 text-amber-600" /> On Leave
                       </DropdownMenuItem>
                       <Separator className="my-1" />
                       <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(doc.id)} data-testid={`button-delete-${doc.id}`}>
-                        <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> Remove Doctor
+                        <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> {t("common.delete")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -349,7 +351,7 @@ export default function DoctorManagementPage() {
 
                 <div className="grid grid-cols-2 border-t border-b py-2.5 mb-3 text-center text-xs">
                   <div className="border-r">
-                    <p className="text-muted-foreground">Department</p>
+                    <p className="text-muted-foreground">{t("appointments.department")}</p>
                     <p className="font-medium mt-0.5">{doc.department || "-"}</p>
                   </div>
                   <div>
@@ -385,7 +387,7 @@ export default function DoctorManagementPage() {
                     onClick={() => { setViewingDoctor(doc); setViewDialog(true); }}
                     data-testid={`link-view-profile-${doc.id}`}
                   >
-                    View Profile
+                    {t("common.view")}
                   </button>
                 </div>
                 </div>
@@ -418,7 +420,7 @@ export default function DoctorManagementPage() {
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground text-center min-w-[80px]">
-                  <p className="text-[10px]">Department</p>
+                  <p className="text-[10px]">{t("appointments.department")}</p>
                   <p className="font-medium text-foreground">{doc.department || "-"}</p>
                 </div>
                 <div className="text-xs text-muted-foreground text-center min-w-[80px]">
@@ -435,27 +437,27 @@ export default function DoctorManagementPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => { setViewingDoctor(doc); setViewDialog(true); }} data-testid={`button-view-${doc.id}`}>
-                        <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> View Profile
+                        <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> {t("common.view")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openEdit(doc)} data-testid={`button-edit-${doc.id}`}>
-                        <Edit className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> Edit
+                        <Edit className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
                       </DropdownMenuItem>
                       <Separator className="my-1" />
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "active")}>
-                        <UserCheck className="h-4 w-4 mr-2 text-emerald-600" /> Set Available
+                        <UserCheck className="h-4 w-4 mr-2 text-emerald-600" /> {t("common.active")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "busy")}>
-                        <UserX className="h-4 w-4 mr-2 text-orange-600" /> Set Busy
+                        <UserX className="h-4 w-4 mr-2 text-orange-600" /> Busy
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "in_surgery")}>
-                        <Activity className="h-4 w-4 mr-2 text-blue-600" /> Set In Surgery
+                        <Activity className="h-4 w-4 mr-2 text-blue-600" /> In Surgery
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "on_leave")}>
-                        <BedDouble className="h-4 w-4 mr-2 text-amber-600" /> Set On Leave
+                        <BedDouble className="h-4 w-4 mr-2 text-amber-600" /> On Leave
                       </DropdownMenuItem>
                       <Separator className="my-1" />
                       <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(doc.id)} data-testid={`button-delete-${doc.id}`}>
-                        <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> Remove Doctor
+                        <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> {t("common.delete")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -473,7 +475,7 @@ export default function DoctorManagementPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Stethoscope className="h-5 w-5 text-blue-500 dark:text-blue-400" />
-                Doctor Profile
+                {t("doctors.title")}
               </DialogTitle>
             </DialogHeader>
             <div className="flex flex-col items-center py-4">
@@ -493,20 +495,20 @@ export default function DoctorManagementPage() {
               </Badge>
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" /><span className="text-muted-foreground">Department:</span> <span className="font-medium">{viewingDoctor.department || "-"}</span></div>
+              <div className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" /><span className="text-muted-foreground">{t("appointments.department")}:</span> <span className="font-medium">{viewingDoctor.department || "-"}</span></div>
               <div className="flex items-center gap-1.5"><Briefcase className="h-3.5 w-3.5 text-violet-500 dark:text-violet-400" /><span className="text-muted-foreground">Experience:</span> <span className="font-medium">{viewingDoctor.experience || "-"}</span></div>
-              <div className="flex items-center gap-1.5"><GraduationCap className="h-3.5 w-3.5 text-cyan-500 dark:text-cyan-400" /><span className="text-muted-foreground">Qualification:</span> <span className="font-medium">{viewingDoctor.qualification || "-"}</span></div>
-              <div className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" /><span className="text-muted-foreground">Fee:</span> <span className="font-medium text-emerald-600 dark:text-emerald-400">${viewingDoctor.consultationFee || "0"}</span></div>
-              <div className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" /><span className="text-muted-foreground">Phone:</span> <span className="font-medium">{viewingDoctor.phone || "-"}</span></div>
-              <div className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-violet-500 dark:text-violet-400" /><span className="text-muted-foreground">Email:</span> <span className="font-medium">{viewingDoctor.email || "-"}</span></div>
-              <div className="col-span-2 flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" /><span className="text-muted-foreground">Schedule:</span> <span className="font-medium">{viewingDoctor.schedule || "-"}</span></div>
-              <div className="col-span-2 flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-red-500 dark:text-red-400" /><span className="text-muted-foreground">Address:</span> <span className="font-medium">{viewingDoctor.address || "-"}</span></div>
-              {viewingDoctor.joiningDate && <div className="col-span-2 flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-teal-500 dark:text-teal-400" /><span className="text-muted-foreground">Joining Date:</span> <span className="font-medium">{viewingDoctor.joiningDate}</span></div>}
-              {viewingDoctor.notes && <div className="col-span-2 flex items-center gap-1.5"><FileText className="h-3.5 w-3.5 text-orange-500 dark:text-orange-400" /><span className="text-muted-foreground">Notes:</span> <span className="font-medium">{viewingDoctor.notes}</span></div>}
+              <div className="flex items-center gap-1.5"><GraduationCap className="h-3.5 w-3.5 text-cyan-500 dark:text-cyan-400" /><span className="text-muted-foreground">{t("doctors.qualification")}:</span> <span className="font-medium">{viewingDoctor.qualification || "-"}</span></div>
+              <div className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" /><span className="text-muted-foreground">{t("doctors.consultationFee")}:</span> <span className="font-medium text-emerald-600 dark:text-emerald-400">${viewingDoctor.consultationFee || "0"}</span></div>
+              <div className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" /><span className="text-muted-foreground">{t("common.phone")}:</span> <span className="font-medium">{viewingDoctor.phone || "-"}</span></div>
+              <div className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-violet-500 dark:text-violet-400" /><span className="text-muted-foreground">{t("common.email")}:</span> <span className="font-medium">{viewingDoctor.email || "-"}</span></div>
+              <div className="col-span-2 flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" /><span className="text-muted-foreground">{t("doctors.schedule")}:</span> <span className="font-medium">{viewingDoctor.schedule || "-"}</span></div>
+              <div className="col-span-2 flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-red-500 dark:text-red-400" /><span className="text-muted-foreground">{t("common.address")}:</span> <span className="font-medium">{viewingDoctor.address || "-"}</span></div>
+              {viewingDoctor.joiningDate && <div className="col-span-2 flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-teal-500 dark:text-teal-400" /><span className="text-muted-foreground">{t("common.date")}:</span> <span className="font-medium">{viewingDoctor.joiningDate}</span></div>}
+              {viewingDoctor.notes && <div className="col-span-2 flex items-center gap-1.5"><FileText className="h-3.5 w-3.5 text-orange-500 dark:text-orange-400" /><span className="text-muted-foreground">{t("common.notes")}:</span> <span className="font-medium">{viewingDoctor.notes}</span></div>}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setViewDialog(false)}>Close</Button>
-              <Button onClick={() => { setViewDialog(false); openEdit(viewingDoctor); }}>Edit Profile</Button>
+              <Button variant="outline" onClick={() => setViewDialog(false)}>{t("common.close")}</Button>
+              <Button onClick={() => { setViewDialog(false); openEdit(viewingDoctor); }}>{t("common.edit")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -518,7 +520,7 @@ export default function DoctorManagementPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 {editDialog ? <Edit className="h-5 w-5 text-amber-500 dark:text-amber-400" /> : <Plus className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />}
-                {editDialog ? "Edit Doctor" : "Add New Doctor"}
+                {editDialog ? t("common.edit") : t("doctors.addDoctor")}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
@@ -549,11 +551,11 @@ export default function DoctorManagementPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Full Name *</label>
+                  <label className="text-sm font-medium mb-1 block">{t("doctors.doctorName")} *</label>
                   <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="input-doctor-name" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Specialization *</label>
+                  <label className="text-sm font-medium mb-1 block">{t("doctors.specialization")} *</label>
                   <Select value={form.specialization} onValueChange={(v) => setForm({ ...form, specialization: v })}>
                     <SelectTrigger data-testid="select-specialization">
                       <SelectValue placeholder="Select" />
@@ -566,7 +568,7 @@ export default function DoctorManagementPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Department</label>
+                  <label className="text-sm font-medium mb-1 block">{t("appointments.department")}</label>
                   <Select value={form.department} onValueChange={(v) => setForm({ ...form, department: v })}>
                     <SelectTrigger data-testid="select-department">
                       <SelectValue placeholder="Select" />
@@ -583,31 +585,31 @@ export default function DoctorManagementPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Qualification</label>
+                  <label className="text-sm font-medium mb-1 block">{t("doctors.qualification")}</label>
                   <Input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} placeholder="MBBS, MD, etc." data-testid="input-qualification" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Consultation Fee</label>
+                  <label className="text-sm font-medium mb-1 block">{t("doctors.consultationFee")}</label>
                   <Input type="number" value={form.consultationFee} onChange={(e) => setForm({ ...form, consultationFee: e.target.value })} data-testid="input-consultation-fee" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Phone</label>
+                  <label className="text-sm font-medium mb-1 block">{t("common.phone")}</label>
                   <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="input-phone" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Email</label>
+                  <label className="text-sm font-medium mb-1 block">{t("common.email")}</label>
                   <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} data-testid="input-email" />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Address</label>
+                <label className="text-sm font-medium mb-1 block">{t("common.address")}</label>
                 <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} data-testid="input-address" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Schedule</label>
+                  <label className="text-sm font-medium mb-1 block">{t("doctors.schedule")}</label>
                   <Input value={form.schedule} onChange={(e) => setForm({ ...form, schedule: e.target.value })} placeholder="Mon-Fri, 9AM-5PM" data-testid="input-schedule" />
                 </div>
                 <div>
@@ -616,27 +618,27 @@ export default function DoctorManagementPage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Status</label>
+                <label className="text-sm font-medium mb-1 block">{t("common.status")}</label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                   <SelectTrigger data-testid="select-doctor-status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Available</SelectItem>
+                    <SelectItem value="active">{t("common.active")}</SelectItem>
                     <SelectItem value="busy">Busy</SelectItem>
                     <SelectItem value="in_surgery">In Surgery</SelectItem>
                     <SelectItem value="on_leave">On Leave</SelectItem>
-                    <SelectItem value="inactive">Unavailable</SelectItem>
+                    <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Notes</label>
+                <label className="text-sm font-medium mb-1 block">{t("common.notes")}</label>
                 <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} data-testid="input-notes" />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => { setAddDialog(false); setEditDialog(false); }} data-testid="button-cancel-doctor">Cancel</Button>
+              <Button variant="outline" onClick={() => { setAddDialog(false); setEditDialog(false); }} data-testid="button-cancel-doctor">{t("common.cancel")}</Button>
               <Button
                 disabled={!form.name || !form.specialization || createMutation.isPending || updateMutation.isPending}
                 onClick={() => {
@@ -648,7 +650,7 @@ export default function DoctorManagementPage() {
                 }}
                 data-testid="button-save-doctor"
               >
-                {editDialog ? "Save Changes" : "Add Doctor"}
+                {editDialog ? t("common.save") : t("doctors.addDoctor")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -719,7 +721,7 @@ export default function DoctorManagementPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDeptDialog(false)}>Close</Button>
+              <Button variant="outline" onClick={() => setDeptDialog(false)}>{t("common.close")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -789,7 +791,7 @@ export default function DoctorManagementPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setPosDialog(false)}>Close</Button>
+              <Button variant="outline" onClick={() => setPosDialog(false)}>{t("common.close")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

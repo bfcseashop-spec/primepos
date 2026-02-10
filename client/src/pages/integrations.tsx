@@ -15,6 +15,7 @@ import {
   Wifi, WifiOff, Scan, Heart
 } from "lucide-react";
 import type { Integration } from "@shared/schema";
+import { useTranslation } from "@/i18n";
 
 const DEVICE_TYPES = [
   { value: "ultrasound", label: "Ultrasound", icon: Monitor },
@@ -29,6 +30,7 @@ const CONNECTION_TYPES = ["USB", "TCP/IP", "Serial", "Bluetooth", "WiFi", "DICOM
 
 export default function IntegrationsPage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: integrations = [], isLoading } = useQuery<Integration[]>({
@@ -92,35 +94,35 @@ export default function IntegrationsPage() {
   };
 
   const statCards = [
-    { key: "total", label: "Total Devices", gradient: "from-blue-500 to-blue-600", value: integrations.length, icon: Cable },
-    { key: "connected", label: "Connected", gradient: "from-emerald-500 to-emerald-600", value: integrations.filter(d => d.status === "connected").length, icon: Wifi },
-    { key: "offline", label: "Offline", gradient: "from-red-500 to-red-600", value: integrations.filter(d => d.status !== "connected").length, icon: WifiOff },
-    { key: "types", label: "Device Types", gradient: "from-violet-500 to-violet-600", value: new Set(integrations.map(d => d.deviceType)).size, icon: Monitor },
+    { key: "total", label: t("integrations.totalDevices"), gradient: "from-blue-500 to-blue-600", value: integrations.length, icon: Cable },
+    { key: "connected", label: t("integrations.connected"), gradient: "from-emerald-500 to-emerald-600", value: integrations.filter(d => d.status === "connected").length, icon: Wifi },
+    { key: "offline", label: t("integrations.offline"), gradient: "from-red-500 to-red-600", value: integrations.filter(d => d.status !== "connected").length, icon: WifiOff },
+    { key: "types", label: t("integrations.deviceTypes"), gradient: "from-violet-500 to-violet-600", value: new Set(integrations.map(d => d.deviceType)).size, icon: Monitor },
   ];
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Device Integrations"
-        description="Connect medical devices and equipment"
+        title={t("integrations.title")}
+        description={t("integrations.subtitle")}
         actions={
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-new-integration">
-                <Plus className="h-4 w-4 mr-1" /> Add Device
+                <Plus className="h-4 w-4 mr-1" /> {t("integrations.addDevice")}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Add Device Integration</DialogTitle>
+                <DialogTitle>{t("integrations.addDevice")}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-3">
                 <div>
-                  <Label htmlFor="deviceName">Device Name *</Label>
+                  <Label htmlFor="deviceName">{t("integrations.deviceName")} *</Label>
                   <Input id="deviceName" name="deviceName" required data-testid="input-device-name" />
                 </div>
                 <div>
-                  <Label>Device Type *</Label>
+                  <Label>{t("integrations.deviceType")} *</Label>
                   <Select name="deviceType" required>
                     <SelectTrigger data-testid="select-device-type"><SelectValue placeholder="Select type" /></SelectTrigger>
                     <SelectContent>
@@ -143,16 +145,16 @@ export default function IntegrationsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="port">Port</Label>
+                    <Label htmlFor="port">{t("integrations.port")}</Label>
                     <Input id="port" name="port" placeholder="e.g. COM3 or 8080" data-testid="input-device-port" />
                   </div>
                   <div>
-                    <Label htmlFor="ipAddress">IP Address</Label>
+                    <Label htmlFor="ipAddress">{t("integrations.ipAddress")}</Label>
                     <Input id="ipAddress" name="ipAddress" placeholder="e.g. 192.168.1.100" data-testid="input-device-ip" />
                   </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={createMutation.isPending} data-testid="button-submit-integration">
-                  {createMutation.isPending ? "Adding..." : "Add Device"}
+                  {createMutation.isPending ? "Adding..." : t("integrations.addDevice")}
                 </Button>
               </form>
             </DialogContent>
@@ -184,8 +186,8 @@ export default function IntegrationsPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/10 to-violet-500/10 mb-4">
               <Cable className="h-8 w-8 text-blue-500/40" />
             </div>
-            <p className="text-lg font-medium mb-1">No devices connected</p>
-            <p className="text-sm">Add your medical devices to integrate them with the system</p>
+            <p className="text-lg font-medium mb-1">{t("integrations.noDevices")}</p>
+            <p className="text-sm">{t("integrations.addDevicesHint")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -208,9 +210,9 @@ export default function IntegrationsPage() {
                       </div>
                       <Badge className={`no-default-hover-elevate no-default-active-elevate ${device.status === "connected" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20" : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"}`}>
                         {device.status === "connected" ? (
-                          <span className="flex items-center gap-1"><Wifi className="h-3 w-3" /> Connected</span>
+                          <span className="flex items-center gap-1"><Wifi className="h-3 w-3" /> {t("integrations.connected")}</span>
                         ) : (
-                          <span className="flex items-center gap-1"><WifiOff className="h-3 w-3" /> Offline</span>
+                          <span className="flex items-center gap-1"><WifiOff className="h-3 w-3" /> {t("integrations.offline")}</span>
                         )}
                       </Badge>
                     </div>
@@ -221,13 +223,13 @@ export default function IntegrationsPage() {
                       </div>
                       {device.port && (
                         <div className="flex justify-between">
-                          <span>Port</span>
+                          <span>{t("integrations.port")}</span>
                           <span className="font-medium text-foreground">{device.port}</span>
                         </div>
                       )}
                       {device.ipAddress && (
                         <div className="flex justify-between">
-                          <span>IP</span>
+                          <span>{t("integrations.ipAddress")}</span>
                           <span className="font-medium text-foreground">{device.ipAddress}</span>
                         </div>
                       )}
@@ -242,7 +244,7 @@ export default function IntegrationsPage() {
                       })}
                       data-testid={`button-toggle-device-${device.id}`}
                     >
-                      {device.status === "connected" ? "Disconnect" : "Connect"}
+                      {device.status === "connected" ? t("integrations.disconnect") : t("integrations.connect")}
                     </Button>
                     </div>
                   </CardContent>

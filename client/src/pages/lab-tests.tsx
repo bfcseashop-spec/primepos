@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
@@ -152,6 +153,7 @@ function MultiSelect({ options, selected, onChange, placeholder, testId }: {
 }
 
 export default function LabTestsPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTest, setEditTest] = useState<LabTestWithPatient | null>(null);
@@ -318,38 +320,38 @@ export default function LabTestsPage() {
   };
 
   const columns = [
-    { header: "Test ID", accessor: (row: LabTestWithPatient) => (
+    { header: t("labTests.testId"), accessor: (row: LabTestWithPatient) => (
       <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400" data-testid={`text-test-code-${row.id}`}>{row.testCode}</span>
     )},
-    { header: "Test Name", accessor: (row: LabTestWithPatient) => (
+    { header: t("labTests.testName"), accessor: (row: LabTestWithPatient) => (
       <span className="font-medium" data-testid={`text-test-name-${row.id}`}>{row.testName}</span>
     )},
-    { header: "Patient", accessor: (row: LabTestWithPatient) => (
+    { header: t("billing.patient"), accessor: (row: LabTestWithPatient) => (
       <span className="text-sm" data-testid={`text-patient-${row.id}`}>
         {row.patientName || <span className="text-muted-foreground">-</span>}
       </span>
     )},
-    { header: "Category", accessor: (row: LabTestWithPatient) => (
+    { header: t("common.category"), accessor: (row: LabTestWithPatient) => (
       <div className="flex flex-wrap gap-1" data-testid={`badge-category-${row.id}`}>
         {row.category.split(",").map(c => c.trim()).filter(Boolean).map(c => (
           <Badge key={c} variant="outline" className="text-xs text-violet-600 dark:text-violet-400">{c}</Badge>
         ))}
       </div>
     )},
-    { header: "Sample Type", accessor: (row: LabTestWithPatient) => (
+    { header: t("labTests.sampleType"), accessor: (row: LabTestWithPatient) => (
       <div className="flex flex-wrap gap-1" data-testid={`badge-sample-${row.id}`}>
         {row.sampleType.split(",").map(s => s.trim()).filter(Boolean).map(s => (
           <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
         ))}
       </div>
     )},
-    { header: "Price", accessor: (row: LabTestWithPatient) => (
+    { header: t("common.price"), accessor: (row: LabTestWithPatient) => (
       <span className="font-medium" data-testid={`text-price-${row.id}`}>${row.price}</span>
     )},
-    { header: "Processing Time", accessor: (row: LabTestWithPatient) => (
+    { header: t("labTests.processing"), accessor: (row: LabTestWithPatient) => (
       <LiveTimer createdAt={row.createdAt} status={row.status} turnaroundTime={row.turnaroundTime} />
     )},
-    { header: "Status", accessor: (row: LabTestWithPatient) => (
+    { header: t("common.status"), accessor: (row: LabTestWithPatient) => (
       <Select
         value={row.status}
         onValueChange={(val) => {
@@ -361,26 +363,26 @@ export default function LabTestsPage() {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="processing">
-            <div className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 text-blue-500" /> Processing</div>
+            <div className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 text-blue-500" /> {t("labTests.processing")}</div>
           </SelectItem>
           <SelectItem value="complete">
-            <div className="flex items-center gap-1.5"><CheckCircle className="h-3 w-3 text-green-500" /> Complete</div>
+            <div className="flex items-center gap-1.5"><CheckCircle className="h-3 w-3 text-green-500" /> {t("labTests.completed")}</div>
           </SelectItem>
           <SelectItem value="sample_missing">
-            <div className="flex items-center gap-1.5"><AlertTriangle className="h-3 w-3 text-amber-500" /> Sample Missing</div>
+            <div className="flex items-center gap-1.5"><AlertTriangle className="h-3 w-3 text-amber-500" /> {t("labTests.sampleMissing")}</div>
           </SelectItem>
           <SelectItem value="cancel">
-            <div className="flex items-center gap-1.5"><XCircle className="h-3 w-3 text-red-500" /> Cancel</div>
+            <div className="flex items-center gap-1.5"><XCircle className="h-3 w-3 text-red-500" /> {t("billing.cancelled")}</div>
           </SelectItem>
         </SelectContent>
       </Select>
     )},
-    { header: "Refer Name", accessor: (row: LabTestWithPatient) => (
+    { header: t("labTests.referName"), accessor: (row: LabTestWithPatient) => (
       <span className="text-sm" data-testid={`text-referrer-${row.id}`}>
         {row.referrerName || <span className="text-muted-foreground">-</span>}
       </span>
     )},
-    { header: "Actions", accessor: (row: LabTestWithPatient) => (
+    { header: t("common.actions"), accessor: (row: LabTestWithPatient) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" data-testid={`button-actions-${row.id}`}>
@@ -389,21 +391,21 @@ export default function LabTestsPage() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewTest(row); }} className="gap-2" data-testid={`action-view-${row.id}`}>
-            <Eye className="h-4 w-4 text-blue-500" /> View Details
+            <Eye className="h-4 w-4 text-blue-500" /> {t("common.view")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="gap-2" data-testid={`action-edit-${row.id}`}>
-            <Pencil className="h-4 w-4 text-amber-500" /> Edit
+            <Pencil className="h-4 w-4 text-amber-500" /> {t("common.edit")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setUploadTest(row); setUploadReferrer(row.referrerName || ""); }} className="gap-2" data-testid={`action-upload-${row.id}`}>
-            <Upload className="h-4 w-4 text-green-500" /> {row.reportFileUrl ? "Update Report" : "Upload Report"}
+            <Upload className="h-4 w-4 text-green-500" /> {t("labTests.uploadReport")}
           </DropdownMenuItem>
           {row.reportFileUrl && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); window.open(row.reportFileUrl!, '_blank'); }} className="gap-2" data-testid={`action-download-${row.id}`}>
-              <Download className="h-4 w-4 text-emerald-500" /> Download Report
+              <Download className="h-4 w-4 text-emerald-500" /> {t("labTests.downloadReport")}
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBarcodeTest(row); }} className="gap-2" data-testid={`action-barcode-${row.id}`}>
-            <QrCode className="h-4 w-4 text-purple-500" /> Barcode
+            <QrCode className="h-4 w-4 text-purple-500" /> {t("labTests.barcode")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => {
             e.stopPropagation();
@@ -448,14 +450,14 @@ export default function LabTestsPage() {
               printWindow.print();
             }
           }} className="gap-2" data-testid={`action-print-${row.id}`}>
-            <Printer className="h-4 w-4 text-violet-500" /> Print
+            <Printer className="h-4 w-4 text-violet-500" /> {t("common.print")}
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => { e.stopPropagation(); if (confirm("Delete this lab test?")) deleteMutation.mutate(row.id); }}
             className="text-red-600 gap-2"
             data-testid={`action-delete-${row.id}`}
           >
-            <Trash2 className="h-4 w-4" /> Delete
+            <Trash2 className="h-4 w-4" /> {t("common.delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -466,13 +468,13 @@ export default function LabTestsPage() {
     <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
       <div className="space-y-3">
         <div>
-          <Label htmlFor="test-name">Test Name *</Label>
+          <Label htmlFor="test-name">{t("labTests.testName")} *</Label>
           <Input id="test-name" value={form.testName} onChange={e => setForm(f => ({ ...f, testName: e.target.value }))} data-testid="input-test-name" />
         </div>
         <div>
-          <Label>Patient</Label>
+          <Label>{t("billing.patient")}</Label>
           <Select value={form.patientId} onValueChange={v => setForm(f => ({ ...f, patientId: v === "none" ? "" : v }))}>
-            <SelectTrigger data-testid="select-patient"><SelectValue placeholder="Select patient (optional)" /></SelectTrigger>
+            <SelectTrigger data-testid="select-patient"><SelectValue placeholder={t("billing.selectPatient")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="none">No Patient</SelectItem>
               {patients.map(p => (
@@ -483,7 +485,7 @@ export default function LabTestsPage() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Category *</Label>
+            <Label>{t("common.category")} *</Label>
             <MultiSelect
               options={LAB_CATEGORIES}
               selected={form.categories}
@@ -493,7 +495,7 @@ export default function LabTestsPage() {
             />
           </div>
           <div>
-            <Label>Sample Type *</Label>
+            <Label>{t("labTests.sampleType")} *</Label>
             <MultiSelect
               options={SAMPLE_TYPES}
               selected={form.sampleTypes}
@@ -505,7 +507,7 @@ export default function LabTestsPage() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label htmlFor="test-price">Price ($) *</Label>
+            <Label htmlFor="test-price">{t("common.price")} ($) *</Label>
             <Input id="test-price" type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} data-testid="input-test-price" />
           </div>
           <div>
@@ -514,15 +516,15 @@ export default function LabTestsPage() {
           </div>
         </div>
         <div>
-          <Label htmlFor="test-referrer">Referrer Name</Label>
+          <Label htmlFor="test-referrer">{t("labTests.referName")}</Label>
           <Input id="test-referrer" placeholder="Person who referred/uploaded" value={form.referrerName} onChange={e => setForm(f => ({ ...f, referrerName: e.target.value }))} data-testid="input-referrer-name" />
         </div>
         <div>
-          <Label htmlFor="test-desc">Description</Label>
+          <Label htmlFor="test-desc">{t("common.description")}</Label>
           <Textarea id="test-desc" rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} data-testid="input-test-description" />
         </div>
         <div>
-          <Label>Status</Label>
+          <Label>{t("common.status")}</Label>
           <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
             <SelectTrigger data-testid="select-test-status"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -539,22 +541,22 @@ export default function LabTestsPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Lab Test Management"
-        description="Manage laboratory tests, pricing, and categories"
+        title={t("labTests.title")}
+        description={t("labTests.subtitle")}
         actions={
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setForm(defaultForm); }}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-lab-test">
-                <Plus className="h-4 w-4 mr-1" /> Add Lab Test
+                <Plus className="h-4 w-4 mr-1" /> {t("labTests.addTest")}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Add New Lab Test</DialogTitle>
+                <DialogTitle>{t("labTests.addTest")}</DialogTitle>
               </DialogHeader>
               {formContent}
               <Button className="w-full" onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-lab-test">
-                {createMutation.isPending ? "Creating..." : "Add Lab Test"}
+                {createMutation.isPending ? t("common.creating") : t("labTests.addTest")}
               </Button>
             </DialogContent>
           </Dialog>
@@ -567,25 +569,25 @@ export default function LabTestsPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Eye className="h-5 w-5 text-blue-500" />
-                Lab Test Details
+                {t("labTests.title")}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground">Test ID</p>
+                  <p className="text-xs text-muted-foreground">{t("labTests.testId")}</p>
                   <p className="font-mono font-semibold" data-testid="text-view-test-code">{viewTest.testCode}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Test Name</p>
+                  <p className="text-xs text-muted-foreground">{t("labTests.testName")}</p>
                   <p className="font-semibold" data-testid="text-view-test-name">{viewTest.testName}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Patient</p>
+                  <p className="text-xs text-muted-foreground">{t("billing.patient")}</p>
                   <p className="text-sm">{viewTest.patientName || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Category</p>
+                  <p className="text-xs text-muted-foreground">{t("common.category")}</p>
                   <div className="flex flex-wrap gap-1">
                     {viewTest.category.split(",").map(c => c.trim()).filter(Boolean).map(c => (
                       <Badge key={c} variant="outline" className="text-xs">{c}</Badge>
@@ -593,7 +595,7 @@ export default function LabTestsPage() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Sample Type</p>
+                  <p className="text-xs text-muted-foreground">{t("labTests.sampleType")}</p>
                   <div className="flex flex-wrap gap-1">
                     {viewTest.sampleType.split(",").map(s => s.trim()).filter(Boolean).map(s => (
                       <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
@@ -601,15 +603,15 @@ export default function LabTestsPage() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Price</p>
+                  <p className="text-xs text-muted-foreground">{t("common.price")}</p>
                   <p className="font-bold text-green-600 dark:text-green-400">${viewTest.price}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Processing Time</p>
+                  <p className="text-xs text-muted-foreground">{t("labTests.processing")}</p>
                   <LiveTimer createdAt={viewTest.createdAt} status={viewTest.status} turnaroundTime={viewTest.turnaroundTime} />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Status</p>
+                  <p className="text-xs text-muted-foreground">{t("common.status")}</p>
                   {getStatusBadge(viewTest.status)}
                 </div>
                 <div>
@@ -617,7 +619,7 @@ export default function LabTestsPage() {
                   <p className="text-sm">{viewTest.turnaroundTime || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Referrer</p>
+                  <p className="text-xs text-muted-foreground">{t("labTests.referName")}</p>
                   <p className="text-sm">{viewTest.referrerName || "-"}</p>
                 </div>
                 <div>
@@ -634,7 +636,7 @@ export default function LabTestsPage() {
                   )}
                 </div>
                 <div className="col-span-2">
-                  <p className="text-xs text-muted-foreground">Description</p>
+                  <p className="text-xs text-muted-foreground">{t("common.description")}</p>
                   <p className="text-sm">{viewTest.description || "-"}</p>
                 </div>
               </div>
@@ -647,11 +649,11 @@ export default function LabTestsPage() {
         <Dialog open={!!editTest} onOpenChange={(open) => { if (!open) { setEditTest(null); setForm(defaultForm); } }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Edit Lab Test ({editTest.testCode})</DialogTitle>
+              <DialogTitle>{t("common.edit")} ({editTest.testCode})</DialogTitle>
             </DialogHeader>
             {formContent}
             <Button className="w-full" onClick={handleSubmit} disabled={updateMutation.isPending} data-testid="button-update-lab-test">
-              {updateMutation.isPending ? "Updating..." : "Update Lab Test"}
+              {updateMutation.isPending ? t("common.updating") : t("common.update")}
             </Button>
           </DialogContent>
         </Dialog>
@@ -663,7 +665,7 @@ export default function LabTestsPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Upload className="h-5 w-5 text-green-500" />
-                {uploadTest.reportFileUrl ? "Update Report" : "Upload Report"}
+                {t("labTests.uploadReport")}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
@@ -687,7 +689,7 @@ export default function LabTestsPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="upload-referrer">Referrer Name</Label>
+                <Label htmlFor="upload-referrer">{t("labTests.referName")}</Label>
                 <Input
                   id="upload-referrer"
                   placeholder="Person uploading the report"
@@ -697,7 +699,7 @@ export default function LabTestsPage() {
                 />
               </div>
               <Button className="w-full" onClick={handleFileUpload} disabled={uploading} data-testid="button-upload-report">
-                {uploading ? "Uploading..." : "Upload Report"}
+                {uploading ? t("common.loading") : t("labTests.uploadReport")}
               </Button>
             </div>
           </DialogContent>
@@ -710,7 +712,7 @@ export default function LabTestsPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <QrCode className="h-5 w-5 text-purple-500" />
-                Barcode
+                {t("labTests.barcode")}
               </DialogTitle>
             </DialogHeader>
             <div className="flex flex-col items-center gap-3 py-4">
@@ -748,11 +750,11 @@ export default function LabTestsPage() {
       <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { key: "total", label: "Total Tests", gradient: "from-blue-500 to-blue-600", value: labTests.length, icon: FlaskConical, testId: "text-total-tests" },
-            { key: "processing", label: "Processing", gradient: "from-amber-500 to-amber-600", value: processingCount, icon: Loader2, testId: "text-processing-tests" },
-            { key: "complete", label: "Complete", gradient: "from-emerald-500 to-emerald-600", value: completeCount, icon: CheckCircle, testId: "text-complete-tests" },
-            { key: "reports", label: "With Reports", gradient: "from-violet-500 to-violet-600", value: withReports, icon: FileText, testId: "text-with-reports" },
-            { key: "categories", label: "Categories", gradient: "from-cyan-500 to-cyan-600", value: uniqueCategories.length, icon: TestTubes, testId: "text-categories-count" },
+            { key: "total", label: t("labTests.totalTests"), gradient: "from-blue-500 to-blue-600", value: labTests.length, icon: FlaskConical, testId: "text-total-tests" },
+            { key: "processing", label: t("labTests.processing"), gradient: "from-amber-500 to-amber-600", value: processingCount, icon: Loader2, testId: "text-processing-tests" },
+            { key: "complete", label: t("labTests.completed"), gradient: "from-emerald-500 to-emerald-600", value: completeCount, icon: CheckCircle, testId: "text-complete-tests" },
+            { key: "reports", label: t("labTests.downloadReport"), gradient: "from-violet-500 to-violet-600", value: withReports, icon: FileText, testId: "text-with-reports" },
+            { key: "categories", label: t("common.category"), gradient: "from-cyan-500 to-cyan-600", value: uniqueCategories.length, icon: TestTubes, testId: "text-categories-count" },
           ].map((s) => (
             <Card key={s.key} data-testid={`stat-${s.key}`}>
               <CardContent className="p-4">

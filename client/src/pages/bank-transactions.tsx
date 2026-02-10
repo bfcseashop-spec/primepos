@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
 import { StatsCard } from "@/components/stats-card";
@@ -29,6 +30,7 @@ const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: any; color: s
 };
 
 export default function BankTransactionsPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -100,16 +102,16 @@ export default function BankTransactionsPage() {
   });
 
   const billPaymentColumns = [
-    { header: "Bill #", accessor: (row: any) => (
+    { header: t("billing.billNo"), accessor: (row: any) => (
       <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400" data-testid={`text-bill-no-${row.id}`}>{row.billNo}</span>
     )},
-    { header: "Patient", accessor: (row: any) => (
+    { header: t("billing.patient"), accessor: (row: any) => (
       <span className="text-sm font-medium" data-testid={`text-bill-patient-${row.id}`}>{row.patientName || "-"}</span>
     )},
-    { header: "Amount", accessor: (row: any) => (
+    { header: t("common.amount"), accessor: (row: any) => (
       <span className="font-semibold text-sm text-emerald-600 dark:text-emerald-400" data-testid={`text-bill-amount-${row.id}`}>${Number(row.paidAmount).toFixed(2)}</span>
     )},
-    { header: "Method", accessor: (row: any) => {
+    { header: t("billing.paymentMethod"), accessor: (row: any) => {
       const cfg = PAYMENT_METHOD_CONFIG[row.paymentMethod] || { label: row.paymentMethod, icon: Banknote, color: "text-muted-foreground", bgColor: "bg-muted" };
       const Icon = cfg.icon;
       return (
@@ -119,18 +121,18 @@ export default function BankTransactionsPage() {
         </Badge>
       );
     }},
-    { header: "Status", accessor: (row: any) => {
-      if (row.status === "paid") return <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[10px]" data-testid={`badge-status-${row.id}`}>Paid</Badge>;
-      if (row.status === "partial") return <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-[10px]" data-testid={`badge-status-${row.id}`}>Partial</Badge>;
-      return <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20 text-[10px]" data-testid={`badge-status-${row.id}`}>Unpaid</Badge>;
+    { header: t("common.status"), accessor: (row: any) => {
+      if (row.status === "paid") return <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[10px]" data-testid={`badge-status-${row.id}`}>{t("billing.paid")}</Badge>;
+      if (row.status === "partial") return <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-[10px]" data-testid={`badge-status-${row.id}`}>{t("billing.partial")}</Badge>;
+      return <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20 text-[10px]" data-testid={`badge-status-${row.id}`}>{t("billing.pending")}</Badge>;
     }},
-    { header: "Date", accessor: (row: any) => (
+    { header: t("common.date"), accessor: (row: any) => (
       <span className="text-xs text-muted-foreground">{row.paymentDate || "-"}</span>
     )},
   ];
 
   const columns = [
-    { header: "Type", accessor: (row: BankTransaction) => (
+    { header: t("common.type"), accessor: (row: BankTransaction) => (
       <div className="flex items-center gap-1.5">
         {row.type === "deposit" ? (
           <div className="p-1 rounded-md bg-emerald-500/10">
@@ -149,55 +151,55 @@ export default function BankTransactionsPage() {
         </Badge>
       </div>
     )},
-    { header: "Amount", accessor: (row: BankTransaction) => (
+    { header: t("common.amount"), accessor: (row: BankTransaction) => (
       <span className={`font-semibold ${row.type === "deposit" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
         {row.type === "deposit" ? "+" : "-"}${row.amount}
       </span>
     )},
     { header: "Bank", accessor: "bankName" as keyof BankTransaction },
     { header: "Account", accessor: (row: BankTransaction) => row.accountNo || "-" },
-    { header: "Reference", accessor: (row: BankTransaction) => row.referenceNo || "-" },
-    { header: "Description", accessor: (row: BankTransaction) => (
+    { header: t("bank.reference"), accessor: (row: BankTransaction) => row.referenceNo || "-" },
+    { header: t("common.description"), accessor: (row: BankTransaction) => (
       <span className="text-xs text-muted-foreground max-w-[150px] truncate block">{row.description || "-"}</span>
     )},
-    { header: "Date", accessor: "date" as keyof BankTransaction },
+    { header: t("common.date"), accessor: "date" as keyof BankTransaction },
   ];
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Bank Transactions"
-        description="Track deposits, withdrawals, and bill payment collections"
+        title={t("bank.title")}
+        description={t("bank.subtitle")}
         actions={
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-new-transaction">
-                <Plus className="h-4 w-4 mr-1" /> Add Transaction
+                <Plus className="h-4 w-4 mr-1" /> {t("bank.addTransaction")}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Record Bank Transaction</DialogTitle>
+                <DialogTitle>{t("bank.addTransaction")}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-3">
                 <div>
-                  <Label>Type *</Label>
+                  <Label>{t("common.type")} *</Label>
                   <Select name="type" required>
-                    <SelectTrigger data-testid="select-transaction-type"><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectTrigger data-testid="select-transaction-type"><SelectValue placeholder={t("common.type")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="deposit">Deposit</SelectItem>
-                      <SelectItem value="withdrawal">Withdrawal</SelectItem>
-                      <SelectItem value="transfer">Transfer</SelectItem>
+                      <SelectItem value="deposit">{t("bank.deposit")}</SelectItem>
+                      <SelectItem value="withdrawal">{t("bank.withdrawal")}</SelectItem>
+                      <SelectItem value="transfer">{t("bank.transfer")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="amount">Amount ($) *</Label>
+                    <Label htmlFor="amount">{t("common.amount")} ($) *</Label>
                     <Input id="amount" name="amount" type="number" step="0.01" required data-testid="input-transaction-amount" />
                   </div>
                   <div>
-                    <Label htmlFor="date">Date *</Label>
+                    <Label htmlFor="date">{t("common.date")} *</Label>
                     <Input id="date" name="date" type="date" required data-testid="input-transaction-date" />
                   </div>
                 </div>
@@ -211,16 +213,16 @@ export default function BankTransactionsPage() {
                     <Input id="accountNo" name="accountNo" data-testid="input-transaction-account" />
                   </div>
                   <div>
-                    <Label htmlFor="referenceNo">Reference No</Label>
+                    <Label htmlFor="referenceNo">{t("bank.reference")} No</Label>
                     <Input id="referenceNo" name="referenceNo" data-testid="input-transaction-reference" />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">{t("common.description")}</Label>
                   <Textarea id="description" name="description" rows={2} data-testid="input-transaction-description" />
                 </div>
                 <Button type="submit" className="w-full" disabled={createMutation.isPending} data-testid="button-submit-transaction">
-                  {createMutation.isPending ? "Recording..." : "Record Transaction"}
+                  {createMutation.isPending ? t("common.saving") : t("bank.addTransaction")}
                 </Button>
               </form>
             </DialogContent>
@@ -229,7 +231,6 @@ export default function BankTransactionsPage() {
       />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        {/* Overall Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="bank-summary-stats">
           <Card data-testid="stat-deposits-card">
             <CardContent className="p-4">
@@ -238,7 +239,7 @@ export default function BankTransactionsPage() {
                   <ArrowDownLeft className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Deposits</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("bank.totalDeposits")}</p>
                   <p className="text-xl font-bold" data-testid="stat-deposits">${totalDeposits.toFixed(2)}</p>
                 </div>
               </div>
@@ -251,7 +252,7 @@ export default function BankTransactionsPage() {
                   <ArrowUpRight className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Withdrawals</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("bank.totalWithdrawals")}</p>
                   <p className="text-xl font-bold" data-testid="stat-withdrawals">${totalWithdrawals.toFixed(2)}</p>
                 </div>
               </div>
@@ -264,7 +265,7 @@ export default function BankTransactionsPage() {
                   <Landmark className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Net Balance</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("bank.balance")}</p>
                   <p className="text-xl font-bold" data-testid="stat-net-balance">${(totalDeposits - totalWithdrawals).toFixed(2)}</p>
                 </div>
               </div>
@@ -277,7 +278,7 @@ export default function BankTransactionsPage() {
                   <Receipt className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Bill Collections</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("bank.billCollections")}</p>
                   <p className="text-xl font-bold" data-testid="stat-bill-collections">${totalBillCollections.toFixed(2)}</p>
                 </div>
               </div>
@@ -288,16 +289,14 @@ export default function BankTransactionsPage() {
         <Tabs defaultValue="collections" className="space-y-4">
           <TabsList className="bg-muted/60 p-1" data-testid="tabs-bank-transactions">
             <TabsTrigger value="collections" className="data-[state=active]:bg-violet-500/10 data-[state=active]:text-violet-700 dark:data-[state=active]:text-violet-400" data-testid="tab-collections">
-              <Receipt className="h-4 w-4 mr-1.5 text-violet-500" /> Bill Collections
+              <Receipt className="h-4 w-4 mr-1.5 text-violet-500" /> {t("bank.billCollections")}
             </TabsTrigger>
             <TabsTrigger value="transactions" className="data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400" data-testid="tab-transactions">
-              <Landmark className="h-4 w-4 mr-1.5 text-blue-500" /> Bank Transactions
+              <Landmark className="h-4 w-4 mr-1.5 text-blue-500" /> {t("bank.bankTransactions")}
             </TabsTrigger>
           </TabsList>
 
-          {/* Bill Collections Tab */}
           <TabsContent value="collections" className="space-y-4">
-            {/* Payment Method Summary Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" data-testid="payment-method-summary">
               {Object.entries(paymentsByMethod)
                 .sort(([, a], [, b]) => b.total - a.total)
@@ -329,27 +328,26 @@ export default function BankTransactionsPage() {
                   <div className="mx-auto mb-3 p-3 rounded-full bg-violet-500/10 w-fit">
                     <Receipt className="h-6 w-6 text-violet-500" />
                   </div>
-                  <p className="text-sm font-medium">No bill payments collected yet</p>
+                  <p className="text-sm font-medium">{t("common.noData")}</p>
                   <p className="text-xs mt-1">Bill payment records will appear here</p>
                 </div>
               )}
             </div>
 
-            {/* Bill Payments Table */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Receipt className="h-4 w-4 text-violet-500" />
-                  <CardTitle className="text-sm font-semibold">Bill Payment Records</CardTitle>
+                  <CardTitle className="text-sm font-semibold">{t("bank.billCollections")}</CardTitle>
                   <Badge variant="secondary" className="text-[10px]">{filteredBillPayments.length}</Badge>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Select value={methodFilter} onValueChange={setMethodFilter}>
                     <SelectTrigger className="w-36 text-xs" data-testid="select-method-filter">
-                      <SelectValue placeholder="All Methods" />
+                      <SelectValue placeholder={t("common.all")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all" data-testid="filter-method-all">All Methods</SelectItem>
+                      <SelectItem value="all" data-testid="filter-method-all">{t("common.all")}</SelectItem>
                       {Object.entries(PAYMENT_METHOD_CONFIG).map(([key, cfg]) => (
                         <SelectItem key={key} value={key} data-testid={`filter-method-${key}`}>{cfg.label}</SelectItem>
                       ))}
@@ -358,7 +356,7 @@ export default function BankTransactionsPage() {
                   <div className="relative w-52">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                     <Input
-                      placeholder="Search bills..."
+                      placeholder={t("common.search")}
                       className="pl-8 text-xs"
                       value={billSearchTerm}
                       onChange={(e) => setBillSearchTerm(e.target.value)}
@@ -368,23 +366,22 @@ export default function BankTransactionsPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <DataTable columns={billPaymentColumns} data={filteredBillPayments} isLoading={false} emptyMessage="No bill payments found" />
+                <DataTable columns={billPaymentColumns} data={filteredBillPayments} isLoading={false} emptyMessage={t("common.noData")} />
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Bank Transactions Tab */}
           <TabsContent value="transactions" className="space-y-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Landmark className="h-4 w-4 text-blue-500" />
-                  <CardTitle className="text-sm font-semibold">All Transactions</CardTitle>
+                  <CardTitle className="text-sm font-semibold">{t("bank.bankTransactions")}</CardTitle>
                 </div>
                 <div className="relative w-64">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    placeholder="Search transactions..."
+                    placeholder={t("common.search")}
                     className="pl-8 text-sm"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -393,7 +390,7 @@ export default function BankTransactionsPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No transactions recorded" />
+                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={t("common.noData")} />
               </CardContent>
             </Card>
           </TabsContent>

@@ -17,6 +17,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart
 } from "recharts";
 import { useLocation } from "wouter";
+import { useTranslation } from "@/i18n";
 
 const CHART_COLORS = [
   "hsl(221, 83%, 53%)",
@@ -29,6 +30,7 @@ const CHART_COLORS = [
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
+  const { t } = useTranslation();
 
   const { data: stats, isLoading } = useQuery<any>({
     queryKey: ["/api/dashboard/stats"],
@@ -48,23 +50,23 @@ export default function Dashboard() {
 
   const greeting = (() => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 17) return "Good Afternoon";
-    return "Good Evening";
+    if (hour < 12) return t("dashboard.greeting.morning");
+    if (hour < 17) return t("dashboard.greeting.afternoon");
+    return t("dashboard.greeting.evening");
   })();
 
   const quickActions = [
-    { label: "New Patient", icon: Users, path: "/register-patient", color: "text-blue-500", bg: "bg-blue-500/10 dark:bg-blue-500/15" },
-    { label: "Create Bill", icon: FileText, path: "/billing", color: "text-emerald-500", bg: "bg-emerald-500/10 dark:bg-emerald-500/15" },
-    { label: "OPD Visit", icon: Stethoscope, path: "/opd", color: "text-violet-500", bg: "bg-violet-500/10 dark:bg-violet-500/15" },
-    { label: "Appointments", icon: Calendar, path: "/appointments", color: "text-amber-500", bg: "bg-amber-500/10 dark:bg-amber-500/15" },
-    { label: "Lab Tests", icon: Clipboard, path: "/lab-tests", color: "text-pink-500", bg: "bg-pink-500/10 dark:bg-pink-500/15" },
-    { label: "Medicines", icon: Pill, path: "/medicines", color: "text-cyan-500", bg: "bg-cyan-500/10 dark:bg-cyan-500/15" },
+    { label: t("dashboard.newPatient"), icon: Users, path: "/register-patient", color: "text-blue-500", bg: "bg-blue-500/10 dark:bg-blue-500/15" },
+    { label: t("dashboard.createBill"), icon: FileText, path: "/billing", color: "text-emerald-500", bg: "bg-emerald-500/10 dark:bg-emerald-500/15" },
+    { label: t("dashboard.opdVisit"), icon: Stethoscope, path: "/opd", color: "text-violet-500", bg: "bg-violet-500/10 dark:bg-violet-500/15" },
+    { label: t("sidebar.appointments"), icon: Calendar, path: "/appointments", color: "text-amber-500", bg: "bg-amber-500/10 dark:bg-amber-500/15" },
+    { label: t("sidebar.labTests"), icon: Clipboard, path: "/lab-tests", color: "text-pink-500", bg: "bg-pink-500/10 dark:bg-pink-500/15" },
+    { label: t("sidebar.medicines"), icon: Pill, path: "/medicines", color: "text-cyan-500", bg: "bg-cyan-500/10 dark:bg-cyan-500/15" },
   ];
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Dashboard" description="Overview of your clinic operations" />
+      <PageHeader title={t("dashboard.title")} description={t("dashboard.subtitle")} />
       <div className="flex-1 overflow-auto p-4 md:p-6 space-y-6">
 
         <div className="rounded-md bg-gradient-to-r from-blue-600 via-violet-600 to-pink-600 p-5 md:p-6" data-testid="dashboard-welcome-banner">
@@ -95,7 +97,7 @@ export default function Dashboard() {
           ) : (
             <>
               <StatsCard
-                title="Today's Patients"
+                title={t("dashboard.stats.todayPatients")}
                 value={stats?.todayPatients ?? 0}
                 icon={Users}
                 trend={`${stats?.patientTrend ?? 0}% vs yesterday`}
@@ -105,7 +107,7 @@ export default function Dashboard() {
                 valueColor="text-blue-700 dark:text-blue-300"
               />
               <StatsCard
-                title="Today's Revenue"
+                title={t("dashboard.stats.todayRevenue")}
                 value={`$${stats?.todayRevenue ?? "0.00"}`}
                 icon={DollarSign}
                 trend={`${stats?.revenueTrend ?? 0}% vs yesterday`}
@@ -115,7 +117,7 @@ export default function Dashboard() {
                 valueColor="text-emerald-700 dark:text-emerald-300"
               />
               <StatsCard
-                title="Active OPD"
+                title={t("dashboard.stats.activeOpd")}
                 value={stats?.activeOpd ?? 0}
                 icon={Stethoscope}
                 iconColor="text-violet-500 dark:text-violet-400"
@@ -123,7 +125,7 @@ export default function Dashboard() {
                 valueColor="text-violet-700 dark:text-violet-300"
               />
               <StatsCard
-                title="Total Bills"
+                title={t("dashboard.stats.totalBills")}
                 value={stats?.totalBills ?? 0}
                 icon={FileText}
                 iconColor="text-amber-500 dark:text-amber-400"
@@ -137,7 +139,7 @@ export default function Dashboard() {
         <div data-testid="dashboard-quick-actions">
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <Activity className="h-4 w-4 text-blue-500" />
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Quick Actions</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("dashboard.quickActions")}</h3>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {quickActions.map((action) => (
@@ -161,7 +163,7 @@ export default function Dashboard() {
             <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 p-4 flex-wrap">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-blue-500" />
-                Revenue Overview
+                {t("dashboard.revenueChart")}
               </CardTitle>
               <Badge variant="secondary">Last 7 days</Badge>
             </CardHeader>
@@ -230,7 +232,7 @@ export default function Dashboard() {
             <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 p-4 flex-wrap">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <PieChartIcon className="h-4 w-4 text-emerald-500" />
-                Service Breakdown
+                {t("dashboard.serviceBreakdown")}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
@@ -298,10 +300,10 @@ export default function Dashboard() {
             <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 p-4 flex-wrap">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Heart className="h-4 w-4 text-pink-500" />
-                Recent OPD Visits
+                {t("dashboard.recentVisits")}
               </CardTitle>
               <Button variant="ghost" size="sm" onClick={() => navigate("/opd")} data-testid="button-view-all-visits">
-                View All
+                {t("dashboard.viewAll")}
               </Button>
             </CardHeader>
             <CardContent className="p-4 pt-0">
@@ -357,7 +359,7 @@ export default function Dashboard() {
                     <Stethoscope className="h-7 w-7 text-pink-400" />
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-medium text-muted-foreground">No recent visits</p>
+                    <p className="text-sm font-medium text-muted-foreground">{t("dashboard.noRecentVisits")}</p>
                     <p className="text-xs text-muted-foreground/70 mt-1">OPD visits will appear here</p>
                   </div>
                 </div>
@@ -372,7 +374,7 @@ export default function Dashboard() {
                 Financial Summary
               </CardTitle>
               <Button variant="ghost" size="sm" onClick={() => navigate("/reports")} data-testid="button-view-reports">
-                Reports
+                {t("sidebar.reports")}
               </Button>
             </CardHeader>
             <CardContent className="p-4 pt-0">
@@ -382,7 +384,7 @@ export default function Dashboard() {
                     <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-500/15">
                       <Users className="h-3.5 w-3.5 text-blue-500" />
                     </div>
-                    <span className="text-xs text-muted-foreground font-medium">Total Patients</span>
+                    <span className="text-xs text-muted-foreground font-medium">{t("dashboard.stats.totalPatients")}</span>
                   </div>
                   <span className="text-xl font-bold text-blue-700 dark:text-blue-300 tabular-nums" data-testid="text-total-patients">{stats?.totalPatients ?? 0}</span>
                 </div>
@@ -391,7 +393,7 @@ export default function Dashboard() {
                     <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500/15">
                       <Pill className="h-3.5 w-3.5 text-emerald-500" />
                     </div>
-                    <span className="text-xs text-muted-foreground font-medium">Medicines</span>
+                    <span className="text-xs text-muted-foreground font-medium">{t("dashboard.stats.totalMedicines")}</span>
                   </div>
                   <span className="text-xl font-bold text-emerald-700 dark:text-emerald-300 tabular-nums" data-testid="text-total-medicines">{stats?.totalMedicines ?? 0}</span>
                 </div>
@@ -400,7 +402,7 @@ export default function Dashboard() {
                     <div className="flex h-7 w-7 items-center justify-center rounded-md bg-violet-500/15">
                       <ArrowUpRight className="h-3.5 w-3.5 text-violet-500" />
                     </div>
-                    <span className="text-xs text-muted-foreground font-medium">Month Revenue</span>
+                    <span className="text-xs text-muted-foreground font-medium">{t("dashboard.stats.monthRevenue")}</span>
                   </div>
                   <span className="text-xl font-bold text-violet-700 dark:text-violet-300 tabular-nums" data-testid="text-month-revenue">${stats?.monthRevenue ?? "0"}</span>
                 </div>
@@ -409,7 +411,7 @@ export default function Dashboard() {
                     <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-500/15">
                       <ArrowDownRight className="h-3.5 w-3.5 text-amber-500" />
                     </div>
-                    <span className="text-xs text-muted-foreground font-medium">Month Expenses</span>
+                    <span className="text-xs text-muted-foreground font-medium">{t("dashboard.stats.monthExpenses")}</span>
                   </div>
                   <span className="text-xl font-bold text-amber-700 dark:text-amber-300 tabular-nums" data-testid="text-month-expenses">${stats?.monthExpenses ?? "0"}</span>
                 </div>

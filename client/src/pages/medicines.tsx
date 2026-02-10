@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ const defaultForm = {
 };
 
 export default function MedicinesPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editMed, setEditMed] = useState<Medicine | null>(null);
@@ -365,37 +367,37 @@ export default function MedicinesPage() {
   };
 
   const columns = [
-    { header: "Medicine", accessor: (row: Medicine) => (
+    { header: t("medicines.medicineName"), accessor: (row: Medicine) => (
       <div>
         <span className="font-semibold text-sm">{row.name}</span>
         {row.genericName && <span className="block text-xs text-muted-foreground italic">{row.genericName}</span>}
       </div>
     )},
-    { header: "Category", accessor: (row: Medicine) => (
+    { header: t("common.category"), accessor: (row: Medicine) => (
       <Badge variant="outline" className="text-[11px]">
         {row.category || "-"}
       </Badge>
     )},
-    { header: "Unit", accessor: (row: Medicine) => getUnitBadge(row.unit || "Box") },
-    { header: "Box Price", accessor: (row: Medicine) => (
+    { header: t("medicines.unit"), accessor: (row: Medicine) => getUnitBadge(row.unit || "Box") },
+    { header: t("medicines.boxPrice"), accessor: (row: Medicine) => (
       <span className="text-sm font-medium text-violet-600 dark:text-violet-400">${Number(row.boxPrice || 0).toFixed(2)}</span>
     )},
-    { header: "Qty/Box", accessor: (row: Medicine) => (
+    { header: t("medicines.qtyPerBox"), accessor: (row: Medicine) => (
       <span className="inline-flex px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] font-mono font-medium">{row.qtyPerBox || "-"}</span>
     )},
-    { header: "Per Med", accessor: (row: Medicine) => (
+    { header: t("medicines.perMedPrice"), accessor: (row: Medicine) => (
       <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">${Number(row.perMedPrice || 0).toFixed(4)}</span>
     )},
-    { header: "Total Purchase", accessor: (row: Medicine) => (
+    { header: t("medicines.purchaseValue"), accessor: (row: Medicine) => (
       <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">${Number(row.totalPurchasePrice || 0).toFixed(2)}</span>
     )},
-    { header: "Sell (Local)", accessor: (row: Medicine) => (
+    { header: t("medicines.localPrice"), accessor: (row: Medicine) => (
       <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">${Number(row.sellingPriceLocal || 0).toFixed(2)}</span>
     )},
-    { header: "Sell (Foreign)", accessor: (row: Medicine) => (
+    { header: t("medicines.foreignerPrice"), accessor: (row: Medicine) => (
       <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">${Number(row.sellingPriceForeigner || 0).toFixed(2)}</span>
     )},
-    { header: "Stock", accessor: (row: Medicine) => {
+    { header: t("medicines.stockCount"), accessor: (row: Medicine) => {
       const isLow = row.stockCount < (row.stockAlert || 10) && row.stockCount > 0;
       const isOut = row.stockCount === 0;
       const isInStock = !isLow && !isOut;
@@ -420,8 +422,8 @@ export default function MedicinesPage() {
         </div>
       );
     }},
-    { header: "Expiry", accessor: (row: Medicine) => getExpiryBadge(row.expiryDate) },
-    { header: "Actions", accessor: (row: Medicine) => (
+    { header: t("medicines.expiryDate"), accessor: (row: Medicine) => getExpiryBadge(row.expiryDate) },
+    { header: t("common.actions"), accessor: (row: Medicine) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" data-testid={`button-actions-${row.id}`} onClick={(e) => e.stopPropagation()}>
@@ -430,19 +432,19 @@ export default function MedicinesPage() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewMed(row); }} data-testid={`action-view-${row.id}`} className="gap-2">
-            <Eye className="h-4 w-4 text-blue-500" /> View Details
+            <Eye className="h-4 w-4 text-blue-500" /> {t("common.view")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
-            <Pencil className="h-4 w-4 text-amber-500" /> Edit
+            <Pencil className="h-4 w-4 text-amber-500" /> {t("common.edit")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handlePrint(row); }} data-testid={`action-print-${row.id}`} className="gap-2">
-            <Printer className="h-4 w-4 text-purple-500" /> Print Label
+            <Printer className="h-4 w-4 text-purple-500" /> {t("medicines.printLabel")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleBarcode(row); }} data-testid={`action-barcode-${row.id}`} className="gap-2">
-            <Barcode className="h-4 w-4 text-teal-500" /> Barcode
+            <Barcode className="h-4 w-4 text-teal-500" /> {t("medicines.printBarcode")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (confirm("Delete this medicine?")) deleteMutation.mutate(row.id); }} className="text-red-600 gap-2" data-testid={`action-delete-${row.id}`}>
-            <Trash2 className="h-4 w-4" /> Delete
+            <Trash2 className="h-4 w-4" /> {t("common.delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -454,21 +456,21 @@ export default function MedicinesPage() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-teal-700 dark:text-teal-400">
           <Pill className="h-4 w-4" />
-          Basic Information
+          {t("medicines.medicineName")}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <Label htmlFor="name">Medicine Name *</Label>
+            <Label htmlFor="name">{t("medicines.medicineName")} *</Label>
             <Input id="name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} data-testid="input-medicine-name" />
           </div>
           <div className="col-span-2">
-            <Label htmlFor="genericName">Generic Name</Label>
+            <Label htmlFor="genericName">{t("medicines.genericName")}</Label>
             <Input id="genericName" value={form.genericName} onChange={e => setForm(f => ({ ...f, genericName: e.target.value }))} placeholder="Optional" data-testid="input-medicine-generic" />
           </div>
           <div>
-            <Label>Category</Label>
+            <Label>{t("common.category")}</Label>
             <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-              <SelectTrigger data-testid="select-medicine-category"><SelectValue placeholder="Select" /></SelectTrigger>
+              <SelectTrigger data-testid="select-medicine-category"><SelectValue placeholder={t("common.category")} /></SelectTrigger>
               <SelectContent>
                 {allCategories.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
@@ -477,15 +479,15 @@ export default function MedicinesPage() {
             </Select>
           </div>
           <div>
-            <Label htmlFor="manufacturer">Manufacturer</Label>
+            <Label htmlFor="manufacturer">{t("medicines.manufacturer")}</Label>
             <Input id="manufacturer" value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))} data-testid="input-medicine-manufacturer" />
           </div>
           <div>
-            <Label htmlFor="batchNo">Batch No</Label>
+            <Label htmlFor="batchNo">{t("medicines.batchNo")}</Label>
             <Input id="batchNo" value={form.batchNo} onChange={e => setForm(f => ({ ...f, batchNo: e.target.value }))} placeholder="Optional" data-testid="input-medicine-batch" />
           </div>
           <div>
-            <Label htmlFor="expiryDate">Expiry Date</Label>
+            <Label htmlFor="expiryDate">{t("medicines.expiryDate")}</Label>
             <Input id="expiryDate" type="date" value={form.expiryDate} onChange={e => setForm(f => ({ ...f, expiryDate: e.target.value }))} data-testid="input-medicine-expiry" />
           </div>
         </div>
@@ -557,7 +559,7 @@ export default function MedicinesPage() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-400">
           <Calculator className="h-4 w-4" />
-          Purchase Pricing
+          {t("medicines.purchaseValue")}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -614,18 +616,18 @@ export default function MedicinesPage() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-green-700 dark:text-green-400">
           <DollarSign className="h-4 w-4" />
-          Selling Prices
+          {t("medicines.salesValue")}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label htmlFor="sellingPriceLocal" className="flex items-center gap-1">
-              <Users className="h-3 w-3 text-green-500" /> Local Price ($) *
+              <Users className="h-3 w-3 text-green-500" /> {t("medicines.localPrice")} ($) *
             </Label>
             <Input id="sellingPriceLocal" type="number" step="0.01" min={0} value={form.sellingPriceLocal || ""} onChange={e => setForm(f => ({ ...f, sellingPriceLocal: Number(e.target.value) || 0 }))} data-testid="input-medicine-sell-local" />
           </div>
           <div>
             <Label htmlFor="sellingPriceForeigner" className="flex items-center gap-1">
-              <Globe className="h-3 w-3 text-blue-500" /> Foreigner Price ($) *
+              <Globe className="h-3 w-3 text-blue-500" /> {t("medicines.foreignerPrice")} ($) *
             </Label>
             <Input id="sellingPriceForeigner" type="number" step="0.01" min={0} value={form.sellingPriceForeigner || ""} onChange={e => setForm(f => ({ ...f, sellingPriceForeigner: Number(e.target.value) || 0 }))} data-testid="input-medicine-sell-foreign" />
           </div>
@@ -669,12 +671,12 @@ export default function MedicinesPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Medicine Management"
-        description="Manage medicine inventory, pricing and stock alerts"
+        title={t("medicines.title")}
+        description={t("medicines.subtitle")}
         actions={
           <div className="flex items-center gap-1.5 flex-wrap">
             <Button variant="outline" size="sm" onClick={() => setCategoryDialogOpen(true)} data-testid="button-category">
-              <FolderPlus className="h-4 w-4 mr-1" /> Category
+              <FolderPlus className="h-4 w-4 mr-1" /> {t("medicines.categoryMgmt")}
             </Button>
             <Button
               variant={viewMode === "list" ? "default" : "outline"}
@@ -682,7 +684,7 @@ export default function MedicinesPage() {
               onClick={() => setViewMode("list")}
               data-testid="button-list-view"
             >
-              <List className="h-4 w-4 mr-1" /> List View
+              <List className="h-4 w-4 mr-1" /> {t("opd.listView")}
             </Button>
             <Button
               variant={viewMode === "grid" ? "default" : "outline"}
@@ -690,15 +692,15 @@ export default function MedicinesPage() {
               onClick={() => setViewMode("grid")}
               data-testid="button-grid-view"
             >
-              <LayoutGrid className="h-4 w-4 mr-1" /> Grid View
+              <LayoutGrid className="h-4 w-4 mr-1" /> {t("opd.gridView")}
             </Button>
             <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} data-testid="button-refresh">
-              <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? "animate-spin" : ""}`} /> Refresh
+              <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? "animate-spin" : ""}`} /> {t("common.refresh")}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" data-testid="button-import-medicine">
-                  <Upload className="h-4 w-4 mr-1" /> Import
+                  <Upload className="h-4 w-4 mr-1" /> {t("common.import")}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -713,7 +715,7 @@ export default function MedicinesPage() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" data-testid="button-export-medicine">
-                  <Download className="h-4 w-4 mr-1" /> Export
+                  <Download className="h-4 w-4 mr-1" /> {t("common.export")}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -728,19 +730,19 @@ export default function MedicinesPage() {
             <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setForm(defaultForm); }}>
               <DialogTrigger asChild>
                 <Button size="sm" data-testid="button-new-medicine">
-                  <Plus className="h-4 w-4 mr-1" /> Add Medicine
+                  <Plus className="h-4 w-4 mr-1" /> {t("medicines.addMedicine")}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <Pill className="h-5 w-5 text-teal-500" />
-                    Add New Medicine
+                    {t("medicines.addMedicine")}
                   </DialogTitle>
                 </DialogHeader>
                 {formContent}
                 <Button onClick={handleSubmit} className="w-full" disabled={createMutation.isPending} data-testid="button-submit-medicine">
-                  {createMutation.isPending ? "Adding..." : "Add Medicine"}
+                  {createMutation.isPending ? t("common.creating") : t("medicines.addMedicine")}
                 </Button>
               </DialogContent>
             </Dialog>
@@ -754,12 +756,12 @@ export default function MedicinesPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Pencil className="h-5 w-5 text-amber-500" />
-                Edit Medicine
+                {t("common.edit")}
               </DialogTitle>
             </DialogHeader>
             {formContent}
             <Button onClick={handleSubmit} className="w-full" disabled={updateMutation.isPending} data-testid="button-update-medicine">
-              {updateMutation.isPending ? "Updating..." : "Update Medicine"}
+              {updateMutation.isPending ? t("common.updating") : t("common.update")}
             </Button>
           </DialogContent>
         </Dialog>
@@ -771,7 +773,7 @@ export default function MedicinesPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Eye className="h-5 w-5 text-blue-500" />
-                Medicine Details
+                {t("medicines.title")}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
@@ -782,27 +784,27 @@ export default function MedicinesPage() {
               )}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground">Medicine Name</p>
+                  <p className="text-xs text-muted-foreground">{t("medicines.medicineName")}</p>
                   <p className="font-semibold">{viewMed.name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Generic Name</p>
+                  <p className="text-xs text-muted-foreground">{t("medicines.genericName")}</p>
                   <p className="font-medium">{viewMed.genericName || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Category</p>
+                  <p className="text-xs text-muted-foreground">{t("common.category")}</p>
                   <p>{viewMed.category || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Manufacturer</p>
+                  <p className="text-xs text-muted-foreground">{t("medicines.manufacturer")}</p>
                   <p>{viewMed.manufacturer || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Batch No</p>
+                  <p className="text-xs text-muted-foreground">{t("medicines.batchNo")}</p>
                   <p>{viewMed.batchNo || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Expiry Date</p>
+                  <p className="text-xs text-muted-foreground">{t("medicines.expiryDate")}</p>
                   {getExpiryBadge(viewMed.expiryDate)}
                 </div>
               </div>
@@ -810,7 +812,7 @@ export default function MedicinesPage() {
               <Separator />
 
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-md p-3 border border-blue-200 dark:border-blue-800">
-                <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">Purchase Pricing</p>
+                <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">{t("medicines.purchaseValue")}</p>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div><span className="text-muted-foreground text-xs">Unit:</span> <span className="font-medium">{viewMed.unit}</span></div>
                   <div><span className="text-muted-foreground text-xs">Count:</span> <span className="font-medium">{viewMed.unitCount}</span></div>
@@ -822,7 +824,7 @@ export default function MedicinesPage() {
               </div>
 
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-md p-3 border border-green-200 dark:border-green-800">
-                <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide mb-2">Selling Prices</p>
+                <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide mb-2">{t("medicines.salesValue")}</p>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="flex items-center gap-1"><Users className="h-3 w-3 text-green-500" /> <span className="text-muted-foreground text-xs">Local:</span> <span className="font-bold text-green-600 dark:text-green-400">${Number(viewMed.sellingPriceLocal).toFixed(2)}</span></div>
                   <div className="flex items-center gap-1"><Globe className="h-3 w-3 text-blue-500" /> <span className="text-muted-foreground text-xs">Foreigner:</span> <span className="font-bold text-blue-600 dark:text-blue-400">${Number(viewMed.sellingPriceForeigner).toFixed(2)}</span></div>
@@ -851,7 +853,7 @@ export default function MedicinesPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Tag className="h-5 w-5 text-indigo-500" />
-              Manage Categories
+              {t("medicines.categoryMgmt")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -911,12 +913,12 @@ export default function MedicinesPage() {
       <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="medicine-stats">
           {[
-            { key: "total", label: "Total Items", gradient: "from-blue-500 to-blue-600", value: totalMeds, icon: Package, testId: "stat-total-meds" },
-            { key: "in-stock", label: "In Stock", gradient: "from-emerald-500 to-emerald-600", value: inStock.length, icon: PackageCheck, testId: "stat-in-stock" },
-            { key: "low-stock", label: "Low Stock", gradient: "from-amber-500 to-amber-600", value: lowStock.length, icon: AlertTriangle, testId: "stat-low-stock" },
-            { key: "out-stock", label: "Out of Stock", gradient: "from-red-500 to-red-600", value: outOfStock.length, icon: PackageX, testId: "stat-out-stock" },
-            { key: "purchase", label: "Purchase Value", gradient: "from-violet-500 to-violet-600", value: `$${totalPurchaseValue.toFixed(2)}`, icon: DollarSign, testId: "stat-purchase-value" },
-            { key: "sales", label: "Sales Value", gradient: "from-cyan-500 to-cyan-600", value: `$${totalSalesValue.toFixed(2)}`, icon: TrendingUp, testId: "stat-sales-value" },
+            { key: "total", label: t("medicines.totalItems"), gradient: "from-blue-500 to-blue-600", value: totalMeds, icon: Package, testId: "stat-total-meds" },
+            { key: "in-stock", label: t("medicines.inStock"), gradient: "from-emerald-500 to-emerald-600", value: inStock.length, icon: PackageCheck, testId: "stat-in-stock" },
+            { key: "low-stock", label: t("medicines.lowStock"), gradient: "from-amber-500 to-amber-600", value: lowStock.length, icon: AlertTriangle, testId: "stat-low-stock" },
+            { key: "out-stock", label: t("medicines.outOfStock"), gradient: "from-red-500 to-red-600", value: outOfStock.length, icon: PackageX, testId: "stat-out-stock" },
+            { key: "purchase", label: t("medicines.purchaseValue"), gradient: "from-violet-500 to-violet-600", value: `$${totalPurchaseValue.toFixed(2)}`, icon: DollarSign, testId: "stat-purchase-value" },
+            { key: "sales", label: t("medicines.salesValue"), gradient: "from-cyan-500 to-cyan-600", value: `$${totalSalesValue.toFixed(2)}`, icon: TrendingUp, testId: "stat-sales-value" },
           ].map((s) => (
             <Card key={s.key} data-testid={s.testId}>
               <CardContent className="p-4">
@@ -960,7 +962,7 @@ export default function MedicinesPage() {
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <Package className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-sm font-semibold">All Medicines</CardTitle>
+                <CardTitle className="text-sm font-semibold">{t("medicines.title")}</CardTitle>
                 <Badge variant="secondary" className="text-[10px]">{filtered.length}</Badge>
               </div>
             </div>
@@ -981,7 +983,7 @@ export default function MedicinesPage() {
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="all">{t("common.all")} {t("common.category")}</SelectItem>
                   {allCategories.map(cat => (
                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
@@ -993,10 +995,10 @@ export default function MedicinesPage() {
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="in_stock">In Stock</SelectItem>
-                  <SelectItem value="low_stock">Low Stock</SelectItem>
-                  <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                  <SelectItem value="all">{t("common.all")} {t("common.status")}</SelectItem>
+                  <SelectItem value="in_stock">{t("medicines.inStock")}</SelectItem>
+                  <SelectItem value="low_stock">{t("medicines.lowStock")}</SelectItem>
+                  <SelectItem value="out_of_stock">{t("medicines.outOfStock")}</SelectItem>
                 </SelectContent>
               </Select>
               {(categoryFilter !== "all" || statusFilter !== "all" || searchTerm) && (
@@ -1043,19 +1045,19 @@ export default function MedicinesPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => setViewMed(med)} className="gap-2">
-                                <Eye className="h-4 w-4 text-blue-500" /> View Details
+                                <Eye className="h-4 w-4 text-blue-500" /> {t("common.view")}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEdit(med)} className="gap-2">
-                                <Pencil className="h-4 w-4 text-amber-500" /> Edit
+                                <Pencil className="h-4 w-4 text-amber-500" /> {t("common.edit")}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handlePrint(med)} className="gap-2">
-                                <Printer className="h-4 w-4 text-purple-500" /> Print Label
+                                <Printer className="h-4 w-4 text-purple-500" /> {t("medicines.printLabel")}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleBarcode(med)} className="gap-2">
-                                <Barcode className="h-4 w-4 text-teal-500" /> Barcode
+                                <Barcode className="h-4 w-4 text-teal-500" /> {t("medicines.printBarcode")}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { if (confirm("Delete this medicine?")) deleteMutation.mutate(med.id); }} className="text-red-600 gap-2">
-                                <Trash2 className="h-4 w-4" /> Delete
+                                <Trash2 className="h-4 w-4" /> {t("common.delete")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -1128,7 +1130,7 @@ export default function MedicinesPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Upload className="h-5 w-5 text-teal-500" />
-                Import Medicines
+                {t("common.import")} {t("billing.medicines")}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
