@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, MoreVertical, Trash2, Edit, DollarSign, Calendar, Filter, Download, X, Building2 } from "lucide-react";
+import { Search, Plus, MoreVertical, Trash2, Edit, DollarSign, Calendar, Filter, Download, X, Building2, Tag } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Salary } from "@shared/schema";
 
@@ -22,12 +22,24 @@ const DEFAULT_DEPARTMENTS = [
   "Pediatrics", "Pharmacy", "Laboratory", "Administration", "Nursing", "Other"
 ];
 
+const DEFAULT_SALARY_CATEGORIES = [
+  "Full-Time", "Part-Time", "Contract", "Consultant", "Intern", "Overtime", "Bonus", "Other"
+];
+
 function loadDepartments(): string[] {
   try {
     const stored = localStorage.getItem("salary_departments");
     if (stored) return JSON.parse(stored);
   } catch {}
   return DEFAULT_DEPARTMENTS;
+}
+
+function loadSalaryCategories(): string[] {
+  try {
+    const stored = localStorage.getItem("salary_categories");
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return DEFAULT_SALARY_CATEGORIES;
 }
 
 export default function SalaryPage() {
@@ -41,8 +53,11 @@ export default function SalaryPage() {
   const [deptDialogOpen, setDeptDialogOpen] = useState(false);
   const [departments, setDepartments] = useState<string[]>(loadDepartments);
   const [newDepartment, setNewDepartment] = useState("");
+  const [catDialogOpen, setCatDialogOpen] = useState(false);
+  const [salaryCategories, setSalaryCategories] = useState<string[]>(loadSalaryCategories);
+  const [newSalaryCategory, setNewSalaryCategory] = useState("");
   const [form, setForm] = useState({
-    staffName: "", role: "", department: "", baseSalary: "", allowances: "0",
+    staffName: "", role: "", department: "", category: "", baseSalary: "", allowances: "0",
     deductions: "0", netSalary: "", paymentMethod: "cash",
     paymentDate: "", month: months[new Date().getMonth()], year: String(currentYear),
     status: "pending", notes: "",
@@ -51,6 +66,10 @@ export default function SalaryPage() {
   useEffect(() => {
     localStorage.setItem("salary_departments", JSON.stringify(departments));
   }, [departments]);
+
+  useEffect(() => {
+    localStorage.setItem("salary_categories", JSON.stringify(salaryCategories));
+  }, [salaryCategories]);
 
   const addDepartment = () => {
     const trimmed = newDepartment.trim();
@@ -67,6 +86,23 @@ export default function SalaryPage() {
   const removeDepartment = (dept: string) => {
     setDepartments(departments.filter(d => d !== dept));
     toast({ title: `Department "${dept}" removed` });
+  };
+
+  const addSalaryCategory = () => {
+    const trimmed = newSalaryCategory.trim();
+    if (!trimmed) return;
+    if (salaryCategories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      toast({ title: "Category already exists", variant: "destructive" });
+      return;
+    }
+    setSalaryCategories([...salaryCategories, trimmed]);
+    setNewSalaryCategory("");
+    toast({ title: `Category "${trimmed}" added` });
+  };
+
+  const removeSalaryCategory = (cat: string) => {
+    setSalaryCategories(salaryCategories.filter(c => c !== cat));
+    toast({ title: `Category "${cat}" removed` });
   };
 
   const { data: salaries = [], isLoading } = useQuery<Salary[]>({ queryKey: ["/api/salaries"] });
@@ -100,7 +136,7 @@ export default function SalaryPage() {
   });
 
   const resetForm = () => {
-    setForm({ staffName: "", role: "", department: "", baseSalary: "", allowances: "0", deductions: "0", netSalary: "", paymentMethod: "cash", paymentDate: "", month: months[new Date().getMonth()], year: String(currentYear), status: "pending", notes: "" });
+    setForm({ staffName: "", role: "", department: "", category: "", baseSalary: "", allowances: "0", deductions: "0", netSalary: "", paymentMethod: "cash", paymentDate: "", month: months[new Date().getMonth()], year: String(currentYear), status: "pending", notes: "" });
   };
 
   const calculateNet = () => {
@@ -137,6 +173,46 @@ export default function SalaryPage() {
           <p className="text-sm text-muted-foreground">Track and manage staff salaries</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
+            <Button variant="outline" onClick={() => setCatDialogOpen(true)} data-testid="button-manage-categories">
+              <Tag className="h-4 w-4 mr-1" /> + Category
+            </Button>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Manage Categories</DialogTitle>
+                <DialogDescription>Add or remove salary categories</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="New category name..."
+                    value={newSalaryCategory}
+                    onChange={(e) => setNewSalaryCategory(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSalaryCategory())}
+                    data-testid="input-new-category"
+                  />
+                  <Button onClick={addSalaryCategory} disabled={!newSalaryCategory.trim()} data-testid="button-add-category">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                  {salaryCategories.map(cat => (
+                    <Badge key={cat} variant="secondary" className="gap-1 pr-1" data-testid={`badge-category-${cat}`}>
+                      {cat}
+                      <button
+                        type="button"
+                        onClick={() => removeSalaryCategory(cat)}
+                        className="ml-0.5 rounded-full p-0.5 hover-elevate"
+                        data-testid={`button-remove-category-${cat}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           <Dialog open={deptDialogOpen} onOpenChange={setDeptDialogOpen}>
             <Button variant="outline" onClick={() => setDeptDialogOpen(true)} data-testid="button-manage-departments">
               <Building2 className="h-4 w-4 mr-1" /> + Department
@@ -232,6 +308,7 @@ export default function SalaryPage() {
                     <th className="text-left p-3 font-medium">Staff Name</th>
                     <th className="text-left p-3 font-medium">Role</th>
                     <th className="text-left p-3 font-medium">Department</th>
+                    <th className="text-left p-3 font-medium">Category</th>
                     <th className="text-right p-3 font-medium">Base Salary</th>
                     <th className="text-right p-3 font-medium">Allowances</th>
                     <th className="text-right p-3 font-medium">Deductions</th>
@@ -248,6 +325,7 @@ export default function SalaryPage() {
                       <td className="p-3 font-medium">{sal.staffName}</td>
                       <td className="p-3">{sal.role || "-"}</td>
                       <td className="p-3">{sal.department || "-"}</td>
+                      <td className="p-3">{sal.category ? <Badge variant="outline" className="text-[10px]">{sal.category}</Badge> : "-"}</td>
                       <td className="p-3 text-right">${sal.baseSalary}</td>
                       <td className="p-3 text-right text-green-600">+${sal.allowances || "0"}</td>
                       <td className="p-3 text-right text-red-600">-${sal.deductions || "0"}</td>
@@ -270,7 +348,7 @@ export default function SalaryPage() {
                             <DropdownMenuItem onClick={() => {
                               setEditingSalary(sal);
                               setForm({
-                                staffName: sal.staffName, role: sal.role || "", department: sal.department || "",
+                                staffName: sal.staffName, role: sal.role || "", department: sal.department || "", category: sal.category || "",
                                 baseSalary: sal.baseSalary, allowances: sal.allowances || "0",
                                 deductions: sal.deductions || "0", netSalary: sal.netSalary,
                                 paymentMethod: sal.paymentMethod || "cash",
@@ -318,18 +396,33 @@ export default function SalaryPage() {
                   <Input value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} placeholder="Doctor, Nurse, etc." data-testid="input-role" />
                 </div>
               </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">Department</label>
-                <Select value={form.department} onValueChange={(v) => setForm({ ...form, department: v })}>
-                  <SelectTrigger data-testid="select-department">
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map(dept => (
-                      <SelectItem key={dept} value={dept} data-testid={`option-department-${dept}`}>{dept}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Department</label>
+                  <Select value={form.department} onValueChange={(v) => setForm({ ...form, department: v })}>
+                    <SelectTrigger data-testid="select-department">
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map(dept => (
+                        <SelectItem key={dept} value={dept} data-testid={`option-department-${dept}`}>{dept}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Category</label>
+                  <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                    <SelectTrigger data-testid="select-category">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {salaryCategories.map(cat => (
+                        <SelectItem key={cat} value={cat} data-testid={`option-category-${cat}`}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>

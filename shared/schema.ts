@@ -294,6 +294,7 @@ export const salaries = pgTable("salaries", {
   staffName: text("staff_name").notNull(),
   role: text("role"),
   department: text("department"),
+  category: text("category"),
   baseSalary: numeric("base_salary", { precision: 10, scale: 2 }).notNull(),
   allowances: numeric("allowances", { precision: 10, scale: 2 }).default("0"),
   deductions: numeric("deductions", { precision: 10, scale: 2 }).default("0"),
