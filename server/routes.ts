@@ -163,6 +163,15 @@ export async function registerRoutes(
     }
   });
 
+  app.put("/api/patients/:id", async (req, res) => {
+    try {
+      const updated = await storage.updatePatient(Number(req.params.id), req.body);
+      res.json(updated);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
   app.delete("/api/patients/:id", async (req, res) => {
     try {
       await storage.deletePatient(Number(req.params.id));
