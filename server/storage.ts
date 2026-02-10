@@ -3,7 +3,7 @@ import { db } from "./db";
 import {
   users, roles, patients, services, medicines, opdVisits, bills,
   expenses, bankTransactions, investments, integrations, clinicSettings, labTests, appointments,
-  doctors, salaries,
+  doctors, salaries, activityLogs,
   salaryProfiles, salaryLoans, loanInstallments, payrollRuns, payslips,
   type InsertUser, type User, type InsertRole, type Role,
   type InsertPatient, type Patient, type InsertService, type Service,
@@ -22,6 +22,7 @@ import {
   type InsertLoanInstallment, type LoanInstallment,
   type InsertPayrollRun, type PayrollRun,
   type InsertPayslip, type Payslip,
+  type InsertActivityLog, type ActivityLog,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -137,6 +138,10 @@ export interface IStorage {
 
   getUserByUsername(username: string): Promise<User | undefined>;
   changePassword(id: number, newPassword: string): Promise<void>;
+
+  getActivityLogs(limit?: number): Promise<ActivityLog[]>;
+  createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
+  clearActivityLogs(): Promise<void>;
 
   getDashboardStats(): Promise<any>;
   getRecentVisits(): Promise<any[]>;
@@ -775,6 +780,19 @@ export class DatabaseStorage implements IStorage {
 
   async changePassword(id: number, newPassword: string): Promise<void> {
     await db.update(users).set({ password: newPassword }).where(eq(users.id, id));
+  }
+
+  async getActivityLogs(logLimit: number = 100): Promise<ActivityLog[]> {
+    return db.select().from(activityLogs).orderBy(desc(activityLogs.createdAt)).limit(logLimit);
+  }
+
+  async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
+    const [created] = await db.insert(activityLogs).values(log).returning();
+    return created;
+  }
+
+  async clearActivityLogs(): Promise<void> {
+    await db.delete(activityLogs);
   }
 }
 

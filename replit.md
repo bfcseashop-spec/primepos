@@ -38,10 +38,10 @@ shared/
 7. **Expense Management** - Track clinic expenses by category
 8. **Bank Transactions** - Deposits, withdrawals, transfers
 9. **Investment Management** - Track clinic investments and returns
-10. **Staff & Roles** - Staff management with granular role permissions
+10. **User & Role Management** - User management with CRUD, role assignment, inline role creation with description, edit/delete roles
 11. **Integrations** - Medical device connections (ultrasound, X-ray, ECG, printer)
 12. **Reports** - Revenue trends, expense breakdowns, service analytics
-13. **Settings** - Clinic info, billing config, ID prefixes
+13. **Settings** - Tabbed interface (Application Metadata / Currency & Localization / Company Details / Activity Logs), dual currency selection with exchange rate, company receipt details, activity logging
 14. **Appointments** - View/manage all appointments with status filters, edit status, delete
 15. **Doctor Management** - Doctor profiles with specialization, qualification, schedule, consultation fee, CRUD operations, card view
 16. **Salary Management** - Comprehensive payroll system with 5-tab layout (Dashboard/Employee Profiles/Loans & Advances/Payroll/Salary Ledger), employee salary profiles with allowance structure (housing/transport/meal/other), loan/advance tracking with installment schedules and progress bars, automated payroll run engine with payslip generation and loan deduction calculation, KPI dashboard (active employees/monthly gross/outstanding loans/deductions/paid/pending), department breakdown charts, alerts for overdue loans and pending payments, CSV export for payroll and ledger, mark as paid/finalize workflow, category and department management
@@ -53,6 +53,8 @@ shared/
 - Seed data auto-populated on first run
 
 ## Recent Changes
+- 2026-02-10: Redesigned Settings with 4-tab layout (Application Metadata/Currency & Localization/Company Details/Activity Logs), dual currency selection, exchange rate, company receipt details, activity logging for user/role/settings changes
+- 2026-02-10: Renamed Staff & Roles to User & Role Management, vertical layout with inline role creation form, role description field, edit/delete roles
 - 2026-02-10: Redesigned Salary Management with 5-tab layout (Dashboard/Profiles/Loans/Payroll/Ledger), new DB tables (salary_profiles, salary_loans, loan_installments, payroll_runs, payslips), KPI dashboard, employee profile cards, loan/advance CRUD with progress bars, automated payroll run with payslip generation & loan deductions, CSV export, alerts
 - 2026-02-10: Redesigned Bank Transactions with tabbed interface (Bill Collections/Bank Transactions), payment method summary cards (ABA, Acleda, Cash, Card, WeChat, GPay) with totals/counts/percentages, filterable bill payment records table, 4-card summary stats
 - 2026-02-10: Added New Appointment dialog to OPD Management with patient selection, department, doctor, consultation mode, date/time, reason, notes, payment mode

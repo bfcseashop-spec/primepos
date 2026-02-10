@@ -782,6 +782,7 @@ export async function registerRoutes(
     try {
       const data = validateBody(insertUserSchema, req.body);
       const user = await storage.createUser(data);
+      await storage.createActivityLog({ action: "create", module: "users", description: `User "${user.fullName}" created`, userName: "System" });
       res.status(201).json(user);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -794,6 +795,7 @@ export async function registerRoutes(
       const data = validateBody(updateSchema, req.body);
       const user = await storage.updateUser(Number(req.params.id), data);
       if (!user) return res.status(404).json({ message: "User not found" });
+      await storage.createActivityLog({ action: "update", module: "users", description: `User "${user.fullName}" updated`, userName: "System" });
       res.json(user);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -802,7 +804,9 @@ export async function registerRoutes(
 
   app.delete("/api/users/:id", async (req, res) => {
     try {
+      const user = await storage.getUser(Number(req.params.id));
       await storage.deleteUser(Number(req.params.id));
+      await storage.createActivityLog({ action: "delete", module: "users", description: `User "${user?.fullName || req.params.id}" deleted`, userName: "System" });
       res.json({ success: true });
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -823,6 +827,7 @@ export async function registerRoutes(
     try {
       const data = validateBody(insertRoleSchema, req.body);
       const role = await storage.createRole(data);
+      await storage.createActivityLog({ action: "create", module: "roles", description: `Role "${role.name}" created`, userName: "System" });
       res.status(201).json(role);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -833,6 +838,7 @@ export async function registerRoutes(
     try {
       const role = await storage.updateRole(Number(req.params.id), req.body);
       if (!role) return res.status(404).json({ message: "Role not found" });
+      await storage.createActivityLog({ action: "update", module: "roles", description: `Role "${role.name}" updated`, userName: "System" });
       res.json(role);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -841,7 +847,9 @@ export async function registerRoutes(
 
   app.delete("/api/roles/:id", async (req, res) => {
     try {
+      const role = await storage.getRole(Number(req.params.id));
       await storage.deleteRole(Number(req.params.id));
+      await storage.createActivityLog({ action: "delete", module: "roles", description: `Role "${role?.name || req.params.id}" deleted`, userName: "System" });
       res.json({ success: true });
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -905,7 +913,42 @@ export async function registerRoutes(
     try {
       const data = validateBody(insertClinicSettingsSchema, req.body);
       const settings = await storage.upsertSettings(data);
+      await storage.createActivityLog({
+        action: "update",
+        module: "settings",
+        description: "Settings updated",
+        userName: "System",
+      });
       res.json(settings);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  // Activity Logs
+  app.get("/api/activity-logs", async (req, res) => {
+    try {
+      const limit = req.query.limit ? Number(req.query.limit) : 100;
+      const logs = await storage.getActivityLogs(limit);
+      res.json(logs);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/activity-logs", async (req, res) => {
+    try {
+      const log = await storage.createActivityLog(req.body);
+      res.status(201).json(log);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/activity-logs", async (_req, res) => {
+    try {
+      await storage.clearActivityLogs();
+      res.json({ success: true });
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }

@@ -234,10 +234,26 @@ export const clinicSettings = pgTable("clinic_settings", {
   email: text("email"),
   logo: text("logo"),
   currency: text("currency").default("USD"),
+  secondaryCurrency: text("secondary_currency"),
+  exchangeRate: numeric("exchange_rate", { precision: 12, scale: 4 }).default("1"),
+  currencyDisplay: text("currency_display").default("symbol"),
+  dateFormat: text("date_format").default("MM/DD/YYYY"),
+  timezone: text("timezone").default("UTC"),
   taxRate: numeric("tax_rate", { precision: 5, scale: 2 }).default("0"),
   invoicePrefix: text("invoice_prefix").default("INV"),
   visitPrefix: text("visit_prefix").default("VIS"),
   patientPrefix: text("patient_prefix").default("PAT"),
+  companyName: text("company_name"),
+  companyAddress: text("company_address"),
+  companyPhone: text("company_phone"),
+  companyEmail: text("company_email"),
+  companyWebsite: text("company_website"),
+  companyTaxId: text("company_tax_id"),
+  receiptFooter: text("receipt_footer"),
+  receiptLogo: text("receipt_logo"),
+  appName: text("app_name").default("ClinicPOS"),
+  appTagline: text("app_tagline"),
+  appVersion: text("app_version").default("1.0.0"),
 });
 
 export const insertClinicSettingsSchema = createInsertSchema(clinicSettings).omit({ id: true });
@@ -414,6 +430,21 @@ export const payslips = pgTable("payslips", {
 export const insertPayslipSchema = createInsertSchema(payslips).omit({ id: true });
 export type InsertPayslip = z.infer<typeof insertPayslipSchema>;
 export type Payslip = typeof payslips.$inferSelect;
+
+export const activityLogs = pgTable("activity_logs", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  action: text("action").notNull(),
+  module: text("module").notNull(),
+  description: text("description").notNull(),
+  userId: integer("user_id"),
+  userName: text("user_name"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true, createdAt: true });
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+export type ActivityLog = typeof activityLogs.$inferSelect;
 
 export type BillItem = {
   name: string;
