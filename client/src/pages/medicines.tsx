@@ -18,7 +18,8 @@ import {
   Box, Droplets, FlaskConical, MoreHorizontal, Eye, Pencil, Trash2,
   Calculator, Users, Globe, ShieldAlert, CheckCircle2, X,
   List, LayoutGrid, RefreshCw, Tag, FolderPlus, Printer, Barcode,
-  PackageX, PackageCheck, Filter, ImagePlus, Trash
+  PackageX, PackageCheck, Filter, ImagePlus, Trash,
+  Upload, Download, FileSpreadsheet, FileText, FileDown
 } from "lucide-react";
 import type { Medicine } from "@shared/schema";
 
@@ -64,8 +65,44 @@ export default function MedicinesPage() {
   });
   const [newCategory, setNewCategory] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [importDialog, setImportDialog] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
 
   const allCategories = [...MEDICINE_CATEGORIES, ...customCategories];
+
+  const handleExport = (format: "xlsx" | "csv") => {
+    window.open(`/api/medicines/export/${format}`, "_blank");
+  };
+
+  const handleDownloadTemplate = () => {
+    window.open("/api/medicines/sample-template", "_blank");
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/medicines/import", { method: "POST", body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        setImportResult(data);
+        queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+        toast({ title: `Imported ${data.imported} medicines`, description: data.skipped > 0 ? `${data.skipped} rows skipped` : undefined });
+      } else {
+        toast({ title: "Import failed", description: data.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Import failed", variant: "destructive" });
+    } finally {
+      setImporting(false);
+      e.target.value = "";
+    }
+  };
 
   const { data: medicines = [], isLoading } = useQuery<Medicine[]>({
     queryKey: ["/api/medicines"],
@@ -642,6 +679,36 @@ export default function MedicinesPage() {
             <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} data-testid="button-refresh">
               <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? "animate-spin" : ""}`} /> Refresh
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" data-testid="button-import-medicine">
+                  <Upload className="h-4 w-4 mr-1" /> Import
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setImportDialog(true)} data-testid="button-import-file">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" /> Import from File (Excel/CSV)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadTemplate} data-testid="button-download-template">
+                  <FileDown className="h-4 w-4 mr-2" /> Download Sample Template
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" data-testid="button-export-medicine">
+                  <Download className="h-4 w-4 mr-1" /> Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport("xlsx")} data-testid="button-export-excel">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" /> Export as Excel (.xlsx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("csv")} data-testid="button-export-csv">
+                  <FileText className="h-4 w-4 mr-2" /> Export as CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setForm(defaultForm); }}>
               <DialogTrigger asChild>
                 <Button size="sm" data-testid="button-new-medicine">
@@ -1069,6 +1136,67 @@ export default function MedicinesPage() {
           </CardContent>
         </Card>
       </div>
+      {importDialog && (
+        <Dialog open={importDialog} onOpenChange={(open) => { setImportDialog(open); if (!open) setImportResult(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5 text-teal-500" />
+                Import Medicines
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="border-2 border-dashed rounded-md p-6 text-center">
+                <FileSpreadsheet className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm font-medium mb-1">Upload Excel or CSV file</p>
+                <p className="text-xs text-muted-foreground mb-3">Supports .xlsx, .xls, .csv formats</p>
+                <label className="cursor-pointer">
+                  <Button variant="outline" size="sm" asChild>
+                    <span>{importing ? "Importing..." : "Choose File"}</span>
+                  </Button>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    className="hidden"
+                    onChange={handleImport}
+                    disabled={importing}
+                    data-testid="input-import-file"
+                  />
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50">
+                <FileDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-medium">Need a template?</p>
+                  <p className="text-[10px] text-muted-foreground">Download a sample file with the correct format</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleDownloadTemplate} data-testid="button-template-download">
+                  Download
+                </Button>
+              </div>
+
+              {importResult && (
+                <div className="p-3 rounded-md border space-y-1">
+                  <p className="text-sm font-medium">Import Results</p>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="text-green-600">Imported: {importResult.imported}</span>
+                    {importResult.skipped > 0 && <span className="text-amber-600">Skipped: {importResult.skipped}</span>}
+                    <span className="text-muted-foreground">Total: {importResult.total}</span>
+                  </div>
+                  {importResult.errors.length > 0 && (
+                    <div className="mt-1 text-xs text-destructive space-y-0.5">
+                      {importResult.errors.map((err, i) => (
+                        <p key={i}>{err}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

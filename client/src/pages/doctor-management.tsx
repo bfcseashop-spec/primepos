@@ -32,7 +32,7 @@ function loadList(key: string, defaults: string[]): string[] {
     const stored = localStorage.getItem(key);
     if (stored) {
       const parsed = JSON.parse(stored) as string[];
-      const merged = [...new Set([...defaults, ...parsed])];
+      const merged = Array.from(new Set([...defaults, ...parsed]));
       return merged.sort();
     }
   } catch {}
@@ -628,7 +628,7 @@ export default function DoctorManagementPage() {
                   onChange={(e) => setNewDeptName(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && newDeptName.trim()) {
-                      const updated = [...new Set([...departments, newDeptName.trim()])].sort();
+                      const updated = Array.from(new Set([...departments, newDeptName.trim()])).sort();
                       setDepartments(updated);
                       saveList("doctor_departments", updated);
                       setNewDeptName("");
@@ -640,7 +640,7 @@ export default function DoctorManagementPage() {
                 <Button
                   disabled={!newDeptName.trim()}
                   onClick={() => {
-                    const updated = [...new Set([...departments, newDeptName.trim()])].sort();
+                    const updated = Array.from(new Set([...departments, newDeptName.trim()])).sort();
                     setDepartments(updated);
                     saveList("doctor_departments", updated);
                     setNewDeptName("");
@@ -695,7 +695,7 @@ export default function DoctorManagementPage() {
                   onChange={(e) => setNewPosName(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && newPosName.trim()) {
-                      const updated = [...new Set([...positions, newPosName.trim()])].sort();
+                      const updated = Array.from(new Set([...positions, newPosName.trim()])).sort();
                       setPositions(updated);
                       saveList("doctor_positions", updated);
                       setNewPosName("");
@@ -707,7 +707,7 @@ export default function DoctorManagementPage() {
                 <Button
                   disabled={!newPosName.trim()}
                   onClick={() => {
-                    const updated = [...new Set([...positions, newPosName.trim()])].sort();
+                    const updated = Array.from(new Set([...positions, newPosName.trim()])).sort();
                     setPositions(updated);
                     saveList("doctor_positions", updated);
                     setNewPosName("");

@@ -319,6 +319,131 @@ export async function registerRoutes(
   });
 
   // Medicines
+  app.get("/api/medicines/export/:format", async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const medicines = await storage.getMedicines();
+      const rows = medicines.map(m => ({
+        Name: m.name,
+        "Generic Name": m.genericName || "",
+        Category: m.category || "",
+        Manufacturer: m.manufacturer || "",
+        "Batch No": m.batchNo || "",
+        "Expiry Date": m.expiryDate || "",
+        Unit: m.unit,
+        "Unit Count": m.unitCount,
+        "Box Price": m.boxPrice,
+        "Qty Per Box": m.qtyPerBox,
+        "Per Med Price": m.perMedPrice,
+        "Total Purchase Price": m.totalPurchasePrice,
+        "Selling Price (Local)": m.sellingPriceLocal,
+        "Selling Price (Foreigner)": m.sellingPriceForeigner,
+        "Stock Count": m.stockCount,
+        "Stock Alert": m.stockAlert,
+        Active: m.isActive ? "Yes" : "No",
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Medicines");
+      const format = req.params.format;
+      if (format === "csv") {
+        const csv = XLSX.utils.sheet_to_csv(ws);
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", "attachment; filename=medicines.csv");
+        res.send(csv);
+      } else {
+        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment; filename=medicines.xlsx");
+        res.send(buf);
+      }
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/medicines/sample-template", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const sampleRows = [
+        {
+          Name: "Paracetamol 500mg", "Generic Name": "Acetaminophen", Category: "Tablet",
+          Manufacturer: "PharmaCo", "Batch No": "B-2026-001", "Expiry Date": "2027-12-31",
+          Unit: "Box", "Unit Count": 10, "Box Price": "5.00", "Qty Per Box": 10,
+          "Selling Price (Local)": "0.80", "Selling Price (Foreigner)": "1.00", "Stock Alert": 20,
+        },
+        {
+          Name: "Amoxicillin 250mg", "Generic Name": "Amoxicillin", Category: "Capsule",
+          Manufacturer: "MedLab", "Batch No": "B-2026-002", "Expiry Date": "2027-06-30",
+          Unit: "Box", "Unit Count": 5, "Box Price": "8.00", "Qty Per Box": 10,
+          "Selling Price (Local)": "1.20", "Selling Price (Foreigner)": "1.50", "Stock Alert": 15,
+        },
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Medicine Template");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=medicine_import_template.xlsx");
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  const medicineImportUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  });
+
+  app.post("/api/medicines/import", medicineImportUpload.single("file"), async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      if (rows.length === 0) return res.status(400).json({ message: "File is empty or has no data rows" });
+      let imported = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const name = row["Name"] || row["name"];
+        if (!name) { skipped++; errors.push(`Row ${i + 2}: Missing medicine name`); continue; }
+        try {
+          const boxPrice = parseFloat(row["Box Price"] || row["boxPrice"] || "0") || 0;
+          const qtyPerBox = parseInt(row["Qty Per Box"] || row["qtyPerBox"] || "1") || 1;
+          const perMedPrice = qtyPerBox > 0 ? boxPrice / qtyPerBox : 0;
+          const unitCount = parseInt(row["Unit Count"] || row["unitCount"] || "1") || 1;
+          await storage.createMedicine({
+            name,
+            genericName: row["Generic Name"] || row["genericName"] || null,
+            category: row["Category"] || row["category"] || null,
+            manufacturer: row["Manufacturer"] || row["manufacturer"] || null,
+            batchNo: row["Batch No"] || row["batchNo"] || null,
+            expiryDate: row["Expiry Date"] || row["expiryDate"] || null,
+            unit: row["Unit"] || row["unit"] || "Box",
+            unitCount,
+            boxPrice: boxPrice.toString(),
+            qtyPerBox,
+            perMedPrice: perMedPrice.toFixed(4),
+            totalPurchasePrice: (unitCount * boxPrice).toFixed(2),
+            sellingPriceLocal: (parseFloat(row["Selling Price (Local)"] || row["sellingPriceLocal"] || "0") || 0).toString(),
+            sellingPriceForeigner: (parseFloat(row["Selling Price (Foreigner)"] || row["sellingPriceForeigner"] || "0") || 0).toString(),
+            stockCount: parseInt(row["Stock Count"] || row["stockCount"] || "0") || 0,
+            stockAlert: parseInt(row["Stock Alert"] || row["stockAlert"] || "10") || 10,
+            quantity: 0, unitPrice: "0", sellingPrice: "0", isActive: true,
+          });
+          imported++;
+        } catch (err: any) { skipped++; errors.push(`Row ${i + 2}: ${err.message}`); }
+      }
+      res.json({ imported, skipped, total: rows.length, errors: errors.slice(0, 10) });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/medicines", async (_req, res) => {
     try {
       const result = await storage.getMedicines();
