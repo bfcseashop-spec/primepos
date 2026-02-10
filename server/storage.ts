@@ -411,11 +411,12 @@ export class DatabaseStorage implements IStorage {
 
   async upsertSettings(s: InsertClinicSettings): Promise<ClinicSettings> {
     const existing = await this.getSettings();
+    const { id, ...data } = s as any;
     if (existing) {
-      const [updated] = await db.update(clinicSettings).set(s).where(eq(clinicSettings.id, existing.id)).returning();
+      const [updated] = await db.update(clinicSettings).set(data).where(eq(clinicSettings.id, existing.id)).returning();
       return updated;
     }
-    const [created] = await db.insert(clinicSettings).values(s).returning();
+    const [created] = await db.insert(clinicSettings).values(data).returning();
     return created;
   }
 
