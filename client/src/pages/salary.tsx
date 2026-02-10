@@ -14,7 +14,8 @@ import {
   Search, Plus, MoreVertical, Trash2, Edit, DollarSign, Calendar, Filter, Download, X,
   Building2, Tag, Users, TrendingUp, AlertTriangle, FileText, Wallet, CreditCard,
   Clock, CheckCircle2, Banknote, ArrowUpDown, HandCoins, Play, Eye, RefreshCw,
-  ChevronDown, ChevronRight, Landmark, UserCircle, CircleDollarSign, Receipt
+  ChevronDown, ChevronRight, Landmark, UserCircle, CircleDollarSign, Receipt,
+  Upload, Image, FileImage
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Salary, SalaryProfile, SalaryLoan, LoanInstallment, PayrollRun, Payslip } from "@shared/schema";
@@ -212,7 +213,8 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
     staffName: "", staffId: "", department: "", category: "", role: "",
     baseSalary: "", housingAllowance: "0", transportAllowance: "0",
     mealAllowance: "0", otherAllowance: "0", phone: "", email: "",
-    bankName: "", bankAccount: "", joinDate: "", status: "active"
+    bankName: "", bankAccount: "", joinDate: "", status: "active",
+    profileImage: "", paymentSlip: ""
   };
   const [form, setForm] = useState(emptyForm);
 
@@ -272,7 +274,7 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
       transportAllowance: p.transportAllowance || "0", mealAllowance: p.mealAllowance || "0",
       otherAllowance: p.otherAllowance || "0", phone: p.phone || "", email: p.email || "",
       bankName: p.bankName || "", bankAccount: p.bankAccount || "", joinDate: p.joinDate || "",
-      status: p.status
+      status: p.status, profileImage: p.profileImage || "", paymentSlip: p.paymentSlip || ""
     });
     setEditDialog(true);
   };
@@ -320,9 +322,13 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900">
-                    <UserCircle className="h-5 w-5 text-blue-600 dark:text-blue-300" />
-                  </div>
+                  {p.profileImage ? (
+                    <img src={p.profileImage} alt={p.staffName} className="w-10 h-10 rounded-full object-cover border" />
+                  ) : (
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900">
+                      <UserCircle className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+                    </div>
+                  )}
                   <div>
                     <h3 className="font-semibold text-sm">{p.staffName}</h3>
                     <p className="text-xs text-muted-foreground">{p.role || "Staff"} {p.staffId ? `(${p.staffId})` : ""}</p>
@@ -350,13 +356,25 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
                   <span className="font-bold text-blue-600 dark:text-blue-400">{formatCurrency(Number(p.baseSalary || 0) + getTotalAllowance(p))}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-end gap-1 mt-3">
-                <Button size="icon" variant="ghost" onClick={() => openEdit(p)} data-testid={`button-edit-profile-${p.id}`}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(p.id)} data-testid={`button-delete-profile-${p.id}`}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+              <div className="flex items-center justify-between gap-1 mt-3">
+                <div className="flex items-center gap-1">
+                  {p.paymentSlip && (
+                    <a href={p.paymentSlip} target="_blank" rel="noopener noreferrer" data-testid={`link-payment-slip-${p.id}`}>
+                      <Badge variant="outline" className="text-[10px] gap-1 no-default-hover-elevate no-default-active-elevate">
+                        <FileImage className="h-3 w-3" />
+                        Slip
+                      </Badge>
+                    </a>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button size="icon" variant="ghost" onClick={() => openEdit(p)} data-testid={`button-edit-profile-${p.id}`}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(p.id)} data-testid={`button-delete-profile-${p.id}`}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -471,6 +489,107 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
               <div>
                 <label className="text-sm font-medium mb-1 block">Account No</label>
                 <Input value={form.bankAccount} onChange={(e) => setForm({ ...form, bankAccount: e.target.value })} data-testid="input-profile-bank-account" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Profile Image</label>
+                <div className="space-y-2">
+                  {form.profileImage && (
+                    <div className="relative w-20 h-20 rounded-md overflow-hidden border">
+                      <img src={form.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="absolute top-0 right-0 h-5 w-5 bg-background/80"
+                        onClick={() => setForm({ ...form, profileImage: "" })}
+                        data-testid="button-remove-profile-image"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                  {editDialog && editingProfile && (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        data-testid="input-upload-profile-image"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file || !editingProfile) return;
+                          const fd = new FormData();
+                          fd.append("file", file);
+                          try {
+                            const res = await fetch(`/api/salary-profiles/${editingProfile.id}/upload-image`, { method: "POST", body: fd });
+                            const data = await res.json();
+                            setForm(f => ({ ...f, profileImage: data.profileImage || "" }));
+                            queryClient.invalidateQueries({ queryKey: ["/api/salary-profiles"] });
+                            toast({ title: "Profile image uploaded" });
+                          } catch { toast({ title: "Upload failed", variant: "destructive" }); }
+                        }}
+                      />
+                      <Button variant="outline" size="sm" type="button" asChild>
+                        <span><Upload className="h-3 w-3 mr-1" />Upload Image</span>
+                      </Button>
+                    </label>
+                  )}
+                  {!editDialog && (
+                    <p className="text-xs text-muted-foreground">Save profile first, then edit to upload image</p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Payment Slip</label>
+                <div className="space-y-2">
+                  {form.paymentSlip && (
+                    <div className="flex items-center gap-2">
+                      <a href={form.paymentSlip} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 dark:text-blue-400 underline flex items-center gap-1">
+                        <FileImage className="h-4 w-4" />
+                        View Slip
+                      </a>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-5 w-5"
+                        onClick={() => setForm({ ...form, paymentSlip: "" })}
+                        data-testid="button-remove-payment-slip"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                  {editDialog && editingProfile && (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        data-testid="input-upload-payment-slip"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file || !editingProfile) return;
+                          const fd = new FormData();
+                          fd.append("file", file);
+                          try {
+                            const res = await fetch(`/api/salary-profiles/${editingProfile.id}/upload-payment-slip`, { method: "POST", body: fd });
+                            const data = await res.json();
+                            setForm(f => ({ ...f, paymentSlip: data.paymentSlip || "" }));
+                            queryClient.invalidateQueries({ queryKey: ["/api/salary-profiles"] });
+                            toast({ title: "Payment slip uploaded" });
+                          } catch { toast({ title: "Upload failed", variant: "destructive" }); }
+                        }}
+                      />
+                      <Button variant="outline" size="sm" type="button" asChild>
+                        <span><Upload className="h-3 w-3 mr-1" />Upload Slip</span>
+                      </Button>
+                    </label>
+                  )}
+                  {!editDialog && (
+                    <p className="text-xs text-muted-foreground">Save profile first, then edit to upload slip</p>
+                  )}
+                </div>
               </div>
             </div>
             <div>

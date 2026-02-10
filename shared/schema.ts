@@ -329,6 +329,8 @@ export const salaryProfiles = pgTable("salary_profiles", {
   bankName: text("bank_name"),
   bankAccount: text("bank_account"),
   joinDate: text("join_date"),
+  profileImage: text("profile_image"),
+  paymentSlip: text("payment_slip"),
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow(),
 });

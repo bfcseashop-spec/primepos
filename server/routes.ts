@@ -33,6 +33,11 @@ if (!fs.existsSync(doctorPhotosDir)) {
   fs.mkdirSync(doctorPhotosDir, { recursive: true });
 }
 
+const salaryUploadsDir = path.join(process.cwd(), "uploads", "salary");
+if (!fs.existsSync(salaryUploadsDir)) {
+  fs.mkdirSync(salaryUploadsDir, { recursive: true });
+}
+
 const doctorPhotoUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, doctorPhotosDir),
@@ -1206,6 +1211,49 @@ export async function registerRoutes(
       res.status(500).json({ message: err.message });
     }
   });
+
+  const salaryFileUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, salaryUploadsDir),
+      filename: (_req, file, cb) => {
+        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+        cb(null, uniqueName);
+      },
+    }),
+    fileFilter: (_req, file, cb) => {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error("Only JPG, PNG, GIF, WebP, and PDF files are allowed"));
+      }
+    },
+    limits: { fileSize: 10 * 1024 * 1024 },
+  });
+
+  app.post("/api/salary-profiles/:id/upload-image", salaryFileUpload.single("file"), async (req: any, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const filePath = `/uploads/salary/${req.file.filename}`;
+      const profile = await storage.updateSalaryProfile(Number(req.params.id), { profileImage: filePath });
+      res.json(profile);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/salary-profiles/:id/upload-payment-slip", salaryFileUpload.single("file"), async (req: any, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const filePath = `/uploads/salary/${req.file.filename}`;
+      const profile = await storage.updateSalaryProfile(Number(req.params.id), { paymentSlip: filePath });
+      res.json(profile);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.use("/uploads/salary", express.static(salaryUploadsDir));
 
   // Salary Loans
   app.get("/api/salary-loans", async (_req, res) => {
