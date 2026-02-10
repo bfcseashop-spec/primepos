@@ -156,19 +156,28 @@ export default function BillingPage() {
     if (!found) return <Badge variant="outline">{method}</Badge>;
     const Icon = found.icon;
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border ${found.color}`}>
+      <Badge variant="outline" className={`gap-1 text-[11px] ${found.color}`}>
         <Icon className="h-3 w-3" />
         {found.label}
-      </span>
+      </Badge>
     );
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === "paid") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"><CheckCircle2 className="h-3 w-3" />Paid</span>;
-    if (status === "partial") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20"><Clock className="h-3 w-3" />Partial</span>;
-    if (status === "pending") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20"><Clock className="h-3 w-3" />Pending</span>;
-    if (status === "cancelled") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"><X className="h-3 w-3" />Cancelled</span>;
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"><X className="h-3 w-3" />Unpaid</span>;
+    const statusMap: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; icon: typeof CheckCircle2 }> = {
+      paid: { variant: "default", label: "Paid", icon: CheckCircle2 },
+      partial: { variant: "secondary", label: "Partial", icon: Clock },
+      pending: { variant: "outline", label: "Pending", icon: Clock },
+      cancelled: { variant: "destructive", label: "Cancelled", icon: X },
+    };
+    const cfg = statusMap[status] || { variant: "destructive" as const, label: "Unpaid", icon: X };
+    const StatusIcon = cfg.icon;
+    return (
+      <Badge variant={cfg.variant} className="gap-1 text-[11px]">
+        <StatusIcon className="h-3 w-3" />
+        {cfg.label}
+      </Badge>
+    );
   };
 
   const createBillMutation = useMutation({
@@ -478,7 +487,7 @@ export default function BillingPage() {
     )},
     { header: "Items", accessor: (row: any) => {
       const items = Array.isArray(row.items) ? row.items : [];
-      return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 text-[11px] font-medium border border-violet-200 dark:border-violet-800">{items.length} items</span>;
+      return <Badge variant="secondary" className="text-[11px]">{items.length} items</Badge>;
     }},
     { header: "Total", accessor: (row: any) => <span className="font-semibold text-sm text-emerald-600 dark:text-emerald-400">{formatDualCurrency(Number(row.total), settings)}</span> },
     { header: "Paid", accessor: (row: any) => (
@@ -487,7 +496,7 @@ export default function BillingPage() {
     { header: "Method", accessor: (row: any) => getPaymentBadge(row.paymentMethod) },
     { header: "Doctor", accessor: (row: any) => (
       row.referenceDoctor
-        ? <span className="inline-flex items-center gap-1 text-xs text-cyan-700 dark:text-cyan-400"><Wallet className="h-3 w-3" />{row.referenceDoctor}</span>
+        ? <span className="text-xs font-medium">{row.referenceDoctor}</span>
         : <span className="text-xs text-muted-foreground">-</span>
     )},
     { header: "Status", accessor: (row: any) => getStatusBadge(row.status) },
@@ -889,50 +898,73 @@ export default function BillingPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
-        {/* Summary Stats */}
-        <div className="grid grid-cols-4 gap-3" data-testid="billing-stats">
+      <div className="flex-1 overflow-auto p-4 md:p-6 space-y-4">
+        <div className="rounded-md bg-gradient-to-r from-blue-600 via-violet-600 to-emerald-600 p-4 md:p-5" data-testid="billing-banner">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-md bg-white/15 backdrop-blur-sm">
+                <Receipt className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Point of Sale</h2>
+                <p className="text-blue-100 text-xs">Manage billing, invoices and payments</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 rounded-md bg-white/15 backdrop-blur-sm px-3 py-1.5">
+                <DollarSign className="h-3.5 w-3.5 text-emerald-300" />
+                <span className="text-sm text-white font-semibold" data-testid="stat-total-revenue">{formatDualCurrency(totalRevenue, settings)}</span>
+              </div>
+              <div className="flex items-center gap-1.5 rounded-md bg-white/15 backdrop-blur-sm px-3 py-1.5">
+                <FileText className="h-3.5 w-3.5 text-blue-200" />
+                <span className="text-sm text-white font-semibold" data-testid="stat-total-bills">{bills.length} Bills</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="billing-stats">
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-blue-500/10">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-blue-500/10">
                 <Receipt className="h-5 w-5 text-blue-500 dark:text-blue-400" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Bills</p>
-                <p className="text-xl font-bold text-blue-600 dark:text-blue-400" data-testid="stat-total-bills">{bills.length}</p>
+                <p className="text-xl font-bold text-blue-700 dark:text-blue-300 tabular-nums">{bills.length}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-violet-500/10">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-violet-500/10">
                 <TrendingUp className="h-5 w-5 text-violet-500 dark:text-violet-400" />
               </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Revenue</p>
-                <p className="text-xl font-bold text-violet-600 dark:text-violet-400" data-testid="stat-total-revenue">{formatDualCurrency(totalRevenue, settings)}</p>
+              <div className="min-w-0">
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Paid</p>
+                <p className="text-xl font-bold text-violet-700 dark:text-violet-300 tabular-nums">{formatDualCurrency(totalPaid, settings)}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-emerald-500/10">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-emerald-500/10">
                 <CheckCircle2 className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Paid</p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-paid">{paidCount}</p>
+                <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300 tabular-nums" data-testid="stat-paid">{paidCount}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-amber-500/10">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-amber-500/10">
                 <Clock className="h-5 w-5 text-amber-500 dark:text-amber-400" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Pending</p>
-                <p className="text-xl font-bold text-amber-600 dark:text-amber-400" data-testid="stat-pending">{pendingCount}</p>
+                <p className="text-xl font-bold text-amber-700 dark:text-amber-300 tabular-nums" data-testid="stat-pending">{pendingCount}</p>
               </div>
             </CardContent>
           </Card>
