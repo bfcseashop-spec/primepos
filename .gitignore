@@ -2,6 +2,8 @@ node_modules
 dist
 .env
 .env.local
+primepos_deploy_key
+primepos_deploy_key.pub
 .DS_Store
 server/public
 vite.config.ts.*
