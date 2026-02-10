@@ -7,7 +7,9 @@ import {
   insertBankTransactionSchema, insertInvestmentSchema,
   insertUserSchema, insertRoleSchema, insertIntegrationSchema,
   insertClinicSettingsSchema, insertLabTestSchema, insertAppointmentSchema,
-  insertDoctorSchema, insertSalarySchema
+  insertDoctorSchema, insertSalarySchema,
+  insertSalaryProfileSchema, insertSalaryLoanSchema, insertLoanInstallmentSchema,
+  insertPayrollRunSchema, insertPayslipSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -30,6 +32,35 @@ const doctorPhotosDir = path.join(process.cwd(), "uploads", "doctor-photos");
 if (!fs.existsSync(doctorPhotosDir)) {
   fs.mkdirSync(doctorPhotosDir, { recursive: true });
 }
+
+const salaryUploadsDir = path.join(process.cwd(), "uploads", "salary");
+if (!fs.existsSync(salaryUploadsDir)) {
+  fs.mkdirSync(salaryUploadsDir, { recursive: true });
+}
+
+const logoUploadsDir = path.join(process.cwd(), "uploads", "logos");
+if (!fs.existsSync(logoUploadsDir)) {
+  fs.mkdirSync(logoUploadsDir, { recursive: true });
+}
+
+const logoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, logoUploadsDir),
+    filename: (_req, file, cb) => {
+      const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+      cb(null, uniqueName);
+    },
+  }),
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only JPG, PNG, GIF, WebP, SVG image files are allowed"));
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 
 const doctorPhotoUpload = multer({
   storage: multer.diskStorage({
@@ -158,6 +189,15 @@ export async function registerRoutes(
       const data = validateBody(insertPatientSchema, req.body);
       const patient = await storage.createPatient(data);
       res.status(201).json(patient);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.put("/api/patients/:id", async (req, res) => {
+    try {
+      const updated = await storage.updatePatient(Number(req.params.id), req.body);
+      res.json(updated);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }
@@ -518,6 +558,162 @@ export async function registerRoutes(
   });
 
   // Expenses
+  app.get("/api/expenses/export/:format", async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const expenses = await storage.getExpenses();
+      const rows = expenses.map(e => ({
+        Date: e.date,
+        Category: e.category,
+        Description: e.description,
+        Amount: e.amount,
+        "Payment Method": e.paymentMethod || "cash",
+        Status: e.status || "pending",
+        Notes: e.notes || "",
+        "Approved By": e.approvedBy || "",
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+      const format = req.params.format;
+      if (format === "csv") {
+        const csv = XLSX.utils.sheet_to_csv(ws);
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", "attachment; filename=expenses.csv");
+        res.send(csv);
+      } else if (format === "pdf") {
+        const PDFDocument = (await import("pdfkit")).default;
+        const doc = new PDFDocument({ margin: 40, size: "A4", layout: "landscape" });
+        const chunks: Buffer[] = [];
+        doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+        doc.on("end", () => {
+          const pdfBuf = Buffer.concat(chunks);
+          res.setHeader("Content-Type", "application/pdf");
+          res.setHeader("Content-Disposition", "attachment; filename=expenses.pdf");
+          res.send(pdfBuf);
+        });
+        doc.fontSize(18).text("Expense Report", { align: "center" });
+        doc.moveDown(0.5);
+        doc.fontSize(9).fillColor("#666").text(`Generated: ${new Date().toLocaleDateString()}`, { align: "center" });
+        doc.moveDown(1);
+        const headers = ["Date", "Category", "Description", "Amount", "Method", "Status"];
+        const colWidths = [75, 90, 200, 70, 70, 70];
+        let y = doc.y;
+        doc.fontSize(8).fillColor("#fff");
+        let x = 40;
+        headers.forEach((h, i) => {
+          doc.rect(x, y, colWidths[i], 18).fill("#2d7d46");
+          doc.fillColor("#fff").text(h, x + 4, y + 5, { width: colWidths[i] - 8 });
+          x += colWidths[i];
+        });
+        y += 18;
+        doc.fillColor("#333");
+        expenses.forEach((e, idx) => {
+          if (y > 520) { doc.addPage(); y = 40; }
+          const bgColor = idx % 2 === 0 ? "#f9f9f9" : "#ffffff";
+          x = 40;
+          const vals = [e.date, e.category, e.description, `$${Number(e.amount).toFixed(2)}`, e.paymentMethod || "cash", e.status || "pending"];
+          vals.forEach((v, i) => {
+            doc.rect(x, y, colWidths[i], 16).fill(bgColor);
+            doc.fillColor("#333").text(v, x + 4, y + 4, { width: colWidths[i] - 8 });
+            x += colWidths[i];
+          });
+          y += 16;
+        });
+        doc.moveDown(1);
+        const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
+        doc.fontSize(10).fillColor("#333").text(`Total Expenses: $${total.toFixed(2)}`, 40, y + 10);
+        doc.end();
+        return;
+      } else {
+        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment; filename=expenses.xlsx");
+        res.send(buf);
+      }
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/expenses/sample-template", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const sampleRows = [
+        {
+          Date: "2026-02-10", Category: "Medical Supplies", Description: "Surgical gloves (100 boxes)",
+          Amount: "250.00", "Payment Method": "cash", Notes: "Monthly supply order",
+        },
+        {
+          Date: "2026-02-09", Category: "Utilities", Description: "Electricity bill - January",
+          Amount: "180.50", "Payment Method": "aba", Notes: "Monthly utility",
+        },
+        {
+          Date: "2026-02-08", Category: "Equipment", Description: "Blood pressure monitor",
+          Amount: "120.00", "Payment Method": "card", Notes: "Replacement unit",
+        },
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Expense Template");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=expense_import_template.xlsx");
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  const expenseImportUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  });
+
+  app.post("/api/expenses/import", expenseImportUpload.single("file"), async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      if (rows.length === 0) return res.status(400).json({ message: "File is empty or has no data rows" });
+      let imported = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const description = row["Description"] || row["description"];
+        const category = row["Category"] || row["category"];
+        const amount = row["Amount"] || row["amount"];
+        const date = row["Date"] || row["date"];
+        if (!description || !category || !amount || !date) {
+          skipped++;
+          errors.push(`Row ${i + 2}: Missing required fields (Description, Category, Amount, Date)`);
+          continue;
+        }
+        try {
+          await storage.createExpense({
+            description,
+            category,
+            amount: parseFloat(amount).toFixed(2),
+            date,
+            paymentMethod: row["Payment Method"] || row["paymentMethod"] || "cash",
+            notes: row["Notes"] || row["notes"] || null,
+            status: "pending",
+          });
+          imported++;
+        } catch (err: any) {
+          skipped++;
+          errors.push(`Row ${i + 2}: ${err.message}`);
+        }
+      }
+      res.json({ imported, skipped, total: rows.length, errors: errors.slice(0, 10) });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/expenses", async (_req, res) => {
     try {
       const result = await storage.getExpenses();
@@ -532,6 +728,25 @@ export async function registerRoutes(
       const data = validateBody(insertExpenseSchema, req.body);
       const expense = await storage.createExpense(data);
       res.status(201).json(expense);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/expenses/:id", async (req, res) => {
+    try {
+      const expense = await storage.updateExpense(Number(req.params.id), req.body);
+      if (!expense) return res.status(404).json({ message: "Expense not found" });
+      res.json(expense);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/expenses/:id", async (req, res) => {
+    try {
+      await storage.deleteExpense(Number(req.params.id));
+      res.json({ success: true });
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }
@@ -591,6 +806,7 @@ export async function registerRoutes(
     try {
       const data = validateBody(insertUserSchema, req.body);
       const user = await storage.createUser(data);
+      await storage.createActivityLog({ action: "create", module: "users", description: `User "${user.fullName}" created`, userName: "System" });
       res.status(201).json(user);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -599,11 +815,23 @@ export async function registerRoutes(
 
   app.patch("/api/users/:id", async (req, res) => {
     try {
-      const updateSchema = z.object({ isActive: z.boolean().optional(), roleId: z.number().optional(), fullName: z.string().optional() });
+      const updateSchema = z.object({ isActive: z.boolean().optional(), roleId: z.number().nullable().optional(), fullName: z.string().optional(), email: z.string().nullable().optional(), phone: z.string().nullable().optional() });
       const data = validateBody(updateSchema, req.body);
       const user = await storage.updateUser(Number(req.params.id), data);
       if (!user) return res.status(404).json({ message: "User not found" });
+      await storage.createActivityLog({ action: "update", module: "users", description: `User "${user.fullName}" updated`, userName: "System" });
       res.json(user);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      const user = await storage.getUser(Number(req.params.id));
+      await storage.deleteUser(Number(req.params.id));
+      await storage.createActivityLog({ action: "delete", module: "users", description: `User "${user?.fullName || req.params.id}" deleted`, userName: "System" });
+      res.json({ success: true });
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }
@@ -623,7 +851,30 @@ export async function registerRoutes(
     try {
       const data = validateBody(insertRoleSchema, req.body);
       const role = await storage.createRole(data);
+      await storage.createActivityLog({ action: "create", module: "roles", description: `Role "${role.name}" created`, userName: "System" });
       res.status(201).json(role);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/roles/:id", async (req, res) => {
+    try {
+      const role = await storage.updateRole(Number(req.params.id), req.body);
+      if (!role) return res.status(404).json({ message: "Role not found" });
+      await storage.createActivityLog({ action: "update", module: "roles", description: `Role "${role.name}" updated`, userName: "System" });
+      res.json(role);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/roles/:id", async (req, res) => {
+    try {
+      const role = await storage.getRole(Number(req.params.id));
+      await storage.deleteRole(Number(req.params.id));
+      await storage.createActivityLog({ action: "delete", module: "roles", description: `Role "${role?.name || req.params.id}" deleted`, userName: "System" });
+      res.json({ success: true });
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }
@@ -682,11 +933,90 @@ export async function registerRoutes(
     }
   });
 
+  app.use("/uploads/logos", express.static(logoUploadsDir));
+
+  app.post("/api/settings/upload-logo", logoUpload.single('logo'), async (req: any, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const logoUrl = `/uploads/logos/${req.file.filename}`;
+      const current = await storage.getSettings();
+      if (current?.logo) {
+        const oldPath = path.join(process.cwd(), current.logo);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
+      const settings = await storage.upsertSettings({ ...current, logo: logoUrl });
+      await storage.createActivityLog({
+        action: "update",
+        module: "settings",
+        description: "Clinic logo updated",
+        userName: "System",
+      });
+      res.json(settings);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/settings/logo", async (_req, res) => {
+    try {
+      const current = await storage.getSettings();
+      if (current?.logo) {
+        const oldPath = path.join(process.cwd(), current.logo);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
+      const settings = await storage.upsertSettings({ ...current, logo: null });
+      await storage.createActivityLog({
+        action: "update",
+        module: "settings",
+        description: "Clinic logo removed",
+        userName: "System",
+      });
+      res.json(settings);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.put("/api/settings", async (req, res) => {
     try {
       const data = validateBody(insertClinicSettingsSchema, req.body);
       const settings = await storage.upsertSettings(data);
+      await storage.createActivityLog({
+        action: "update",
+        module: "settings",
+        description: "Settings updated",
+        userName: "System",
+      });
       res.json(settings);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  // Activity Logs
+  app.get("/api/activity-logs", async (req, res) => {
+    try {
+      const limit = req.query.limit ? Number(req.query.limit) : 100;
+      const logs = await storage.getActivityLogs(limit);
+      res.json(logs);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/activity-logs", async (req, res) => {
+    try {
+      const log = await storage.createActivityLog(req.body);
+      res.status(201).json(log);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/activity-logs", async (_req, res) => {
+    try {
+      await storage.clearActivityLogs();
+      res.json({ success: true });
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }
@@ -969,6 +1299,335 @@ export async function registerRoutes(
       res.json({ message: "Deleted" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Salary Profiles
+  app.get("/api/salary-profiles", async (_req, res) => {
+    try {
+      const result = await storage.getSalaryProfiles();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/salary-profiles/:id", async (req, res) => {
+    try {
+      const profile = await storage.getSalaryProfile(Number(req.params.id));
+      if (!profile) return res.status(404).json({ message: "Salary profile not found" });
+      res.json(profile);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/salary-profiles", async (req, res) => {
+    try {
+      const data = validateBody(insertSalaryProfileSchema, req.body);
+      const profile = await storage.createSalaryProfile(data);
+      res.status(201).json(profile);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.put("/api/salary-profiles/:id", async (req, res) => {
+    try {
+      const profile = await storage.updateSalaryProfile(Number(req.params.id), req.body);
+      if (!profile) return res.status(404).json({ message: "Salary profile not found" });
+      res.json(profile);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/salary-profiles/:id", async (req, res) => {
+    try {
+      await storage.deleteSalaryProfile(Number(req.params.id));
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  const salaryFileUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, salaryUploadsDir),
+      filename: (_req, file, cb) => {
+        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+        cb(null, uniqueName);
+      },
+    }),
+    fileFilter: (_req, file, cb) => {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error("Only JPG, PNG, GIF, WebP, and PDF files are allowed"));
+      }
+    },
+    limits: { fileSize: 10 * 1024 * 1024 },
+  });
+
+  app.post("/api/salary-profiles/:id/upload-image", salaryFileUpload.single("file"), async (req: any, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const filePath = `/uploads/salary/${req.file.filename}`;
+      const profile = await storage.updateSalaryProfile(Number(req.params.id), { profileImage: filePath });
+      res.json(profile);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/salary-profiles/:id/upload-payment-slip", salaryFileUpload.single("file"), async (req: any, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const filePath = `/uploads/salary/${req.file.filename}`;
+      const profile = await storage.updateSalaryProfile(Number(req.params.id), { paymentSlip: filePath });
+      res.json(profile);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.use("/uploads/salary", express.static(salaryUploadsDir));
+
+  // Salary Loans
+  app.get("/api/salary-loans", async (_req, res) => {
+    try {
+      const result = await storage.getSalaryLoans();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/salary-loans/:id", async (req, res) => {
+    try {
+      const loan = await storage.getSalaryLoan(Number(req.params.id));
+      if (!loan) return res.status(404).json({ message: "Salary loan not found" });
+      res.json(loan);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/salary-loans", async (req, res) => {
+    try {
+      const data = validateBody(insertSalaryLoanSchema, req.body);
+      const loan = await storage.createSalaryLoan(data);
+      res.status(201).json(loan);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.put("/api/salary-loans/:id", async (req, res) => {
+    try {
+      const loan = await storage.updateSalaryLoan(Number(req.params.id), req.body);
+      if (!loan) return res.status(404).json({ message: "Salary loan not found" });
+      res.json(loan);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/salary-loans/:id", async (req, res) => {
+    try {
+      await storage.deleteSalaryLoan(Number(req.params.id));
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Loan Installments
+  app.get("/api/loan-installments/:loanId", async (req, res) => {
+    try {
+      const result = await storage.getLoanInstallments(Number(req.params.loanId));
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/loan-installments", async (req, res) => {
+    try {
+      const data = validateBody(insertLoanInstallmentSchema, req.body);
+      const installment = await storage.createLoanInstallment(data);
+      res.status(201).json(installment);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  // Payroll Runs
+  app.get("/api/payroll-runs", async (_req, res) => {
+    try {
+      const result = await storage.getPayrollRuns();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/payroll-runs/:id", async (req, res) => {
+    try {
+      const run = await storage.getPayrollRun(Number(req.params.id));
+      if (!run) return res.status(404).json({ message: "Payroll run not found" });
+      res.json(run);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/payroll-runs", async (req, res) => {
+    try {
+      const data = validateBody(insertPayrollRunSchema, req.body);
+      const run = await storage.createPayrollRun(data);
+      res.status(201).json(run);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.put("/api/payroll-runs/:id", async (req, res) => {
+    try {
+      const run = await storage.updatePayrollRun(Number(req.params.id), req.body);
+      if (!run) return res.status(404).json({ message: "Payroll run not found" });
+      res.json(run);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/payroll-runs/:id", async (req, res) => {
+    try {
+      await storage.deletePayrollRun(Number(req.params.id));
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/payroll-runs/:id/generate", async (req, res) => {
+    try {
+      const payrollRunId = Number(req.params.id);
+      const run = await storage.getPayrollRun(payrollRunId);
+      if (!run) return res.status(404).json({ message: "Payroll run not found" });
+
+      const profiles = await storage.getSalaryProfiles();
+      const activeProfiles = profiles.filter(p => p.status === "active");
+      const allLoans = await storage.getSalaryLoans();
+
+      let totalGross = 0;
+      let totalDeductions = 0;
+      let totalNet = 0;
+      const generatedPayslips = [];
+      const today = new Date().toISOString().split("T")[0];
+
+      for (const profile of activeProfiles) {
+        const baseSalary = Number(profile.baseSalary) || 0;
+        const housing = Number(profile.housingAllowance) || 0;
+        const transport = Number(profile.transportAllowance) || 0;
+        const meal = Number(profile.mealAllowance) || 0;
+        const other = Number(profile.otherAllowance) || 0;
+        const allowances = housing + transport + meal + other;
+        const grossPay = baseSalary + allowances;
+
+        const activeLoans = allLoans.filter(l => l.profileId === profile.id && l.status === "active");
+        let loanDeductions = 0;
+        for (const loan of activeLoans) {
+          const installment = Number(loan.installmentAmount) || 0;
+          const outstanding = Number(loan.outstanding) || 0;
+          const deduction = Math.min(installment, outstanding);
+          loanDeductions += deduction;
+
+          const newTotalPaid = Number(loan.totalPaid || 0) + deduction;
+          const newOutstanding = Math.max(0, outstanding - deduction);
+          const newStatus = newOutstanding <= 0 ? "closed" : "active";
+          await storage.updateSalaryLoan(loan.id, {
+            totalPaid: newTotalPaid.toString(),
+            outstanding: newOutstanding.toString(),
+            status: newStatus,
+          });
+
+          await storage.createLoanInstallment({
+            loanId: loan.id,
+            dueDate: today,
+            amount: deduction.toString(),
+            paidAmount: deduction.toString(),
+            status: "paid",
+            paidDate: today,
+          });
+        }
+
+        const netPay = grossPay - loanDeductions;
+
+        const payslip = await storage.createPayslip({
+          payrollRunId,
+          profileId: profile.id,
+          staffName: profile.staffName,
+          department: profile.department,
+          baseSalary: baseSalary.toString(),
+          allowances: allowances.toString(),
+          loanDeductions: loanDeductions.toString(),
+          otherDeductions: "0",
+          grossPay: grossPay.toString(),
+          netPay: netPay.toString(),
+          paymentMethod: "bank_transfer",
+          status: "pending",
+        });
+
+        generatedPayslips.push(payslip);
+        totalGross += grossPay;
+        totalDeductions += loanDeductions;
+        totalNet += netPay;
+      }
+
+      await storage.updatePayrollRun(payrollRunId, {
+        totalGross: totalGross.toString(),
+        totalDeductions: totalDeductions.toString(),
+        totalNet: totalNet.toString(),
+        employeeCount: activeProfiles.length,
+        status: "generated",
+      });
+
+      res.status(201).json({ payslips: generatedPayslips, employeeCount: activeProfiles.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Payslips
+  app.get("/api/payslips/:payrollRunId", async (req, res) => {
+    try {
+      const result = await storage.getPayslips(Number(req.params.payrollRunId));
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/payslips", async (req, res) => {
+    try {
+      const data = validateBody(insertPayslipSchema, req.body);
+      const payslip = await storage.createPayslip(data);
+      res.status(201).json(payslip);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/payslips/:id", async (req, res) => {
+    try {
+      const payslip = await storage.updatePayslip(Number(req.params.id), req.body);
+      if (!payslip) return res.status(404).json({ message: "Payslip not found" });
+      res.json(payslip);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
     }
   });
 

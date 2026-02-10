@@ -372,13 +372,13 @@ export default function MedicinesPage() {
       </div>
     )},
     { header: "Category", accessor: (row: Medicine) => (
-      <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+      <Badge variant="outline" className="text-[11px]">
         {row.category || "-"}
-      </span>
+      </Badge>
     )},
     { header: "Unit", accessor: (row: Medicine) => getUnitBadge(row.unit || "Box") },
     { header: "Box Price", accessor: (row: Medicine) => (
-      <span className="text-sm font-medium">${Number(row.boxPrice || 0).toFixed(2)}</span>
+      <span className="text-sm font-medium text-violet-600 dark:text-violet-400">${Number(row.boxPrice || 0).toFixed(2)}</span>
     )},
     { header: "Qty/Box", accessor: (row: Medicine) => (
       <span className="inline-flex px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] font-mono font-medium">{row.qtyPerBox || "-"}</span>
@@ -387,20 +387,36 @@ export default function MedicinesPage() {
       <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">${Number(row.perMedPrice || 0).toFixed(4)}</span>
     )},
     { header: "Total Purchase", accessor: (row: Medicine) => (
-      <span className="text-sm font-semibold">${Number(row.totalPurchasePrice || 0).toFixed(2)}</span>
+      <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">${Number(row.totalPurchasePrice || 0).toFixed(2)}</span>
     )},
     { header: "Sell (Local)", accessor: (row: Medicine) => (
-      <span className="text-sm text-green-600 dark:text-green-400 font-medium">${Number(row.sellingPriceLocal || 0).toFixed(2)}</span>
+      <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">${Number(row.sellingPriceLocal || 0).toFixed(2)}</span>
     )},
     { header: "Sell (Foreign)", accessor: (row: Medicine) => (
-      <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">${Number(row.sellingPriceForeigner || 0).toFixed(2)}</span>
+      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">${Number(row.sellingPriceForeigner || 0).toFixed(2)}</span>
     )},
     { header: "Stock", accessor: (row: Medicine) => {
-      const isLow = row.stockCount < (row.stockAlert || 10);
+      const isLow = row.stockCount < (row.stockAlert || 10) && row.stockCount > 0;
+      const isOut = row.stockCount === 0;
+      const isInStock = !isLow && !isOut;
       return (
         <div className="flex items-center gap-1.5">
-          <span className={`text-sm font-semibold ${isLow ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>{row.stockCount}</span>
-          {isLow && <AlertTriangle className="h-3 w-3 text-red-500 animate-pulse" />}
+          <span className={`text-sm font-semibold ${isOut ? "text-red-600 dark:text-red-400" : isLow ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>{row.stockCount}</span>
+          {isOut && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">
+              <PackageX className="h-3 w-3" /> Out
+            </span>
+          )}
+          {isLow && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+              <AlertTriangle className="h-3 w-3 animate-pulse" /> Low
+            </span>
+          )}
+          {isInStock && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+              <CheckCircle2 className="h-3 w-3" />
+            </span>
+          )}
         </div>
       );
     }},
@@ -896,67 +912,67 @@ export default function MedicinesPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="medicine-stats">
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/50">
-                <Pill className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Pill className="h-5 w-5 text-blue-500 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Items</p>
-                <p className="text-xl font-bold" data-testid="stat-total-meds">{totalMeds}</p>
+                <p className="text-[11px] text-blue-500 dark:text-blue-400 font-medium uppercase tracking-wide">Total Items</p>
+                <p className="text-xl font-bold text-blue-600 dark:text-blue-400" data-testid="stat-total-meds">{totalMeds}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950/50">
-                <PackageCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <PackageCheck className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">In Stock</p>
-                <p className="text-xl font-bold text-green-600 dark:text-green-400" data-testid="stat-in-stock">{inStock.length}</p>
+                <p className="text-[11px] text-emerald-500 dark:text-emerald-400 font-medium uppercase tracking-wide">In Stock</p>
+                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-in-stock">{inStock.length}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-950/50">
-                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Low Stock</p>
+                <p className="text-[11px] text-amber-500 dark:text-amber-400 font-medium uppercase tracking-wide">Low Stock</p>
                 <p className="text-xl font-bold text-amber-600 dark:text-amber-400" data-testid="stat-low-stock">{lowStock.length}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-red-100 dark:bg-red-950/50">
-                <PackageX className="h-5 w-5 text-red-600 dark:text-red-400" />
+              <div className="p-2 rounded-lg bg-red-500/10">
+                <PackageX className="h-5 w-5 text-red-500 dark:text-red-400" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Out of Stock</p>
+                <p className="text-[11px] text-red-500 dark:text-red-400 font-medium uppercase tracking-wide">Out of Stock</p>
                 <p className="text-xl font-bold text-red-600 dark:text-red-400" data-testid="stat-out-stock">{outOfStock.length}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/50">
-                <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="p-2 rounded-lg bg-violet-500/10">
+                <DollarSign className="h-5 w-5 text-violet-500 dark:text-violet-400" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Purchase Value</p>
-                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-purchase-value">${totalPurchaseValue.toFixed(2)}</p>
+                <p className="text-[11px] text-violet-500 dark:text-violet-400 font-medium uppercase tracking-wide">Purchase Value</p>
+                <p className="text-lg font-bold text-violet-600 dark:text-violet-400" data-testid="stat-purchase-value">${totalPurchaseValue.toFixed(2)}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-950/50">
-                <TrendingUp className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              <div className="p-2 rounded-lg bg-cyan-500/10">
+                <TrendingUp className="h-5 w-5 text-cyan-500 dark:text-cyan-400" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Sales Value</p>
-                <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400" data-testid="stat-sales-value">${totalSalesValue.toFixed(2)}</p>
+                <p className="text-[11px] text-cyan-500 dark:text-cyan-400 font-medium uppercase tracking-wide">Sales Value</p>
+                <p className="text-lg font-bold text-cyan-600 dark:text-cyan-400" data-testid="stat-sales-value">${totalSalesValue.toFixed(2)}</p>
               </div>
             </CardContent>
           </Card>
@@ -1090,9 +1106,9 @@ export default function MedicinesPage() {
                         </div>
 
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-medium bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                          <Badge variant="outline" className="text-[10px]">
                             {med.category || "-"}
-                          </span>
+                          </Badge>
                           {getUnitBadge(med.unit || "Box")}
                         </div>
 
@@ -1101,7 +1117,7 @@ export default function MedicinesPage() {
                         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Box Price:</span>
-                            <span className="font-medium">${Number(med.boxPrice || 0).toFixed(2)}</span>
+                            <span className="font-medium text-violet-600 dark:text-violet-400">${Number(med.boxPrice || 0).toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Per Med:</span>
@@ -1109,21 +1125,35 @@ export default function MedicinesPage() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Local:</span>
-                            <span className="font-medium text-green-600 dark:text-green-400">${Number(med.sellingPriceLocal || 0).toFixed(2)}</span>
+                            <span className="font-medium text-emerald-600 dark:text-emerald-400">${Number(med.sellingPriceLocal || 0).toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Foreign:</span>
-                            <span className="font-medium text-blue-600 dark:text-blue-400">${Number(med.sellingPriceForeigner || 0).toFixed(2)}</span>
+                            <span className="font-medium text-cyan-600 dark:text-cyan-400">${Number(med.sellingPriceForeigner || 0).toFixed(2)}</span>
                           </div>
                         </div>
 
                         <div className="flex items-center justify-between pt-1">
                           <div className="flex items-center gap-1.5">
                             <Package className="h-3 w-3 text-muted-foreground" />
-                            <span className={`text-xs font-semibold ${isLow ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+                            <span className={`text-xs font-semibold ${med.stockCount === 0 ? "text-red-600 dark:text-red-400" : isLow ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                               {med.stockCount} in stock
                             </span>
-                            {isLow && <AlertTriangle className="h-3 w-3 text-red-500 animate-pulse" />}
+                            {med.stockCount === 0 && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">
+                                <PackageX className="h-2.5 w-2.5" /> Out
+                              </span>
+                            )}
+                            {isLow && med.stockCount > 0 && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                                <AlertTriangle className="h-2.5 w-2.5 animate-pulse" /> Low
+                              </span>
+                            )}
+                            {!isLow && med.stockCount > 0 && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                                <CheckCircle2 className="h-2.5 w-2.5" />
+                              </span>
+                            )}
                           </div>
                           {getExpiryBadge(med.expiryDate)}
                         </div>

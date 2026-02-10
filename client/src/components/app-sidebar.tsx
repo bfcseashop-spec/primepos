@@ -20,9 +20,9 @@ import {
 
 const mainItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, color: "text-blue-500 dark:text-blue-400", bg: "bg-blue-500/10 dark:bg-blue-400/10" },
+  { title: "Make Payment (POS)", url: "/billing", icon: FileText, color: "text-amber-500 dark:text-amber-400", bg: "bg-amber-500/10 dark:bg-amber-400/10" },
   { title: "OPD Management", url: "/opd", icon: Stethoscope, color: "text-emerald-500 dark:text-emerald-400", bg: "bg-emerald-500/10 dark:bg-emerald-400/10" },
   { title: "Appointments", url: "/appointments", icon: CalendarCheck, color: "text-violet-500 dark:text-violet-400", bg: "bg-violet-500/10 dark:bg-violet-400/10" },
-  { title: "Billing", url: "/billing", icon: FileText, color: "text-amber-500 dark:text-amber-400", bg: "bg-amber-500/10 dark:bg-amber-400/10" },
   { title: "Services", url: "/services", icon: Activity, color: "text-pink-500 dark:text-pink-400", bg: "bg-pink-500/10 dark:bg-pink-400/10" },
   { title: "Lab Tests", url: "/lab-tests", icon: FlaskConical, color: "text-cyan-500 dark:text-cyan-400", bg: "bg-cyan-500/10 dark:bg-cyan-400/10" },
   { title: "Medicines", url: "/medicines", icon: Pill, color: "text-orange-500 dark:text-orange-400", bg: "bg-orange-500/10 dark:bg-orange-400/10" },
@@ -37,7 +37,7 @@ const financeItems = [
 ];
 
 const systemItems = [
-  { title: "Staff & Roles", url: "/staff", icon: UserCog, color: "text-sky-500 dark:text-sky-400", bg: "bg-sky-500/10 dark:bg-sky-400/10" },
+  { title: "User and Role", url: "/staff", icon: UserCog, color: "text-sky-500 dark:text-sky-400", bg: "bg-sky-500/10 dark:bg-sky-400/10" },
   { title: "Authentication", url: "/authentication", icon: Shield, color: "text-red-500 dark:text-red-400", bg: "bg-red-500/10 dark:bg-red-400/10" },
   { title: "Integrations", url: "/integrations", icon: Cable, color: "text-purple-500 dark:text-purple-400", bg: "bg-purple-500/10 dark:bg-purple-400/10" },
   { title: "Reports", url: "/reports", icon: BarChart3, color: "text-lime-500 dark:text-lime-400", bg: "bg-lime-500/10 dark:bg-lime-400/10" },

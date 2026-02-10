@@ -3,7 +3,8 @@ import { db } from "./db";
 import {
   users, roles, patients, services, medicines, opdVisits, bills,
   expenses, bankTransactions, investments, integrations, clinicSettings, labTests, appointments,
-  doctors, salaries,
+  doctors, salaries, activityLogs,
+  salaryProfiles, salaryLoans, loanInstallments, payrollRuns, payslips,
   type InsertUser, type User, type InsertRole, type Role,
   type InsertPatient, type Patient, type InsertService, type Service,
   type InsertMedicine, type Medicine, type InsertOpdVisit, type OpdVisit,
@@ -16,6 +17,12 @@ import {
   type InsertAppointment, type Appointment,
   type InsertDoctor, type Doctor,
   type InsertSalary, type Salary,
+  type InsertSalaryProfile, type SalaryProfile,
+  type InsertSalaryLoan, type SalaryLoan,
+  type InsertLoanInstallment, type LoanInstallment,
+  type InsertPayrollRun, type PayrollRun,
+  type InsertPayslip, type Payslip,
+  type InsertActivityLog, type ActivityLog,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -23,14 +30,18 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: number): Promise<void>;
 
   getRoles(): Promise<Role[]>;
   getRole(id: number): Promise<Role | undefined>;
   createRole(role: InsertRole): Promise<Role>;
+  updateRole(id: number, data: Partial<InsertRole>): Promise<Role | undefined>;
+  deleteRole(id: number): Promise<void>;
 
   getPatients(): Promise<Patient[]>;
   getPatient(id: number): Promise<Patient | undefined>;
   createPatient(patient: InsertPatient): Promise<Patient>;
+  updatePatient(id: number, patient: Partial<InsertPatient>): Promise<Patient>;
   deletePatient(id: number): Promise<void>;
 
   getServices(): Promise<Service[]>;
@@ -58,6 +69,8 @@ export interface IStorage {
 
   getExpenses(): Promise<Expense[]>;
   createExpense(expense: InsertExpense): Promise<Expense>;
+  updateExpense(id: number, data: Partial<InsertExpense>): Promise<Expense | undefined>;
+  deleteExpense(id: number): Promise<void>;
 
   getBankTransactions(): Promise<BankTransaction[]>;
   createBankTransaction(tx: InsertBankTransaction): Promise<BankTransaction>;
@@ -97,8 +110,38 @@ export interface IStorage {
   updateSalary(id: number, data: Partial<InsertSalary>): Promise<Salary | undefined>;
   deleteSalary(id: number): Promise<void>;
 
+  getSalaryProfiles(): Promise<SalaryProfile[]>;
+  getSalaryProfile(id: number): Promise<SalaryProfile | undefined>;
+  createSalaryProfile(profile: InsertSalaryProfile): Promise<SalaryProfile>;
+  updateSalaryProfile(id: number, data: Partial<InsertSalaryProfile>): Promise<SalaryProfile | undefined>;
+  deleteSalaryProfile(id: number): Promise<void>;
+
+  getSalaryLoans(): Promise<SalaryLoan[]>;
+  getSalaryLoan(id: number): Promise<SalaryLoan | undefined>;
+  createSalaryLoan(loan: InsertSalaryLoan): Promise<SalaryLoan>;
+  updateSalaryLoan(id: number, data: Partial<InsertSalaryLoan>): Promise<SalaryLoan | undefined>;
+  deleteSalaryLoan(id: number): Promise<void>;
+
+  getLoanInstallments(loanId: number): Promise<LoanInstallment[]>;
+  createLoanInstallment(installment: InsertLoanInstallment): Promise<LoanInstallment>;
+  updateLoanInstallment(id: number, data: Partial<InsertLoanInstallment>): Promise<LoanInstallment | undefined>;
+
+  getPayrollRuns(): Promise<PayrollRun[]>;
+  getPayrollRun(id: number): Promise<PayrollRun | undefined>;
+  createPayrollRun(run: InsertPayrollRun): Promise<PayrollRun>;
+  updatePayrollRun(id: number, data: Partial<InsertPayrollRun>): Promise<PayrollRun | undefined>;
+  deletePayrollRun(id: number): Promise<void>;
+
+  getPayslips(payrollRunId: number): Promise<Payslip[]>;
+  createPayslip(payslip: InsertPayslip): Promise<Payslip>;
+  updatePayslip(id: number, data: Partial<InsertPayslip>): Promise<Payslip | undefined>;
+
   getUserByUsername(username: string): Promise<User | undefined>;
   changePassword(id: number, newPassword: string): Promise<void>;
+
+  getActivityLogs(limit?: number): Promise<ActivityLog[]>;
+  createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
+  clearActivityLogs(): Promise<void>;
 
   getDashboardStats(): Promise<any>;
   getRecentVisits(): Promise<any[]>;
@@ -141,6 +184,10 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async deleteUser(id: number): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
+
   async getRoles(): Promise<Role[]> {
     return db.select().from(roles).orderBy(roles.name);
   }
@@ -155,6 +202,15 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async updateRole(id: number, data: Partial<InsertRole>): Promise<Role | undefined> {
+    const [updated] = await db.update(roles).set(data).where(eq(roles.id, id)).returning();
+    return updated;
+  }
+
+  async deleteRole(id: number): Promise<void> {
+    await db.delete(roles).where(eq(roles.id, id));
+  }
+
   async getPatients(): Promise<Patient[]> {
     return db.select().from(patients).orderBy(desc(patients.createdAt));
   }
@@ -167,6 +223,11 @@ export class DatabaseStorage implements IStorage {
   async createPatient(patient: InsertPatient): Promise<Patient> {
     const [created] = await db.insert(patients).values(patient).returning();
     return created;
+  }
+
+  async updatePatient(id: number, patient: Partial<InsertPatient>): Promise<Patient> {
+    const [updated] = await db.update(patients).set(patient).where(eq(patients.id, id)).returning();
+    return updated;
   }
 
   async deletePatient(id: number): Promise<void> {
@@ -302,6 +363,15 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async updateExpense(id: number, data: Partial<InsertExpense>): Promise<Expense | undefined> {
+    const [updated] = await db.update(expenses).set(data).where(eq(expenses.id, id)).returning();
+    return updated;
+  }
+
+  async deleteExpense(id: number): Promise<void> {
+    await db.delete(expenses).where(eq(expenses.id, id));
+  }
+
   async getBankTransactions(): Promise<BankTransaction[]> {
     return db.select().from(bankTransactions).orderBy(desc(bankTransactions.date));
   }
@@ -341,11 +411,12 @@ export class DatabaseStorage implements IStorage {
 
   async upsertSettings(s: InsertClinicSettings): Promise<ClinicSettings> {
     const existing = await this.getSettings();
+    const { id, ...data } = s as any;
     if (existing) {
-      const [updated] = await db.update(clinicSettings).set(s).where(eq(clinicSettings.id, existing.id)).returning();
+      const [updated] = await db.update(clinicSettings).set(data).where(eq(clinicSettings.id, existing.id)).returning();
       return updated;
     }
-    const [created] = await db.insert(clinicSettings).values(s).returning();
+    const [created] = await db.insert(clinicSettings).values(data).returning();
     return created;
   }
 
@@ -606,6 +677,103 @@ export class DatabaseStorage implements IStorage {
     await db.delete(salaries).where(eq(salaries.id, id));
   }
 
+  async getSalaryProfiles(): Promise<SalaryProfile[]> {
+    return db.select().from(salaryProfiles).orderBy(desc(salaryProfiles.createdAt));
+  }
+
+  async getSalaryProfile(id: number): Promise<SalaryProfile | undefined> {
+    const [profile] = await db.select().from(salaryProfiles).where(eq(salaryProfiles.id, id));
+    return profile;
+  }
+
+  async createSalaryProfile(profile: InsertSalaryProfile): Promise<SalaryProfile> {
+    const [created] = await db.insert(salaryProfiles).values(profile).returning();
+    return created;
+  }
+
+  async updateSalaryProfile(id: number, data: Partial<InsertSalaryProfile>): Promise<SalaryProfile | undefined> {
+    const [updated] = await db.update(salaryProfiles).set(data).where(eq(salaryProfiles.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSalaryProfile(id: number): Promise<void> {
+    await db.delete(salaryProfiles).where(eq(salaryProfiles.id, id));
+  }
+
+  async getSalaryLoans(): Promise<SalaryLoan[]> {
+    return db.select().from(salaryLoans).orderBy(desc(salaryLoans.createdAt));
+  }
+
+  async getSalaryLoan(id: number): Promise<SalaryLoan | undefined> {
+    const [loan] = await db.select().from(salaryLoans).where(eq(salaryLoans.id, id));
+    return loan;
+  }
+
+  async createSalaryLoan(loan: InsertSalaryLoan): Promise<SalaryLoan> {
+    const [created] = await db.insert(salaryLoans).values(loan).returning();
+    return created;
+  }
+
+  async updateSalaryLoan(id: number, data: Partial<InsertSalaryLoan>): Promise<SalaryLoan | undefined> {
+    const [updated] = await db.update(salaryLoans).set(data).where(eq(salaryLoans.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSalaryLoan(id: number): Promise<void> {
+    await db.delete(salaryLoans).where(eq(salaryLoans.id, id));
+  }
+
+  async getLoanInstallments(loanId: number): Promise<LoanInstallment[]> {
+    return db.select().from(loanInstallments).where(eq(loanInstallments.loanId, loanId)).orderBy(loanInstallments.dueDate);
+  }
+
+  async createLoanInstallment(installment: InsertLoanInstallment): Promise<LoanInstallment> {
+    const [created] = await db.insert(loanInstallments).values(installment).returning();
+    return created;
+  }
+
+  async updateLoanInstallment(id: number, data: Partial<InsertLoanInstallment>): Promise<LoanInstallment | undefined> {
+    const [updated] = await db.update(loanInstallments).set(data).where(eq(loanInstallments.id, id)).returning();
+    return updated;
+  }
+
+  async getPayrollRuns(): Promise<PayrollRun[]> {
+    return db.select().from(payrollRuns).orderBy(desc(payrollRuns.createdAt));
+  }
+
+  async getPayrollRun(id: number): Promise<PayrollRun | undefined> {
+    const [run] = await db.select().from(payrollRuns).where(eq(payrollRuns.id, id));
+    return run;
+  }
+
+  async createPayrollRun(run: InsertPayrollRun): Promise<PayrollRun> {
+    const [created] = await db.insert(payrollRuns).values(run).returning();
+    return created;
+  }
+
+  async updatePayrollRun(id: number, data: Partial<InsertPayrollRun>): Promise<PayrollRun | undefined> {
+    const [updated] = await db.update(payrollRuns).set(data).where(eq(payrollRuns.id, id)).returning();
+    return updated;
+  }
+
+  async deletePayrollRun(id: number): Promise<void> {
+    await db.delete(payrollRuns).where(eq(payrollRuns.id, id));
+  }
+
+  async getPayslips(payrollRunId: number): Promise<Payslip[]> {
+    return db.select().from(payslips).where(eq(payslips.payrollRunId, payrollRunId));
+  }
+
+  async createPayslip(payslip: InsertPayslip): Promise<Payslip> {
+    const [created] = await db.insert(payslips).values(payslip).returning();
+    return created;
+  }
+
+  async updatePayslip(id: number, data: Partial<InsertPayslip>): Promise<Payslip | undefined> {
+    const [updated] = await db.update(payslips).set(data).where(eq(payslips.id, id)).returning();
+    return updated;
+  }
+
   async getUserByUsername(username: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
@@ -613,6 +781,19 @@ export class DatabaseStorage implements IStorage {
 
   async changePassword(id: number, newPassword: string): Promise<void> {
     await db.update(users).set({ password: newPassword }).where(eq(users.id, id));
+  }
+
+  async getActivityLogs(logLimit: number = 100): Promise<ActivityLog[]> {
+    return db.select().from(activityLogs).orderBy(desc(activityLogs.createdAt)).limit(logLimit);
+  }
+
+  async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
+    const [created] = await db.insert(activityLogs).values(log).returning();
+    return created;
+  }
+
+  async clearActivityLogs(): Promise<void> {
+    await db.delete(activityLogs);
   }
 }
 

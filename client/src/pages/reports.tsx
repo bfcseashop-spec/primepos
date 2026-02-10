@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
 import { StatsCard } from "@/components/stats-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -11,12 +10,12 @@ import {
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend
+  ResponsiveContainer, PieChart, Pie, Cell, Legend, Area, AreaChart
 } from "recharts";
 
 const COLORS = [
-  "hsl(210, 85%, 35%)", "hsl(195, 75%, 38%)", "hsl(170, 65%, 35%)",
-  "hsl(155, 55%, 32%)", "hsl(140, 60%, 30%)", "hsl(30, 80%, 45%)",
+  "hsl(221, 83%, 53%)", "hsl(160, 84%, 39%)", "hsl(38, 92%, 50%)",
+  "hsl(280, 67%, 55%)", "hsl(346, 77%, 50%)", "hsl(190, 80%, 45%)",
 ];
 
 export default function ReportsPage() {
@@ -46,37 +45,50 @@ export default function ReportsPage() {
             [...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)
           ) : (
             <>
-              <StatsCard title="Total Revenue" value={`$${stats?.totalRevenue ?? "0"}`} icon={DollarSign} />
-              <StatsCard title="Total Expenses" value={`$${stats?.totalExpenses ?? "0"}`} icon={Receipt} />
-              <StatsCard title="Net Profit" value={`$${stats?.netProfit ?? "0"}`} icon={TrendingUp} trendUp={(stats?.netProfit ?? 0) > 0} />
-              <StatsCard title="Total Patients" value={stats?.totalPatients ?? 0} icon={Users} />
+              <StatsCard title="Total Revenue" value={`$${stats?.totalRevenue ?? "0"}`} icon={DollarSign} iconColor="text-emerald-500 dark:text-emerald-400" iconBg="bg-emerald-500/10 dark:bg-emerald-400/10" />
+              <StatsCard title="Total Expenses" value={`$${stats?.totalExpenses ?? "0"}`} icon={Receipt} iconColor="text-red-500 dark:text-red-400" iconBg="bg-red-500/10 dark:bg-red-400/10" />
+              <StatsCard title="Net Profit" value={`$${stats?.netProfit ?? "0"}`} icon={TrendingUp} trendUp={(stats?.netProfit ?? 0) > 0} iconColor="text-violet-500 dark:text-violet-400" iconBg="bg-violet-500/10 dark:bg-violet-400/10" />
+              <StatsCard title="Total Patients" value={stats?.totalPatients ?? 0} icon={Users} iconColor="text-blue-500 dark:text-blue-400" iconBg="bg-blue-500/10 dark:bg-blue-400/10" />
             </>
           )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatsCard title="Total Visits" value={stats?.totalVisits ?? 0} icon={Stethoscope} />
-          <StatsCard title="Total Bills" value={stats?.totalBills ?? 0} icon={FileText} />
-          <StatsCard title="Medicines" value={stats?.totalMedicines ?? 0} icon={Pill} />
-          <StatsCard title="Services" value={stats?.totalServices ?? 0} icon={BarChart3} />
+          <StatsCard title="Total Visits" value={stats?.totalVisits ?? 0} icon={Stethoscope} iconColor="text-amber-500 dark:text-amber-400" iconBg="bg-amber-500/10 dark:bg-amber-400/10" />
+          <StatsCard title="Total Bills" value={stats?.totalBills ?? 0} icon={FileText} iconColor="text-cyan-500 dark:text-cyan-400" iconBg="bg-cyan-500/10 dark:bg-cyan-400/10" />
+          <StatsCard title="Medicines" value={stats?.totalMedicines ?? 0} icon={Pill} iconColor="text-pink-500 dark:text-pink-400" iconBg="bg-pink-500/10 dark:bg-pink-400/10" />
+          <StatsCard title="Services" value={stats?.totalServices ?? 0} icon={BarChart3} iconColor="text-violet-500 dark:text-violet-400" iconBg="bg-violet-500/10 dark:bg-violet-400/10" />
         </div>
 
         <Tabs defaultValue="revenue">
           <TabsList>
-            <TabsTrigger value="revenue" data-testid="tab-revenue">Revenue</TabsTrigger>
-            <TabsTrigger value="expenses" data-testid="tab-expenses">Expenses</TabsTrigger>
-            <TabsTrigger value="services" data-testid="tab-services">Services</TabsTrigger>
+            <TabsTrigger value="revenue" data-testid="tab-revenue" className="gap-1.5"><div className="h-1.5 w-1.5 rounded-full bg-blue-500" />Revenue</TabsTrigger>
+            <TabsTrigger value="expenses" data-testid="tab-expenses" className="gap-1.5"><div className="h-1.5 w-1.5 rounded-full bg-amber-500" />Expenses</TabsTrigger>
+            <TabsTrigger value="services" data-testid="tab-services" className="gap-1.5"><div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Services</TabsTrigger>
           </TabsList>
 
           <TabsContent value="revenue" className="mt-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-                <CardTitle className="text-sm font-semibold">Monthly Revenue Trend</CardTitle>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500" />
+                  Monthly Revenue Trend
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 {monthlyRevenue && monthlyRevenue.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={monthlyRevenue}>
+                    <AreaChart data={monthlyRevenue}>
+                      <defs>
+                        <linearGradient id="reportsRevenueGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={COLORS[0]} stopOpacity={0.3} />
+                          <stop offset="95%" stopColor={COLORS[0]} stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="reportsExpenseGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={COLORS[4]} stopOpacity={0.3} />
+                          <stop offset="95%" stopColor={COLORS[4]} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
                       <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
@@ -84,13 +96,13 @@ export default function ReportsPage() {
                         contentStyle={{
                           backgroundColor: "hsl(var(--card))",
                           border: "1px solid hsl(var(--border))",
-                          borderRadius: "6px",
+                          borderRadius: "8px",
                           fontSize: "12px",
                         }}
                       />
-                      <Line type="monotone" dataKey="revenue" stroke={COLORS[0]} strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="expenses" stroke={COLORS[5]} strokeWidth={2} dot={{ r: 3 }} />
-                    </LineChart>
+                      <Area type="monotone" dataKey="revenue" stroke={COLORS[0]} strokeWidth={2} fill="url(#reportsRevenueGradient)" />
+                      <Area type="monotone" dataKey="expenses" stroke={COLORS[4]} strokeWidth={2} fill="url(#reportsExpenseGradient)" />
+                    </AreaChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex items-center justify-center h-72 text-muted-foreground text-sm">
@@ -104,7 +116,10 @@ export default function ReportsPage() {
           <TabsContent value="expenses" className="mt-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-                <CardTitle className="text-sm font-semibold">Expenses by Category</CardTitle>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-amber-500" />
+                  Expenses by Category
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 {expensesByCategory && expensesByCategory.length > 0 ? (
@@ -153,7 +168,10 @@ export default function ReportsPage() {
           <TabsContent value="services" className="mt-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-                <CardTitle className="text-sm font-semibold">Top Services</CardTitle>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                  Top Services
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 {topServices && topServices.length > 0 ? (

@@ -80,6 +80,17 @@ export default function IntegrationsPage() {
     return dt?.icon || Cable;
   };
 
+  const getDeviceIconColor = (type: string) => {
+    switch (type) {
+      case "ultrasound": return { text: "text-blue-500", bg: "bg-blue-500/10" };
+      case "xray": return { text: "text-violet-500", bg: "bg-violet-500/10" };
+      case "ecg": return { text: "text-emerald-500", bg: "bg-emerald-500/10" };
+      case "printer": return { text: "text-amber-500", bg: "bg-amber-500/10" };
+      case "lab_analyzer": return { text: "text-cyan-500", bg: "bg-cyan-500/10" };
+      default: return { text: "text-slate-500", bg: "bg-slate-500/10" };
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <PageHeader
@@ -153,20 +164,21 @@ export default function IntegrationsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {integrations.map((device) => {
               const DeviceIcon = getDeviceIcon(device.deviceType);
+              const iconColor = getDeviceIconColor(device.deviceType);
               return (
-                <Card key={device.id}>
+                <Card key={device.id} className={device.status === "connected" ? "border-emerald-500/30" : ""}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-3">
                       <div className="flex items-center gap-2">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-                          <DeviceIcon className="h-5 w-5 text-primary" />
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-md ${iconColor.bg}`}>
+                          <DeviceIcon className={`h-5 w-5 ${iconColor.text}`} />
                         </div>
                         <div>
                           <h3 className="text-sm font-semibold">{device.deviceName}</h3>
                           <p className="text-xs text-muted-foreground capitalize">{device.deviceType.replace("_", " ")}</p>
                         </div>
                       </div>
-                      <Badge variant={device.status === "connected" ? "default" : "secondary"}>
+                      <Badge className={`no-default-hover-elevate no-default-active-elevate ${device.status === "connected" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20" : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"}`}>
                         {device.status === "connected" ? (
                           <span className="flex items-center gap-1"><Wifi className="h-3 w-3" /> Connected</span>
                         ) : (

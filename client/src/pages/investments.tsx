@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
@@ -6,25 +6,57 @@ import { StatsCard } from "@/components/stats-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, TrendingUp, DollarSign, Briefcase } from "lucide-react";
+import { Plus, Search, TrendingUp, DollarSign, Briefcase, X, Tag } from "lucide-react";
 import type { Investment } from "@shared/schema";
 
-const INVESTMENT_CATEGORIES = [
+const DEFAULT_INVESTMENT_CATEGORIES = [
   "Equipment", "Real Estate", "Expansion", "Technology",
   "Marketing", "Training", "Research", "Other"
 ];
+
+function loadCategories(): string[] {
+  try {
+    const stored = localStorage.getItem("investment_categories");
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return DEFAULT_INVESTMENT_CATEGORIES;
+}
 
 export default function InvestmentsPage() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [categories, setCategories] = useState<string[]>(loadCategories);
+  const [newCategory, setNewCategory] = useState("");
+
+  useEffect(() => {
+    localStorage.setItem("investment_categories", JSON.stringify(categories));
+  }, [categories]);
+
+  const addCategory = () => {
+    const trimmed = newCategory.trim();
+    if (!trimmed) return;
+    if (categories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      toast({ title: "Category already exists", variant: "destructive" });
+      return;
+    }
+    setCategories([...categories, trimmed]);
+    setNewCategory("");
+    toast({ title: `Category "${trimmed}" added` });
+  };
+
+  const removeCategory = (cat: string) => {
+    setCategories(categories.filter(c => c !== cat));
+    toast({ title: `Category "${cat}" removed` });
+  };
 
   const { data: investments = [], isLoading } = useQuery<Investment[]>({
     queryKey: ["/api/investments"],
@@ -72,12 +104,18 @@ export default function InvestmentsPage() {
 
   const columns = [
     { header: "Title", accessor: "title" as keyof Investment },
-    { header: "Category", accessor: (row: Investment) => <Badge variant="outline">{row.category}</Badge> },
-    { header: "Amount", accessor: (row: Investment) => <span className="font-medium">${row.amount}</span> },
-    { header: "Returns", accessor: (row: Investment) => <span className="text-green-600 dark:text-green-400">${row.returnAmount || "0"}</span> },
+    { header: "Category", accessor: (row: Investment) => <Badge variant="outline" className="text-violet-600 dark:text-violet-400">{row.category}</Badge> },
+    { header: "Amount", accessor: (row: Investment) => <span className="font-medium text-emerald-600 dark:text-emerald-400">${row.amount}</span> },
+    { header: "Returns", accessor: (row: Investment) => <span className="font-medium text-emerald-600 dark:text-emerald-400">${row.returnAmount || "0"}</span> },
     { header: "Investor", accessor: (row: Investment) => row.investorName || "-" },
     { header: "Status", accessor: (row: Investment) => (
-      <Badge variant={row.status === "active" ? "default" : row.status === "completed" ? "secondary" : "destructive"}>
+      <Badge variant="outline" className={
+        row.status === "active"
+          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+          : row.status === "completed"
+          ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
+          : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20"
+      }>
         {row.status}
       </Badge>
     )},
@@ -91,6 +129,49 @@ export default function InvestmentsPage() {
         title="Investment Management"
         description="Track clinic investments and returns"
         actions={
+          <div className="flex items-center gap-2 flex-wrap">
+          <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" data-testid="button-manage-categories">
+                <Tag className="h-4 w-4 mr-1" /> + Category
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Manage Categories</DialogTitle>
+                <DialogDescription>Add or remove investment categories</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="New category name..."
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCategory())}
+                    data-testid="input-new-category"
+                  />
+                  <Button onClick={addCategory} disabled={!newCategory.trim()} data-testid="button-add-category">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                  {categories.map(cat => (
+                    <Badge key={cat} variant="secondary" className="gap-1 pr-1" data-testid={`badge-category-${cat}`}>
+                      {cat}
+                      <button
+                        type="button"
+                        onClick={() => removeCategory(cat)}
+                        className="ml-0.5 rounded-full p-0.5 hover-elevate"
+                        data-testid={`button-remove-category-${cat}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-new-investment">
@@ -111,8 +192,8 @@ export default function InvestmentsPage() {
                   <Select name="category" required>
                     <SelectTrigger data-testid="select-investment-category"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
-                      {INVESTMENT_CATEGORIES.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      {categories.map(cat => (
+                        <SelectItem key={cat} value={cat} data-testid={`option-category-${cat}`}>{cat}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -151,14 +232,15 @@ export default function InvestmentsPage() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         }
       />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <StatsCard title="Total Invested" value={`$${totalInvested.toFixed(2)}`} icon={DollarSign} />
-          <StatsCard title="Total Returns" value={`$${totalReturns.toFixed(2)}`} icon={TrendingUp} />
-          <StatsCard title="Active Investments" value={activeCount} icon={Briefcase} />
+          <StatsCard title="Total Invested" value={`$${totalInvested.toFixed(2)}`} icon={DollarSign} iconColor="text-blue-500 dark:text-blue-400" iconBg="bg-blue-500/10 dark:bg-blue-400/10" />
+          <StatsCard title="Total Returns" value={`$${totalReturns.toFixed(2)}`} icon={TrendingUp} iconColor="text-emerald-500 dark:text-emerald-400" iconBg="bg-emerald-500/10 dark:bg-emerald-400/10" />
+          <StatsCard title="Active Investments" value={activeCount} icon={Briefcase} iconColor="text-amber-500 dark:text-amber-400" iconBg="bg-amber-500/10 dark:bg-amber-400/10" />
         </div>
 
         <Card>

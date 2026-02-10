@@ -10,19 +10,37 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark } from "lucide-react";
+import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp } from "lucide-react";
 import type { BankTransaction } from "@shared/schema";
+
+const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; bgColor: string; progressColor: string }> = {
+  cash: { label: "Cash Pay", icon: Banknote, color: "text-emerald-600 dark:text-emerald-400", bgColor: "bg-emerald-500/10", progressColor: "bg-emerald-500" },
+  aba: { label: "ABA", icon: Building2, color: "text-blue-500 dark:text-blue-400", bgColor: "bg-blue-500/10", progressColor: "bg-blue-500" },
+  acleda: { label: "Acleda", icon: Building2, color: "text-amber-600 dark:text-amber-400", bgColor: "bg-amber-500/10", progressColor: "bg-amber-500" },
+  other_bank: { label: "Other Bank", icon: Building2, color: "text-slate-600 dark:text-slate-400", bgColor: "bg-slate-500/10", progressColor: "bg-slate-500" },
+  card: { label: "Card Pay", icon: CreditCard, color: "text-violet-600 dark:text-violet-400", bgColor: "bg-violet-500/10", progressColor: "bg-violet-500" },
+  wechat: { label: "WeChat Pay", icon: Smartphone, color: "text-green-600 dark:text-green-400", bgColor: "bg-green-500/10", progressColor: "bg-green-500" },
+  gpay: { label: "GPay", icon: Smartphone, color: "text-sky-600 dark:text-sky-400", bgColor: "bg-sky-500/10", progressColor: "bg-sky-500" },
+};
 
 export default function BankTransactionsPage() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [billSearchTerm, setBillSearchTerm] = useState("");
+  const [methodFilter, setMethodFilter] = useState<string>("all");
 
   const { data: transactions = [], isLoading } = useQuery<BankTransaction[]>({
     queryKey: ["/api/bank-transactions"],
+  });
+
+  const { data: bills = [] } = useQuery<any[]>({
+    queryKey: ["/api/bills"],
   });
 
   const createMutation = useMutation({
@@ -62,21 +80,80 @@ export default function BankTransactionsPage() {
     t.description?.toLowerCase().includes(searchTerm.toLowerCase()) || false
   );
 
+  const paymentsByMethod = bills.reduce((acc: Record<string, { count: number; total: number; bills: any[] }>, bill: any) => {
+    const method = bill.paymentMethod || "cash";
+    if (!acc[method]) acc[method] = { count: 0, total: 0, bills: [] };
+    acc[method].count += 1;
+    acc[method].total += Number(bill.paidAmount) || 0;
+    acc[method].bills.push(bill);
+    return acc;
+  }, {});
+
+  const totalBillCollections = bills.reduce((s: number, b: any) => s + (Number(b.paidAmount) || 0), 0);
+
+  const filteredBillPayments = bills.filter((b: any) => {
+    const matchesSearch = !billSearchTerm ||
+      b.billNo?.toLowerCase().includes(billSearchTerm.toLowerCase()) ||
+      b.patientName?.toLowerCase().includes(billSearchTerm.toLowerCase());
+    const matchesMethod = methodFilter === "all" || b.paymentMethod === methodFilter;
+    return matchesSearch && matchesMethod;
+  });
+
+  const billPaymentColumns = [
+    { header: "Bill #", accessor: (row: any) => (
+      <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400" data-testid={`text-bill-no-${row.id}`}>{row.billNo}</span>
+    )},
+    { header: "Patient", accessor: (row: any) => (
+      <span className="text-sm font-medium" data-testid={`text-bill-patient-${row.id}`}>{row.patientName || "-"}</span>
+    )},
+    { header: "Amount", accessor: (row: any) => (
+      <span className="font-semibold text-sm text-emerald-600 dark:text-emerald-400" data-testid={`text-bill-amount-${row.id}`}>${Number(row.paidAmount).toFixed(2)}</span>
+    )},
+    { header: "Method", accessor: (row: any) => {
+      const cfg = PAYMENT_METHOD_CONFIG[row.paymentMethod] || { label: row.paymentMethod, icon: Banknote, color: "text-muted-foreground", bgColor: "bg-muted" };
+      const Icon = cfg.icon;
+      return (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border ${cfg.bgColor} ${cfg.color}`} data-testid={`badge-method-${row.id}`}>
+          <Icon className="h-3 w-3" />
+          {cfg.label}
+        </span>
+      );
+    }},
+    { header: "Status", accessor: (row: any) => {
+      if (row.status === "paid") return <Badge variant="default" style={{ backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderColor: "rgba(16, 185, 129, 0.3)" }} className="border text-[10px]" data-testid={`badge-status-${row.id}`}>Paid</Badge>;
+      if (row.status === "partial") return <Badge variant="secondary" style={{ backgroundColor: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", borderColor: "rgba(245, 158, 11, 0.3)" }} className="border text-[10px]" data-testid={`badge-status-${row.id}`}>Partial</Badge>;
+      return <Badge variant="outline" style={{ backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.25)" }} className="border text-[10px]" data-testid={`badge-status-${row.id}`}>Unpaid</Badge>;
+    }},
+    { header: "Date", accessor: (row: any) => (
+      <span className="text-xs text-muted-foreground">{row.paymentDate || "-"}</span>
+    )},
+  ];
+
   const columns = [
     { header: "Type", accessor: (row: BankTransaction) => (
       <div className="flex items-center gap-1.5">
         {row.type === "deposit" ? (
-          <ArrowDownLeft className="h-3.5 w-3.5 text-green-600" />
+          <div className="p-1 rounded-md bg-emerald-500/10">
+            <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          </div>
         ) : (
-          <ArrowUpRight className="h-3.5 w-3.5 text-red-600" />
+          <div className="p-1 rounded-md bg-red-500/10">
+            <ArrowUpRight className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+          </div>
         )}
-        <Badge variant={row.type === "deposit" ? "default" : "secondary"}>
+        <Badge variant={row.type === "deposit" ? "default" : "secondary"}
+          style={row.type === "deposit"
+            ? { backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderColor: "rgba(16, 185, 129, 0.3)" }
+            : { backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.25)" }
+          }
+          className="border"
+        >
           {row.type}
         </Badge>
       </div>
     )},
     { header: "Amount", accessor: (row: BankTransaction) => (
-      <span className={`font-medium ${row.type === "deposit" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+      <span className={`font-semibold ${row.type === "deposit" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
         {row.type === "deposit" ? "+" : "-"}${row.amount}
       </span>
     )},
@@ -93,7 +170,7 @@ export default function BankTransactionsPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Bank Transactions"
-        description="Track deposits and withdrawals"
+        description="Track deposits, withdrawals, and bill payment collections"
         actions={
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
@@ -155,30 +232,167 @@ export default function BankTransactionsPage() {
       />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <StatsCard title="Total Deposits" value={`$${totalDeposits.toFixed(2)}`} icon={ArrowDownLeft} />
-          <StatsCard title="Total Withdrawals" value={`$${totalWithdrawals.toFixed(2)}`} icon={ArrowUpRight} />
-          <StatsCard title="Net Balance" value={`$${(totalDeposits - totalWithdrawals).toFixed(2)}`} icon={Landmark} />
+        {/* Overall Summary */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="bank-summary-stats">
+          <Card>
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <ArrowDownLeft className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Deposits</p>
+                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-deposits">${totalDeposits.toFixed(2)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-red-500/10">
+                <ArrowUpRight className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Withdrawals</p>
+                <p className="text-lg font-bold text-red-600 dark:text-red-400" data-testid="stat-withdrawals">${totalWithdrawals.toFixed(2)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Landmark className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Net Balance</p>
+                <p className="text-lg font-bold" data-testid="stat-net-balance">${(totalDeposits - totalWithdrawals).toFixed(2)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-violet-500/10">
+                <Receipt className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Bill Collections</p>
+                <p className="text-lg font-bold text-violet-600 dark:text-violet-400" data-testid="stat-bill-collections">${totalBillCollections.toFixed(2)}</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-            <CardTitle className="text-sm font-semibold">All Transactions</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search transactions..."
-                className="pl-8 h-8 text-sm"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                data-testid="input-search-transactions"
-              />
+        <Tabs defaultValue="collections" className="space-y-4">
+          <TabsList className="bg-muted/60 p-1" data-testid="tabs-bank-transactions">
+            <TabsTrigger value="collections" className="data-[state=active]:bg-violet-500/10 data-[state=active]:text-violet-700 dark:data-[state=active]:text-violet-400" data-testid="tab-collections">
+              <Receipt className="h-4 w-4 mr-1.5 text-violet-500" /> Bill Collections
+            </TabsTrigger>
+            <TabsTrigger value="transactions" className="data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400" data-testid="tab-transactions">
+              <Landmark className="h-4 w-4 mr-1.5 text-blue-500" /> Bank Transactions
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Bill Collections Tab */}
+          <TabsContent value="collections" className="space-y-4">
+            {/* Payment Method Summary Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" data-testid="payment-method-summary">
+              {Object.entries(paymentsByMethod)
+                .sort(([, a], [, b]) => b.total - a.total)
+                .map(([method, data]) => {
+                  const cfg = PAYMENT_METHOD_CONFIG[method] || { label: method, icon: Banknote, color: "text-muted-foreground", bgColor: "bg-muted" };
+                  const Icon = cfg.icon;
+                  const pct = totalBillCollections > 0 ? ((data.total / totalBillCollections) * 100).toFixed(1) : "0";
+                  return (
+                    <Card key={method} className="hover-elevate cursor-pointer" onClick={() => setMethodFilter(methodFilter === method ? "all" : method)} data-testid={`card-method-${method}`}>
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className={`p-1.5 rounded-md ${cfg.bgColor}`}>
+                            <Icon className={`h-4 w-4 ${cfg.color}`} />
+                          </div>
+                          <Badge variant="secondary" className="text-[10px]">{data.count} bills</Badge>
+                        </div>
+                        <p className="text-xs font-medium text-muted-foreground">{cfg.label}</p>
+                        <p className={`text-lg font-bold ${cfg.color}`} data-testid={`stat-method-total-${method}`}>${data.total.toFixed(2)}</p>
+                        <div className="mt-1.5 w-full bg-muted rounded-full h-1.5">
+                          <div className={`h-1.5 rounded-full ${cfg.progressColor}`} style={{ width: `${pct}%`, opacity: 0.8 }} />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">{pct}% of total</p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              {Object.keys(paymentsByMethod).length === 0 && (
+                <div className="col-span-full text-center py-12 text-muted-foreground">
+                  <div className="mx-auto mb-3 p-3 rounded-full bg-violet-500/10 w-fit">
+                    <Receipt className="h-6 w-6 text-violet-500" />
+                  </div>
+                  <p className="text-sm font-medium">No bill payments collected yet</p>
+                  <p className="text-xs mt-1">Bill payment records will appear here</p>
+                </div>
+              )}
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No transactions recorded" />
-          </CardContent>
-        </Card>
+
+            {/* Bill Payments Table */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Receipt className="h-4 w-4 text-violet-500" />
+                  <CardTitle className="text-sm font-semibold">Bill Payment Records</CardTitle>
+                  <Badge variant="secondary" className="text-[10px]">{filteredBillPayments.length}</Badge>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select value={methodFilter} onValueChange={setMethodFilter}>
+                    <SelectTrigger className="w-36 text-xs" data-testid="select-method-filter">
+                      <SelectValue placeholder="All Methods" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" data-testid="filter-method-all">All Methods</SelectItem>
+                      {Object.entries(PAYMENT_METHOD_CONFIG).map(([key, cfg]) => (
+                        <SelectItem key={key} value={key} data-testid={`filter-method-${key}`}>{cfg.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="relative w-52">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Search bills..."
+                      className="pl-8 text-xs"
+                      value={billSearchTerm}
+                      onChange={(e) => setBillSearchTerm(e.target.value)}
+                      data-testid="input-search-bill-payments"
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <DataTable columns={billPaymentColumns} data={filteredBillPayments} isLoading={false} emptyMessage="No bill payments found" />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Bank Transactions Tab */}
+          <TabsContent value="transactions" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Landmark className="h-4 w-4 text-blue-500" />
+                  <CardTitle className="text-sm font-semibold">All Transactions</CardTitle>
+                </div>
+                <div className="relative w-64">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search transactions..."
+                    className="pl-8 text-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    data-testid="input-search-transactions"
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No transactions recorded" />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

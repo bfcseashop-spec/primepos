@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { PageHeader } from "@/components/page-header";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -57,11 +58,9 @@ export default function AuthenticationPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
-      <div>
-        <h1 className="text-2xl font-bold" data-testid="text-page-title">Authentication</h1>
-        <p className="text-sm text-muted-foreground">Login, logout, and manage passwords</p>
-      </div>
+    <div className="flex flex-col h-full">
+      <PageHeader title="Authentication" description="Login, logout, and manage passwords" />
+      <div className="flex-1 overflow-auto p-6 space-y-6">
 
       {loggedInUser && (
         <Card className="border-green-200 dark:border-green-800">
@@ -101,7 +100,7 @@ export default function AuthenticationPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <LogIn className="h-5 w-5" /> Staff Login
+                <LogIn className="h-5 w-5 text-blue-500" /> Staff Login
               </CardTitle>
               <CardDescription>Enter your credentials to access the system</CardDescription>
             </CardHeader>
@@ -149,7 +148,7 @@ export default function AuthenticationPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <LogOut className="h-5 w-5" /> Logout
+                <LogOut className="h-5 w-5 text-amber-500" /> Logout
               </CardTitle>
               <CardDescription>End your current session</CardDescription>
             </CardHeader>
@@ -177,7 +176,7 @@ export default function AuthenticationPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <KeyRound className="h-5 w-5" /> Change Password
+                <Shield className="h-5 w-5 text-blue-500" /> Change Password
               </CardTitle>
               <CardDescription>Update your account password</CardDescription>
             </CardHeader>
@@ -246,13 +245,13 @@ export default function AuthenticationPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" /> Registered Staff Accounts
+            <Shield className="h-5 w-5 text-violet-500" /> Registered Staff Accounts
           </CardTitle>
           <CardDescription>All staff members with system access</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {users.length === 0 ? (
-            <div className="p-6 text-center text-muted-foreground">No staff accounts found. Create staff accounts from Staff & Roles.</div>
+            <div className="p-6 text-center text-muted-foreground">No staff accounts found. Create staff accounts from User and Role.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -268,12 +267,30 @@ export default function AuthenticationPage() {
                 <tbody>
                   {users.map((u: any) => (
                     <tr key={u.id} className="border-b" data-testid={`row-user-${u.id}`}>
-                      <td className="p-3 font-medium">@{u.username}</td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-full bg-blue-500/10 flex items-center justify-center text-xs font-medium text-blue-600 dark:text-blue-400">
+                            {u.fullName ? u.fullName.charAt(0).toUpperCase() : "?"}
+                          </div>
+                          <span className="font-medium">@{u.username}</span>
+                        </div>
+                      </td>
                       <td className="p-3">{u.fullName}</td>
                       <td className="p-3">{u.email || "-"}</td>
-                      <td className="p-3">{u.roleName || "-"}</td>
                       <td className="p-3">
-                        <Badge className={`no-default-hover-elevate no-default-active-elevate ${u.isActive ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}`}>
+                        {u.roleName ? (
+                          <Badge className={`no-default-hover-elevate no-default-active-elevate ${
+                            u.roleName === "Admin" ? "bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20" :
+                            u.roleName === "Doctor" ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20" :
+                            u.roleName === "Receptionist" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20" :
+                            "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20"
+                          }`}>
+                            {u.roleName}
+                          </Badge>
+                        ) : "-"}
+                      </td>
+                      <td className="p-3">
+                        <Badge className={`no-default-hover-elevate no-default-active-elevate ${u.isActive ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20" : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"}`}>
                           {u.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </td>
@@ -285,6 +302,7 @@ export default function AuthenticationPage() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { PageHeader } from "@/components/page-header";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw, LayoutGrid, List, Eye, Camera, X, UserCheck, UserX, Activity, BedDouble, Building2, Briefcase } from "lucide-react";
+import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw, LayoutGrid, List, Eye, Camera, X, UserCheck, UserX, Activity, BedDouble, Building2, Briefcase, Users, CircleCheck, CircleOff, CalendarOff, Stethoscope, DollarSign, GraduationCap, MapPin, CalendarDays, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -153,11 +154,11 @@ export default function DoctorManagementPage() {
   const getAvatarColor = (id: number) => avatarColors[id % avatarColors.length];
 
   const getStatusBadge = (status: string) => {
-    if (status === "active") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300";
-    if (status === "busy") return "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300";
-    if (status === "in_surgery") return "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300";
-    if (status === "on_leave") return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300";
-    return "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300";
+    if (status === "active") return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20";
+    if (status === "busy") return "bg-orange-500/10 text-orange-700 dark:text-orange-300 border border-orange-500/20";
+    if (status === "in_surgery") return "bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20";
+    if (status === "on_leave") return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20";
+    return "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20";
   };
   const getStatusLabel = (status: string) => {
     if (status === "active") return "Available";
@@ -188,55 +189,102 @@ export default function DoctorManagementPage() {
   const specList = (s: string) => s.split(",").map(x => x.trim()).filter(Boolean);
 
   return (
-    <div className="p-6 space-y-5 overflow-auto h-full">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Doctors</h1>
-          <p className="text-sm text-muted-foreground">Home &gt; Doctors</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            size="icon"
-            variant={viewMode === "grid" ? "default" : "outline"}
-            onClick={() => setViewMode("grid")}
-            data-testid="button-grid-view"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant={viewMode === "list" ? "default" : "outline"}
-            onClick={() => setViewMode("list")}
-            data-testid="button-list-view"
-          >
-            <List className="h-4 w-4" />
-          </Button>
-          <Button size="icon" variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/doctors"] })} data-testid="button-refresh">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[130px]" data-testid="select-status-filter">
-              <SelectValue placeholder="Status: All" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Status: All</SelectItem>
-              <SelectItem value="active">Available</SelectItem>
-              <SelectItem value="busy">Busy</SelectItem>
-              <SelectItem value="in_surgery">In Surgery</SelectItem>
-              <SelectItem value="on_leave">On Leave</SelectItem>
-              <SelectItem value="inactive">Unavailable</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={() => setDeptDialog(true)} data-testid="button-add-department">
-            <Building2 className="h-4 w-4 mr-2" /> + Department
-          </Button>
-          <Button variant="outline" onClick={() => setPosDialog(true)} data-testid="button-add-position">
-            <Briefcase className="h-4 w-4 mr-2" /> + Position
-          </Button>
-          <Button onClick={() => { resetForm(); setAddDialog(true); }} data-testid="button-add-doctor">
-            <Plus className="h-4 w-4 mr-2" /> Add New Doctor
-          </Button>
-        </div>
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="Doctors"
+        description="Manage doctor profiles and schedules"
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="icon"
+              variant={viewMode === "grid" ? "default" : "outline"}
+              onClick={() => setViewMode("grid")}
+              data-testid="button-grid-view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant={viewMode === "list" ? "default" : "outline"}
+              onClick={() => setViewMode("list")}
+              data-testid="button-list-view"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/doctors"] })} data-testid="button-refresh">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[130px]" data-testid="select-status-filter">
+                <SelectValue placeholder="Status: All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Status: All</SelectItem>
+                <SelectItem value="active">Available</SelectItem>
+                <SelectItem value="busy">Busy</SelectItem>
+                <SelectItem value="in_surgery">In Surgery</SelectItem>
+                <SelectItem value="on_leave">On Leave</SelectItem>
+                <SelectItem value="inactive">Unavailable</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => setDeptDialog(true)} data-testid="button-add-department">
+              <Building2 className="h-4 w-4 mr-1" /> + Department
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setPosDialog(true)} data-testid="button-add-position">
+              <Briefcase className="h-4 w-4 mr-1" /> + Position
+            </Button>
+            <Button size="sm" onClick={() => { resetForm(); setAddDialog(true); }} data-testid="button-add-doctor">
+              <Plus className="h-4 w-4 mr-1" /> Add New Doctor
+            </Button>
+          </div>
+        }
+      />
+      <div className="flex-1 overflow-auto p-4 space-y-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card data-testid="stat-total-doctors">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="rounded-md p-2.5 bg-blue-500/10 dark:bg-blue-400/10">
+              <Users className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Total Doctors</p>
+              <p className="text-xl font-bold text-blue-500 dark:text-blue-400">{doctors.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card data-testid="stat-active-doctors">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="rounded-md p-2.5 bg-emerald-500/10 dark:bg-emerald-400/10">
+              <CircleCheck className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Active</p>
+              <p className="text-xl font-bold text-emerald-500 dark:text-emerald-400">{doctors.filter(d => d.status === "active").length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card data-testid="stat-onleave-doctors">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="rounded-md p-2.5 bg-amber-500/10 dark:bg-amber-400/10">
+              <CalendarOff className="h-5 w-5 text-amber-500 dark:text-amber-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">On Leave</p>
+              <p className="text-xl font-bold text-amber-500 dark:text-amber-400">{doctors.filter(d => d.status === "on_leave").length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card data-testid="stat-inactive-doctors">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="rounded-md p-2.5 bg-red-500/10 dark:bg-red-400/10">
+              <CircleOff className="h-5 w-5 text-red-500 dark:text-red-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Inactive</p>
+              <p className="text-xl font-bold text-red-500 dark:text-red-400">{doctors.filter(d => d.status === "inactive").length}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -276,10 +324,10 @@ export default function DoctorManagementPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => { setViewingDoctor(doc); setViewDialog(true); }} data-testid={`button-view-${doc.id}`}>
-                        <Eye className="h-4 w-4 mr-2" /> View Profile
+                        <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> View Profile
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openEdit(doc)} data-testid={`button-edit-${doc.id}`}>
-                        <Edit className="h-4 w-4 mr-2" /> Edit
+                        <Edit className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> Edit
                       </DropdownMenuItem>
                       <Separator className="my-1" />
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "active")} data-testid={`button-set-available-${doc.id}`}>
@@ -296,7 +344,7 @@ export default function DoctorManagementPage() {
                       </DropdownMenuItem>
                       <Separator className="my-1" />
                       <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(doc.id)} data-testid={`button-delete-${doc.id}`}>
-                        <Trash2 className="h-4 w-4 mr-2" /> Remove Doctor
+                        <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> Remove Doctor
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -311,9 +359,14 @@ export default function DoctorManagementPage() {
                   <p className="font-semibold text-sm mt-0.5" data-testid={`text-doctor-name-${doc.id}`}>{doc.name}</p>
                   <div className="flex items-center gap-1.5 flex-wrap justify-center mt-2">
                     {specList(doc.specialization).map((s) => (
-                      <Badge key={s} variant="secondary" className="text-[10px] font-normal no-default-hover-elevate no-default-active-elevate">{s}</Badge>
+                      <Badge key={s} variant="outline" className="text-[10px] font-normal text-violet-600 dark:text-violet-400 border-violet-500/20 no-default-hover-elevate no-default-active-elevate">{s}</Badge>
                     ))}
                   </div>
+                  {doc.consultationFee && doc.consultationFee !== "0" && (
+                    <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-1.5">
+                      <DollarSign className="h-3 w-3 inline-block" />{doc.consultationFee} consultation
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 border-t border-b py-2.5 mb-3 text-center text-xs">
@@ -330,19 +383,19 @@ export default function DoctorManagementPage() {
                 <div className="space-y-1.5 text-xs text-muted-foreground">
                   {doc.phone && (
                     <div className="flex items-center gap-2">
-                      <Phone className="h-3 w-3" />
+                      <Phone className="h-3 w-3 text-blue-500 dark:text-blue-400" />
                       <span>{doc.phone}</span>
                     </div>
                   )}
                   {doc.email && (
                     <div className="flex items-center gap-2">
-                      <Mail className="h-3 w-3" />
+                      <Mail className="h-3 w-3 text-violet-500 dark:text-violet-400" />
                       <span>{doc.email}</span>
                     </div>
                   )}
                   {doc.schedule && (
                     <div className="flex items-center gap-2">
-                      <Clock className="h-3 w-3" />
+                      <Clock className="h-3 w-3 text-amber-500 dark:text-amber-400" />
                       <span>{doc.schedule}</span>
                     </div>
                   )}
@@ -379,7 +432,7 @@ export default function DoctorManagementPage() {
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap mt-1">
                     {specList(doc.specialization).map((s) => (
-                      <Badge key={s} variant="secondary" className="text-[10px] font-normal no-default-hover-elevate no-default-active-elevate">{s}</Badge>
+                      <Badge key={s} variant="outline" className="text-[10px] font-normal text-violet-600 dark:text-violet-400 border-violet-500/20 no-default-hover-elevate no-default-active-elevate">{s}</Badge>
                     ))}
                   </div>
                 </div>
@@ -391,7 +444,7 @@ export default function DoctorManagementPage() {
                   <p className="text-[10px]">Experience</p>
                   <p className="font-medium text-foreground">{doc.experience || "-"}</p>
                 </div>
-                {doc.phone && <div className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="h-3 w-3" />{doc.phone}</div>}
+                {doc.phone && <div className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="h-3 w-3 text-blue-500 dark:text-blue-400" />{doc.phone}</div>}
                 <div className="flex items-center gap-1">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -401,10 +454,10 @@ export default function DoctorManagementPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => { setViewingDoctor(doc); setViewDialog(true); }} data-testid={`button-view-${doc.id}`}>
-                        <Eye className="h-4 w-4 mr-2" /> View Profile
+                        <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> View Profile
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openEdit(doc)} data-testid={`button-edit-${doc.id}`}>
-                        <Edit className="h-4 w-4 mr-2" /> Edit
+                        <Edit className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> Edit
                       </DropdownMenuItem>
                       <Separator className="my-1" />
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "active")}>
@@ -421,7 +474,7 @@ export default function DoctorManagementPage() {
                       </DropdownMenuItem>
                       <Separator className="my-1" />
                       <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(doc.id)} data-testid={`button-delete-${doc.id}`}>
-                        <Trash2 className="h-4 w-4 mr-2" /> Remove Doctor
+                        <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> Remove Doctor
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -436,7 +489,10 @@ export default function DoctorManagementPage() {
         <Dialog open={viewDialog} onOpenChange={setViewDialog}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Doctor Profile</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Stethoscope className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+                Doctor Profile
+              </DialogTitle>
             </DialogHeader>
             <div className="flex flex-col items-center py-4">
               <Avatar className={`h-20 w-20 ${getAvatarColor(viewingDoctor.id)}`}>
@@ -447,7 +503,7 @@ export default function DoctorManagementPage() {
               <p className="text-lg font-bold mt-0.5">{viewingDoctor.name}</p>
               <div className="flex items-center gap-1.5 flex-wrap justify-center mt-2">
                 {specList(viewingDoctor.specialization).map((s) => (
-                  <Badge key={s} variant="secondary" className="text-xs no-default-hover-elevate no-default-active-elevate">{s}</Badge>
+                  <Badge key={s} variant="outline" className="text-xs text-violet-600 dark:text-violet-400 border-violet-500/20 no-default-hover-elevate no-default-active-elevate">{s}</Badge>
                 ))}
               </div>
               <Badge className={`no-default-hover-elevate no-default-active-elevate mt-2 ${getStatusBadge(viewingDoctor.status)}`}>
@@ -455,16 +511,16 @@ export default function DoctorManagementPage() {
               </Badge>
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><span className="text-muted-foreground">Department:</span> <span className="font-medium">{viewingDoctor.department || "-"}</span></div>
-              <div><span className="text-muted-foreground">Experience:</span> <span className="font-medium">{viewingDoctor.experience || "-"}</span></div>
-              <div><span className="text-muted-foreground">Qualification:</span> <span className="font-medium">{viewingDoctor.qualification || "-"}</span></div>
-              <div><span className="text-muted-foreground">Fee:</span> <span className="font-medium">${viewingDoctor.consultationFee || "0"}</span></div>
-              <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium">{viewingDoctor.phone || "-"}</span></div>
-              <div><span className="text-muted-foreground">Email:</span> <span className="font-medium">{viewingDoctor.email || "-"}</span></div>
-              <div className="col-span-2"><span className="text-muted-foreground">Schedule:</span> <span className="font-medium">{viewingDoctor.schedule || "-"}</span></div>
-              <div className="col-span-2"><span className="text-muted-foreground">Address:</span> <span className="font-medium">{viewingDoctor.address || "-"}</span></div>
-              {viewingDoctor.joiningDate && <div className="col-span-2"><span className="text-muted-foreground">Joining Date:</span> <span className="font-medium">{viewingDoctor.joiningDate}</span></div>}
-              {viewingDoctor.notes && <div className="col-span-2"><span className="text-muted-foreground">Notes:</span> <span className="font-medium">{viewingDoctor.notes}</span></div>}
+              <div className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" /><span className="text-muted-foreground">Department:</span> <span className="font-medium">{viewingDoctor.department || "-"}</span></div>
+              <div className="flex items-center gap-1.5"><Briefcase className="h-3.5 w-3.5 text-violet-500 dark:text-violet-400" /><span className="text-muted-foreground">Experience:</span> <span className="font-medium">{viewingDoctor.experience || "-"}</span></div>
+              <div className="flex items-center gap-1.5"><GraduationCap className="h-3.5 w-3.5 text-cyan-500 dark:text-cyan-400" /><span className="text-muted-foreground">Qualification:</span> <span className="font-medium">{viewingDoctor.qualification || "-"}</span></div>
+              <div className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" /><span className="text-muted-foreground">Fee:</span> <span className="font-medium text-emerald-600 dark:text-emerald-400">${viewingDoctor.consultationFee || "0"}</span></div>
+              <div className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" /><span className="text-muted-foreground">Phone:</span> <span className="font-medium">{viewingDoctor.phone || "-"}</span></div>
+              <div className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-violet-500 dark:text-violet-400" /><span className="text-muted-foreground">Email:</span> <span className="font-medium">{viewingDoctor.email || "-"}</span></div>
+              <div className="col-span-2 flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" /><span className="text-muted-foreground">Schedule:</span> <span className="font-medium">{viewingDoctor.schedule || "-"}</span></div>
+              <div className="col-span-2 flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-red-500 dark:text-red-400" /><span className="text-muted-foreground">Address:</span> <span className="font-medium">{viewingDoctor.address || "-"}</span></div>
+              {viewingDoctor.joiningDate && <div className="col-span-2 flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-teal-500 dark:text-teal-400" /><span className="text-muted-foreground">Joining Date:</span> <span className="font-medium">{viewingDoctor.joiningDate}</span></div>}
+              {viewingDoctor.notes && <div className="col-span-2 flex items-center gap-1.5"><FileText className="h-3.5 w-3.5 text-orange-500 dark:text-orange-400" /><span className="text-muted-foreground">Notes:</span> <span className="font-medium">{viewingDoctor.notes}</span></div>}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setViewDialog(false)}>Close</Button>
@@ -478,7 +534,10 @@ export default function DoctorManagementPage() {
         <Dialog open={addDialog || editDialog} onOpenChange={(open) => { if (!open) { setAddDialog(false); setEditDialog(false); } }}>
           <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editDialog ? "Edit Doctor" : "Add New Doctor"}</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                {editDialog ? <Edit className="h-5 w-5 text-amber-500 dark:text-amber-400" /> : <Plus className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />}
+                {editDialog ? "Edit Doctor" : "Add New Doctor"}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="flex flex-col items-center gap-2">
@@ -618,7 +677,10 @@ export default function DoctorManagementPage() {
         <Dialog open={deptDialog} onOpenChange={setDeptDialog}>
           <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Manage Departments</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+                Manage Departments
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -685,7 +747,10 @@ export default function DoctorManagementPage() {
         <Dialog open={posDialog} onOpenChange={setPosDialog}>
           <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Manage Positions</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Briefcase className="h-5 w-5 text-violet-500 dark:text-violet-400" />
+                Manage Positions
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -747,6 +812,7 @@ export default function DoctorManagementPage() {
           </DialogContent>
         </Dialog>
       )}
+      </div>
     </div>
   );
 }
