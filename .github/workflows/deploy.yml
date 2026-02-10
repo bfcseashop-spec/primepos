@@ -34,5 +34,5 @@ jobs:
             echo "Add GitHub secrets: SSH_PRIVATE_KEY (preferred) or DEPLOY_PASSWORD"
             exit 1
           fi
-          $RUN 'cd /var/www/primepos && git pull && npm ci --omit=dev && npm run build && (pm2 restart primepos 2>/dev/null || sudo systemctl restart primepos 2>/dev/null || (pkill -f "node dist/index.cjs" 2>/dev/null; sleep 1; nohup env NODE_ENV=production node dist/index.cjs >> /tmp/primepos.log 2>&1 &))'
+          $RUN 'cd /var/www/primepos && git pull && npm ci --omit=dev && npm run build && (pm2 restart primepos 2>/dev/null || sudo systemctl restart primepos 2>/dev/null || (pkill -f "node start.cjs" 2>/dev/null; pkill -f "node dist/index.cjs" 2>/dev/null; sleep 1; nohup env NODE_ENV=production node start.cjs >> /tmp/primepos.log 2>&1 &))'
           echo "Deploy finished."
