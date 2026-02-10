@@ -6,15 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
-  Users, FileText, Stethoscope, Pill, Receipt,
-  TrendingUp, Calendar, DollarSign, Activity,
+  Users, FileText, Stethoscope, Pill,
+  Calendar, DollarSign, Activity,
   ArrowUpRight, ArrowDownRight, Clock, Heart,
   Banknote, BarChart3, PieChart as PieChartIcon,
   Clipboard, ShieldCheck, Sparkles
 } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart, Legend
+  XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart
 } from "recharts";
 import { useLocation } from "wouter";
 
@@ -103,7 +103,6 @@ export default function Dashboard() {
                 iconColor="text-blue-500 dark:text-blue-400"
                 iconBg="bg-blue-500/10 dark:bg-blue-400/10"
                 valueColor="text-blue-700 dark:text-blue-300"
-                borderAccent="bg-blue-500"
               />
               <StatsCard
                 title="Today's Revenue"
@@ -114,7 +113,6 @@ export default function Dashboard() {
                 iconColor="text-emerald-500 dark:text-emerald-400"
                 iconBg="bg-emerald-500/10 dark:bg-emerald-400/10"
                 valueColor="text-emerald-700 dark:text-emerald-300"
-                borderAccent="bg-emerald-500"
               />
               <StatsCard
                 title="Active OPD"
@@ -123,7 +121,6 @@ export default function Dashboard() {
                 iconColor="text-violet-500 dark:text-violet-400"
                 iconBg="bg-violet-500/10 dark:bg-violet-400/10"
                 valueColor="text-violet-700 dark:text-violet-300"
-                borderAccent="bg-violet-500"
               />
               <StatsCard
                 title="Total Bills"
@@ -132,30 +129,29 @@ export default function Dashboard() {
                 iconColor="text-amber-500 dark:text-amber-400"
                 iconBg="bg-amber-500/10 dark:bg-amber-400/10"
                 valueColor="text-amber-700 dark:text-amber-300"
-                borderAccent="bg-amber-500"
               />
             </>
           )}
         </div>
 
         <div data-testid="dashboard-quick-actions">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             <Activity className="h-4 w-4 text-blue-500" />
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Quick Actions</h3>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {quickActions.map((action) => (
-              <button
+              <Button
                 key={action.label}
+                variant="outline"
+                size="lg"
                 onClick={() => navigate(action.path)}
-                className={`flex flex-col items-center gap-2.5 p-4 rounded-md border border-border/50 hover-elevate active-elevate-2 transition-colors cursor-pointer bg-card`}
+                className="flex flex-col items-center gap-2.5"
                 data-testid={`button-quick-${action.label.toLowerCase().replace(/\s+/g, '-')}`}
               >
-                <div className={`flex h-10 w-10 items-center justify-center rounded-md ${action.bg}`}>
-                  <action.icon className={`h-5 w-5 ${action.color}`} />
-                </div>
+                <action.icon className={`h-5 w-5 ${action.color}`} />
                 <span className="text-xs font-medium text-center">{action.label}</span>
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -269,7 +265,7 @@ export default function Dashboard() {
                   </ResponsiveContainer>
                   <div className="space-y-2">
                     {serviceBreakdown.map((item: any, index: number) => (
-                      <div key={item.name} className="flex items-center justify-between text-xs group">
+                      <div key={item.name} className="flex items-center justify-between gap-2 text-xs group">
                         <div className="flex items-center gap-2">
                           <div
                             className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -326,10 +322,10 @@ export default function Dashboard() {
                       "border-amber-500/15",
                       "border-pink-500/15",
                     ];
-                    const statusConfig: Record<string, string> = {
-                      active: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-                      completed: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
-                      cancelled: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+                    const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+                      active: "default",
+                      completed: "secondary",
+                      cancelled: "destructive",
                     };
                     const initials = (visit.patientName || "?")
                       .split(" ")
@@ -348,9 +344,9 @@ export default function Dashboard() {
                             <span className="text-xs text-muted-foreground truncate">{visit.visitId} {visit.doctorName ? `- Dr. ${visit.doctorName}` : ""}</span>
                           </div>
                         </div>
-                        <span className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border ${statusConfig[visit.status] || statusConfig.active}`}>
+                        <Badge variant={statusVariant[visit.status] || "default"} className="text-[11px]">
                           {visit.status}
-                        </span>
+                        </Badge>
                       </div>
                     );
                   })}

@@ -11,15 +11,12 @@ interface StatsCardProps {
   iconColor?: string;
   iconBg?: string;
   valueColor?: string;
-  borderAccent?: string;
+  accentColor?: string;
 }
 
-export function StatsCard({ title, value, icon: Icon, trend, trendUp, className, iconColor, iconBg, valueColor, borderAccent }: StatsCardProps) {
+export function StatsCard({ title, value, icon: Icon, trend, trendUp, className, iconColor, iconBg, valueColor, accentColor }: StatsCardProps) {
   return (
-    <Card className={`relative overflow-visible group ${className || ""}`}>
-      {borderAccent && (
-        <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-md ${borderAccent}`} />
-      )}
+    <Card className={`overflow-visible ${className || ""}`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex flex-col gap-1.5 min-w-0">
