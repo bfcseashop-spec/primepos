@@ -229,41 +229,68 @@ export default function MedicinesPage() {
   const totalSalesValue = medicines.reduce((sum, m) => sum + (Number(m.sellingPriceLocal || 0) * m.stockCount), 0);
   const usedCategories = Array.from(new Set(medicines.map(m => m.category).filter(Boolean))) as string[];
 
+  const generateBarcodeHtml = (med: Medicine) => {
+    const code = med.batchNo || `MED-${String(med.id).padStart(6, "0")}`;
+    return `
+      <div style="text-align:center;margin:16px 0;">
+        <div style="font-family:'Libre Barcode 128',monospace;font-size:72px;letter-spacing:2px;">${code}</div>
+        <div style="font-family:monospace;font-size:14px;margin-top:8px;letter-spacing:3px;">${code}</div>
+        <div style="margin-top:6px;font-size:12px;color:#666;">$${Number(med.sellingPriceLocal || 0).toFixed(2)}</div>
+      </div>
+    `;
+  };
+
   const handlePrint = (med: Medicine) => {
-    const printWindow = window.open("", "_blank", "width=400,height=600");
+    const printWindow = window.open("", "_blank", "width=450,height=700");
     if (!printWindow) return;
     printWindow.document.write(`
-      <html><head><title>Medicine Label - ${med.name}</title>
-      <style>body{font-family:Arial,sans-serif;padding:20px;} .label{border:2px solid #000;padding:16px;max-width:350px;margin:0 auto;}
-      h2{margin:0 0 8px;font-size:18px;} .row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid #eee;}
-      .row:last-child{border:none;} .lbl{color:#666;} .val{font-weight:bold;}</style></head>
-      <body><div class="label"><h2>${med.name}</h2>
-      ${med.genericName ? `<p style="color:#666;margin:0 0 8px;font-size:12px;font-style:italic">${med.genericName}</p>` : ""}
-      <div class="row"><span class="lbl">Category:</span><span class="val">${med.category || "-"}</span></div>
-      <div class="row"><span class="lbl">Batch:</span><span class="val">${med.batchNo || "-"}</span></div>
-      <div class="row"><span class="lbl">Expiry:</span><span class="val">${med.expiryDate || "-"}</span></div>
-      <div class="row"><span class="lbl">Price (Local):</span><span class="val">$${Number(med.sellingPriceLocal || 0).toFixed(2)}</span></div>
-      <div class="row"><span class="lbl">Price (Foreign):</span><span class="val">$${Number(med.sellingPriceForeigner || 0).toFixed(2)}</span></div>
-      <div class="row"><span class="lbl">Manufacturer:</span><span class="val">${med.manufacturer || "-"}</span></div>
-      </div><script>window.print();</script></body></html>
+      <html><head><title>Print Label - ${med.name}</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap');
+        body{font-family:Arial,sans-serif;padding:20px;margin:0;}
+        .label{border:2px solid #000;padding:16px;max-width:380px;margin:0 auto;}
+        h2{margin:0 0 8px;font-size:18px;}
+        .row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid #eee;}
+        .row:last-child{border:none;} .lbl{color:#666;} .val{font-weight:bold;}
+        .btn-bar{text-align:center;margin-top:20px;max-width:380px;margin-left:auto;margin-right:auto;}
+        .print-btn{background:#2563eb;color:#fff;border:none;padding:10px 32px;font-size:15px;border-radius:6px;cursor:pointer;}
+        .print-btn:hover{background:#1d4ed8;}
+        @media print{.btn-bar{display:none !important;}}
+      </style></head>
+      <body>
+        <div class="label">
+          <h2>${med.name}</h2>
+          ${med.genericName ? `<p style="color:#666;margin:0 0 8px;font-size:12px;font-style:italic">${med.genericName}</p>` : ""}
+          <div class="row"><span class="lbl">Category:</span><span class="val">${med.category || "-"}</span></div>
+          <div class="row"><span class="lbl">Batch:</span><span class="val">${med.batchNo || "-"}</span></div>
+          <div class="row"><span class="lbl">Expiry:</span><span class="val">${med.expiryDate || "-"}</span></div>
+          <div class="row"><span class="lbl">Price (Local):</span><span class="val">$${Number(med.sellingPriceLocal || 0).toFixed(2)}</span></div>
+          <div class="row"><span class="lbl">Price (Foreign):</span><span class="val">$${Number(med.sellingPriceForeigner || 0).toFixed(2)}</span></div>
+          <div class="row"><span class="lbl">Manufacturer:</span><span class="val">${med.manufacturer || "-"}</span></div>
+          ${generateBarcodeHtml(med)}
+        </div>
+        <div class="btn-bar">
+          <button class="print-btn" onclick="window.print()">Print Label</button>
+        </div>
+      </body></html>
     `);
     printWindow.document.close();
   };
 
   const handleBarcode = (med: Medicine) => {
-    const barcodeWindow = window.open("", "_blank", "width=400,height=300");
+    const barcodeWindow = window.open("", "_blank", "width=420,height=350");
     if (!barcodeWindow) return;
-    const code = med.batchNo || `MED-${String(med.id).padStart(6, "0")}`;
     barcodeWindow.document.write(`
       <html><head><title>Barcode - ${med.name}</title>
-      <style>body{font-family:monospace;text-align:center;padding:40px;}
-      .barcode{font-family:'Libre Barcode 128',monospace;font-size:72px;letter-spacing:2px;}
-      .code-text{font-size:14px;margin-top:8px;letter-spacing:3px;} .name{font-size:16px;font-weight:bold;margin-bottom:16px;}
-      @import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap');</style></head>
-      <body><div class="name">${med.name}</div><div class="barcode">${code}</div>
-      <div class="code-text">${code}</div>
-      <div style="margin-top:8px;font-size:12px;color:#666">$${Number(med.sellingPriceLocal || 0).toFixed(2)}</div>
-      <script>setTimeout(()=>window.print(),500);</script></body></html>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap');
+        body{font-family:Arial,sans-serif;text-align:center;padding:40px;margin:0;}
+        .name{font-size:18px;font-weight:bold;margin-bottom:16px;}
+      </style></head>
+      <body>
+        <div class="name">${med.name}</div>
+        ${generateBarcodeHtml(med)}
+      </body></html>
     `);
     barcodeWindow.document.close();
   };
