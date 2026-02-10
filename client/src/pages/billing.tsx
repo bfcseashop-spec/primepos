@@ -580,34 +580,34 @@ export default function BillingPage() {
                         <span className="p-2">Description</span>
                         <span className="p-2 text-right">Price</span>
                         <span className="p-2 text-center">Qty</span>
-                        <span className="p-2 text-right">Total (USD)</span>
+                        <span className="p-2 text-right">Total ({settings?.currency || "USD"})</span>
                       </div>
                       {billItems.map((item, i) => (
                         <div key={i} className="grid grid-cols-[36px,1fr,70px,46px,80px] text-sm border-b last:border-b-0">
                           <span className="p-2 text-center text-muted-foreground text-xs">{i + 1}</span>
                           <span className="p-2">{item.name}</span>
-                          <span className="p-2 text-right text-muted-foreground">${item.unitPrice.toFixed(2)}</span>
+                          <span className="p-2 text-right text-muted-foreground">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{item.unitPrice.toFixed(2)}</span>
                           <span className="p-2 text-center">{item.quantity}</span>
-                          <span className="p-2 text-right font-medium">${item.total.toFixed(2)}</span>
+                          <span className="p-2 text-right font-medium">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{item.total.toFixed(2)}</span>
                         </div>
                       ))}
                     </div>
 
                     {/* Totals */}
                     <div className="flex justify-end mb-4">
-                      <div className="w-52 space-y-1 text-sm">
-                        <div className="flex justify-between">
+                      <div className="w-64 space-y-1 text-sm">
+                        <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">Subtotal</span>
-                          <span>${subtotal.toFixed(2)}</span>
+                          <span className="text-right">{formatDualCurrency(subtotal, settings)}</span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">Discount{discountType === "percentage" ? ` (${Number(discount) || 0}%)` : ""}</span>
-                          <span className="text-red-500">-${discountAmount.toFixed(2)}</span>
+                          <span className="text-right text-red-500">-{formatDualCurrency(discountAmount, settings)}</span>
                         </div>
                         <Separator />
-                        <div className="flex justify-between font-bold text-teal-700 dark:text-teal-400 text-base pt-0.5">
+                        <div className="flex justify-between gap-2 font-bold text-teal-700 dark:text-teal-400 text-base pt-0.5">
                           <span>Grand Total</span>
-                          <span>${total.toFixed(2)}</span>
+                          <span className="text-right">{formatDualCurrency(total, settings)}</span>
                         </div>
                       </div>
                     </div>
@@ -616,7 +616,7 @@ export default function BillingPage() {
                     <div className="rounded-md bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 p-3 mb-4">
                       <p className="text-[10px] uppercase text-teal-700 dark:text-teal-400 font-semibold tracking-wide mb-1">Payment Information</p>
                       <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || "Prime Clinic"}.</p>
-                      <p className="text-[11px] text-muted-foreground mt-1">Amount: <span className="font-semibold text-foreground">${total.toFixed(2)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(paymentMethod)}</span></p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Amount: <span className="font-semibold text-foreground">{formatDualCurrency(total, settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(paymentMethod)}</span></p>
                     </div>
 
                     {/* Footer */}
