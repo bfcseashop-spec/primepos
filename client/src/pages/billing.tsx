@@ -5,15 +5,26 @@ import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, Trash2, Printer } from "lucide-react";
-import type { Patient, Service, Medicine, BillItem } from "@shared/schema";
+import { Plus, Search, Trash2, DollarSign, Percent } from "lucide-react";
+import type { Patient, Service, Medicine, BillItem, User } from "@shared/schema";
+
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Cash Pay" },
+  { value: "aba", label: "ABA" },
+  { value: "acleda", label: "Acleda" },
+  { value: "other_bank", label: "Other Bank" },
+  { value: "paypal", label: "PayPal" },
+  { value: "card", label: "Card Pay" },
+  { value: "gpay", label: "GPay" },
+  { value: "wechat", label: "WeChat Pay" },
+];
 
 export default function BillingPage() {
   const { toast } = useToast();
@@ -22,7 +33,10 @@ export default function BillingPage() {
   const [billItems, setBillItems] = useState<BillItem[]>([]);
   const [selectedPatient, setSelectedPatient] = useState("");
   const [discount, setDiscount] = useState("0");
+  const [discountType, setDiscountType] = useState<"amount" | "percentage">("amount");
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [referenceDoctor, setReferenceDoctor] = useState("");
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
 
   const { data: bills = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/bills"],
@@ -40,6 +54,14 @@ export default function BillingPage() {
     queryKey: ["/api/medicines"],
   });
 
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const doctorNames = users
+    .filter((u) => u.fullName?.toLowerCase().startsWith("dr"))
+    .map((u) => u.fullName);
+
   const createBillMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest("POST", "/api/bills", data);
@@ -49,15 +71,23 @@ export default function BillingPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       setDialogOpen(false);
-      setBillItems([]);
-      setSelectedPatient("");
-      setDiscount("0");
+      resetForm();
       toast({ title: "Bill created successfully" });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
+
+  const resetForm = () => {
+    setBillItems([]);
+    setSelectedPatient("");
+    setDiscount("0");
+    setDiscountType("amount");
+    setPaymentMethod("cash");
+    setReferenceDoctor("");
+    setPaymentDate(new Date().toISOString().split("T")[0]);
+  };
 
   const addServiceItem = (serviceId: string) => {
     const service = services.find(s => s.id === Number(serviceId));
@@ -94,8 +124,11 @@ export default function BillingPage() {
   };
 
   const subtotal = billItems.reduce((sum, item) => sum + item.total, 0);
-  const discountAmount = Number(discount) || 0;
-  const total = subtotal - discountAmount;
+  const discountValue = Number(discount) || 0;
+  const discountAmount = discountType === "percentage"
+    ? (subtotal * discountValue) / 100
+    : discountValue;
+  const total = Math.max(0, subtotal - discountAmount);
 
   const handleCreateBill = () => {
     if (!selectedPatient || billItems.length === 0) {
@@ -108,10 +141,13 @@ export default function BillingPage() {
       items: billItems,
       subtotal: subtotal.toFixed(2),
       discount: discountAmount.toFixed(2),
+      discountType,
       tax: "0.00",
       total: total.toFixed(2),
       paidAmount: total.toFixed(2),
       paymentMethod,
+      referenceDoctor: referenceDoctor && referenceDoctor !== "none" ? referenceDoctor : null,
+      paymentDate: paymentDate || null,
       status: "paid",
     });
   };
@@ -120,6 +156,11 @@ export default function BillingPage() {
     b.billNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.patientName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const getPaymentLabel = (method: string) => {
+    const found = PAYMENT_METHODS.find(p => p.value === method);
+    return found ? found.label : method;
+  };
 
   const billColumns = [
     { header: "Bill #", accessor: "billNo" as keyof any },
@@ -131,14 +172,20 @@ export default function BillingPage() {
     { header: "Total", accessor: (row: any) => <span className="font-medium">${row.total}</span> },
     { header: "Paid", accessor: (row: any) => `$${row.paidAmount}` },
     { header: "Method", accessor: (row: any) => (
-      <Badge variant="outline">{row.paymentMethod}</Badge>
+      <Badge variant="outline">{getPaymentLabel(row.paymentMethod)}</Badge>
+    )},
+    { header: "Doctor", accessor: (row: any) => (
+      <span className="text-xs text-muted-foreground">{row.referenceDoctor || "-"}</span>
     )},
     { header: "Status", accessor: (row: any) => (
       <Badge variant={row.status === "paid" ? "default" : row.status === "partial" ? "secondary" : "destructive"}>
         {row.status}
       </Badge>
     )},
-    { header: "Date", accessor: (row: any) => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-" },
+    { header: "Date", accessor: (row: any) => {
+      if (row.paymentDate) return row.paymentDate;
+      return row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-";
+    }},
   ];
 
   return (
@@ -147,7 +194,7 @@ export default function BillingPage() {
         title="Billing"
         description="Manage patient bills and invoices"
         actions={
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button data-testid="button-new-bill">
                 <Plus className="h-4 w-4 mr-1" /> New Bill
@@ -156,6 +203,7 @@ export default function BillingPage() {
             <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Bill</DialogTitle>
+                <DialogDescription>Add services, medicines and payment details for the bill.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -220,7 +268,7 @@ export default function BillingPage() {
                           data-testid={`input-bill-qty-${i}`}
                         />
                         <span className="text-right font-medium">${item.total.toFixed(2)}</span>
-                        <Button variant="ghost" size="icon" onClick={() => removeItem(i)} className="h-7 w-7" data-testid={`button-remove-item-${i}`}>
+                        <Button variant="ghost" size="icon" onClick={() => removeItem(i)} data-testid={`button-remove-item-${i}`}>
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
@@ -232,25 +280,70 @@ export default function BillingPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>Discount ($)</Label>
-                    <Input
-                      type="number"
-                      value={discount}
-                      onChange={(e) => setDiscount(e.target.value)}
-                      data-testid="input-bill-discount"
-                    />
+                    <Label>Discount</Label>
+                    <div className="flex gap-1">
+                      <Input
+                        type="number"
+                        min={0}
+                        value={discount}
+                        onChange={(e) => setDiscount(e.target.value)}
+                        className="flex-1"
+                        data-testid="input-bill-discount"
+                      />
+                      <Button
+                        type="button"
+                        variant={discountType === "amount" ? "default" : "outline"}
+                        size="icon"
+                        onClick={() => setDiscountType("amount")}
+                        data-testid="button-discount-amount"
+                      >
+                        <DollarSign className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={discountType === "percentage" ? "default" : "outline"}
+                        size="icon"
+                        onClick={() => setDiscountType("percentage")}
+                        data-testid="button-discount-percentage"
+                      >
+                        <Percent className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div>
                     <Label>Payment Method</Label>
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                       <SelectTrigger data-testid="select-payment-method"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="card">Card</SelectItem>
-                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                        <SelectItem value="upi">UPI</SelectItem>
+                        {PAYMENT_METHODS.map(pm => (
+                          <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Reference Doctor <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                    <Select value={referenceDoctor} onValueChange={setReferenceDoctor}>
+                      <SelectTrigger data-testid="select-reference-doctor"><SelectValue placeholder="Select doctor" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {doctorNames.map(name => (
+                          <SelectItem key={name} value={name}>{name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Date of Payment <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                    <Input
+                      type="date"
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                      data-testid="input-payment-date"
+                    />
                   </div>
                 </div>
 
@@ -260,7 +353,9 @@ export default function BillingPage() {
                     <span>${subtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Discount</span>
+                    <span className="text-muted-foreground">
+                      Discount{discountType === "percentage" ? ` (${discountValue}%)` : ""}
+                    </span>
                     <span>-${discountAmount.toFixed(2)}</span>
                   </div>
                   <Separator />

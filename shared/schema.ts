@@ -102,10 +102,13 @@ export const bills = pgTable("bills", {
   items: jsonb("items").notNull().default([]),
   subtotal: numeric("subtotal", { precision: 10, scale: 2 }).notNull().default("0"),
   discount: numeric("discount", { precision: 10, scale: 2 }).notNull().default("0"),
+  discountType: text("discount_type").default("amount"),
   tax: numeric("tax", { precision: 10, scale: 2 }).notNull().default("0"),
   total: numeric("total", { precision: 10, scale: 2 }).notNull().default("0"),
   paidAmount: numeric("paid_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   paymentMethod: text("payment_method").default("cash"),
+  referenceDoctor: text("reference_doctor"),
+  paymentDate: date("payment_date"),
   status: text("status").notNull().default("unpaid"),
   createdAt: timestamp("created_at").defaultNow(),
 });
