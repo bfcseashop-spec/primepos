@@ -36,6 +36,7 @@ export interface IStorage {
   getMedicine(id: number): Promise<Medicine | undefined>;
   createMedicine(medicine: InsertMedicine): Promise<Medicine>;
   updateMedicine(id: number, data: Partial<InsertMedicine>): Promise<Medicine | undefined>;
+  deleteMedicine(id: number): Promise<void>;
 
   getOpdVisits(): Promise<any[]>;
   getOpdVisit(id: number): Promise<OpdVisit | undefined>;
@@ -169,6 +170,10 @@ export class DatabaseStorage implements IStorage {
   async updateMedicine(id: number, data: Partial<InsertMedicine>): Promise<Medicine | undefined> {
     const [updated] = await db.update(medicines).set(data).where(eq(medicines.id, id)).returning();
     return updated;
+  }
+
+  async deleteMedicine(id: number): Promise<void> {
+    await db.delete(medicines).where(eq(medicines.id, id));
   }
 
   async getOpdVisits(): Promise<any[]> {

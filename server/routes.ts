@@ -206,13 +206,55 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/medicines/:id", async (req, res) => {
+  const medicineUpdateSchema = z.object({
+    name: z.string().optional(),
+    genericName: z.string().nullable().optional(),
+    category: z.string().nullable().optional(),
+    manufacturer: z.string().nullable().optional(),
+    batchNo: z.string().nullable().optional(),
+    expiryDate: z.string().nullable().optional(),
+    unit: z.string().optional(),
+    unitCount: z.number().optional(),
+    boxPrice: z.string().optional(),
+    qtyPerBox: z.number().optional(),
+    perMedPrice: z.string().optional(),
+    totalPurchasePrice: z.string().optional(),
+    sellingPriceLocal: z.string().optional(),
+    sellingPriceForeigner: z.string().optional(),
+    stockCount: z.number().optional(),
+    stockAlert: z.number().optional(),
+    quantity: z.number().optional(),
+    unitPrice: z.string().optional(),
+    sellingPrice: z.string().optional(),
+    isActive: z.boolean().optional(),
+  });
+
+  app.put("/api/medicines/:id", async (req, res) => {
     try {
-      const updateSchema = z.object({ isActive: z.boolean().optional(), quantity: z.number().optional(), sellingPrice: z.string().optional() });
-      const data = validateBody(updateSchema, req.body);
+      const data = validateBody(medicineUpdateSchema, req.body);
       const medicine = await storage.updateMedicine(Number(req.params.id), data);
       if (!medicine) return res.status(404).json({ message: "Medicine not found" });
       res.json(medicine);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/medicines/:id", async (req, res) => {
+    try {
+      const data = validateBody(medicineUpdateSchema, req.body);
+      const medicine = await storage.updateMedicine(Number(req.params.id), data);
+      if (!medicine) return res.status(404).json({ message: "Medicine not found" });
+      res.json(medicine);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/medicines/:id", async (req, res) => {
+    try {
+      await storage.deleteMedicine(Number(req.params.id));
+      res.json({ success: true });
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }
