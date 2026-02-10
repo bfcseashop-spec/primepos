@@ -738,6 +738,7 @@ export async function registerRoutes(
     try {
       const doctorUpdateSchema = z.object({
         name: z.string().optional(), specialization: z.string().optional(),
+        department: z.string().nullable().optional(), experience: z.string().nullable().optional(),
         qualification: z.string().nullable().optional(), phone: z.string().nullable().optional(),
         email: z.string().nullable().optional(), address: z.string().nullable().optional(),
         consultationFee: z.string().nullable().optional(), schedule: z.string().nullable().optional(),

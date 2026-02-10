@@ -266,6 +266,8 @@ export const doctors = pgTable("doctors", {
   doctorId: text("doctor_id").notNull().unique(),
   name: text("name").notNull(),
   specialization: text("specialization").notNull(),
+  department: text("department"),
+  experience: text("experience"),
   qualification: text("qualification"),
   phone: text("phone"),
   email: text("email"),
