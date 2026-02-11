@@ -1,5 +1,6 @@
 import { useLocation, Link } from "wouter";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard, Users, FileText, Stethoscope, Pill,
   Receipt, Landmark, TrendingUp, UserCog, Settings,
@@ -86,6 +87,10 @@ export function AppSidebar() {
   const { t } = useTranslation();
   const [currentUser, setCurrentUser] = useState<any>(null);
 
+  const { data: settings } = useQuery<any>({
+    queryKey: ["/api/settings"],
+  });
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem("clinicpos_user");
@@ -106,17 +111,30 @@ export function AppSidebar() {
     ? currentUser.fullName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
     : "U";
 
+  const sidebarAppName = settings?.appName || t("common.appName");
+  const sidebarTagline = settings?.appTagline || t("common.appTagline");
+  const sidebarLogo = settings?.logo;
+
   return (
     <Sidebar>
       <SidebarHeader className="p-4 pb-3">
         <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer group" data-testid="link-logo">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-violet-500 to-purple-500 shadow-lg shadow-blue-500/20">
-              <Heart className="h-5 w-5 text-white" fill="white" />
-            </div>
+            {sidebarLogo ? (
+              <img
+                src={sidebarLogo}
+                alt={sidebarAppName}
+                className="h-10 w-10 rounded-xl object-cover shadow-lg"
+                data-testid="img-sidebar-logo"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-violet-500 to-purple-500 shadow-lg shadow-blue-500/20">
+                <Heart className="h-5 w-5 text-white" fill="white" />
+              </div>
+            )}
             <div className="flex flex-col">
-              <span className="text-sm font-bold tracking-tight text-slate-800 dark:text-white">{t("common.appName")}</span>
-              <span className="text-[10px] text-slate-400 dark:text-blue-300/60 font-medium">{t("common.appTagline")}</span>
+              <span className="text-sm font-bold tracking-tight text-slate-800 dark:text-white">{sidebarAppName}</span>
+              <span className="text-[10px] text-slate-400 dark:text-blue-300/60 font-medium">{sidebarTagline}</span>
             </div>
           </div>
         </Link>
