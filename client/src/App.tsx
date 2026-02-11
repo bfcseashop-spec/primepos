@@ -72,8 +72,22 @@ function App() {
         setAuthChecked(true);
       })
       .catch(() => {
-        setCurrentUser(null);
-        localStorage.removeItem("clinicpos_user");
+        const stored = localStorage.getItem("clinicpos_user");
+        let restored: any = null;
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (parsed && typeof parsed.id === "number" && parsed.username) {
+              restored = parsed;
+            }
+          } catch {}
+        }
+        if (restored) {
+          setCurrentUser(restored);
+        } else {
+          setCurrentUser(null);
+          localStorage.removeItem("clinicpos_user");
+        }
         setAuthChecked(true);
       });
 
