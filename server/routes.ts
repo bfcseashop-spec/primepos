@@ -565,11 +565,47 @@ export async function registerRoutes(
 
   app.post("/api/services/import", serviceImportUpload.single("file"), async (req, res) => {
     try {
-      const XLSX = await import("xlsx");
       if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-      const wb = XLSX.read(req.file.buffer, { type: "buffer" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      const fileName = req.file.originalname.toLowerCase();
+      const isPdf = fileName.endsWith(".pdf") || req.file.mimetype === "application/pdf";
+      let rows: any[] = [];
+
+      if (isPdf) {
+        const pdfParseModule = await import("pdf-parse");
+        const pdfParse = (pdfParseModule as any).default || pdfParseModule;
+        const pdfData = await pdfParse(req.file.buffer);
+        const lines = pdfData.text.split("\n").map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+        let headerIdx = -1;
+        for (let i = 0; i < lines.length; i++) {
+          const lower = lines[i].toLowerCase();
+          if ((lower.includes("service name") || lower.includes("name")) && lower.includes("price")) {
+            headerIdx = i;
+            break;
+          }
+        }
+        const dataLines = headerIdx >= 0 ? lines.slice(headerIdx + 1) : lines;
+        for (const line of dataLines) {
+          const parts = line.split(/\t|  +|\|/).map((p: string) => p.trim()).filter((p: string) => p);
+          if (parts.length >= 2) {
+            const priceCandidate = parts[parts.length - 1].replace(/[$,]/g, "");
+            const price = parseFloat(priceCandidate);
+            if (!isNaN(price)) {
+              const name = parts[0];
+              const category = parts.length >= 3 ? parts[1] : "General";
+              rows.push({ "Service Name": name, Category: category, Price: price.toString() });
+            }
+          }
+        }
+        if (rows.length === 0) {
+          return res.status(400).json({ message: "Could not parse service data from PDF. Please ensure the file has columns: Service Name, Category, Price" });
+        }
+      } else {
+        const XLSX = await import("xlsx");
+        const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws);
+      }
+
       if (rows.length === 0) return res.status(400).json({ message: "File is empty or has no data rows" });
       let imported = 0;
       let skipped = 0;

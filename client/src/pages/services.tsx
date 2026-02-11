@@ -22,7 +22,9 @@ import {
   Plus, Search, MoreVertical, Eye, Pencil, Trash2, ImagePlus, X,
   FolderPlus, Activity, CheckCircle2, XCircle, DollarSign, Layers,
   RefreshCw, Grid3X3, List, Stethoscope, Tag, FileText,
+  Download, Upload, FileSpreadsheet, FileDown,
 } from "lucide-react";
+import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import type { Service } from "@shared/schema";
 
 const DEFAULT_SERVICE_CATEGORIES = [
@@ -86,6 +88,9 @@ export default function ServicesPage() {
   const [categories, setCategories] = useState<string[]>(getServiceCategories());
   const [newCategory, setNewCategory] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
 
   const { data: services = [], isLoading } = useQuery<Service[]>({
     queryKey: ["/api/services"],
@@ -168,6 +173,38 @@ export default function ServicesPage() {
     } else {
       setSelectedIds(new Set(filtered.map(s => s.id)));
     }
+  };
+
+  const importMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/services/import", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      return res.json();
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      setImportResult(result);
+      setImportFile(null);
+      toast({ title: `${result.imported} service(s) imported successfully` });
+    },
+    onError: (err: Error) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleImport = () => {
+    if (!importFile) return;
+    importMutation.mutate(importFile);
+  };
+
+  const handleExport = (format: "xlsx" | "pdf") => {
+    window.open(`/api/services/export/${format}`, "_blank");
+  };
+
+  const handleDownloadTemplate = () => {
+    window.open("/api/services/sample-template", "_blank");
   };
 
   const handleSubmit = () => {
@@ -583,6 +620,37 @@ export default function ServicesPage() {
                 </div>
               </DialogContent>
             </Dialog>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" data-testid="button-import-services">
+                  <Upload className="h-4 w-4 mr-1" /> Import
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => { setImportResult(null); setImportFile(null); setImportDialogOpen(true); }} data-testid="button-import-file">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" /> Import from File
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleDownloadTemplate} data-testid="button-download-template">
+                  <FileDown className="h-4 w-4 mr-2" /> Download Sample File
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" data-testid="button-export-services">
+                  <Download className="h-4 w-4 mr-1" /> Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport("xlsx")} data-testid="button-export-excel">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" /> Export as Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("pdf")} data-testid="button-export-pdf">
+                  <FileText className="h-4 w-4 mr-2" /> Export as PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button variant="outline" size="icon" onClick={handleRefresh} data-testid="button-refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -864,6 +932,82 @@ export default function ServicesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) { setImportFile(null); setImportResult(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle data-testid="text-import-title">Import Services</DialogTitle>
+            <DialogDescription>Upload an Excel (.xlsx) or CSV file with service data. The file should have columns: Service Name, Category, Price.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed rounded-md p-6 text-center space-y-3">
+              <div className="flex justify-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-violet-500">
+                  <Upload className="h-6 w-6 text-white" />
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium">
+                  {importFile ? importFile.name : "Choose a file to import"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Supports .xlsx, .xls, .csv, .pdf files</p>
+              </div>
+              <div>
+                <label htmlFor="import-file-input">
+                  <Button variant="outline" size="sm" asChild>
+                    <span>{importFile ? "Change File" : "Browse Files"}</span>
+                  </Button>
+                </label>
+                <input
+                  id="import-file-input"
+                  type="file"
+                  accept=".xlsx,.xls,.csv,.pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) { setImportFile(file); setImportResult(null); }
+                    e.target.value = "";
+                  }}
+                  data-testid="input-import-file"
+                />
+              </div>
+            </div>
+
+            {importResult && (
+              <div className="rounded-md border p-3 space-y-2">
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <span className="font-medium">{importResult.imported} imported</span>
+                  </div>
+                  {importResult.skipped > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <XCircle className="h-4 w-4 text-amber-500" />
+                      <span className="font-medium">{importResult.skipped} skipped</span>
+                    </div>
+                  )}
+                </div>
+                {importResult.errors.length > 0 && (
+                  <div className="text-xs text-muted-foreground space-y-0.5 max-h-24 overflow-y-auto">
+                    {importResult.errors.map((err, i) => (
+                      <p key={i}>{err}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              <Button variant="ghost" size="sm" onClick={handleDownloadTemplate} data-testid="button-download-template-dialog">
+                <FileDown className="h-4 w-4 mr-1" /> Download Sample File
+              </Button>
+              <Button onClick={handleImport} disabled={!importFile || importMutation.isPending} data-testid="button-submit-import">
+                {importMutation.isPending ? "Importing..." : "Import Services"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
