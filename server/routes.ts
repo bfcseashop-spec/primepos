@@ -144,6 +144,10 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   // Authentication routes (no auth required)
   app.post("/api/auth/login", async (req, res) => {
     try {

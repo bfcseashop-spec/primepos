@@ -26,7 +26,7 @@ declare module "express-session" {
   }
 }
 
-app.set("trust proxy", 1);
+app.set("trust proxy", true);
 
 app.use(
   express.json({
@@ -53,6 +53,7 @@ app.use(
     resave: false,
     saveUninitialized: false,
     name: "connect.sid",
+    proxy: isProduction,
     cookie: {
       secure: isProduction,
       httpOnly: true,
