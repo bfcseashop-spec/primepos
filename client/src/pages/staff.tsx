@@ -801,21 +801,17 @@ export default function StaffPage() {
                           {mod.label}
                         </span>
                       </td>
-                      {PERMISSION_ACTIONS.map(action => {
-                        const colors = MODULE_COLORS[mod.key];
-                        return (
+                      {PERMISSION_ACTIONS.map(action => (
                         <td key={action} className="p-3 text-center">
                           <div className="flex justify-center">
                             <Checkbox
                               checked={!!permissionMap[mod.key]?.[action]}
                               onCheckedChange={() => togglePermission(mod.key, action)}
-                              className={permissionMap[mod.key]?.[action] && colors ? `${colors.border} data-[state=checked]:bg-current` : ""}
                               data-testid={`checkbox-${mod.key}-${action}`}
                             />
                           </div>
                         </td>
-                        );
-                      })}
+                      ))}
                       <td className="p-3 text-center">
                         <div className="flex justify-center">
                           <Checkbox
