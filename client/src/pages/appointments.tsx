@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Calendar, Clock, Search, MoreVertical, Trash2, Edit, User, CalendarCheck, CheckCircle2, XCircle, AlertCircle, Stethoscope, CreditCard, Video, Phone as PhoneIcon, UserCheck, RefreshCw, CalendarDays } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
 import type { Patient } from "@shared/schema"; // used for patients query type
 
 const statusConfig: Record<string, { bg: string; text: string; border: string; dot: string; icon: any; gradient: string }> = {
@@ -73,6 +74,7 @@ export default function AppointmentsPage() {
   const [deleteAppointment, setDeleteAppointment] = useState<any>(null);
   const [viewAppointment, setViewAppointment] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
 
   const { data: appointments = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/appointments"] });
   const { data: patients = [] } = useQuery<Patient[]>({ queryKey: ["/api/patients"] });
@@ -137,15 +139,16 @@ export default function AppointmentsPage() {
       a.department?.toLowerCase().includes(search.toLowerCase()) ||
       a.doctorName?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || a.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchDate = isDateInRange(a.appointmentDate, dateRange);
+    return matchSearch && matchStatus && matchDate;
   });
 
   const stats: Record<string, number> = {
-    total: appointments.length,
-    scheduled: appointments.filter((a: any) => a.status === "scheduled").length,
-    confirmed: appointments.filter((a: any) => a.status === "confirmed").length,
-    completed: appointments.filter((a: any) => a.status === "completed").length,
-    cancelled: appointments.filter((a: any) => a.status === "cancelled").length,
+    total: filtered.length,
+    scheduled: filtered.filter((a: any) => a.status === "scheduled").length,
+    confirmed: filtered.filter((a: any) => a.status === "confirmed").length,
+    completed: filtered.filter((a: any) => a.status === "completed").length,
+    cancelled: filtered.filter((a: any) => a.status === "cancelled").length,
   };
 
   const statCards = [
@@ -320,6 +323,7 @@ export default function AppointmentsPage() {
       />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
+        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} dateRange={dateRange} />
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {statCards.map((s) => (
             <Card key={s.key} data-testid={`stat-${s.key}`}>

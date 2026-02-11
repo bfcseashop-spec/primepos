@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { useLocation } from "wouter";
 import { useTranslation } from "@/i18n";
+import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
 
 const CHART_COLORS = [
   "hsl(221, 83%, 53%)",
@@ -31,6 +32,7 @@ const CHART_COLORS = [
 export default function Dashboard() {
   const [, navigate] = useLocation();
   const { t } = useTranslation();
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
 
   const { data: stats, isLoading } = useQuery<any>({
     queryKey: ["/api/dashboard/stats"],
@@ -47,6 +49,9 @@ export default function Dashboard() {
   const { data: serviceBreakdown } = useQuery<any[]>({
     queryKey: ["/api/dashboard/service-breakdown"],
   });
+
+  const filteredVisits = (recentVisits || []).filter((v: any) => isDateInRange(v.date || v.visitDate, dateRange));
+  const filteredRevenue = (revenueData || []).filter((r: any) => isDateInRange(r.date, dateRange));
 
   const greeting = (() => {
     const hour = new Date().getHours();
@@ -90,6 +95,16 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        <DateFilterBar
+          datePeriod={datePeriod}
+          setDatePeriod={setDatePeriod}
+          customFromDate={customFromDate}
+          setCustomFromDate={setCustomFromDate}
+          customToDate={customToDate}
+          setCustomToDate={setCustomToDate}
+          dateRange={dateRange}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="dashboard-stats-grid">
           {isLoading ? (
@@ -168,9 +183,9 @@ export default function Dashboard() {
               <Badge variant="secondary">Last 7 days</Badge>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              {revenueData && revenueData.length > 0 ? (
+              {filteredRevenue && filteredRevenue.length > 0 ? (
                 <ResponsiveContainer width="100%" height={260}>
-                  <AreaChart data={revenueData}>
+                  <AreaChart data={filteredRevenue}>
                     <defs>
                       <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0.35} />
@@ -307,9 +322,9 @@ export default function Dashboard() {
               </Button>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              {recentVisits && recentVisits.length > 0 ? (
+              {filteredVisits && filteredVisits.length > 0 ? (
                 <div className="space-y-2">
-                  {recentVisits.slice(0, 5).map((visit: any, idx: number) => {
+                  {filteredVisits.slice(0, 5).map((visit: any, idx: number) => {
                     const avatarColors = [
                       "bg-blue-500/15 text-blue-600 dark:text-blue-400",
                       "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",

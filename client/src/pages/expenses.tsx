@@ -21,6 +21,7 @@ import {
   FileSpreadsheet, FileDown, File
 } from "lucide-react";
 import type { Expense } from "@shared/schema";
+import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
 import { useTranslation } from "@/i18n";
 
 const DEFAULT_EXPENSE_CATEGORIES = [
@@ -101,6 +102,7 @@ export default function ExpensesPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
 
   const allCategories = [...DEFAULT_EXPENSE_CATEGORIES, ...customCategories];
 
@@ -264,12 +266,13 @@ export default function ExpensesPage() {
       e.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === "all" || e.category === filterCategory;
     const matchesStatus = filterStatus === "all" || (e.status || "pending") === filterStatus;
-    return matchesSearch && matchesCategory && matchesStatus;
+    const matchesDate = isDateInRange(e.date, dateRange);
+    return matchesSearch && matchesCategory && matchesStatus && matchesDate;
   });
 
-  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  const approvedExpenses = expenses.filter(e => e.status === "approved").reduce((sum, e) => sum + Number(e.amount), 0);
-  const pendingExpenses = expenses.filter(e => !e.status || e.status === "pending").reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalExpenses = filtered.reduce((sum, e) => sum + Number(e.amount), 0);
+  const approvedExpenses = filtered.filter(e => e.status === "approved").reduce((sum, e) => sum + Number(e.amount), 0);
+  const pendingExpenses = filtered.filter(e => !e.status || e.status === "pending").reduce((sum, e) => sum + Number(e.amount), 0);
 
   const usedCategories = Array.from(new Set(expenses.map(e => e.category)));
 
@@ -467,6 +470,7 @@ export default function ExpensesPage() {
       />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
+        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} dateRange={dateRange} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Card data-testid="card-total-expenses">
             <CardContent className="p-4">

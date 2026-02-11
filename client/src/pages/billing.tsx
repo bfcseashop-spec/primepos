@@ -14,7 +14,8 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, CalendarDays } from "lucide-react";
+import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone } from "lucide-react";
+import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
 import type { Patient, Service, Medicine, BillItem, User, ClinicSettings } from "@shared/schema";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -59,46 +60,6 @@ const PAYMENT_METHODS = [
   { value: "gpay", label: "GPay", icon: Smartphone, color: "text-sky-700 dark:text-sky-300 bg-sky-500/10 border-sky-500/20" },
 ];
 
-type DatePreset = "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "last_month" | "custom";
-
-function getDateRange(preset: DatePreset): { from: Date; to: Date } | null {
-  if (preset === "custom") return null;
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-
-  switch (preset) {
-    case "today":
-      return { from: today, to: tomorrow };
-    case "yesterday": {
-      const y = new Date(today); y.setDate(today.getDate() - 1);
-      return { from: y, to: today };
-    }
-    case "this_week": {
-      const dow = today.getDay();
-      const monday = new Date(today); monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
-      return { from: monday, to: tomorrow };
-    }
-    case "last_week": {
-      const dow = today.getDay();
-      const thisMonday = new Date(today); thisMonday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
-      const lastMonday = new Date(thisMonday); lastMonday.setDate(thisMonday.getDate() - 7);
-      return { from: lastMonday, to: thisMonday };
-    }
-    case "this_month": {
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { from: firstDay, to: tomorrow };
-    }
-    case "last_month": {
-      const firstDayLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const firstDayThis = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { from: firstDayLast, to: firstDayThis };
-    }
-    default:
-      return null;
-  }
-}
-
 export default function BillingPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -111,9 +72,7 @@ export default function BillingPage() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [referenceDoctor, setReferenceDoctor] = useState("");
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
-  const [datePreset, setDatePreset] = useState<DatePreset | "all">("all");
-  const [customDateFrom, setCustomDateFrom] = useState("");
-  const [customDateTo, setCustomDateTo] = useState("");
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
 
   const { data: bills = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/bills"],
@@ -448,26 +407,8 @@ export default function BillingPage() {
   };
 
   const dateFilteredBills = bills.filter((b: any) => {
-    if (datePreset === "all") return true;
     const billDateStr = b.paymentDate || (b.createdAt ? new Date(b.createdAt).toISOString().split("T")[0] : null);
-    if (!billDateStr) return true;
-    const billDate = new Date(billDateStr + "T00:00:00");
-
-    if (datePreset === "custom") {
-      if (customDateFrom) {
-        const from = new Date(customDateFrom + "T00:00:00");
-        if (billDate < from) return false;
-      }
-      if (customDateTo) {
-        const to = new Date(customDateTo + "T23:59:59");
-        if (billDate > to) return false;
-      }
-      return true;
-    }
-
-    const range = getDateRange(datePreset);
-    if (!range) return true;
-    return billDate >= range.from && billDate < range.to;
+    return isDateInRange(billDateStr, dateRange);
   });
 
   const filteredBills = dateFilteredBills.filter((b: any) =>
@@ -973,60 +914,7 @@ export default function BillingPage() {
         </div>
 
         {/* Date Filter Bar */}
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-xs font-medium text-muted-foreground shrink-0">{t("common.filter")}:</span>
-              {([
-                { key: "all", label: t("common.all") },
-                { key: "today", label: t("billing.today") },
-                { key: "yesterday", label: t("billing.yesterday") },
-                { key: "this_week", label: t("billing.thisWeek") },
-                { key: "last_week", label: t("billing.lastWeek") },
-                { key: "this_month", label: t("billing.thisMonth") },
-                { key: "last_month", label: t("billing.lastMonth") },
-                { key: "custom", label: t("billing.customRange") },
-              ] as { key: DatePreset | "all"; label: string }[]).map((item) => (
-                <Button
-                  key={item.key}
-                  variant={datePreset === item.key ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setDatePreset(item.key);
-                    if (item.key !== "custom") {
-                      setCustomDateFrom("");
-                      setCustomDateTo("");
-                    }
-                  }}
-                  className="toggle-elevate"
-                  data-testid={`button-date-filter-${item.key}`}
-                >
-                  {item.label}
-                </Button>
-              ))}
-              {datePreset === "custom" && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Input
-                    type="date"
-                    value={customDateFrom}
-                    onChange={(e) => setCustomDateFrom(e.target.value)}
-                    className="h-8 w-36 text-xs"
-                    data-testid="input-date-from"
-                  />
-                  <span className="text-xs text-muted-foreground">to</span>
-                  <Input
-                    type="date"
-                    value={customDateTo}
-                    onChange={(e) => setCustomDateTo(e.target.value)}
-                    className="h-8 w-36 text-xs"
-                    data-testid="input-date-to"
-                  />
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} dateRange={dateRange} />
 
         {/* Bills Table */}
         <Card>

@@ -15,6 +15,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, TrendingUp, DollarSign, Briefcase, X, Tag, Trash2 } from "lucide-react";
 import type { Investment } from "@shared/schema";
 import { useTranslation } from "@/i18n";
+import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
 
 const DEFAULT_INVESTMENT_CATEGORIES = [
   "Equipment", "Real Estate", "Expansion", "Technology",
@@ -38,6 +39,7 @@ export default function InvestmentsPage() {
   const [categories, setCategories] = useState<string[]>(loadCategories);
   const [newCategory, setNewCategory] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
 
   useEffect(() => {
     localStorage.setItem("investment_categories", JSON.stringify(categories));
@@ -129,15 +131,17 @@ export default function InvestmentsPage() {
     });
   };
 
-  const totalInvested = investments.reduce((s, i) => s + Number(i.amount), 0);
-  const totalReturns = investments.reduce((s, i) => s + Number(i.returnAmount || 0), 0);
-  const activeCount = investments.filter(i => i.status === "active").length;
-  const netROI = totalReturns - totalInvested;
+  const filtered = investments.filter(i => {
+    const matchSearch = i.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      i.investorName?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+    const matchDate = isDateInRange(i.startDate, dateRange);
+    return matchSearch && matchDate;
+  });
 
-  const filtered = investments.filter(i =>
-    i.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    i.investorName?.toLowerCase().includes(searchTerm.toLowerCase()) || false
-  );
+  const totalInvested = filtered.reduce((s, i) => s + Number(i.amount), 0);
+  const totalReturns = filtered.reduce((s, i) => s + Number(i.returnAmount || 0), 0);
+  const activeCount = filtered.filter(i => i.status === "active").length;
+  const netROI = totalReturns - totalInvested;
 
   const columns = [
     { header: "Title", accessor: "title" as keyof Investment },
@@ -279,6 +283,7 @@ export default function InvestmentsPage() {
       />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
+        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} dateRange={dateRange} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Card data-testid="stat-total-invested">
             <CardContent className="p-4">

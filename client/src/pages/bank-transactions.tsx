@@ -4,6 +4,7 @@ import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
 import { StatsCard } from "@/components/stats-card";
+import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,51 +17,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp, Trash2, MoreHorizontal, Calendar, CalendarDays } from "lucide-react";
+import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp, Trash2, MoreHorizontal, Calendar } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { BankTransaction } from "@shared/schema";
-
-type DatePeriod = "all" | "day" | "week" | "month" | "custom";
-
-function getDateRange(period: DatePeriod, customFrom: string, customTo: string): { from: string; to: string } | null {
-  if (period === "all") return null;
-  if (period === "custom") {
-    if (customFrom && customTo) return { from: customFrom, to: customTo };
-    if (customFrom) return { from: customFrom, to: customFrom };
-    return null;
-  }
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, "0");
-  const dd = String(today.getDate()).padStart(2, "0");
-  const todayStr = `${yyyy}-${mm}-${dd}`;
-  if (period === "day") return { from: todayStr, to: todayStr };
-  if (period === "week") {
-    const dayOfWeek = today.getDay();
-    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - mondayOffset);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    const fromStr = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
-    const toStr = `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, "0")}-${String(sunday.getDate()).padStart(2, "0")}`;
-    return { from: fromStr, to: toStr };
-  }
-  if (period === "month") {
-    const firstDay = `${yyyy}-${mm}-01`;
-    const lastDate = new Date(yyyy, today.getMonth() + 1, 0).getDate();
-    const lastDay = `${yyyy}-${mm}-${String(lastDate).padStart(2, "0")}`;
-    return { from: firstDay, to: lastDay };
-  }
-  return null;
-}
-
-function isDateInRange(dateStr: string | null | undefined, range: { from: string; to: string } | null): boolean {
-  if (!range) return true;
-  if (!dateStr) return false;
-  const d = dateStr.slice(0, 10);
-  return d >= range.from && d <= range.to;
-}
 
 const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; bgColor: string; progressColor: string }> = {
   cash: { label: "Cash Pay", icon: Banknote, color: "text-emerald-600 dark:text-emerald-400", bgColor: "bg-emerald-500/10", progressColor: "bg-emerald-500" },
@@ -81,9 +40,7 @@ export default function BankTransactionsPage() {
   const [methodFilter, setMethodFilter] = useState<string>("all");
   const [selectedBillIds, setSelectedBillIds] = useState<Set<number>>(new Set());
   const [selectedTxIds, setSelectedTxIds] = useState<Set<number>>(new Set());
-  const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
-  const [customFromDate, setCustomFromDate] = useState("");
-  const [customToDate, setCustomToDate] = useState("");
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
 
   const { data: transactions = [], isLoading } = useQuery<BankTransaction[]>({
     queryKey: ["/api/bank-transactions"],
@@ -176,8 +133,6 @@ export default function BankTransactionsPage() {
       date: form.get("date"),
     });
   };
-
-  const dateRange = useMemo(() => getDateRange(datePeriod, customFromDate, customToDate), [datePeriod, customFromDate, customToDate]);
 
   const dateFilteredTransactions = useMemo(() =>
     transactions.filter(t => isDateInRange(t.date, dateRange)),
@@ -376,50 +331,7 @@ export default function BankTransactionsPage() {
       />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-sm font-medium text-muted-foreground mr-1">Filter:</span>
-              {(["all", "day", "week", "month", "custom"] as DatePeriod[]).map((p) => (
-                <Button
-                  key={p}
-                  variant={datePeriod === p ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setDatePeriod(p)}
-                  className="toggle-elevate"
-                  data-testid={`button-period-${p}`}
-                >
-                  {p === "all" ? t("common.all") : p === "day" ? "Today" : p === "week" ? "This Week" : p === "month" ? "This Month" : "Custom"}
-                </Button>
-              ))}
-              {datePeriod === "custom" && (
-                <div className="flex items-center gap-2 ml-2">
-                  <Input
-                    type="date"
-                    value={customFromDate}
-                    onChange={(e) => setCustomFromDate(e.target.value)}
-                    className="text-xs w-36"
-                    data-testid="input-date-from"
-                  />
-                  <span className="text-xs text-muted-foreground">to</span>
-                  <Input
-                    type="date"
-                    value={customToDate}
-                    onChange={(e) => setCustomToDate(e.target.value)}
-                    className="text-xs w-36"
-                    data-testid="input-date-to"
-                  />
-                </div>
-              )}
-              {datePeriod !== "all" && dateRange && (
-                <Badge variant="secondary" className="ml-auto text-[10px]">
-                  {dateRange.from === dateRange.to ? dateRange.from : `${dateRange.from} — ${dateRange.to}`}
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} dateRange={dateRange} />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="bank-summary-stats">
           <Card data-testid="stat-aba-card">

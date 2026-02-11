@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
+import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -168,6 +169,7 @@ export default function LabTestsPage() {
   const [uploadReferrer, setUploadReferrer] = useState("");
   const [uploading, setUploading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
 
   const { data: labTests = [], isLoading } = useQuery<LabTestWithPatient[]>({
     queryKey: ["/api/lab-tests"],
@@ -315,13 +317,14 @@ export default function LabTestsPage() {
       (t.patientName && t.patientName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (t.referrerName && t.referrerName.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchCategory = categoryFilter === "all" || t.category.includes(categoryFilter);
-    return matchSearch && matchCategory;
+    const matchDate = isDateInRange(t.createdAt?.toString().slice(0, 10), dateRange);
+    return matchSearch && matchCategory && matchDate;
   });
 
-  const processingCount = labTests.filter(t => t.status === "processing").length;
-  const completeCount = labTests.filter(t => t.status === "complete").length;
-  const uniqueCategories = Array.from(new Set(labTests.flatMap(t => t.category.split(",").map(s => s.trim()))));
-  const withReports = labTests.filter(t => t.reportFileUrl).length;
+  const processingCount = filtered.filter(t => t.status === "processing").length;
+  const completeCount = filtered.filter(t => t.status === "complete").length;
+  const uniqueCategories = Array.from(new Set(filtered.flatMap(t => t.category.split(",").map(s => s.trim()))));
+  const withReports = filtered.filter(t => t.reportFileUrl).length;
 
   const statusBadgeConfig: Record<string, { dot: string; bg: string; text: string; border: string }> = {
     processing: { dot: "bg-amber-500", bg: "bg-amber-500/10 dark:bg-amber-400/10", text: "text-amber-700 dark:text-amber-300", border: "border-amber-500/20" },
@@ -771,9 +774,10 @@ export default function LabTestsPage() {
       )}
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
+        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} dateRange={dateRange} />
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { key: "total", label: t("labTests.totalTests"), gradient: "from-blue-500 to-blue-600", value: labTests.length, icon: FlaskConical, testId: "text-total-tests" },
+            { key: "total", label: t("labTests.totalTests"), gradient: "from-blue-500 to-blue-600", value: filtered.length, icon: FlaskConical, testId: "text-total-tests" },
             { key: "processing", label: t("labTests.processing"), gradient: "from-amber-500 to-amber-600", value: processingCount, icon: Loader2, testId: "text-processing-tests" },
             { key: "complete", label: t("labTests.completed"), gradient: "from-emerald-500 to-emerald-600", value: completeCount, icon: CheckCircle, testId: "text-complete-tests" },
             { key: "reports", label: t("labTests.downloadReport"), gradient: "from-violet-500 to-violet-600", value: withReports, icon: FileText, testId: "text-with-reports" },
