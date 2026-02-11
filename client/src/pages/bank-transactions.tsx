@@ -16,7 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp, Trash2 } from "lucide-react";
+import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp, Trash2, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { BankTransaction } from "@shared/schema";
 
 const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; bgColor: string; progressColor: string }> = {
@@ -96,6 +97,19 @@ export default function BankTransactionsPage() {
       bulkDeleteBillsMutation.mutate(Array.from(selectedBillIds));
     }
   };
+
+  const deleteTxMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/bank-transactions/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions"] });
+      toast({ title: "Transaction deleted successfully" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
 
   const handleBulkDeleteTx = () => {
     if (selectedTxIds.size === 0) return;
@@ -207,6 +221,29 @@ export default function BankTransactionsPage() {
       <span className="text-xs text-muted-foreground max-w-[150px] truncate block">{row.description || "-"}</span>
     )},
     { header: t("common.date"), accessor: "date" as keyof BankTransaction },
+    { header: "", accessor: (row: BankTransaction) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" data-testid={`button-tx-actions-${row.id}`}>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            className="text-red-600 dark:text-red-400"
+            onClick={() => {
+              if (confirm("Delete this transaction?")) {
+                deleteTxMutation.mutate(row.id);
+              }
+            }}
+            data-testid={`button-delete-tx-${row.id}`}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            {t("common.delete")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )},
   ];
 
   return (

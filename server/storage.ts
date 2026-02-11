@@ -78,6 +78,7 @@ export interface IStorage {
 
   getBankTransactions(): Promise<BankTransaction[]>;
   createBankTransaction(tx: InsertBankTransaction): Promise<BankTransaction>;
+  deleteBankTransaction(id: number): Promise<void>;
   bulkDeleteBankTransactions(ids: number[]): Promise<void>;
 
   getInvestments(): Promise<Investment[]>;
@@ -403,6 +404,10 @@ export class DatabaseStorage implements IStorage {
   async createBankTransaction(tx: InsertBankTransaction): Promise<BankTransaction> {
     const [created] = await db.insert(bankTransactions).values(tx).returning();
     return created;
+  }
+
+  async deleteBankTransaction(id: number): Promise<void> {
+    await db.delete(bankTransactions).where(eq(bankTransactions.id, id));
   }
 
   async bulkDeleteBankTransactions(ids: number[]): Promise<void> {

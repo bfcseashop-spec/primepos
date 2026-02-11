@@ -1086,6 +1086,16 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/bank-transactions/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteBankTransaction(id);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/bank-transactions/bulk-delete", async (req, res) => {
     try {
       const { ids } = req.body;
