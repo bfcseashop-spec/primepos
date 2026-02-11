@@ -100,6 +100,7 @@ export default function ExpensesPage() {
   const [importDialog, setImportDialog] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const allCategories = [...DEFAULT_EXPENSE_CATEGORIES, ...customCategories];
 
@@ -153,6 +154,21 @@ export default function ExpensesPage() {
     },
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await apiRequest("POST", "/api/expenses/bulk-delete", { ids });
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      setSelectedIds(new Set());
+      toast({ title: `${ids.length} expense(s) deleted` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
@@ -183,6 +199,13 @@ export default function ExpensesPage() {
         status: form.get("status"),
       },
     });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    if (confirm(`Delete ${selectedIds.size} selected expense(s)?`)) {
+      bulkDeleteMutation.mutate(Array.from(selectedIds));
+    }
   };
 
   const handleAddCategory = () => {
@@ -538,19 +561,29 @@ export default function ExpensesPage() {
         </div>
 
         {viewMode === "list" ? (
-          <Card>
-            <CardContent className="p-0">
-              <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-4">
-                    <DollarSign className="h-8 w-8 text-blue-500 dark:text-blue-400" />
+          <div>
+            {selectedIds.size > 0 && (
+              <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border-b">
+                <span className="text-sm font-medium">{selectedIds.size} selected</span>
+                <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-delete-expenses">
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> {bulkDeleteMutation.isPending ? "Deleting..." : "Delete Selected"}
+                </Button>
+              </div>
+            )}
+            <Card>
+              <CardContent className="p-0">
+                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-4">
+                      <DollarSign className="h-8 w-8 text-blue-500 dark:text-blue-400" />
+                    </div>
+                    <p className="text-sm font-medium mb-1">No expenses recorded</p>
+                    <p className="text-xs text-muted-foreground">Start tracking your expenses by adding a new entry</p>
                   </div>
-                  <p className="text-sm font-medium mb-1">No expenses recorded</p>
-                  <p className="text-xs text-muted-foreground">Start tracking your expenses by adding a new entry</p>
-                </div>
-              } />
-            </CardContent>
-          </Card>
+                } selectedIds={selectedIds} onSelectionChange={setSelectedIds} />
+              </CardContent>
+            </Card>
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {isLoading ? (

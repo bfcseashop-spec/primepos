@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar, Clock, Search, MoreVertical, Trash2, Edit, User, CalendarCheck, CheckCircle2, XCircle, AlertCircle, Stethoscope, CreditCard, Video, Phone as PhoneIcon, UserCheck, RefreshCw, CalendarDays } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { Patient } from "@shared/schema"; // used for patients query type
 
 const statusConfig: Record<string, { bg: string; text: string; border: string; dot: string; icon: any; gradient: string }> = {
@@ -71,6 +72,7 @@ export default function AppointmentsPage() {
   const [editStatus, setEditStatus] = useState("");
   const [deleteAppointment, setDeleteAppointment] = useState<any>(null);
   const [viewAppointment, setViewAppointment] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const { data: appointments = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/appointments"] });
   const { data: patients = [] } = useQuery<Patient[]>({ queryKey: ["/api/patients"] });
@@ -96,6 +98,34 @@ export default function AppointmentsPage() {
       setDeleteAppointment(null);
     },
   });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await apiRequest("POST", "/api/appointments/bulk-delete", { ids });
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      setSelectedIds(new Set());
+      toast({ title: `${ids.length} appointment(s) deleted` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    if (confirm(`Delete ${selectedIds.size} selected appointment(s)?`)) {
+      bulkDeleteMutation.mutate(Array.from(selectedIds));
+    }
+  };
+
+  const toggleAppointmentSelection = (id: number) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
@@ -150,6 +180,12 @@ export default function AppointmentsPage() {
           <div className="p-4">
             <div className="flex items-start justify-between gap-2 mb-3">
               <div className="flex items-center gap-2.5">
+                <Checkbox
+                  checked={selectedIds.has(apt.id)}
+                  onCheckedChange={() => toggleAppointmentSelection(apt.id)}
+                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                  data-testid={`checkbox-appointment-${apt.id}`}
+                />
                 <Avatar className="h-10 w-10">
                   <AvatarFallback className={`text-xs font-bold bg-gradient-to-br ${getAvatarGradient(apt.id)} text-white`}>
                     {getInitials(apt.patientName || "")}
@@ -336,6 +372,15 @@ export default function AppointmentsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between gap-2 p-3 rounded-md bg-primary/5 border">
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-delete-appointments">
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> {bulkDeleteMutation.isPending ? "Deleting..." : "Delete Selected"}
+            </Button>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">

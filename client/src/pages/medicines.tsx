@@ -70,6 +70,7 @@ export default function MedicinesPage() {
   const [importDialog, setImportDialog] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const allCategories = [...MEDICINE_CATEGORIES, ...customCategories];
 
@@ -157,6 +158,27 @@ export default function MedicinesPage() {
       toast({ title: t("common.error"), description: err.message, variant: "destructive" });
     },
   });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await apiRequest("POST", "/api/medicines/bulk-delete", { ids });
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+      setSelectedIds(new Set());
+      toast({ title: `${ids.length} medicine(s) deleted` });
+    },
+    onError: (err: Error) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    if (confirm(`Delete ${selectedIds.size} selected medicine(s)?`)) {
+      bulkDeleteMutation.mutate(Array.from(selectedIds));
+    }
+  };
 
   const addCategory = () => {
     const trimmed = newCategory.trim();
@@ -1015,7 +1037,17 @@ export default function MedicinesPage() {
           </CardHeader>
           <CardContent className={viewMode === "grid" ? "p-4" : "p-0"}>
             {viewMode === "list" ? (
-              <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No medicines yet" />
+              <>
+                {selectedIds.size > 0 && (
+                  <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border-b">
+                    <span className="text-sm font-medium">{selectedIds.size} selected</span>
+                    <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-delete-medicines">
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> {bulkDeleteMutation.isPending ? "Deleting..." : "Delete Selected"}
+                    </Button>
+                  </div>
+                )}
+                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No medicines yet" selectedIds={selectedIds} onSelectionChange={setSelectedIds} />
+              </>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3" data-testid="medicine-grid">
                 {isLoading ? (

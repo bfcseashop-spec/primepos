@@ -1,4 +1,5 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileX } from "lucide-react";
 
@@ -14,9 +15,36 @@ interface DataTableProps<T> {
   isLoading?: boolean;
   emptyMessage?: React.ReactNode;
   onRowClick?: (row: T) => void;
+  selectedIds?: Set<number>;
+  onSelectionChange?: (ids: Set<number>) => void;
 }
 
-export function DataTable<T extends { id: number }>({ columns, data, isLoading, emptyMessage = "No data found", onRowClick }: DataTableProps<T>) {
+export function DataTable<T extends { id: number }>({ columns, data, isLoading, emptyMessage = "No data found", onRowClick, selectedIds, onSelectionChange }: DataTableProps<T>) {
+  const selectable = !!onSelectionChange && !!selectedIds;
+
+  const allSelected = selectable && data.length > 0 && data.every(row => selectedIds!.has(row.id));
+  const someSelected = selectable && data.some(row => selectedIds!.has(row.id)) && !allSelected;
+
+  const toggleAll = () => {
+    if (!onSelectionChange) return;
+    if (allSelected) {
+      onSelectionChange(new Set());
+    } else {
+      onSelectionChange(new Set(data.map(row => row.id)));
+    }
+  };
+
+  const toggleRow = (id: number) => {
+    if (!onSelectionChange || !selectedIds) return;
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    onSelectionChange(next);
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-2 p-4">
@@ -44,6 +72,15 @@ export function DataTable<T extends { id: number }>({ columns, data, isLoading, 
       <Table>
         <TableHeader>
           <TableRow>
+            {selectable && (
+              <TableHead className="w-10 px-3">
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                  onCheckedChange={toggleAll}
+                  data-testid="checkbox-select-all"
+                />
+              </TableHead>
+            )}
             {columns.map((col, i) => (
               <TableHead key={i} className={col.className}>{col.header}</TableHead>
             ))}
@@ -53,10 +90,19 @@ export function DataTable<T extends { id: number }>({ columns, data, isLoading, 
           {data.map((row) => (
             <TableRow
               key={row.id}
-              className={onRowClick ? "cursor-pointer" : ""}
+              className={`${onRowClick ? "cursor-pointer" : ""} ${selectable && selectedIds!.has(row.id) ? "bg-primary/5" : ""}`}
               onClick={() => onRowClick?.(row)}
               data-testid={`row-data-${row.id}`}
             >
+              {selectable && (
+                <TableCell className="w-10 px-3" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={selectedIds!.has(row.id)}
+                    onCheckedChange={() => toggleRow(row.id)}
+                    data-testid={`checkbox-row-${row.id}`}
+                  />
+                </TableCell>
+              )}
               {columns.map((col, i) => (
                 <TableCell key={i} className={col.className}>
                   {typeof col.accessor === "function" ? col.accessor(row) : String(row[col.accessor] ?? "-")}

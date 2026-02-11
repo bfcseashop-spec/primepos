@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp } from "lucide-react";
+import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp, Trash2 } from "lucide-react";
 import type { BankTransaction } from "@shared/schema";
 
 const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; bgColor: string; progressColor: string }> = {
@@ -36,6 +36,8 @@ export default function BankTransactionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [billSearchTerm, setBillSearchTerm] = useState("");
   const [methodFilter, setMethodFilter] = useState<string>("all");
+  const [selectedBillIds, setSelectedBillIds] = useState<Set<number>>(new Set());
+  const [selectedTxIds, setSelectedTxIds] = useState<Set<number>>(new Set());
 
   const { data: transactions = [], isLoading } = useQuery<BankTransaction[]>({
     queryKey: ["/api/bank-transactions"],
@@ -59,6 +61,48 @@ export default function BankTransactionsPage() {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
+
+  const bulkDeleteBillsMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await apiRequest("POST", "/api/bills/bulk-delete", { ids });
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      setSelectedBillIds(new Set());
+      toast({ title: `${ids.length} bill(s) deleted` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const bulkDeleteTxMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await apiRequest("POST", "/api/bank-transactions/bulk-delete", { ids });
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions"] });
+      setSelectedTxIds(new Set());
+      toast({ title: `${ids.length} transaction(s) deleted` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleBulkDeleteBills = () => {
+    if (selectedBillIds.size === 0) return;
+    if (confirm(`Delete ${selectedBillIds.size} selected bill(s)?`)) {
+      bulkDeleteBillsMutation.mutate(Array.from(selectedBillIds));
+    }
+  };
+
+  const handleBulkDeleteTx = () => {
+    if (selectedTxIds.size === 0) return;
+    if (confirm(`Delete ${selectedTxIds.size} selected transaction(s)?`)) {
+      bulkDeleteTxMutation.mutate(Array.from(selectedTxIds));
+    }
+  };
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -366,7 +410,15 @@ export default function BankTransactionsPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <DataTable columns={billPaymentColumns} data={filteredBillPayments} isLoading={false} emptyMessage={t("common.noData")} />
+                {selectedBillIds.size > 0 && (
+                  <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border-b">
+                    <span className="text-sm font-medium">{selectedBillIds.size} selected</span>
+                    <Button variant="destructive" size="sm" onClick={handleBulkDeleteBills} disabled={bulkDeleteBillsMutation.isPending} data-testid="button-bulk-delete-bills">
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> {bulkDeleteBillsMutation.isPending ? "Deleting..." : "Delete Selected"}
+                    </Button>
+                  </div>
+                )}
+                <DataTable columns={billPaymentColumns} data={filteredBillPayments} isLoading={false} emptyMessage={t("common.noData")} selectedIds={selectedBillIds} onSelectionChange={setSelectedBillIds} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -390,7 +442,15 @@ export default function BankTransactionsPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={t("common.noData")} />
+                {selectedTxIds.size > 0 && (
+                  <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border-b">
+                    <span className="text-sm font-medium">{selectedTxIds.size} selected</span>
+                    <Button variant="destructive" size="sm" onClick={handleBulkDeleteTx} disabled={bulkDeleteTxMutation.isPending} data-testid="button-bulk-delete-transactions">
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> {bulkDeleteTxMutation.isPending ? "Deleting..." : "Delete Selected"}
+                    </Button>
+                  </div>
+                )}
+                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={t("common.noData")} selectedIds={selectedTxIds} onSelectionChange={setSelectedTxIds} />
               </CardContent>
             </Card>
           </TabsContent>

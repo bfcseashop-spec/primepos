@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
@@ -84,6 +85,7 @@ export default function ServicesPage() {
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [categories, setCategories] = useState<string[]>(getServiceCategories());
   const [newCategory, setNewCategory] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const { data: services = [], isLoading } = useQuery<Service[]>({
     queryKey: ["/api/services"],
@@ -131,6 +133,42 @@ export default function ServicesPage() {
       setDeleteService(null);
     },
   });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await apiRequest("POST", "/api/services/bulk-delete", { ids });
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      setSelectedIds(new Set());
+      toast({ title: `${ids.length} service(s) deleted` });
+    },
+    onError: (err: Error) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    if (confirm(`Delete ${selectedIds.size} selected service(s)?`)) {
+      bulkDeleteMutation.mutate(Array.from(selectedIds));
+    }
+  };
+
+  const toggleServiceSelection = (id: number) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleAllServices = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(s => s.id)));
+    }
+  };
 
   const handleSubmit = () => {
     if (!form.name || !form.category || !form.price) {
@@ -306,25 +344,33 @@ export default function ServicesPage() {
           <div className={`h-1.5 rounded-t-md bg-gradient-to-r ${topGrad}`} />
           <div className="p-4">
             <div className="flex items-start justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2.5">
-                {svc.imageUrl ? (
-                  <img src={svc.imageUrl} alt={svc.name} className="w-10 h-10 rounded-md object-cover border" data-testid={`img-service-thumb-${svc.id}`} />
-                ) : (
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className={`text-xs font-bold bg-gradient-to-br ${getAvatarGradient(svc.id)} text-white`}>
-                      {getInitials(svc.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-                <div className="min-w-0">
-                  <h4 className="text-sm font-semibold truncate" data-testid={`text-service-name-${svc.id}`}>{svc.name}</h4>
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] mt-0.5 no-default-hover-elevate no-default-active-elevate ${catColor.bg} ${catColor.text}`}
-                  >
-                    <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${catColor.dot}`} />
-                    {svc.category}
-                  </Badge>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={selectedIds.has(svc.id)}
+                  onCheckedChange={() => toggleServiceSelection(svc.id)}
+                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                  data-testid={`checkbox-service-${svc.id}`}
+                />
+                <div className="flex items-center gap-2.5">
+                  {svc.imageUrl ? (
+                    <img src={svc.imageUrl} alt={svc.name} className="w-10 h-10 rounded-md object-cover border" data-testid={`img-service-thumb-${svc.id}`} />
+                  ) : (
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className={`text-xs font-bold bg-gradient-to-br ${getAvatarGradient(svc.id)} text-white`}>
+                        {getInitials(svc.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-semibold truncate" data-testid={`text-service-name-${svc.id}`}>{svc.name}</h4>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] mt-0.5 no-default-hover-elevate no-default-active-elevate ${catColor.bg} ${catColor.text}`}
+                    >
+                      <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${catColor.dot}`} />
+                      {svc.category}
+                    </Badge>
+                  </div>
                 </div>
               </div>
               <DropdownMenu>
@@ -384,6 +430,12 @@ export default function ServicesPage() {
       <Card key={svc.id} className="overflow-visible hover-elevate" data-testid={`card-service-${svc.id}`}>
         <CardContent className="p-3">
           <div className="flex items-center gap-3">
+            <Checkbox
+              checked={selectedIds.has(svc.id)}
+              onCheckedChange={() => toggleServiceSelection(svc.id)}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              data-testid={`checkbox-service-${svc.id}`}
+            />
             {svc.imageUrl ? (
               <img src={svc.imageUrl} alt={svc.name} className="w-10 h-10 rounded-md object-cover border shrink-0" />
             ) : (
@@ -624,6 +676,22 @@ export default function ServicesPage() {
             </div>
           </CardContent>
         </Card>
+
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between gap-2 p-3 rounded-md bg-primary/5 border">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={selectedIds.size === filtered.length && filtered.length > 0}
+                onCheckedChange={toggleAllServices}
+                data-testid="checkbox-select-all-services"
+              />
+              <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            </div>
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-delete-services">
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> {bulkDeleteMutation.isPending ? "Deleting..." : "Delete Selected"}
+            </Button>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">

@@ -408,6 +408,19 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/bills/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      await storage.bulkDeleteBills(ids);
+      res.json({ success: true, deleted: ids.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Services
   app.get("/api/services", async (_req, res) => {
     try {
@@ -451,6 +464,19 @@ export async function registerRoutes(
     try {
       await storage.deleteService(Number(req.params.id));
       res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/services/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      await storage.bulkDeleteServices(ids);
+      res.json({ success: true, deleted: ids.length });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -655,6 +681,19 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/medicines/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      await storage.bulkDeleteMedicines(ids);
+      res.json({ success: true, deleted: ids.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Expenses
   app.get("/api/expenses/export/:format", async (req, res) => {
     try {
@@ -850,6 +889,19 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/expenses/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      await storage.bulkDeleteExpenses(ids);
+      res.json({ success: true, deleted: ids.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Bank Transactions
   app.get("/api/bank-transactions", async (_req, res) => {
     try {
@@ -870,6 +922,19 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/bank-transactions/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      await storage.bulkDeleteBankTransactions(ids);
+      res.json({ success: true, deleted: ids.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Investments
   app.get("/api/investments", async (_req, res) => {
     try {
@@ -887,6 +952,19 @@ export async function registerRoutes(
       res.status(201).json(inv);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/investments/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      await storage.bulkDeleteInvestments(ids);
+      res.json({ success: true, deleted: ids.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
     }
   });
 
@@ -1254,6 +1332,19 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/lab-tests/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      await storage.bulkDeleteLabTests(ids);
+      res.json({ success: true, deleted: ids.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Appointments
   app.get("/api/appointments", async (_req, res) => {
     try {
@@ -1288,6 +1379,19 @@ export async function registerRoutes(
     try {
       await storage.deleteAppointment(Number(req.params.id));
       res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/appointments/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      await storage.bulkDeleteAppointments(ids);
+      res.json({ success: true, deleted: ids.length });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

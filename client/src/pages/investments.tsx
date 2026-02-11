@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, TrendingUp, DollarSign, Briefcase, X, Tag } from "lucide-react";
+import { Plus, Search, TrendingUp, DollarSign, Briefcase, X, Tag, Trash2 } from "lucide-react";
 import type { Investment } from "@shared/schema";
 import { useTranslation } from "@/i18n";
 
@@ -37,6 +37,7 @@ export default function InvestmentsPage() {
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [categories, setCategories] = useState<string[]>(loadCategories);
   const [newCategory, setNewCategory] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     localStorage.setItem("investment_categories", JSON.stringify(categories));
@@ -77,6 +78,40 @@ export default function InvestmentsPage() {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/investments/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      toast({ title: "Investment deleted" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await apiRequest("POST", "/api/investments/bulk-delete", { ids });
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      setSelectedIds(new Set());
+      toast({ title: `${ids.length} investment(s) deleted` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    if (confirm(`Delete ${selectedIds.size} selected investment(s)?`)) {
+      bulkDeleteMutation.mutate(Array.from(selectedIds));
+    }
+  };
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -123,6 +158,11 @@ export default function InvestmentsPage() {
     )},
     { header: t("common.date"), accessor: "startDate" as keyof Investment },
     { header: t("investments.returnDate"), accessor: (row: Investment) => row.endDate || "-" },
+    { header: t("common.actions") || "Actions", accessor: (row: Investment) => (
+      <Button variant="ghost" size="icon" onClick={() => { if (confirm("Delete this investment?")) deleteMutation.mutate(row.id); }} data-testid={`button-delete-investment-${row.id}`}>
+        <Trash2 className="h-4 w-4 text-red-500" />
+      </Button>
+    )},
   ];
 
   return (
@@ -312,7 +352,15 @@ export default function InvestmentsPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No investments recorded" />
+            {selectedIds.size > 0 && (
+              <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border-b">
+                <span className="text-sm font-medium">{selectedIds.size} selected</span>
+                <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-delete-investments">
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> {bulkDeleteMutation.isPending ? "Deleting..." : "Delete Selected"}
+                </Button>
+              </div>
+            )}
+            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No investments recorded" selectedIds={selectedIds} onSelectionChange={setSelectedIds} />
           </CardContent>
         </Card>
       </div>

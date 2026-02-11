@@ -1,4 +1,4 @@
-import { eq, desc, sql, and, gte, lte, count, sum } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lte, count, sum, inArray } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, roles, patients, services, medicines, opdVisits, bills,
@@ -49,12 +49,14 @@ export interface IStorage {
   createService(service: InsertService): Promise<Service>;
   updateService(id: number, data: Partial<InsertService>): Promise<Service | undefined>;
   deleteService(id: number): Promise<void>;
+  bulkDeleteServices(ids: number[]): Promise<void>;
 
   getMedicines(): Promise<Medicine[]>;
   getMedicine(id: number): Promise<Medicine | undefined>;
   createMedicine(medicine: InsertMedicine): Promise<Medicine>;
   updateMedicine(id: number, data: Partial<InsertMedicine>): Promise<Medicine | undefined>;
   deleteMedicine(id: number): Promise<void>;
+  bulkDeleteMedicines(ids: number[]): Promise<void>;
 
   getOpdVisits(): Promise<any[]>;
   getOpdVisit(id: number): Promise<OpdVisit | undefined>;
@@ -66,17 +68,21 @@ export interface IStorage {
   createBill(bill: InsertBill): Promise<Bill>;
   updateBill(id: number, data: Partial<InsertBill>): Promise<Bill | undefined>;
   deleteBill(id: number): Promise<void>;
+  bulkDeleteBills(ids: number[]): Promise<void>;
 
   getExpenses(): Promise<Expense[]>;
   createExpense(expense: InsertExpense): Promise<Expense>;
   updateExpense(id: number, data: Partial<InsertExpense>): Promise<Expense | undefined>;
   deleteExpense(id: number): Promise<void>;
+  bulkDeleteExpenses(ids: number[]): Promise<void>;
 
   getBankTransactions(): Promise<BankTransaction[]>;
   createBankTransaction(tx: InsertBankTransaction): Promise<BankTransaction>;
+  bulkDeleteBankTransactions(ids: number[]): Promise<void>;
 
   getInvestments(): Promise<Investment[]>;
   createInvestment(inv: InsertInvestment): Promise<Investment>;
+  bulkDeleteInvestments(ids: number[]): Promise<void>;
 
   getIntegrations(): Promise<Integration[]>;
   createIntegration(int: InsertIntegration): Promise<Integration>;
@@ -90,12 +96,14 @@ export interface IStorage {
   createLabTest(test: InsertLabTest): Promise<LabTest>;
   updateLabTest(id: number, data: Partial<InsertLabTest>): Promise<LabTest | undefined>;
   deleteLabTest(id: number): Promise<void>;
+  bulkDeleteLabTests(ids: number[]): Promise<void>;
   getNextLabTestCode(): Promise<string>;
 
   getAppointments(): Promise<any[]>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: number, data: Partial<InsertAppointment>): Promise<Appointment | undefined>;
   deleteAppointment(id: number): Promise<void>;
+  bulkDeleteAppointments(ids: number[]): Promise<void>;
 
   getDoctors(): Promise<Doctor[]>;
   getDoctor(id: number): Promise<Doctor | undefined>;
@@ -257,6 +265,10 @@ export class DatabaseStorage implements IStorage {
     await db.delete(services).where(eq(services.id, id));
   }
 
+  async bulkDeleteServices(ids: number[]): Promise<void> {
+    await db.delete(services).where(inArray(services.id, ids));
+  }
+
   async getMedicines(): Promise<Medicine[]> {
     return db.select().from(medicines).orderBy(medicines.name);
   }
@@ -278,6 +290,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMedicine(id: number): Promise<void> {
     await db.delete(medicines).where(eq(medicines.id, id));
+  }
+
+  async bulkDeleteMedicines(ids: number[]): Promise<void> {
+    await db.delete(medicines).where(inArray(medicines.id, ids));
   }
 
   async getOpdVisits(): Promise<any[]> {
@@ -354,6 +370,10 @@ export class DatabaseStorage implements IStorage {
     await db.delete(bills).where(eq(bills.id, id));
   }
 
+  async bulkDeleteBills(ids: number[]): Promise<void> {
+    await db.delete(bills).where(inArray(bills.id, ids));
+  }
+
   async getExpenses(): Promise<Expense[]> {
     return db.select().from(expenses).orderBy(desc(expenses.date));
   }
@@ -372,6 +392,10 @@ export class DatabaseStorage implements IStorage {
     await db.delete(expenses).where(eq(expenses.id, id));
   }
 
+  async bulkDeleteExpenses(ids: number[]): Promise<void> {
+    await db.delete(expenses).where(inArray(expenses.id, ids));
+  }
+
   async getBankTransactions(): Promise<BankTransaction[]> {
     return db.select().from(bankTransactions).orderBy(desc(bankTransactions.date));
   }
@@ -381,6 +405,10 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async bulkDeleteBankTransactions(ids: number[]): Promise<void> {
+    await db.delete(bankTransactions).where(inArray(bankTransactions.id, ids));
+  }
+
   async getInvestments(): Promise<Investment[]> {
     return db.select().from(investments).orderBy(desc(investments.startDate));
   }
@@ -388,6 +416,10 @@ export class DatabaseStorage implements IStorage {
   async createInvestment(inv: InsertInvestment): Promise<Investment> {
     const [created] = await db.insert(investments).values(inv).returning();
     return created;
+  }
+
+  async bulkDeleteInvestments(ids: number[]): Promise<void> {
+    await db.delete(investments).where(inArray(investments.id, ids));
   }
 
   async getIntegrations(): Promise<Integration[]> {
@@ -595,6 +627,10 @@ export class DatabaseStorage implements IStorage {
     await db.delete(labTests).where(eq(labTests.id, id));
   }
 
+  async bulkDeleteLabTests(ids: number[]): Promise<void> {
+    await db.delete(labTests).where(inArray(labTests.id, ids));
+  }
+
   async getNextLabTestCode(): Promise<string> {
     const [result] = await db.select({ maxId: sql<number>`COALESCE(MAX(id), 0)` }).from(labTests);
     const num = (result.maxId || 0) + 1;
@@ -623,6 +659,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAppointment(id: number): Promise<void> {
     await db.delete(appointments).where(eq(appointments.id, id));
+  }
+
+  async bulkDeleteAppointments(ids: number[]): Promise<void> {
+    await db.delete(appointments).where(inArray(appointments.id, ids));
   }
 
   async getDoctors(): Promise<Doctor[]> {

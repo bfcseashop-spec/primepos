@@ -167,6 +167,7 @@ export default function LabTestsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadReferrer, setUploadReferrer] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const { data: labTests = [], isLoading } = useQuery<LabTestWithPatient[]>({
     queryKey: ["/api/lab-tests"],
@@ -219,6 +220,27 @@ export default function LabTestsPage() {
       toast({ title: t("labTests.deleted") });
     },
   });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await apiRequest("POST", "/api/lab-tests/bulk-delete", { ids });
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      setSelectedIds(new Set());
+      toast({ title: `${ids.length} lab test(s) deleted` });
+    },
+    onError: (err: Error) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    if (confirm(`Delete ${selectedIds.size} selected lab test(s)?`)) {
+      bulkDeleteMutation.mutate(Array.from(selectedIds));
+    }
+  };
 
   const handleSubmit = () => {
     if (!form.testName || form.categories.length === 0 || form.sampleTypes.length === 0 || !form.price) {
@@ -801,7 +823,15 @@ export default function LabTestsPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={t("labTests.noLabTests")} />
+            {selectedIds.size > 0 && (
+              <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border-b">
+                <span className="text-sm font-medium">{selectedIds.size} selected</span>
+                <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-delete-lab-tests">
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> {bulkDeleteMutation.isPending ? "Deleting..." : "Delete Selected"}
+                </Button>
+              </div>
+            )}
+            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={t("labTests.noLabTests")} selectedIds={selectedIds} onSelectionChange={setSelectedIds} />
           </CardContent>
         </Card>
       </div>
