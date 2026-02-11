@@ -151,6 +151,13 @@ export default function BankTransactionsPage() {
 
   const totalBillCollections = bills.reduce((s: number, b: any) => s + (Number(b.paidAmount) || 0), 0);
 
+  const abaTotal = (paymentsByMethod["aba"]?.total || 0);
+  const acledaTotal = (paymentsByMethod["acleda"]?.total || 0);
+  const cardTotal = (paymentsByMethod["card"]?.total || 0);
+  const cashTotal = (paymentsByMethod["cash"]?.total || 0);
+  const otherTotal = (paymentsByMethod["wechat"]?.total || 0) + (paymentsByMethod["gpay"]?.total || 0) + (paymentsByMethod["other_bank"]?.total || 0);
+  const dueTotal = bills.filter((b: any) => b.status !== "paid").reduce((s: number, b: any) => s + (Number(b.total) - Number(b.paidAmount)), 0);
+
   const filteredBillPayments = bills.filter((b: any) => {
     const matchesSearch = !billSearchTerm ||
       b.billNo?.toLowerCase().includes(billSearchTerm.toLowerCase()) ||
@@ -312,55 +319,81 @@ export default function BankTransactionsPage() {
       />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="bank-summary-stats">
-          <Card data-testid="stat-deposits-card">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="bank-summary-stats">
+          <Card data-testid="stat-aba-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shrink-0`}>
-                  <ArrowDownLeft className="h-5 w-5 text-white" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shrink-0">
+                  <Building2 className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("bank.totalDeposits")}</p>
-                  <p className="text-xl font-bold" data-testid="stat-deposits">${totalDeposits.toFixed(2)}</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total ABA</p>
+                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="stat-aba">${abaTotal.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card data-testid="stat-withdrawals-card">
+          <Card data-testid="stat-acleda-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-red-500 to-red-600 shrink-0`}>
-                  <ArrowUpRight className="h-5 w-5 text-white" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-amber-500 to-amber-600 shrink-0">
+                  <Building2 className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("bank.totalWithdrawals")}</p>
-                  <p className="text-xl font-bold" data-testid="stat-withdrawals">${totalWithdrawals.toFixed(2)}</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Acleda</p>
+                  <p className="text-lg font-bold text-amber-600 dark:text-amber-400" data-testid="stat-acleda">${acledaTotal.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card data-testid="stat-net-balance-card">
+          <Card data-testid="stat-cash-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shrink-0`}>
-                  <Landmark className="h-5 w-5 text-white" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shrink-0">
+                  <Banknote className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("bank.balance")}</p>
-                  <p className="text-xl font-bold" data-testid="stat-net-balance">${(totalDeposits - totalWithdrawals).toFixed(2)}</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Cash</p>
+                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400" data-testid="stat-cash">${cashTotal.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card data-testid="stat-bill-collections-card">
+          <Card data-testid="stat-card-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600 shrink-0`}>
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600 shrink-0">
+                  <CreditCard className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Card</p>
+                  <p className="text-lg font-bold text-violet-600 dark:text-violet-400" data-testid="stat-card">${cardTotal.toFixed(2)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card data-testid="stat-other-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-sky-500 to-sky-600 shrink-0">
+                  <Smartphone className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Other Payments</p>
+                  <p className="text-lg font-bold text-sky-600 dark:text-sky-400" data-testid="stat-other">${otherTotal.toFixed(2)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card data-testid="stat-due-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-red-500 to-red-600 shrink-0">
                   <Receipt className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("bank.billCollections")}</p>
-                  <p className="text-xl font-bold" data-testid="stat-bill-collections">${totalBillCollections.toFixed(2)}</p>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Due Payments</p>
+                  <p className="text-lg font-bold text-red-600 dark:text-red-400" data-testid="stat-due">${dueTotal.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
