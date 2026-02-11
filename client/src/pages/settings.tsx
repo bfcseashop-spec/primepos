@@ -297,6 +297,56 @@ export default function SettingsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
+                <div>
+                  <Label>Logo / Image</Label>
+                  <div className="flex items-center gap-4 mt-1.5">
+                    <div className="relative flex h-20 w-20 items-center justify-center rounded-md border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden shrink-0">
+                      {settings?.logo ? (
+                        <img src={settings.logo} alt="Logo" className="h-full w-full object-contain" data-testid="img-logo-preview" />
+                      ) : (
+                        <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => logoInputRef.current?.click()}
+                          disabled={logoUploading}
+                          data-testid="button-upload-logo"
+                        >
+                          <Upload className="h-3.5 w-3.5 mr-1.5" />
+                          {logoUploading ? "Uploading..." : settings?.logo ? "Change Logo" : "Upload Logo"}
+                        </Button>
+                        {settings?.logo && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeLogoMutation.mutate()}
+                            disabled={removeLogoMutation.isPending}
+                            data-testid="button-remove-logo"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1.5 text-red-500" />
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">PNG, JPG or SVG. Max 2MB. Used on invoices and receipts.</p>
+                    </div>
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                      className="hidden"
+                      onChange={handleLogoUpload}
+                      data-testid="input-logo-file"
+                    />
+                  </div>
+                </div>
+                <Separator />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label htmlFor="appName">Application Name</Label>
