@@ -66,6 +66,8 @@ shared/
 - **Dark Mode**: All colors include dark variants (e.g., dark:text-blue-400)
 
 ## Recent Changes
+- 2026-02-11: Added shared DateFilterBar component (client/src/components/date-filter.tsx) with useDateFilter hook, isDateInRange utility. Periods: All/Today/Yesterday/This Week/Last Week/This Month/Last Month/Custom date range
+- 2026-02-11: Integrated date filtering across 7 pages: Dashboard (revenue chart, recent visits), Billing/POS (bills table, stats), Appointments (cards, stats), Lab Tests (table, stats), Expenses (table, stats), Bank Transactions (transactions, bills), Investments (table, stats)
 - 2026-02-10: Comprehensive colorful redesign across all 18+ pages - vibrant stat cards, colorful status badges, colored action icons, gradient charts, colorful section headers, distinct payment method colors, and polished empty states
 - 2026-02-10: Redesigned Settings with 4-tab layout (Application Metadata/Currency & Localization/Company Details/Activity Logs), dual currency selection, exchange rate, company receipt details, activity logging for user/role/settings changes
 - 2026-02-10: Renamed Staff & Roles to User & Role Management, vertical layout with inline role creation form, role description field, edit/delete roles
