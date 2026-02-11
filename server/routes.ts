@@ -469,6 +469,134 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/services/export/:format", async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const allServices = await storage.getServices();
+      const rows = allServices.map(s => ({
+        "Service Name": s.name,
+        Category: s.category || "",
+        Price: s.price,
+        Description: s.description || "",
+        Status: s.isActive ? "Active" : "Inactive",
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Services");
+      const format = req.params.format;
+      if (format === "pdf") {
+        const PDFDocument = (await import("pdfkit")).default;
+        const doc = new PDFDocument({ margin: 40, size: "A4", layout: "landscape" });
+        const chunks: Buffer[] = [];
+        doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+        doc.on("end", () => {
+          const pdfBuf = Buffer.concat(chunks);
+          res.setHeader("Content-Type", "application/pdf");
+          res.setHeader("Content-Disposition", "attachment; filename=services.pdf");
+          res.send(pdfBuf);
+        });
+        doc.fontSize(18).text("Service List Report", { align: "center" });
+        doc.moveDown(0.5);
+        doc.fontSize(9).fillColor("#666").text(`Generated: ${new Date().toLocaleDateString()}`, { align: "center" });
+        doc.moveDown(1);
+        const headers = ["Service Name", "Category", "Price", "Description", "Status"];
+        const colWidths = [150, 100, 80, 250, 80];
+        let y = doc.y;
+        doc.fontSize(8).fillColor("#fff");
+        let x = 40;
+        headers.forEach((h, i) => {
+          doc.rect(x, y, colWidths[i], 18).fill("#3b82f6");
+          doc.fillColor("#fff").text(h, x + 4, y + 5, { width: colWidths[i] - 8 });
+          x += colWidths[i];
+        });
+        y += 18;
+        doc.fillColor("#333");
+        allServices.forEach((s, idx) => {
+          if (y > 520) { doc.addPage(); y = 40; }
+          const bgColor = idx % 2 === 0 ? "#f9f9f9" : "#ffffff";
+          x = 40;
+          const vals = [s.name, s.category || "", `$${Number(s.price).toFixed(2)}`, (s.description || "").substring(0, 60), s.isActive ? "Active" : "Inactive"];
+          vals.forEach((v, i) => {
+            doc.rect(x, y, colWidths[i], 16).fill(bgColor);
+            doc.fillColor("#333").text(v, x + 4, y + 4, { width: colWidths[i] - 8 });
+            x += colWidths[i];
+          });
+          y += 16;
+        });
+        doc.moveDown(1);
+        doc.fontSize(10).fillColor("#333").text(`Total Services: ${allServices.length}`, 40, y + 10);
+        doc.end();
+        return;
+      } else {
+        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment; filename=services.xlsx");
+        res.send(buf);
+      }
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/services/sample-template", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const sampleRows = [
+        { "Service Name": "General Consultation", Category: "Consultation", Price: "25.00" },
+        { "Service Name": "Blood Test - CBC", Category: "Laboratory", Price: "15.00" },
+        { "Service Name": "Chest X-Ray", Category: "Radiology", Price: "35.00" },
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Service Template");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=service_import_template.xlsx");
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  const serviceImportUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  });
+
+  app.post("/api/services/import", serviceImportUpload.single("file"), async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      if (rows.length === 0) return res.status(400).json({ message: "File is empty or has no data rows" });
+      let imported = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const name = row["Service Name"] || row["service name"] || row["Name"] || row["name"];
+        const price = row["Price"] || row["price"];
+        if (!name) { skipped++; errors.push(`Row ${i + 2}: Missing service name`); continue; }
+        try {
+          await storage.createService({
+            name,
+            category: row["Category"] || row["category"] || "General",
+            price: (parseFloat(price) || 0).toString(),
+            description: row["Description"] || row["description"] || null,
+            imageUrl: null,
+            isActive: true,
+          });
+          imported++;
+        } catch (err: any) { skipped++; errors.push(`Row ${i + 2}: ${err.message}`); }
+      }
+      res.json({ imported, skipped, total: rows.length, errors: errors.slice(0, 10) });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/services/bulk-delete", async (req, res) => {
     try {
       const { ids } = req.body;
