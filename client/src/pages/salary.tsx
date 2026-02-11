@@ -986,6 +986,7 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Loan Details - {selectedLoan?.staffName}</DialogTitle>
+            <DialogDescription className="sr-only">View loan details and installment history</DialogDescription>
           </DialogHeader>
           {selectedLoan && (
             <div className="space-y-4">
@@ -1775,6 +1776,7 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Salary Record Details</DialogTitle>
+            <DialogDescription className="sr-only">View salary record information</DialogDescription>
           </DialogHeader>
           {viewingSalary && (
             <div className="space-y-3 py-2">

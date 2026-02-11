@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw, LayoutGrid, List, Eye, Camera, X, UserCheck, UserX, Activity, BedDouble, Building2, Briefcase, Users, CircleCheck, CircleOff, CalendarOff, Stethoscope, DollarSign, GraduationCap, MapPin, CalendarDays, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -477,6 +477,7 @@ export default function DoctorManagementPage() {
                 <Stethoscope className="h-5 w-5 text-blue-500 dark:text-blue-400" />
                 {t("doctors.title")}
               </DialogTitle>
+              <DialogDescription className="sr-only">View doctor profile details</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col items-center py-4">
               <Avatar className="h-20 w-20">
@@ -522,6 +523,7 @@ export default function DoctorManagementPage() {
                 {editDialog ? <Edit className="h-5 w-5 text-amber-500 dark:text-amber-400" /> : <Plus className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />}
                 {editDialog ? t("common.edit") : t("doctors.addDoctor")}
               </DialogTitle>
+              <DialogDescription className="sr-only">Fill in doctor information</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="flex flex-col items-center gap-2">
@@ -665,6 +667,7 @@ export default function DoctorManagementPage() {
                 <Building2 className="h-5 w-5 text-blue-500 dark:text-blue-400" />
                 Manage Departments
               </DialogTitle>
+              <DialogDescription className="sr-only">Add or remove hospital departments</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -735,6 +738,7 @@ export default function DoctorManagementPage() {
                 <Briefcase className="h-5 w-5 text-violet-500 dark:text-violet-400" />
                 Manage Positions
               </DialogTitle>
+              <DialogDescription className="sr-only">Add or remove doctor positions</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <div className="flex items-center gap-2">

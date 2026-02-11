@@ -834,6 +834,7 @@ export default function OpdPage() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle data-testid="text-appointment-dialog-title">{t("appointments.newAppointment")}</DialogTitle>
+            <DialogDescription className="sr-only">Schedule a new appointment for this patient</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateAppointment} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">

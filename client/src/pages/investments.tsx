@@ -227,6 +227,7 @@ export default function InvestmentsPage() {
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>{t("investments.addInvestment")}</DialogTitle>
+                <DialogDescription className="sr-only">Record a new investment entry</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-3">
                 <div>

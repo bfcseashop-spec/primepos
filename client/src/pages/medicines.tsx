@@ -6,7 +6,7 @@ import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -761,6 +761,7 @@ export default function MedicinesPage() {
                     <Pill className="h-5 w-5 text-teal-500" />
                     {t("medicines.addMedicine")}
                   </DialogTitle>
+                  <DialogDescription className="sr-only">Enter details for a new medicine</DialogDescription>
                 </DialogHeader>
                 {formContent}
                 <Button onClick={handleSubmit} className="w-full" disabled={createMutation.isPending} data-testid="button-submit-medicine">
@@ -780,6 +781,7 @@ export default function MedicinesPage() {
                 <Pencil className="h-5 w-5 text-amber-500" />
                 {t("common.edit")}
               </DialogTitle>
+              <DialogDescription className="sr-only">Modify medicine details</DialogDescription>
             </DialogHeader>
             {formContent}
             <Button onClick={handleSubmit} className="w-full" disabled={updateMutation.isPending} data-testid="button-update-medicine">
@@ -797,6 +799,7 @@ export default function MedicinesPage() {
                 <Eye className="h-5 w-5 text-blue-500" />
                 {t("medicines.title")}
               </DialogTitle>
+              <DialogDescription className="sr-only">View medicine information</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               {viewMed.imageUrl && (
@@ -877,6 +880,7 @@ export default function MedicinesPage() {
               <Tag className="h-5 w-5 text-indigo-500" />
               {t("medicines.categoryMgmt")}
             </DialogTitle>
+            <DialogDescription className="sr-only">Add or remove medicine categories</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex gap-2">
@@ -1164,6 +1168,7 @@ export default function MedicinesPage() {
                 <Upload className="h-5 w-5 text-teal-500" />
                 {t("common.import")} {t("billing.medicines")}
               </DialogTitle>
+              <DialogDescription className="sr-only">Upload a file to import medicine records</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="border-2 border-dashed rounded-md p-6 text-center">

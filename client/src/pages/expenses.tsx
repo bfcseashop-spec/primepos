@@ -5,7 +5,7 @@ import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -680,6 +680,7 @@ export default function ExpensesPage() {
               <FileText className="h-5 w-5 text-emerald-500" />
               Record New Expense
             </DialogTitle>
+            <DialogDescription className="sr-only">Enter details for a new expense record</DialogDescription>
           </DialogHeader>
           <ExpenseForm onSubmit={handleCreate} isPending={createMutation.isPending} submitLabel="Record Expense" />
         </DialogContent>
@@ -693,6 +694,7 @@ export default function ExpensesPage() {
                 <Pencil className="h-5 w-5 text-blue-500" />
                 {t("common.edit")}
               </DialogTitle>
+              <DialogDescription className="sr-only">Modify expense details</DialogDescription>
             </DialogHeader>
             <ExpenseForm onSubmit={handleEdit} expense={editExpense} isPending={updateMutation.isPending} submitLabel={t("common.update")} />
           </DialogContent>
@@ -707,6 +709,7 @@ export default function ExpensesPage() {
                 <Eye className="h-5 w-5 text-emerald-500" />
                 Expense Details
               </DialogTitle>
+              <DialogDescription className="sr-only">View expense information</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -764,6 +767,7 @@ export default function ExpensesPage() {
                 <FolderPlus className="h-5 w-5 text-emerald-500" />
                 Manage Expense Categories
               </DialogTitle>
+              <DialogDescription className="sr-only">Add or remove expense categories</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="flex items-center gap-2 flex-wrap">
@@ -821,6 +825,7 @@ export default function ExpensesPage() {
                 <Upload className="h-5 w-5 text-emerald-500" />
                 Import Expenses
               </DialogTitle>
+              <DialogDescription className="sr-only">Upload a file to import expense records</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="border-2 border-dashed rounded-md p-6 text-center">

@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -115,6 +115,7 @@ export default function IntegrationsPage() {
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>{t("integrations.addDevice")}</DialogTitle>
+                <DialogDescription className="sr-only">Configure a new device integration</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-3">
                 <div>

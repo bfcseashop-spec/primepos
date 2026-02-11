@@ -584,6 +584,7 @@ export default function StaffPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Create User</DialogTitle>
+            <DialogDescription className="sr-only">Create a new user account</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateStaff} className="space-y-3">
             <div>
@@ -632,6 +633,7 @@ export default function StaffPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
+            <DialogDescription className="sr-only">View user account details</DialogDescription>
           </DialogHeader>
           {selectedUser && (
             <div className="space-y-3 py-2">
@@ -655,6 +657,7 @@ export default function StaffPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription className="sr-only">Edit user account information</DialogDescription>
           </DialogHeader>
           {selectedUser && (
             <form onSubmit={handleEditUser} className="space-y-3">
@@ -707,6 +710,7 @@ export default function StaffPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Role</DialogTitle>
+            <DialogDescription className="sr-only">Edit role name and description</DialogDescription>
           </DialogHeader>
           {selectedRole && (
             <form onSubmit={handleEditRole} className="space-y-3">

@@ -7,7 +7,7 @@ import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -579,6 +579,7 @@ export default function LabTestsPage() {
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>{t("labTests.addTest")}</DialogTitle>
+                <DialogDescription className="sr-only">Enter details for a new lab test</DialogDescription>
               </DialogHeader>
               {formContent}
               <Button className="w-full" onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-lab-test">
@@ -597,6 +598,7 @@ export default function LabTestsPage() {
                 <Eye className="h-5 w-5 text-blue-500" />
                 {t("labTests.title")}
               </DialogTitle>
+              <DialogDescription className="sr-only">View lab test details and results</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -676,6 +678,7 @@ export default function LabTestsPage() {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{t("common.edit")} ({editTest.testCode})</DialogTitle>
+              <DialogDescription className="sr-only">Modify lab test information</DialogDescription>
             </DialogHeader>
             {formContent}
             <Button className="w-full" onClick={handleSubmit} disabled={updateMutation.isPending} data-testid="button-update-lab-test">
@@ -693,6 +696,7 @@ export default function LabTestsPage() {
                 <Upload className="h-5 w-5 text-green-500" />
                 {t("labTests.uploadReport")}
               </DialogTitle>
+              <DialogDescription className="sr-only">Upload a lab test report file</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <div>
@@ -740,6 +744,7 @@ export default function LabTestsPage() {
                 <QrCode className="h-5 w-5 text-purple-500" />
                 {t("labTests.barcode")}
               </DialogTitle>
+              <DialogDescription className="sr-only">View barcode for this lab test</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col items-center gap-3 py-4">
               <div className="p-4 bg-white rounded-md border">
