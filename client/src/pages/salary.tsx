@@ -526,7 +526,7 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
                           const fd = new FormData();
                           fd.append("file", file);
                           try {
-                            const res = await fetch(`/api/salary-profiles/${editingProfile.id}/upload-image`, { method: "POST", body: fd });
+                            const res = await fetch(`/api/salary-profiles/${editingProfile.id}/upload-image`, { method: "POST", body: fd, credentials: "include" });
                             const data = await res.json();
                             setForm(f => ({ ...f, profileImage: data.profileImage || "" }));
                             queryClient.invalidateQueries({ queryKey: ["/api/salary-profiles"] });
@@ -577,7 +577,7 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
                           const fd = new FormData();
                           fd.append("file", file);
                           try {
-                            const res = await fetch(`/api/salary-profiles/${editingProfile.id}/upload-payment-slip`, { method: "POST", body: fd });
+                            const res = await fetch(`/api/salary-profiles/${editingProfile.id}/upload-payment-slip`, { method: "POST", body: fd, credentials: "include" });
                             const data = await res.json();
                             setForm(f => ({ ...f, paymentSlip: data.paymentSlip || "" }));
                             queryClient.invalidateQueries({ queryKey: ["/api/salary-profiles"] });

@@ -247,7 +247,7 @@ export default function ExpensesPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/expenses/import", { method: "POST", body: formData });
+      const res = await fetch("/api/expenses/import", { method: "POST", body: formData, credentials: "include" });
       const result = await res.json();
       if (!res.ok) throw new Error(result.message);
       setImportResult(result);

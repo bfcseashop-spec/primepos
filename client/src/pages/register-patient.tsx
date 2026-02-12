@@ -60,7 +60,7 @@ export default function RegisterPatientPage() {
     try {
       const formData = new FormData();
       formData.append("photo", file);
-      const res = await fetch("/api/patients/upload-photo", { method: "POST", body: formData });
+      const res = await fetch("/api/patients/upload-photo", { method: "POST", body: formData, credentials: "include" });
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
       setPhotoUrl(data.photoUrl);

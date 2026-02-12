@@ -90,7 +90,7 @@ export default function MedicinesPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/medicines/import", { method: "POST", body: formData });
+      const res = await fetch("/api/medicines/import", { method: "POST", body: formData, credentials: "include" });
       const data = await res.json();
       if (res.ok) {
         setImportResult(data);

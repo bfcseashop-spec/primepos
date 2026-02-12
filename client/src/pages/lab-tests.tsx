@@ -291,6 +291,7 @@ export default function LabTestsPage() {
       const res = await fetch(`/api/lab-tests/${uploadTest.id}/upload-report`, {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
       if (!res.ok) {
         const err = await res.json();

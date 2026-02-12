@@ -126,7 +126,7 @@ export default function DoctorManagementPage() {
     try {
       const formData = new FormData();
       formData.append("photo", file);
-      const res = await fetch("/api/doctors/upload-photo", { method: "POST", body: formData });
+      const res = await fetch("/api/doctors/upload-photo", { method: "POST", body: formData, credentials: "include" });
       const data = await res.json();
       if (res.ok) {
         setForm(f => ({ ...f, photoUrl: data.photoUrl }));

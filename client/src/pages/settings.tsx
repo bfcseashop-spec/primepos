@@ -122,7 +122,7 @@ export default function SettingsPage() {
     try {
       const formData = new FormData();
       formData.append("logo", file);
-      const res = await fetch("/api/settings/upload-logo", { method: "POST", body: formData });
+      const res = await fetch("/api/settings/upload-logo", { method: "POST", body: formData, credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message || "Upload failed");

@@ -236,6 +236,85 @@ export async function registerRoutes(
     }
   });
 
+  // Public download endpoints (no auth) so window.open(..., "_blank") works with file download
+  app.get("/api/services/sample-template", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const sampleRows = [
+        { "Service Name": "General Consultation", Category: "Consultation", Price: "25.00" },
+        { "Service Name": "Blood Test - CBC", Category: "Laboratory", Price: "15.00" },
+        { "Service Name": "Chest X-Ray", Category: "Radiology", Price: "35.00" },
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Service Template");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=service_import_template.xlsx");
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/medicines/sample-template", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const sampleRows = [
+        {
+          Name: "Paracetamol 500mg", "Generic Name": "Acetaminophen", Category: "Tablet",
+          Manufacturer: "PharmaCo", "Batch No": "B-2026-001", "Expiry Date": "2027-12-31",
+          Unit: "Box", "Unit Count": 10, "Box Price": "5.00", "Qty Per Box": 10,
+          "Selling Price (Local)": "0.80", "Selling Price (Foreigner)": "1.00", "Stock Alert": 20,
+        },
+        {
+          Name: "Amoxicillin 250mg", "Generic Name": "Amoxicillin", Category: "Capsule",
+          Manufacturer: "MedLab", "Batch No": "B-2026-002", "Expiry Date": "2027-06-30",
+          Unit: "Box", "Unit Count": 5, "Box Price": "8.00", "Qty Per Box": 10,
+          "Selling Price (Local)": "1.20", "Selling Price (Foreigner)": "1.50", "Stock Alert": 15,
+        },
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Medicine Template");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=medicine_import_template.xlsx");
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/expenses/sample-template", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const sampleRows = [
+        {
+          Date: "2026-02-10", Category: "Medical Supplies", Description: "Surgical gloves (100 boxes)",
+          Amount: "250.00", "Payment Method": "cash", Notes: "Monthly supply order",
+        },
+        {
+          Date: "2026-02-09", Category: "Utilities", Description: "Electricity bill - January",
+          Amount: "180.50", "Payment Method": "aba", Notes: "Monthly utility",
+        },
+        {
+          Date: "2026-02-08", Category: "Equipment", Description: "Blood pressure monitor",
+          Amount: "120.00", "Payment Method": "card", Notes: "Replacement unit",
+        },
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Expense Template");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=expense_import_template.xlsx");
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Protect all other API routes
   app.use("/api", requireAuth);
 
@@ -542,26 +621,6 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/services/sample-template", async (_req, res) => {
-    try {
-      const XLSX = await import("xlsx");
-      const sampleRows = [
-        { "Service Name": "General Consultation", Category: "Consultation", Price: "25.00" },
-        { "Service Name": "Blood Test - CBC", Category: "Laboratory", Price: "15.00" },
-        { "Service Name": "Chest X-Ray", Category: "Radiology", Price: "35.00" },
-      ];
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(sampleRows);
-      XLSX.utils.book_append_sheet(wb, ws, "Service Template");
-      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", "attachment; filename=service_import_template.xlsx");
-      res.send(buf);
-    } catch (err: any) {
-      res.status(500).json({ message: err.message });
-    }
-  });
-
   const serviceImportUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 },
@@ -689,35 +748,6 @@ export async function registerRoutes(
         res.setHeader("Content-Disposition", "attachment; filename=medicines.xlsx");
         res.send(buf);
       }
-    } catch (err: any) {
-      res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.get("/api/medicines/sample-template", async (_req, res) => {
-    try {
-      const XLSX = await import("xlsx");
-      const sampleRows = [
-        {
-          Name: "Paracetamol 500mg", "Generic Name": "Acetaminophen", Category: "Tablet",
-          Manufacturer: "PharmaCo", "Batch No": "B-2026-001", "Expiry Date": "2027-12-31",
-          Unit: "Box", "Unit Count": 10, "Box Price": "5.00", "Qty Per Box": 10,
-          "Selling Price (Local)": "0.80", "Selling Price (Foreigner)": "1.00", "Stock Alert": 20,
-        },
-        {
-          Name: "Amoxicillin 250mg", "Generic Name": "Amoxicillin", Category: "Capsule",
-          Manufacturer: "MedLab", "Batch No": "B-2026-002", "Expiry Date": "2027-06-30",
-          Unit: "Box", "Unit Count": 5, "Box Price": "8.00", "Qty Per Box": 10,
-          "Selling Price (Local)": "1.20", "Selling Price (Foreigner)": "1.50", "Stock Alert": 15,
-        },
-      ];
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(sampleRows);
-      XLSX.utils.book_append_sheet(wb, ws, "Medicine Template");
-      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", "attachment; filename=medicine_import_template.xlsx");
-      res.send(buf);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -936,35 +966,6 @@ export async function registerRoutes(
         res.setHeader("Content-Disposition", "attachment; filename=expenses.xlsx");
         res.send(buf);
       }
-    } catch (err: any) {
-      res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.get("/api/expenses/sample-template", async (_req, res) => {
-    try {
-      const XLSX = await import("xlsx");
-      const sampleRows = [
-        {
-          Date: "2026-02-10", Category: "Medical Supplies", Description: "Surgical gloves (100 boxes)",
-          Amount: "250.00", "Payment Method": "cash", Notes: "Monthly supply order",
-        },
-        {
-          Date: "2026-02-09", Category: "Utilities", Description: "Electricity bill - January",
-          Amount: "180.50", "Payment Method": "aba", Notes: "Monthly utility",
-        },
-        {
-          Date: "2026-02-08", Category: "Equipment", Description: "Blood pressure monitor",
-          Amount: "120.00", "Payment Method": "card", Notes: "Replacement unit",
-        },
-      ];
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(sampleRows);
-      XLSX.utils.book_append_sheet(wb, ws, "Expense Template");
-      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", "attachment; filename=expense_import_template.xlsx");
-      res.send(buf);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -1295,7 +1296,7 @@ export async function registerRoutes(
       const logoUrl = `/uploads/logos/${req.file.filename}`;
       const current = await storage.getSettings();
       if (current?.logo) {
-        const oldPath = path.join(process.cwd(), current.logo);
+        const oldPath = path.join(logoUploadsDir, path.basename(current.logo));
         if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
       const settings = await storage.upsertSettings({ ...current, logo: logoUrl });
@@ -1315,7 +1316,7 @@ export async function registerRoutes(
     try {
       const current = await storage.getSettings();
       if (current?.logo) {
-        const oldPath = path.join(process.cwd(), current.logo);
+        const oldPath = path.join(logoUploadsDir, path.basename(current.logo));
         if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
       const settings = await storage.upsertSettings({ ...current, logo: null });
@@ -1333,7 +1334,11 @@ export async function registerRoutes(
 
   app.put("/api/settings", async (req, res) => {
     try {
-      const data = validateBody(insertClinicSettingsSchema, req.body);
+      const current = await storage.getSettings();
+      const existing = current ? { ...current, id: undefined } : {};
+      const merged = { ...existing, ...req.body };
+      delete (merged as any).id;
+      const data = validateBody(insertClinicSettingsSchema, merged);
       const settings = await storage.upsertSettings(data);
       await storage.createActivityLog({
         action: "update",
