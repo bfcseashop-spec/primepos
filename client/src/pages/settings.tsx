@@ -68,6 +68,25 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<TabId>("metadata");
 
+  const [appName, setAppName] = useState("");
+  const [appTagline, setAppTagline] = useState("");
+  const [appVersion, setAppVersion] = useState("1.0.0");
+  const [clinicName, setClinicName] = useState("");
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [invoicePrefix, setInvoicePrefix] = useState("INV");
+  const [visitPrefix, setVisitPrefix] = useState("VIS");
+  const [patientPrefix, setPatientPrefix] = useState("PAT");
+
+  const [companyName, setCompanyName] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
+  const [companyEmail, setCompanyEmail] = useState("");
+  const [companyWebsite, setCompanyWebsite] = useState("");
+  const [companyTaxId, setCompanyTaxId] = useState("");
+  const [receiptFooter, setReceiptFooter] = useState("");
+
   const [primaryCurrency, setPrimaryCurrency] = useState("USD");
   const [secondaryCurrency, setSecondaryCurrency] = useState("KHR");
   const [dualCurrencyEnabled, setDualCurrencyEnabled] = useState(false);
@@ -86,6 +105,23 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (settings) {
+      setAppName(settings.appName ?? "ClinicPOS");
+      setAppTagline(settings.appTagline ?? "");
+      setAppVersion(settings.appVersion ?? "1.0.0");
+      setClinicName(settings.clinicName ?? "");
+      setAddress(settings.address ?? "");
+      setPhone(settings.phone ?? "");
+      setEmail(settings.email ?? "");
+      setInvoicePrefix(settings.invoicePrefix ?? "INV");
+      setVisitPrefix(settings.visitPrefix ?? "VIS");
+      setPatientPrefix(settings.patientPrefix ?? "PAT");
+      setCompanyName(settings.companyName ?? "");
+      setCompanyAddress(settings.companyAddress ?? "");
+      setCompanyPhone(settings.companyPhone ?? "");
+      setCompanyEmail(settings.companyEmail ?? "");
+      setCompanyWebsite(settings.companyWebsite ?? "");
+      setCompanyTaxId(settings.companyTaxId ?? "");
+      setReceiptFooter(settings.receiptFooter ?? "");
       setPrimaryCurrency(settings.currency || "USD");
       const hasDual = !!settings.secondaryCurrency && settings.secondaryCurrency !== settings.currency;
       setDualCurrencyEnabled(hasDual);
@@ -124,10 +160,11 @@ export default function SettingsPage() {
       formData.append("logo", file);
       const res = await fetch("/api/settings/upload-logo", { method: "POST", body: formData, credentials: "include" });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Upload failed");
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { message?: string }).message || "Upload failed");
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      const updated = (await res.json()) as ClinicSettings;
+      queryClient.setQueryData(["/api/settings"], updated);
       queryClient.invalidateQueries({ queryKey: ["/api/activity-logs"] });
       toast({ title: "Logo uploaded successfully" });
     } catch (err: any) {
@@ -173,19 +210,18 @@ export default function SettingsPage() {
 
   const handleSaveMetadata = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
     updateMutation.mutate({
       ...settingsToPayload(settings),
-      appName: form.get("appName") || "ClinicPOS",
-      appTagline: form.get("appTagline") || null,
-      appVersion: form.get("appVersion") || "1.0.0",
-      clinicName: form.get("clinicName") || "My Clinic",
-      address: form.get("address") || null,
-      phone: form.get("phone") || null,
-      email: form.get("email") || null,
-      invoicePrefix: form.get("invoicePrefix") || "INV",
-      visitPrefix: form.get("visitPrefix") || "VIS",
-      patientPrefix: form.get("patientPrefix") || "PAT",
+      appName: appName || "ClinicPOS",
+      appTagline: appTagline || null,
+      appVersion: appVersion || "1.0.0",
+      clinicName: clinicName || "My Clinic",
+      address: address || null,
+      phone: phone || null,
+      email: email || null,
+      invoicePrefix: invoicePrefix || "INV",
+      visitPrefix: visitPrefix || "VIS",
+      patientPrefix: patientPrefix || "PAT",
     });
   };
 
@@ -206,16 +242,15 @@ export default function SettingsPage() {
 
   const handleSaveCompany = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
     updateMutation.mutate({
       ...settingsToPayload(settings),
-      companyName: form.get("companyName") || null,
-      companyAddress: form.get("companyAddress") || null,
-      companyPhone: form.get("companyPhone") || null,
-      companyEmail: form.get("companyEmail") || null,
-      companyWebsite: form.get("companyWebsite") || null,
-      companyTaxId: form.get("companyTaxId") || null,
-      receiptFooter: form.get("receiptFooter") || null,
+      companyName: companyName || null,
+      companyAddress: companyAddress || null,
+      companyPhone: companyPhone || null,
+      companyEmail: companyEmail || null,
+      companyWebsite: companyWebsite || null,
+      companyTaxId: companyTaxId || null,
+      receiptFooter: receiptFooter || null,
     });
   };
 
@@ -350,16 +385,16 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label htmlFor="appName">Application Name</Label>
-                    <Input id="appName" name="appName" defaultValue={settings?.appName || "ClinicPOS"} data-testid="input-app-name" />
+                    <Input id="appName" name="appName" value={appName} onChange={(e) => setAppName(e.target.value)} data-testid="input-app-name" />
                   </div>
                   <div>
                     <Label htmlFor="appVersion">Version</Label>
-                    <Input id="appVersion" name="appVersion" defaultValue={settings?.appVersion || "1.0.0"} data-testid="input-app-version" />
+                    <Input id="appVersion" name="appVersion" value={appVersion} onChange={(e) => setAppVersion(e.target.value)} data-testid="input-app-version" />
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="appTagline">Tagline</Label>
-                  <Input id="appTagline" name="appTagline" placeholder="Your clinic management tagline" defaultValue={settings?.appTagline || ""} data-testid="input-app-tagline" />
+                  <Input id="appTagline" name="appTagline" placeholder="Your clinic management tagline" value={appTagline} onChange={(e) => setAppTagline(e.target.value)} data-testid="input-app-tagline" />
                 </div>
               </CardContent>
             </Card>
@@ -376,20 +411,20 @@ export default function SettingsPage() {
               <CardContent className="p-4 space-y-3">
                 <div>
                   <Label htmlFor="clinicName">Clinic Name</Label>
-                  <Input id="clinicName" name="clinicName" defaultValue={settings?.clinicName || ""} data-testid="input-clinic-name" />
+                  <Input id="clinicName" name="clinicName" value={clinicName} onChange={(e) => setClinicName(e.target.value)} data-testid="input-clinic-name" />
                 </div>
                 <div>
                   <Label htmlFor="address">Address</Label>
-                  <Input id="address" name="address" defaultValue={settings?.address || ""} data-testid="input-clinic-address" />
+                  <Input id="address" name="address" value={address} onChange={(e) => setAddress(e.target.value)} data-testid="input-clinic-address" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label htmlFor="phone">Phone</Label>
-                    <Input id="phone" name="phone" defaultValue={settings?.phone || ""} data-testid="input-clinic-phone" />
+                    <Input id="phone" name="phone" value={phone} onChange={(e) => setPhone(e.target.value)} data-testid="input-clinic-phone" />
                   </div>
                   <div>
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" name="email" type="email" defaultValue={settings?.email || ""} data-testid="input-clinic-email" />
+                    <Input id="email" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} data-testid="input-clinic-email" />
                   </div>
                 </div>
               </CardContent>
@@ -408,15 +443,15 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label htmlFor="invoicePrefix">Invoice Prefix</Label>
-                    <Input id="invoicePrefix" name="invoicePrefix" defaultValue={settings?.invoicePrefix || "INV"} data-testid="input-invoice-prefix" />
+                    <Input id="invoicePrefix" name="invoicePrefix" value={invoicePrefix} onChange={(e) => setInvoicePrefix(e.target.value)} data-testid="input-invoice-prefix" />
                   </div>
                   <div>
                     <Label htmlFor="visitPrefix">Visit Prefix</Label>
-                    <Input id="visitPrefix" name="visitPrefix" defaultValue={settings?.visitPrefix || "VIS"} data-testid="input-visit-prefix" />
+                    <Input id="visitPrefix" name="visitPrefix" value={visitPrefix} onChange={(e) => setVisitPrefix(e.target.value)} data-testid="input-visit-prefix" />
                   </div>
                   <div>
                     <Label htmlFor="patientPrefix">Patient Prefix</Label>
-                    <Input id="patientPrefix" name="patientPrefix" defaultValue={settings?.patientPrefix || "PAT"} data-testid="input-patient-prefix" />
+                    <Input id="patientPrefix" name="patientPrefix" value={patientPrefix} onChange={(e) => setPatientPrefix(e.target.value)} data-testid="input-patient-prefix" />
                   </div>
                 </div>
               </CardContent>
@@ -542,7 +577,7 @@ export default function SettingsPage() {
                 <div className="border rounded-md overflow-hidden bg-white dark:bg-card">
                   <div className="bg-slate-800 dark:bg-slate-900 text-white p-4 flex items-start justify-between gap-4">
                     <div>
-                      <p className="font-bold text-sm">{settings?.clinicName || "Prime Clinic"}</p>
+                      <p className="font-bold text-sm">{settings?.clinicName || ""}</p>
                       {settings?.address && <p className="text-[10px] text-slate-300">{settings.address}</p>}
                     </div>
                     <div className="text-right">
@@ -655,7 +690,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <Label htmlFor="companyName">Company / Business Name</Label>
-                  <Input id="companyName" name="companyName" placeholder="Legal business name for receipts" defaultValue={settings?.companyName || ""} data-testid="input-company-name" />
+                  <Input id="companyName" name="companyName" placeholder="Legal business name for receipts" value={companyName} onChange={(e) => setCompanyName(e.target.value)} data-testid="input-company-name" />
                 </div>
                 <div>
                   <Label htmlFor="companyAddress">Company Address</Label>
@@ -663,7 +698,8 @@ export default function SettingsPage() {
                     id="companyAddress"
                     name="companyAddress"
                     placeholder="Full address as it appears on receipts"
-                    defaultValue={settings?.companyAddress || ""}
+                    value={companyAddress}
+                    onChange={(e) => setCompanyAddress(e.target.value)}
                     className="resize-none"
                     rows={3}
                     data-testid="input-company-address"
@@ -672,21 +708,21 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label htmlFor="companyPhone">Phone</Label>
-                    <Input id="companyPhone" name="companyPhone" defaultValue={settings?.companyPhone || ""} data-testid="input-company-phone" />
+                    <Input id="companyPhone" name="companyPhone" value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} data-testid="input-company-phone" />
                   </div>
                   <div>
                     <Label htmlFor="companyEmail">Email</Label>
-                    <Input id="companyEmail" name="companyEmail" type="email" defaultValue={settings?.companyEmail || ""} data-testid="input-company-email" />
+                    <Input id="companyEmail" name="companyEmail" type="email" value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} data-testid="input-company-email" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label htmlFor="companyWebsite">Website</Label>
-                    <Input id="companyWebsite" name="companyWebsite" placeholder="https://..." defaultValue={settings?.companyWebsite || ""} data-testid="input-company-website" />
+                    <Input id="companyWebsite" name="companyWebsite" placeholder="https://..." value={companyWebsite} onChange={(e) => setCompanyWebsite(e.target.value)} data-testid="input-company-website" />
                   </div>
                   <div>
                     <Label htmlFor="companyTaxId">Tax ID / Registration No.</Label>
-                    <Input id="companyTaxId" name="companyTaxId" defaultValue={settings?.companyTaxId || ""} data-testid="input-company-tax-id" />
+                    <Input id="companyTaxId" name="companyTaxId" value={companyTaxId} onChange={(e) => setCompanyTaxId(e.target.value)} data-testid="input-company-tax-id" />
                   </div>
                 </div>
                 <div>
@@ -695,7 +731,8 @@ export default function SettingsPage() {
                     id="receiptFooter"
                     name="receiptFooter"
                     placeholder="Thank you for visiting! This will appear at the bottom of receipts."
-                    defaultValue={settings?.receiptFooter || ""}
+                    value={receiptFooter}
+                    onChange={(e) => setReceiptFooter(e.target.value)}
                     className="resize-none"
                     rows={2}
                     data-testid="input-receipt-footer"

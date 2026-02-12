@@ -104,6 +104,9 @@ export async function seedDatabase() {
 
   // Settings
   await db.insert(clinicSettings).values({
+    appName: "ClinicPOS",
+    appTagline: "Your clinic management tagline",
+    appVersion: "1.0.0",
     clinicName: "Springfield Medical Clinic",
     address: "100 Healthcare Ave, Springfield, IL 62701",
     phone: "+1-555-CLINIC",

@@ -202,8 +202,10 @@ export default function BillingPage() {
     const items = bill.items || billItems;
     const printWindow = window.open("", "_blank", "width=800,height=900");
     if (!printWindow) return;
-    const clinicName = settings?.clinicName || "Prime Clinic";
-    const clinicEmail = settings?.email || "info@primeclinic.com";
+    const clinicName = settings?.clinicName || "";
+    const clinicEmail = settings?.email || "";
+    const clinicNameDisplay = clinicName || "My Clinic";
+    const clinicEmailDisplay = clinicEmail || "your clinic";
     const clinicPhone = settings?.phone || "";
     const clinicAddress = settings?.address || "";
     const statusLabel = bill.status === "paid" ? "Paid" : "Pending";
@@ -235,10 +237,10 @@ export default function BillingPage() {
           <tr>
             <td style="width:50%;vertical-align:middle;">
               ${settings?.logo ? `<img src="${settings.logo}" alt="Logo" style="max-height:50px;margin-bottom:4px;display:block;" />` : ""}
-              <div style="font-size:18px;font-weight:700;color:#0f766e;">${clinicName}</div>
+              <div style="font-size:18px;font-weight:700;color:#0f766e;">${clinicNameDisplay}</div>
               ${clinicAddress ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">${clinicAddress}</div>` : ""}
               ${clinicPhone ? `<div style="font-size:11px;color:#6b7280;">${clinicPhone}</div>` : ""}
-              ${clinicEmail ? `<div style="font-size:11px;color:#6b7280;">${clinicEmail}</div>` : ""}
+              <div style="font-size:11px;color:#6b7280;">${clinicEmailDisplay}</div>
             </td>
             <td style="width:50%;text-align:right;vertical-align:top;">
               <div style="font-size:24px;font-weight:800;color:#1f2937;letter-spacing:1px;">INVOICE</div>
@@ -316,14 +318,14 @@ export default function BillingPage() {
         <!-- Payment Information -->
         <div style="background:#f0fdfa;border:1px solid #ccfbf1;border-radius:6px;padding:12px 14px;margin-bottom:20px;">
           <div style="font-size:11px;font-weight:600;color:#0f766e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Payment Information</div>
-          <div style="font-size:12px;color:#374151;">Payment for the above medical services at ${clinicName}.</div>
+          <div style="font-size:12px;color:#374151;">Payment for the above medical services at ${clinicNameDisplay}.</div>
           <div style="font-size:11px;color:#6b7280;margin-top:4px;">Amount Paid: <strong>${dualCurrencyHTML(Number(bill.paidAmount), settings)}</strong> via <strong>${getPaymentLabel(bill.paymentMethod)}</strong></div>
         </div>
 
         <!-- Footer -->
         <div style="text-align:center;padding-top:16px;border-top:1px solid #e5e7eb;">
-          <div style="font-size:13px;font-weight:600;color:#1f2937;margin-bottom:3px;">Thank you for choosing ${clinicName}!</div>
-          <div style="font-size:11px;color:#6b7280;">For questions, contact ${clinicEmail}</div>
+          <div style="font-size:13px;font-weight:600;color:#1f2937;margin-bottom:3px;">Thank you for choosing ${clinicNameDisplay}!</div>
+          <div style="font-size:11px;color:#6b7280;">For questions, contact ${clinicEmailDisplay}</div>
         </div>
 
         <script>window.onload = function() { window.print(); }</script>
@@ -499,7 +501,7 @@ export default function BillingPage() {
                         {settings?.logo && (
                           <img src={settings.logo} alt="Clinic Logo" className="h-10 mb-1.5 object-contain" data-testid="img-clinic-logo" />
                         )}
-                        <h2 className="text-base font-bold text-blue-700 dark:text-blue-400">{settings?.clinicName || "Prime Clinic"}</h2>
+                        <h2 className="text-base font-bold text-blue-700 dark:text-blue-400">{settings?.clinicName || ""}</h2>
                         {settings?.address && <p className="text-[10px] text-muted-foreground">{settings.address}</p>}
                         {settings?.phone && <p className="text-[10px] text-muted-foreground">{settings.phone}</p>}
                         {settings?.email && <p className="text-[10px] text-muted-foreground">{settings.email}</p>}
@@ -588,15 +590,15 @@ export default function BillingPage() {
                     {/* Payment Information */}
                     <div className="rounded-md bg-violet-500/10 border border-violet-500/20 p-3 mb-4">
                       <p className="text-[10px] uppercase text-violet-700 dark:text-violet-400 font-semibold tracking-wide mb-1">{t("billing.paymentMethod")}</p>
-                      <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || "Prime Clinic"}.</p>
+                      <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || ""}.</p>
                       <p className="text-[11px] text-muted-foreground mt-1">{t("common.amount")}: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatDualCurrency(total, settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(paymentMethod)}</span></p>
                     </div>
 
                     {/* Footer */}
                     <Separator className="mb-3" />
                     <div className="text-center space-y-0.5" data-testid="invoice-footer">
-                      <p className="text-sm font-semibold">Thank you for choosing {settings?.clinicName || "Prime Clinic"}!</p>
-                      <p className="text-xs text-muted-foreground">For questions, contact {settings?.email || "info@primeclinic.com"}</p>
+                      <p className="text-sm font-semibold">Thank you for choosing {settings?.clinicName || "us"}!</p>
+                      <p className="text-xs text-muted-foreground">For questions, contact {settings?.email || "your clinic"}</p>
                     </div>
                   </div>
 
@@ -961,7 +963,7 @@ export default function BillingPage() {
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <div>
                       {settings?.logo && <img src={settings.logo} alt="Logo" className="h-10 mb-1.5 object-contain" />}
-                      <h2 className="text-base font-bold text-blue-700 dark:text-blue-400">{settings?.clinicName || "Prime Clinic"}</h2>
+                      <h2 className="text-base font-bold text-blue-700 dark:text-blue-400">{settings?.clinicName || ""}</h2>
                       {settings?.address && <p className="text-[10px] text-muted-foreground">{settings.address}</p>}
                       {settings?.phone && <p className="text-[10px] text-muted-foreground">{settings.phone}</p>}
                       {settings?.email && <p className="text-[10px] text-muted-foreground">{settings.email}</p>}
@@ -1042,14 +1044,14 @@ export default function BillingPage() {
 
                   <div className="rounded-md bg-violet-500/10 border border-violet-500/20 p-3 mb-4">
                     <p className="text-[10px] uppercase text-violet-700 dark:text-violet-400 font-semibold tracking-wide mb-1">{t("billing.paymentMethod")}</p>
-                    <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || "Prime Clinic"}.</p>
+                    <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || ""}.</p>
                     <p className="text-[11px] text-muted-foreground mt-1">{t("billing.paid")}: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatDualCurrency(Number(viewBill.paidAmount), settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
                   </div>
 
                   <Separator className="mb-3" />
                   <div className="text-center space-y-0.5">
-                    <p className="text-sm font-semibold">Thank you for choosing {settings?.clinicName || "Prime Clinic"}!</p>
-                    <p className="text-xs text-muted-foreground">For questions, contact {settings?.email || "info@primeclinic.com"}</p>
+                    <p className="text-sm font-semibold">Thank you for choosing {settings?.clinicName || "us"}!</p>
+                    <p className="text-xs text-muted-foreground">For questions, contact {settings?.email || "your clinic"}</p>
                   </div>
                 </div>
 
