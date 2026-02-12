@@ -71,7 +71,7 @@ function App() {
         localStorage.setItem("clinicpos_user", JSON.stringify(user));
         setAuthChecked(true);
       })
-      .catch(() => {
+      .catch(async () => {
         const stored = localStorage.getItem("clinicpos_user");
         let restored: any = null;
         if (stored) {
@@ -84,11 +84,27 @@ function App() {
         }
         if (restored) {
           setCurrentUser(restored);
+          setAuthChecked(true);
+          // Revalidate session in background; if server says 401, clear stale client state
+          try {
+            const recheck = await fetch("/api/auth/me", { credentials: "include" });
+            if (!recheck.ok) {
+              setCurrentUser(null);
+              localStorage.removeItem("clinicpos_user");
+              queryClient.clear();
+            } else {
+              const user = await recheck.json();
+              setCurrentUser(user);
+              localStorage.setItem("clinicpos_user", JSON.stringify(user));
+            }
+          } catch {
+            // Network error: keep restored user; next API call will 401 if session invalid
+          }
         } else {
           setCurrentUser(null);
           localStorage.removeItem("clinicpos_user");
+          setAuthChecked(true);
         }
-        setAuthChecked(true);
       });
 
     const onLogout = () => {
@@ -116,6 +132,8 @@ function App() {
   const handleLogin = (user: any) => {
     setCurrentUser(user);
     localStorage.setItem("clinicpos_user", JSON.stringify(user));
+    // Refetch all data with the new session cookie (avoids stale 401 cache)
+    queryClient.invalidateQueries();
   };
 
   const sidebarStyle = {

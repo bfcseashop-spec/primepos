@@ -215,9 +215,11 @@ Ensure one of PM2 or systemd is set up so restarts are reliable.
 - [ ] `.env` has `DATABASE_URL` and `PORT=5010`
 - [ ] Database created and `npm run db:push` run
 - [ ] `npm run build` and `npm run start` work locally on the server
+- [ ] **On the server:** `curl -s http://localhost:5010/api/health` returns `{"status":"ok",...}` (not HTML)
+- [ ] **In the browser:** `https://pos.primeclinic24.com/api/health` returns JSON (if you see the app UI, the tunnel is not sending traffic to Node)
 - [ ] Cloudflared config includes `pos.primeclinic24.com` → `http://localhost:5010`
 - [ ] DNS CNAME for `pos.primeclinic24.com` points to the tunnel
-- [ ] App run by PM2 or systemd
+- [ ] App run by PM2 with `ecosystem.config.cjs` (so `start.cjs` loads `.env`)
 - [ ] GitHub secrets set (and SSH key if used)
 - [ ] After push to `main`, Actions run and app restarts
 
@@ -228,7 +230,8 @@ Ensure one of PM2 or systemd is set up so restarts are reliable.
 | Issue | Check |
 |-------|--------|
 | 502 from pos.primeclinic24.com | App listening on 5010? `curl http://localhost:5010` on server. |
+| **APIs return index.html / “All APIs not working” on VPS** | **Only the Node app must receive traffic for this host.** On the server run `curl -s http://localhost:5010/api/health` — you should see `{"status":"ok",...}`. If you get HTML, the request is not reaching the Node process. Ensure: (1) Cloudflared ingress points to `http://localhost:5010` with no other proxy in between. (2) You are not running nginx/caddy that serves the same hostname and returns the built `dist/public` for all paths. (3) Start the app with `pm2 start ecosystem.config.cjs` (so `start.cjs` runs and loads `.env` before the app). (4) After code changes, run `npm run build` and `pm2 restart primepos`. |
 | Permission denied in /var/www/primepos | `sudo chown -R $USER:$USER /var/www/primepos` |
-| DATABASE_URL must be set | Create `/var/www/primepos/.env` with `DATABASE_URL=...` |
+| DATABASE_URL must be set | Create `/var/www/primepos/.env` with `DATABASE_URL=...`; use `start.cjs` (via ecosystem) so `.env` is loaded. |
 | Build fails on server | `node -v` (need 20+), `npm ci` and `npm run build` |
 | Deploy workflow fails on SSH | Check `DEPLOY_HOST`, `DEPLOY_USER`, and key or password. If using Cloudflare Access for SSH, ensure the runner can authenticate (e.g. allow SSH key auth in Access). |

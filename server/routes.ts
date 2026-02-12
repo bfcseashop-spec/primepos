@@ -197,14 +197,25 @@ export async function registerRoutes(
       if (err) {
         return res.status(500).json({ message: "Logout failed" });
       }
-      res.clearCookie("connect.sid");
+      const isProduction = process.env.NODE_ENV === "production";
+      res.clearCookie("connect.sid", {
+        path: "/",
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: "lax",
+      });
       res.json({ message: "Logged out" });
     });
   });
 
-  app.get("/api/auth/me", (req, res) => {
+  app.get("/api/auth/me", async (req, res) => {
     if (!req.session || !req.session.userId) {
       return res.status(401).json({ message: "Not authenticated" });
+    }
+    let roleName = "User";
+    if (req.session.roleId) {
+      const role = await storage.getRole(req.session.roleId);
+      if (role) roleName = role.name;
     }
     res.json({
       id: req.session.userId,
@@ -212,6 +223,7 @@ export async function registerRoutes(
       fullName: req.session.fullName,
       email: req.session.email,
       roleId: req.session.roleId,
+      role: roleName,
     });
   });
 
