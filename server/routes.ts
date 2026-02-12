@@ -247,10 +247,12 @@ export async function registerRoutes(
       ];
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(sampleRows);
-      XLSX.utils.book_append_sheet(wb, ws, "Service Template");
-      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      XLSX.utils.book_append_sheet(wb, ws, "Services");
+      const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = Buffer.from(raw);
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", "attachment; filename=service_import_template.xlsx");
+      res.setHeader("Content-Length", String(buf.length));
       res.send(buf);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -276,10 +278,12 @@ export async function registerRoutes(
       ];
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(sampleRows);
-      XLSX.utils.book_append_sheet(wb, ws, "Medicine Template");
-      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      XLSX.utils.book_append_sheet(wb, ws, "Medicines");
+      const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = Buffer.from(raw);
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", "attachment; filename=medicine_import_template.xlsx");
+      res.setHeader("Content-Length", String(buf.length));
       res.send(buf);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -305,10 +309,12 @@ export async function registerRoutes(
       ];
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(sampleRows);
-      XLSX.utils.book_append_sheet(wb, ws, "Expense Template");
-      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+      const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = Buffer.from(raw);
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", "attachment; filename=expense_import_template.xlsx");
+      res.setHeader("Content-Length", String(buf.length));
       res.send(buf);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
