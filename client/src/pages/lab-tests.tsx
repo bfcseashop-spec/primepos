@@ -478,7 +478,8 @@ export default function LabTestsPage() {
                   .status-complete { background: #dcfce7; color: #15803d; }
                   .status-sample_missing { background: #fef3c7; color: #b45309; }
                   .status-cancel { background: #fee2e2; color: #dc2626; }
-                  @media print { body { padding: 20px; } }
+                  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                  @media print { body { padding: 20px; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
                 </style></head><body>
                 <h1>Lab Test Report - ${row.testCode}</h1>
                 <div class="info">

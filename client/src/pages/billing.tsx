@@ -230,9 +230,13 @@ export default function BillingPage() {
     printWindow.document.write(`
       <html><head><title>Invoice - ${bill.billNo}</title>
       <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937; padding: 30px; max-width: 800px; margin: 0 auto; font-size: 13px; }
-        @media print { body { padding: 15px; } }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937; padding: 30px; max-width: 800px; margin: 0 auto; font-size: 13px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        @media print {
+          body { padding: 15px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          table, tr, td, th, div, span { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
       </style></head><body>
 
         <!-- Header -->

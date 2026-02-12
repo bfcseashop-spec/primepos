@@ -352,7 +352,8 @@ export default function MedicinesPage() {
         .btn-bar{text-align:center;margin-top:20px;max-width:380px;margin-left:auto;margin-right:auto;}
         .print-btn{background:#2563eb;color:#fff;border:none;padding:10px 32px;font-size:15px;border-radius:6px;cursor:pointer;}
         .print-btn:hover{background:#1d4ed8;}
-        @media print{.btn-bar{display:none !important;}}
+        *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+        @media print{.btn-bar{display:none !important;} *{-webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;} }
       </style></head>
       <body>
         <div class="label">
