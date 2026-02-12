@@ -358,16 +358,27 @@ export default function BillingPage() {
     }]);
   };
 
+  const calcUnitPrice = (med: Medicine) => {
+    const boxPrice = Number(med.boxPrice) || 0;
+    const qtyPerBox = Number(med.qtyPerBox) || 0;
+    if (qtyPerBox <= 0 || boxPrice <= 0) return 0;
+    return Math.round((boxPrice / qtyPerBox) * 100) / 100;
+  };
+
   const addMedicineItem = (medicineId: string) => {
     const med = medicines.find(m => m.id === Number(medicineId));
     if (!med) return;
-    const price = Number(med.perMedPrice) || Number(med.sellingPriceLocal) || 0;
+    const unitPrice = calcUnitPrice(med);
+    if (unitPrice <= 0) {
+      toast({ title: "This medicine has no valid box price or qty per box set", variant: "destructive" });
+      return;
+    }
     setBillItems(prev => [...prev, {
       name: med.name,
       type: "medicine",
       quantity: 1,
-      unitPrice: price,
-      total: price,
+      unitPrice,
+      total: unitPrice,
     }]);
   };
 
@@ -671,10 +682,10 @@ export default function BillingPage() {
                       data-testid="select-add-medicine"
                       resetAfterSelect
                       options={medicines.filter(m => m.isActive).map(m => {
-                        const price = Number(m.perMedPrice) || Number(m.sellingPriceLocal) || 0;
+                        const unitPrice = calcUnitPrice(m);
                         return {
                           value: String(m.id),
-                          label: `${m.name} - $${price.toFixed(2)}`,
+                          label: `${m.name} - $${unitPrice.toFixed(2)}/pc`,
                           searchText: `${m.name} ${m.genericName || ""}`,
                         };
                       })}
