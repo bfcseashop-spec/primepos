@@ -7,7 +7,14 @@ async function throwIfResNotOk(res: Response) {
       window.dispatchEvent(new Event("clinicpos_logout_redirect"));
     }
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let message = text;
+    try {
+      const json = JSON.parse(text);
+      if (typeof json?.message === "string") message = json.message;
+    } catch {
+      // keep message as text
+    }
+    throw new Error(message);
   }
 }
 

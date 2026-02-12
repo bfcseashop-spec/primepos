@@ -84,7 +84,12 @@ export default function DoctorManagementPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const nextId = await fetch("/api/doctors/next-id", { credentials: "include" }).then(r => r.json());
+      const nextIdRes = await fetch("/api/doctors/next-id", { credentials: "include" });
+      if (!nextIdRes.ok) {
+        const err = await nextIdRes.json().catch(() => ({}));
+        throw new Error(err.message || `${nextIdRes.status}: ${nextIdRes.statusText}`);
+      }
+      const nextId = await nextIdRes.json();
       return apiRequest("POST", "/api/doctors", { ...data, doctorId: nextId.id });
     },
     onSuccess: () => {

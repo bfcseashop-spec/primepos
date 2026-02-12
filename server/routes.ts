@@ -617,9 +617,11 @@ export async function registerRoutes(
         doc.end();
         return;
       } else {
-        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+        const buf = Buffer.from(raw);
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         res.setHeader("Content-Disposition", "attachment; filename=services.xlsx");
+        res.setHeader("Content-Length", String(buf.length));
         res.send(buf);
       }
     } catch (err: any) {
@@ -749,9 +751,11 @@ export async function registerRoutes(
         res.setHeader("Content-Disposition", "attachment; filename=medicines.csv");
         res.send(csv);
       } else {
-        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+        const buf = Buffer.from(raw);
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         res.setHeader("Content-Disposition", "attachment; filename=medicines.xlsx");
+        res.setHeader("Content-Length", String(buf.length));
         res.send(buf);
       }
     } catch (err: any) {
@@ -967,9 +971,11 @@ export async function registerRoutes(
         doc.end();
         return;
       } else {
-        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+        const buf = Buffer.from(raw);
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         res.setHeader("Content-Disposition", "attachment; filename=expenses.xlsx");
+        res.setHeader("Content-Length", String(buf.length));
         res.send(buf);
       }
     } catch (err: any) {
