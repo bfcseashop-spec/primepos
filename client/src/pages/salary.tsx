@@ -701,7 +701,7 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
     queryKey: ["/api/loan-installments", selectedLoan?.id],
     queryFn: async () => {
       if (!selectedLoan) return [];
-      const res = await fetch(`/api/loan-installments/${selectedLoan.id}`);
+      const res = await fetch(`/api/loan-installments/${selectedLoan.id}`, { credentials: "include" });
       return res.json();
     },
     enabled: !!selectedLoan,
@@ -1115,7 +1115,7 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
     let slips = payslipsList;
     if (!selectedRun || selectedRun.id !== run.id) {
       try {
-        const res = await fetch(`/api/payslips/${run.id}`);
+        const res = await fetch(`/api/payslips/${run.id}`, { credentials: "include" });
         slips = await res.json();
       } catch { slips = []; }
     }
@@ -1149,7 +1149,7 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
   const viewPayslips = async (run: PayrollRun) => {
     setSelectedRun(run);
     try {
-      const res = await fetch(`/api/payslips/${run.id}`);
+      const res = await fetch(`/api/payslips/${run.id}`, { credentials: "include" });
       const data = await res.json();
       setPayslipsList(data);
     } catch {

@@ -84,7 +84,7 @@ export default function DoctorManagementPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const nextId = await fetch("/api/doctors/next-id").then(r => r.json());
+      const nextId = await fetch("/api/doctors/next-id", { credentials: "include" }).then(r => r.json());
       return apiRequest("POST", "/api/doctors", { ...data, doctorId: nextId.id });
     },
     onSuccess: () => {

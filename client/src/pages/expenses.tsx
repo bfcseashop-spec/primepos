@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile } from "@/lib/queryClient";
 import {
   Plus, Search, DollarSign, CheckCircle2, Clock, List, LayoutGrid,
   RefreshCw, MoreHorizontal, Eye, Pencil, Trash2, X, Filter,
@@ -231,12 +231,22 @@ export default function ExpensesPage() {
     toast({ title: `Category "${cat}" removed` });
   };
 
-  const handleExport = (format: string) => {
-    window.open(`/api/expenses/export/${format}`, "_blank");
+  const handleExport = async (format: string) => {
+    try {
+      await downloadFile(`/api/expenses/export/${format}`, format === "pdf" ? "expenses.pdf" : format === "csv" ? "expenses.csv" : "expenses.xlsx");
+      toast({ title: "Download started" });
+    } catch (err: any) {
+      toast({ title: err.message, variant: "destructive" });
+    }
   };
 
-  const handleDownloadTemplate = () => {
-    window.open("/api/expenses/sample-template", "_blank");
+  const handleDownloadTemplate = async () => {
+    try {
+      await downloadFile("/api/expenses/sample-template", "expense_import_template.xlsx");
+      toast({ title: "Download started" });
+    } catch (err: any) {
+      toast({ title: err.message, variant: "destructive" });
+    }
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {

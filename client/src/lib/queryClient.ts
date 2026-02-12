@@ -11,6 +11,21 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+/** Fetch a URL (e.g. sample-template or export) and trigger file download. Avoids navigating to API URL (which can show SPA 404). */
+export async function downloadFile(url: string, filename: string): Promise<void> {
+  const res = await fetch(url, { credentials: "include" });
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text() || res.statusText}`);
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition");
+  const match = disposition && /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+  const name = match ? match[1].replace(/['"]/g, "") : filename;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 export async function apiRequest(
   method: string,
   url: string,

@@ -2016,5 +2016,10 @@ export async function registerRoutes(
     }
   });
 
+  // Unmatched /api routes -> 404 JSON (avoid SPA fallback)
+  app.use("/api", (_req, res) => {
+    res.status(404).json({ message: "Not found" });
+  });
+
   return httpServer;
 }

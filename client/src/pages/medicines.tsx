@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile } from "@/lib/queryClient";
 import {
   Plus, Search, AlertTriangle, Package, Pill, TrendingUp, DollarSign,
   Box, Droplets, FlaskConical, MoreHorizontal, Eye, Pencil, Trash2,
@@ -74,12 +74,22 @@ export default function MedicinesPage() {
 
   const allCategories = [...MEDICINE_CATEGORIES, ...customCategories];
 
-  const handleExport = (format: "xlsx" | "csv") => {
-    window.open(`/api/medicines/export/${format}`, "_blank");
+  const handleExport = async (format: "xlsx" | "csv") => {
+    try {
+      await downloadFile(`/api/medicines/export/${format}`, format === "csv" ? "medicines.csv" : "medicines.xlsx");
+      toast({ title: t("common.downloadStarted") ?? "Download started" });
+    } catch (err: any) {
+      toast({ title: err.message, variant: "destructive" });
+    }
   };
 
-  const handleDownloadTemplate = () => {
-    window.open("/api/medicines/sample-template", "_blank");
+  const handleDownloadTemplate = async () => {
+    try {
+      await downloadFile("/api/medicines/sample-template", "medicine_import_template.xlsx");
+      toast({ title: t("common.downloadStarted") ?? "Download started" });
+    } catch (err: any) {
+      toast({ title: err.message, variant: "destructive" });
+    }
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {

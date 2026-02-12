@@ -17,7 +17,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile } from "@/lib/queryClient";
 import {
   Plus, Search, MoreVertical, Eye, Pencil, Trash2, ImagePlus, X,
   FolderPlus, Activity, CheckCircle2, XCircle, DollarSign, Layers,
@@ -199,12 +199,22 @@ export default function ServicesPage() {
     importMutation.mutate(importFile);
   };
 
-  const handleExport = (format: "xlsx" | "pdf") => {
-    window.open(`/api/services/export/${format}`, "_blank");
+  const handleExport = async (format: "xlsx" | "pdf") => {
+    try {
+      await downloadFile(`/api/services/export/${format}`, format === "pdf" ? "services.pdf" : "services.xlsx");
+      toast({ title: t("common.downloadStarted") ?? "Download started" });
+    } catch (err: any) {
+      toast({ title: err.message, variant: "destructive" });
+    }
   };
 
-  const handleDownloadTemplate = () => {
-    window.open("/api/services/sample-template", "_blank");
+  const handleDownloadTemplate = async () => {
+    try {
+      await downloadFile("/api/services/sample-template", "service_import_template.xlsx");
+      toast({ title: t("common.downloadStarted") ?? "Download started" });
+    } catch (err: any) {
+      toast({ title: err.message, variant: "destructive" });
+    }
   };
 
   const handleSubmit = () => {

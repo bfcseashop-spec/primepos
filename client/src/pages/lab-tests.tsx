@@ -181,7 +181,7 @@ export default function LabTestsPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const codeRes = await fetch("/api/lab-tests/next-code");
+      const codeRes = await fetch("/api/lab-tests/next-code", { credentials: "include" });
       const { code } = await codeRes.json();
       const res = await apiRequest("POST", "/api/lab-tests", { ...data, testCode: code });
       return res.json();
