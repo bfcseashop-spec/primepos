@@ -399,35 +399,37 @@ export default function MedicinesPage() {
   };
 
   const columns = [
-    { header: t("medicines.medicineName"), accessor: (row: Medicine) => (
-      <div>
-        <span className="font-semibold text-sm">{row.name}</span>
-        {row.genericName && <span className="block text-xs text-muted-foreground italic">{row.genericName}</span>}
-      </div>
+    { header: "Medicine Name", accessor: (row: Medicine) => (
+      <span className="font-semibold text-sm">{row.name}</span>
+    )},
+    { header: "Generic Name", accessor: (row: Medicine) => (
+      <span className="text-sm text-muted-foreground italic">{row.genericName || "-"}</span>
     )},
     { header: t("common.category"), accessor: (row: Medicine) => (
       <Badge variant="outline" className="text-[11px]">
         {row.category || "-"}
       </Badge>
     )},
-    { header: t("medicines.unit"), accessor: (row: Medicine) => getUnitBadge(row.unit || "Box") },
-    { header: t("medicines.boxPrice"), accessor: (row: Medicine) => (
+    { header: "Unit Type", accessor: (row: Medicine) => getUnitBadge(row.unit || "Box") },
+    { header: "Unit Count", accessor: (row: Medicine) => (
+      <span className="inline-flex px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] font-mono font-medium">{row.unitCount || 1}</span>
+    )},
+    { header: "Qty", accessor: (row: Medicine) => (
+      <span className="inline-flex px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-[11px] font-mono font-medium text-blue-700 dark:text-blue-300">{row.qtyPerBox || 1}</span>
+    )},
+    { header: "Purchase Unit Price", accessor: (row: Medicine) => (
       <span className="text-sm font-medium text-violet-600 dark:text-violet-400">${Number(row.boxPrice || 0).toFixed(2)}</span>
     )},
-    { header: t("medicines.qtyPerBox"), accessor: (row: Medicine) => (
-      <span className="inline-flex px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] font-mono font-medium">{row.qtyPerBox || "-"}</span>
-    )},
-    { header: t("medicines.perMedPrice"), accessor: (row: Medicine) => (
-      <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">${Number(row.perMedPrice || 0).toFixed(4)}</span>
-    )},
-    { header: t("medicines.purchaseValue"), accessor: (row: Medicine) => (
-      <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">${Number(row.totalPurchasePrice || 0).toFixed(2)}</span>
-    )},
-    { header: t("medicines.localPrice"), accessor: (row: Medicine) => (
-      <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">${Number(row.sellingPriceLocal || 0).toFixed(2)}</span>
-    )},
-    { header: t("medicines.foreignerPrice"), accessor: (row: Medicine) => (
-      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">${Number(row.sellingPriceForeigner || 0).toFixed(2)}</span>
+    { header: "Per Piece Price", accessor: (row: Medicine) => {
+      const boxPrice = Number(row.boxPrice || 0);
+      const qtyPerBox = Number(row.qtyPerBox || 1);
+      const perPiece = qtyPerBox > 0 ? boxPrice / qtyPerBox : 0;
+      return (
+        <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">${perPiece.toFixed(2)}</span>
+      );
+    }},
+    { header: "Sales Value/pc", accessor: (row: Medicine) => (
+      <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${Number(row.sellingPriceLocal || 0).toFixed(2)}</span>
     )},
     { header: t("medicines.stockCount"), accessor: (row: Medicine) => {
       const isLow = row.stockCount < (row.stockAlert || 10) && row.stockCount > 0;
@@ -454,7 +456,7 @@ export default function MedicinesPage() {
         </div>
       );
     }},
-    { header: t("medicines.expiryDate"), accessor: (row: Medicine) => getExpiryBadge(row.expiryDate) },
+    { header: "Expiry Date", accessor: (row: Medicine) => getExpiryBadge(row.expiryDate) },
     { header: t("common.actions"), accessor: (row: Medicine) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
