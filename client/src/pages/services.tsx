@@ -573,7 +573,7 @@ export default function ServicesPage() {
                   <FolderPlus className="h-4 w-4 mr-1" /> {t("common.category")}
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-sm">
+              <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
                 <DialogHeader>
                   <DialogTitle>{t("services.manageCategories")}</DialogTitle>
                   <DialogDescription>{t("services.manageCategoriesDesc")}</DialogDescription>
@@ -688,7 +688,7 @@ export default function ServicesPage() {
                   <Plus className="h-4 w-4 mr-1" /> {t("services.addService")}
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
                 <DialogHeader>
                   <DialogTitle>{t("services.addService")}</DialogTitle>
                   <DialogDescription>{t("services.subtitle")}</DialogDescription>
@@ -832,7 +832,7 @@ export default function ServicesPage() {
       </div>
 
       <Dialog open={!!viewService} onOpenChange={(open) => { if (!open) setViewService(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle data-testid="text-view-service-title">{t("services.viewDetails")}</DialogTitle>
             <DialogDescription>{t("services.subtitle")}</DialogDescription>
@@ -928,7 +928,7 @@ export default function ServicesPage() {
       </Dialog>
 
       <Dialog open={!!editService} onOpenChange={(open) => { if (!open) { setEditService(null); setForm(defaultForm); setFieldErrors({}); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle data-testid="text-edit-service-title">{t("services.editService")}</DialogTitle>
             <DialogDescription>{t("services.subtitle")}</DialogDescription>
@@ -962,7 +962,7 @@ export default function ServicesPage() {
       </AlertDialog>
 
       <Dialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) { setImportFile(null); setImportResult(null); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle data-testid="text-import-title">Import Services</DialogTitle>
             <DialogDescription>Upload an Excel (.xlsx) or CSV file with service data. The file should have columns: Service Name, Category, Price.</DialogDescription>

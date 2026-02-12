@@ -182,7 +182,7 @@ export default function InvestmentsPage() {
                 <Tag className="h-4 w-4 mr-1" /> + {t("common.category")}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-sm">
+            <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>Manage Categories</DialogTitle>
                 <DialogDescription>Add or remove investment categories</DialogDescription>
@@ -224,7 +224,7 @@ export default function InvestmentsPage() {
                 <Plus className="h-4 w-4 mr-1" /> {t("investments.addInvestment")}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
               <DialogHeader>
                 <DialogTitle>{t("investments.addInvestment")}</DialogTitle>
                 <DialogDescription className="sr-only">Record a new investment entry</DialogDescription>

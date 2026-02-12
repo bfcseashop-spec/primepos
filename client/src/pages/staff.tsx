@@ -581,7 +581,7 @@ export default function StaffPage() {
       </div>
 
       <Dialog open={staffDialogOpen} onOpenChange={setStaffDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Create User</DialogTitle>
             <DialogDescription className="sr-only">Create a new user account</DialogDescription>
@@ -630,7 +630,7 @@ export default function StaffPage() {
       </Dialog>
 
       <Dialog open={viewDialogOpen} onOpenChange={(open) => { if (!open) { setViewDialogOpen(false); setSelectedUser(null); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
             <DialogDescription className="sr-only">View user account details</DialogDescription>
@@ -654,7 +654,7 @@ export default function StaffPage() {
       </Dialog>
 
       <Dialog open={editDialogOpen} onOpenChange={(open) => { if (!open) { setEditDialogOpen(false); setSelectedUser(null); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription className="sr-only">Edit user account information</DialogDescription>
@@ -707,7 +707,7 @@ export default function StaffPage() {
       </Dialog>
 
       <Dialog open={editRoleDialogOpen} onOpenChange={(open) => { if (!open) { setEditRoleDialogOpen(false); setSelectedRole(null); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Edit Role</DialogTitle>
             <DialogDescription className="sr-only">Edit role name and description</DialogDescription>
@@ -738,7 +738,7 @@ export default function StaffPage() {
       </Dialog>
 
       <Dialog open={permissionDialogOpen} onOpenChange={(open) => { if (!open) { setPermissionDialogOpen(false); setPermissionRole(null); } }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-3xl sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-violet-600 dark:text-violet-400" />

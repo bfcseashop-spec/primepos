@@ -476,7 +476,7 @@ export default function DoctorManagementPage() {
 
       {viewDialog && viewingDoctor && (
         <Dialog open={viewDialog} onOpenChange={setViewDialog}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Stethoscope className="h-5 w-5 text-blue-500 dark:text-blue-400" />
@@ -522,7 +522,7 @@ export default function DoctorManagementPage() {
 
       {(addDialog || editDialog) && (
         <Dialog open={addDialog || editDialog} onOpenChange={(open) => { if (!open) { setAddDialog(false); setEditDialog(false); } }}>
-          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 {editDialog ? <Edit className="h-5 w-5 text-amber-500 dark:text-amber-400" /> : <Plus className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />}
@@ -666,7 +666,7 @@ export default function DoctorManagementPage() {
 
       {deptDialog && (
         <Dialog open={deptDialog} onOpenChange={setDeptDialog}>
-          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-blue-500 dark:text-blue-400" />
@@ -737,7 +737,7 @@ export default function DoctorManagementPage() {
 
       {posDialog && (
         <Dialog open={posDialog} onOpenChange={setPosDialog}>
-          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Briefcase className="h-5 w-5 text-violet-500 dark:text-violet-400" />

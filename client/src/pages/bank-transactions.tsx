@@ -277,7 +277,7 @@ export default function BankTransactionsPage() {
                 <Plus className="h-4 w-4 mr-1" /> {t("bank.addTransaction")}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
               <DialogHeader>
                 <DialogTitle>{t("bank.addTransaction")}</DialogTitle>
                 <DialogDescription className="sr-only">Enter details for a new bank transaction</DialogDescription>

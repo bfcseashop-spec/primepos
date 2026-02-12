@@ -684,7 +684,7 @@ export default function ExpensesPage() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-emerald-500" />
@@ -698,7 +698,7 @@ export default function ExpensesPage() {
 
       {editExpense && (
         <Dialog open={!!editExpense} onOpenChange={(open) => { if (!open) setEditExpense(null); }}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Pencil className="h-5 w-5 text-blue-500" />
@@ -713,7 +713,7 @@ export default function ExpensesPage() {
 
       {viewExpense && (
         <Dialog open={!!viewExpense} onOpenChange={(open) => { if (!open) setViewExpense(null); }}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Eye className="h-5 w-5 text-emerald-500" />
@@ -771,7 +771,7 @@ export default function ExpensesPage() {
 
       {categoryDialog && (
         <Dialog open={categoryDialog} onOpenChange={setCategoryDialog}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <FolderPlus className="h-5 w-5 text-emerald-500" />
@@ -829,7 +829,7 @@ export default function ExpensesPage() {
 
       {importDialog && (
         <Dialog open={importDialog} onOpenChange={(open) => { setImportDialog(open); if (!open) setImportResult(null); }}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Upload className="h-5 w-5 text-emerald-500" />

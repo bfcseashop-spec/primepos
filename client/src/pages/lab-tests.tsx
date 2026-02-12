@@ -606,7 +606,7 @@ export default function LabTestsPage() {
                 <Plus className="h-4 w-4 mr-1" /> {t("labTests.addTest")}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
               <DialogHeader>
                 <DialogTitle>{t("labTests.addTest")}</DialogTitle>
                 <DialogDescription className="sr-only">Enter details for a new lab test</DialogDescription>
@@ -622,7 +622,7 @@ export default function LabTestsPage() {
 
       {viewTest && (
         <Dialog open={!!viewTest} onOpenChange={(open) => { if (!open) setViewTest(null); }}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Eye className="h-5 w-5 text-blue-500" />
@@ -705,7 +705,7 @@ export default function LabTestsPage() {
 
       {editTest && (
         <Dialog open={!!editTest} onOpenChange={(open) => { if (!open) { setEditTest(null); setForm(defaultForm); } }}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>{t("common.edit")} ({editTest.testCode})</DialogTitle>
               <DialogDescription className="sr-only">Modify lab test information</DialogDescription>
@@ -720,7 +720,7 @@ export default function LabTestsPage() {
 
       {uploadTest && (
         <Dialog open={!!uploadTest} onOpenChange={(open) => { if (!open) { setUploadTest(null); setUploadReferrer(""); } }}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Upload className="h-5 w-5 text-green-500" />
@@ -768,7 +768,7 @@ export default function LabTestsPage() {
 
       {barcodeTest && (
         <Dialog open={!!barcodeTest} onOpenChange={(open) => { if (!open) setBarcodeTest(null); }}>
-          <DialogContent className="max-w-xs">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-sm">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <QrCode className="h-5 w-5 text-purple-500" />

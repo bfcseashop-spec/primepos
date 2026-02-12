@@ -112,7 +112,7 @@ export default function IntegrationsPage() {
                 <Plus className="h-4 w-4 mr-1" /> {t("integrations.addDevice")}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
               <DialogHeader>
                 <DialogTitle>{t("integrations.addDevice")}</DialogTitle>
                 <DialogDescription className="sr-only">Configure a new device integration</DialogDescription>

@@ -391,7 +391,7 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
       </div>
 
       <Dialog open={addDialog || editDialog} onOpenChange={(open) => { if (!open) { setAddDialog(false); setEditDialog(false); } }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-3xl sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editDialog ? "Edit Employee Profile" : "Add Employee Profile"}</DialogTitle>
             <DialogDescription>Set up salary structure for an employee</DialogDescription>
@@ -906,7 +906,7 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
       </Card>
 
       <Dialog open={addDialog || editDialog} onOpenChange={(open) => { if (!open) { setAddDialog(false); setEditDialog(false); setEditingLoan(null); } }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editDialog ? "Edit Loan / Advance" : "New Loan / Advance"}</DialogTitle>
             <DialogDescription>{editDialog ? "Update loan or advance details" : "Create a loan or salary advance for an employee"}</DialogDescription>
@@ -987,7 +987,7 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
       </Dialog>
 
       <Dialog open={detailDialog} onOpenChange={setDetailDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Loan Details - {selectedLoan?.staffName}</DialogTitle>
             <DialogDescription className="sr-only">View loan details and installment history</DialogDescription>
@@ -1301,7 +1301,7 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
       </Card>
 
       <Dialog open={runDialog} onOpenChange={setRunDialog}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>New Payroll Run</DialogTitle>
             <DialogDescription>Generate payslips for all active employees for the selected period</DialogDescription>
@@ -1350,7 +1350,7 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
       </Dialog>
 
       <Dialog open={previewDialog} onOpenChange={setPreviewDialog}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-4xl sm:max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Payslips - {selectedRun?.month} {selectedRun?.year}</DialogTitle>
             <DialogDescription>
@@ -1421,7 +1421,7 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
       </Dialog>
 
       <Dialog open={editRunDialog} onOpenChange={(open) => { if (!open) { setEditRunDialog(false); setEditingRun(null); } }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit Payroll Run</DialogTitle>
             <DialogDescription>Update payroll run details</DialogDescription>
@@ -1705,7 +1705,7 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
       </Card>
 
       <Dialog open={editDialog} onOpenChange={(open) => { if (!open) { setEditDialog(false); setEditingSalary(null); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Edit Salary Record</DialogTitle>
             <DialogDescription>Update salary details</DialogDescription>
@@ -1780,7 +1780,7 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
       </Dialog>
 
       <Dialog open={viewDialog} onOpenChange={(open) => { if (!open) { setViewDialog(false); setViewingSalary(null); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Salary Record Details</DialogTitle>
             <DialogDescription className="sr-only">View salary record information</DialogDescription>
@@ -1877,7 +1877,7 @@ export default function SalaryPage() {
               <Button variant="outline" size="sm" onClick={() => setCatDialogOpen(true)} data-testid="button-manage-categories">
                 <Tag className="h-4 w-4 mr-1" /> + Category
               </Button>
-              <DialogContent className="max-w-sm">
+              <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
                 <DialogHeader>
                   <DialogTitle>Manage Categories</DialogTitle>
                   <DialogDescription>Add or remove salary categories</DialogDescription>
@@ -1912,7 +1912,7 @@ export default function SalaryPage() {
               <Button variant="outline" size="sm" onClick={() => setDeptDialogOpen(true)} data-testid="button-manage-departments">
                 <Building2 className="h-4 w-4 mr-1" /> + Department
               </Button>
-              <DialogContent className="max-w-sm">
+              <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
                 <DialogHeader>
                   <DialogTitle>Manage Departments</DialogTitle>
                   <DialogDescription>Add or remove salary departments</DialogDescription>

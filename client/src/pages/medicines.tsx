@@ -17,7 +17,7 @@ import { apiRequest, queryClient, downloadFile } from "@/lib/queryClient";
 import {
   Plus, Search, AlertTriangle, Package, Pill, TrendingUp, DollarSign,
   Box, Droplets, FlaskConical, MoreHorizontal, Eye, Pencil, Trash2,
-  Calculator, Users, Globe, ShieldAlert, CheckCircle2, X,
+  Calculator, ShieldAlert, CheckCircle2, X,
   List, LayoutGrid, RefreshCw, Tag, FolderPlus, Printer, Barcode,
   PackageX, PackageCheck, Filter, ImagePlus, Trash,
   Upload, Download, FileSpreadsheet, FileText, FileDown
@@ -43,7 +43,7 @@ const defaultForm = {
   name: "", genericName: "", category: "", manufacturer: "",
   batchNo: "", expiryDate: "", unit: "Box",
   unitCount: 1, boxPrice: 0, qtyPerBox: 1,
-  sellingPriceLocal: 0, sellingPriceForeigner: 0,
+  sellingPrice: 0,
   stockAlert: 10, imageUrl: "",
 };
 
@@ -61,8 +61,7 @@ export default function MedicinesPage() {
   const refUnitCount = useRef<HTMLInputElement>(null);
   const refBoxPrice = useRef<HTMLInputElement>(null);
   const refQtyPerBox = useRef<HTMLInputElement>(null);
-  const refSellingLocal = useRef<HTMLInputElement>(null);
-  const refSellingForeign = useRef<HTMLInputElement>(null);
+  const refSellingPrice = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -131,6 +130,8 @@ export default function MedicinesPage() {
 
   const perMedPrice = form.qtyPerBox > 0 ? form.boxPrice / form.qtyPerBox : 0;
   const totalPurchasePrice = form.unitCount * form.boxPrice;
+  const sellingPricePerPiece = Number(form.sellingPrice) >= 0 ? Number(form.sellingPrice) : 0;
+  const totalSalesValue = sellingPricePerPiece * form.unitCount * form.qtyPerBox;
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -233,14 +234,13 @@ export default function MedicinesPage() {
     if (form.unitCount == null || form.unitCount < 1) errors.unitCount = t("common.required");
     if (form.boxPrice == null || Number(form.boxPrice) < 0) errors.boxPrice = t("common.required");
     if (form.qtyPerBox == null || form.qtyPerBox < 1) errors.qtyPerBox = t("common.required");
-    if (form.sellingPriceLocal == null || Number(form.sellingPriceLocal) < 0) errors.sellingPriceLocal = t("common.required");
-    if (form.sellingPriceForeigner == null || Number(form.sellingPriceForeigner) < 0) errors.sellingPriceForeigner = t("common.required");
+    if (form.sellingPrice == null || Number(form.sellingPrice) < 0) errors.sellingPrice = t("common.required");
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       toast({ title: t("common.fillRequired"), variant: "destructive" });
-      const order = ["name", "unit", "unitCount", "boxPrice", "qtyPerBox", "sellingPriceLocal", "sellingPriceForeigner"] as const;
+      const order = ["name", "unit", "unitCount", "boxPrice", "qtyPerBox", "sellingPrice"] as const;
       const firstKey = order.find(k => errors[k]);
-      const refMap = { name: refName, unit: refUnit, unitCount: refUnitCount, boxPrice: refBoxPrice, qtyPerBox: refQtyPerBox, sellingPriceLocal: refSellingLocal, sellingPriceForeigner: refSellingForeign } as const;
+      const refMap = { name: refName, unit: refUnit, unitCount: refUnitCount, boxPrice: refBoxPrice, qtyPerBox: refQtyPerBox, sellingPrice: refSellingPrice } as const;
       if (firstKey) (refMap[firstKey].current as HTMLElement | null)?.focus();
       return;
     }
@@ -258,14 +258,14 @@ export default function MedicinesPage() {
       qtyPerBox: form.qtyPerBox,
       perMedPrice: String(perMedPrice.toFixed(4)),
       totalPurchasePrice: String(totalPurchasePrice.toFixed(2)),
-      sellingPriceLocal: String(form.sellingPriceLocal),
-      sellingPriceForeigner: String(form.sellingPriceForeigner),
+      sellingPriceLocal: String(form.sellingPrice),
+      sellingPriceForeigner: String(form.sellingPrice),
       stockCount: form.unitCount * form.qtyPerBox,
       stockAlert: form.stockAlert,
       imageUrl: form.imageUrl || null,
       quantity: form.unitCount * form.qtyPerBox,
       unitPrice: String(perMedPrice.toFixed(2)),
-      sellingPrice: String(form.sellingPriceLocal),
+      sellingPrice: String(form.sellingPrice),
       isActive: true,
     };
 
@@ -289,8 +289,7 @@ export default function MedicinesPage() {
       unitCount: med.unitCount || 1,
       boxPrice: Number(med.boxPrice) || 0,
       qtyPerBox: med.qtyPerBox || 1,
-      sellingPriceLocal: Number(med.sellingPriceLocal) || 0,
-      sellingPriceForeigner: Number(med.sellingPriceForeigner) || 0,
+      sellingPrice: Number(med.sellingPriceLocal ?? med.sellingPrice ?? med.sellingPriceForeigner) || 0,
       stockAlert: med.stockAlert || 10,
       imageUrl: med.imageUrl || "",
     });
@@ -362,8 +361,7 @@ export default function MedicinesPage() {
           <div class="row"><span class="lbl">Category:</span><span class="val">${med.category || "-"}</span></div>
           <div class="row"><span class="lbl">Batch:</span><span class="val">${med.batchNo || "-"}</span></div>
           <div class="row"><span class="lbl">Expiry:</span><span class="val">${med.expiryDate || "-"}</span></div>
-          <div class="row"><span class="lbl">Price (Local):</span><span class="val">$${Number(med.sellingPriceLocal || 0).toFixed(2)}</span></div>
-          <div class="row"><span class="lbl">Price (Foreign):</span><span class="val">$${Number(med.sellingPriceForeigner || 0).toFixed(2)}</span></div>
+          <div class="row"><span class="lbl">Selling price:</span><span class="val">$${Number(med.sellingPriceLocal ?? med.sellingPrice || 0).toFixed(2)}</span></div>
           <div class="row"><span class="lbl">Manufacturer:</span><span class="val">${med.manufacturer || "-"}</span></div>
           ${generateBarcodeHtml(med)}
         </div>
@@ -682,41 +680,34 @@ export default function MedicinesPage() {
           <DollarSign className="h-4 w-4" />
           {t("medicines.salesValue")}
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label htmlFor="sellingPriceLocal" className="flex items-center gap-1">
-              <Users className="h-3 w-3 text-green-500" /> {t("medicines.localPrice")} ($) *
-            </Label>
-            <Input ref={refSellingLocal} id="sellingPriceLocal" type="number" step="0.01" min={0} value={form.sellingPriceLocal || ""} onChange={e => { setForm(f => ({ ...f, sellingPriceLocal: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, sellingPriceLocal: "" })); }} data-testid="input-medicine-sell-local" className={fieldErrors.sellingPriceLocal ? "border-destructive" : ""} />
-            {fieldErrors.sellingPriceLocal && <p className="text-xs text-destructive mt-1">{fieldErrors.sellingPriceLocal}</p>}
-          </div>
-          <div>
-            <Label htmlFor="sellingPriceForeigner" className="flex items-center gap-1">
-              <Globe className="h-3 w-3 text-blue-500" /> {t("medicines.foreignerPrice")} ($) *
-            </Label>
-            <Input ref={refSellingForeign} id="sellingPriceForeigner" type="number" step="0.01" min={0} value={form.sellingPriceForeigner || ""} onChange={e => { setForm(f => ({ ...f, sellingPriceForeigner: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, sellingPriceForeigner: "" })); }} data-testid="input-medicine-sell-foreign" className={fieldErrors.sellingPriceForeigner ? "border-destructive" : ""} />
-            {fieldErrors.sellingPriceForeigner && <p className="text-xs text-destructive mt-1">{fieldErrors.sellingPriceForeigner}</p>}
-          </div>
+        <div>
+          <Label htmlFor="sellingPrice">Selling Price ($) per piece *</Label>
+          <Input ref={refSellingPrice} id="sellingPrice" type="number" step="0.01" min={0} value={form.sellingPrice || ""} onChange={e => { setForm(f => ({ ...f, sellingPrice: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, sellingPrice: "" })); }} data-testid="input-medicine-selling-price" className={fieldErrors.sellingPrice ? "border-destructive" : ""} />
+          {fieldErrors.sellingPrice && <p className="text-xs text-destructive mt-1">{fieldErrors.sellingPrice}</p>}
         </div>
 
-        {form.sellingPriceLocal > 0 && perMedPrice > 0 && (
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-md p-2 border border-green-200 dark:border-green-800">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Local Margin:</span>
-                <span className="font-bold text-green-600 dark:text-green-400">
-                  {((form.sellingPriceLocal - perMedPrice) / perMedPrice * 100).toFixed(1)}%
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Foreign Margin:</span>
-                <span className="font-bold text-blue-600 dark:text-blue-400">
-                  {form.sellingPriceForeigner > 0 ? ((form.sellingPriceForeigner - perMedPrice) / perMedPrice * 100).toFixed(1) : "0.0"}%
-                </span>
-              </div>
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-md p-3 space-y-2 border border-green-200 dark:border-green-800">
+          <div className="flex items-center gap-2 text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide">
+            <Calculator className="h-3 w-3" /> Auto Calculation
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Selling price per piece:</span>
+              <span className="font-bold text-green-600 dark:text-green-400" data-testid="calc-selling-per-piece">
+                ${sellingPricePerPiece.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total Sales Value:</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400" data-testid="calc-total-sales">
+                ${totalSalesValue.toFixed(2)}
+              </span>
             </div>
           </div>
-        )}
+          <p className="text-[10px] text-muted-foreground italic">
+            Formula: Selling Price (${sellingPricePerPiece.toFixed(2)}) × Unit Count ({form.unitCount}) × Qty per {form.unit} ({form.qtyPerBox}) = ${totalSalesValue.toFixed(2)}
+          </p>
+        </div>
       </div>
 
       <Separator />
@@ -799,7 +790,7 @@ export default function MedicinesPage() {
                   <Plus className="h-4 w-4 mr-1" /> {t("medicines.addMedicine")}
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg">
+              <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl lg:max-w-3xl">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <Pill className="h-5 w-5 text-teal-500" />
@@ -819,7 +810,7 @@ export default function MedicinesPage() {
 
       {editMed && (
         <Dialog open={!!editMed} onOpenChange={(open) => { if (!open) { setEditMed(null); setForm(defaultForm); setFieldErrors({}); } }}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl lg:max-w-3xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Pencil className="h-5 w-5 text-amber-500" />
@@ -837,7 +828,7 @@ export default function MedicinesPage() {
 
       {viewMed && (
         <Dialog open={!!viewMed} onOpenChange={(open) => { if (!open) setViewMed(null); }}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Eye className="h-5 w-5 text-blue-500" />
@@ -895,8 +886,7 @@ export default function MedicinesPage() {
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-md p-3 border border-green-200 dark:border-green-800">
                 <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide mb-2">{t("medicines.salesValue")}</p>
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center gap-1"><Users className="h-3 w-3 text-green-500" /> <span className="text-muted-foreground text-xs">Local:</span> <span className="font-bold text-green-600 dark:text-green-400">${Number(viewMed.sellingPriceLocal).toFixed(2)}</span></div>
-                  <div className="flex items-center gap-1"><Globe className="h-3 w-3 text-blue-500" /> <span className="text-muted-foreground text-xs">Foreigner:</span> <span className="font-bold text-blue-600 dark:text-blue-400">${Number(viewMed.sellingPriceForeigner).toFixed(2)}</span></div>
+                  <div className="flex items-center gap-1"><DollarSign className="h-3 w-3 text-green-500" /> <span className="text-muted-foreground text-xs">Selling price/pc:</span> <span className="font-bold text-green-600 dark:text-green-400">${Number(viewMed.sellingPriceLocal ?? viewMed.sellingPrice).toFixed(2)}</span></div>
                 </div>
               </div>
 
@@ -918,7 +908,7 @@ export default function MedicinesPage() {
       )}
 
       <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Tag className="h-5 w-5 text-indigo-500" />
@@ -1162,12 +1152,8 @@ export default function MedicinesPage() {
                             <span className="font-medium text-orange-600 dark:text-orange-400">${Number(med.perMedPrice || 0).toFixed(4)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Local:</span>
-                            <span className="font-medium text-emerald-600 dark:text-emerald-400">${Number(med.sellingPriceLocal || 0).toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Foreign:</span>
-                            <span className="font-medium text-cyan-600 dark:text-cyan-400">${Number(med.sellingPriceForeigner || 0).toFixed(2)}</span>
+                            <span className="text-muted-foreground">Selling/pc:</span>
+                            <span className="font-medium text-emerald-600 dark:text-emerald-400">${Number(med.sellingPriceLocal ?? med.sellingPrice || 0).toFixed(2)}</span>
                           </div>
                         </div>
 
@@ -1206,7 +1192,7 @@ export default function MedicinesPage() {
       </div>
       {importDialog && (
         <Dialog open={importDialog} onOpenChange={(open) => { setImportDialog(open); if (!open) setImportResult(null); }}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Upload className="h-5 w-5 text-teal-500" />

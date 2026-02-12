@@ -157,7 +157,7 @@ function ProfileMenu() {
       </DropdownMenu>
 
       <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{t("header.editProfile")}</DialogTitle>
           </DialogHeader>

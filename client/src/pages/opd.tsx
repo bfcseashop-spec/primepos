@@ -548,7 +548,7 @@ export default function OpdPage() {
       </div>
 
       <Dialog open={!!viewPatient} onOpenChange={(open) => { if (!open) setViewPatient(null); }}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle data-testid="text-view-patient-title">{t("opd.totalPatients")}</DialogTitle>
             <DialogDescription>{t("opd.subtitle")}</DialogDescription>
@@ -703,7 +703,7 @@ export default function OpdPage() {
       </Dialog>
 
       <Dialog open={!!editPatient} onOpenChange={(open) => { if (!open) setEditPatient(null); }}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle data-testid="text-edit-patient-title">{t("common.edit")}</DialogTitle>
             <DialogDescription>{t("opd.subtitle")}</DialogDescription>
@@ -831,7 +831,7 @@ export default function OpdPage() {
       </AlertDialog>
 
       <Dialog open={appointmentDialogOpen} onOpenChange={(open) => { setAppointmentDialogOpen(open); if (!open) setSelectedPatient(null); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle data-testid="text-appointment-dialog-title">{t("appointments.newAppointment")}</DialogTitle>
             <DialogDescription className="sr-only">Schedule a new appointment for this patient</DialogDescription>

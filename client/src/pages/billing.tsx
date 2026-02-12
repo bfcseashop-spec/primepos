@@ -507,7 +507,7 @@ export default function BillingPage() {
                 <Plus className="h-4 w-4 mr-1" /> {t("billing.createBill")}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogContent className="w-[calc(100%-2rem)] max-w-4xl sm:max-w-5xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{showPreview ? t("billing.invoice") : t("billing.createBill")}</DialogTitle>
                 <DialogDescription>{showPreview ? t("billing.invoice") : t("billing.subtitle")}</DialogDescription>
@@ -1015,7 +1015,7 @@ export default function BillingPage() {
 
       {/* View Invoice Dialog */}
       <Dialog open={!!viewBill} onOpenChange={(open) => { if (!open) setViewBill(null); }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-4xl sm:max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("billing.invoice")} - {viewBill?.billNo}</DialogTitle>
             <DialogDescription>{t("billing.subtitle")}</DialogDescription>
@@ -1136,7 +1136,7 @@ export default function BillingPage() {
 
       {/* Edit Bill Dialog */}
       <Dialog open={!!editBill} onOpenChange={(open) => { if (!open) setEditBill(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("common.edit")} - {editBill?.billNo}</DialogTitle>
             <DialogDescription>{t("billing.subtitle")}</DialogDescription>

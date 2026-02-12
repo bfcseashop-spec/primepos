@@ -430,7 +430,7 @@ export default function AppointmentsPage() {
       </div>
 
       <Dialog open={!!viewAppointment} onOpenChange={(open) => { if (!open) setViewAppointment(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
           <DialogHeader>
             <DialogTitle data-testid="text-view-appointment-title">{t("appointments.title")}</DialogTitle>
             <DialogDescription>{t("appointments.subtitle")}</DialogDescription>
