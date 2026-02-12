@@ -131,7 +131,7 @@ export default function MedicinesPage() {
   const perMedPrice = form.qtyPerBox > 0 ? form.boxPrice / form.qtyPerBox : 0;
   const totalPurchasePrice = form.unitCount * form.boxPrice;
   const sellingPricePerPiece = Number(form.sellingPrice) >= 0 ? Number(form.sellingPrice) : 0;
-  const totalSalesValue = sellingPricePerPiece * form.unitCount * form.qtyPerBox;
+  const formTotalSalesValue = sellingPricePerPiece * form.unitCount * form.qtyPerBox;
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -361,7 +361,7 @@ export default function MedicinesPage() {
           <div class="row"><span class="lbl">Category:</span><span class="val">${med.category || "-"}</span></div>
           <div class="row"><span class="lbl">Batch:</span><span class="val">${med.batchNo || "-"}</span></div>
           <div class="row"><span class="lbl">Expiry:</span><span class="val">${med.expiryDate || "-"}</span></div>
-          <div class="row"><span class="lbl">Selling price:</span><span class="val">$${Number(med.sellingPriceLocal ?? med.sellingPrice || 0).toFixed(2)}</span></div>
+          <div class="row"><span class="lbl">Selling price:</span><span class="val">$${Number((med.sellingPriceLocal ?? med.sellingPrice) ?? 0).toFixed(2)}</span></div>
           <div class="row"><span class="lbl">Manufacturer:</span><span class="val">${med.manufacturer || "-"}</span></div>
           ${generateBarcodeHtml(med)}
         </div>
@@ -700,12 +700,12 @@ export default function MedicinesPage() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total Sales Value:</span>
               <span className="font-bold text-emerald-600 dark:text-emerald-400" data-testid="calc-total-sales">
-                ${totalSalesValue.toFixed(2)}
+                ${formTotalSalesValue.toFixed(2)}
               </span>
             </div>
           </div>
           <p className="text-[10px] text-muted-foreground italic">
-            Formula: Selling Price (${sellingPricePerPiece.toFixed(2)}) × Unit Count ({form.unitCount}) × Qty per {form.unit} ({form.qtyPerBox}) = ${totalSalesValue.toFixed(2)}
+            Formula: Selling Price (${sellingPricePerPiece.toFixed(2)}) × Unit Count ({form.unitCount}) × Qty per {form.unit} ({form.qtyPerBox}) = ${formTotalSalesValue.toFixed(2)}
           </p>
         </div>
       </div>
@@ -1153,7 +1153,7 @@ export default function MedicinesPage() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Selling/pc:</span>
-                            <span className="font-medium text-emerald-600 dark:text-emerald-400">${Number(med.sellingPriceLocal ?? med.sellingPrice || 0).toFixed(2)}</span>
+                            <span className="font-medium text-emerald-600 dark:text-emerald-400">${Number((med.sellingPriceLocal ?? med.sellingPrice) ?? 0).toFixed(2)}</span>
                           </div>
                         </div>
 
