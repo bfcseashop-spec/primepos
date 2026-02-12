@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
@@ -55,6 +55,14 @@ export default function MedicinesPage() {
   const [viewMed, setViewMed] = useState<Medicine | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [form, setForm] = useState(defaultForm);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const refName = useRef<HTMLInputElement>(null);
+  const refUnit = useRef<HTMLButtonElement>(null);
+  const refUnitCount = useRef<HTMLInputElement>(null);
+  const refBoxPrice = useRef<HTMLInputElement>(null);
+  const refQtyPerBox = useRef<HTMLInputElement>(null);
+  const refSellingLocal = useRef<HTMLInputElement>(null);
+  const refSellingForeign = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -219,7 +227,23 @@ export default function MedicinesPage() {
   };
 
   const handleSubmit = () => {
-    if (!form.name) return toast({ title: t("medicines.nameRequired"), variant: "destructive" });
+    const errors: Record<string, string> = {};
+    if (!form.name?.trim()) errors.name = t("common.required");
+    if (!form.unit?.trim()) errors.unit = t("common.required");
+    if (form.unitCount == null || form.unitCount < 1) errors.unitCount = t("common.required");
+    if (form.boxPrice == null || Number(form.boxPrice) < 0) errors.boxPrice = t("common.required");
+    if (form.qtyPerBox == null || form.qtyPerBox < 1) errors.qtyPerBox = t("common.required");
+    if (form.sellingPriceLocal == null || Number(form.sellingPriceLocal) < 0) errors.sellingPriceLocal = t("common.required");
+    if (form.sellingPriceForeigner == null || Number(form.sellingPriceForeigner) < 0) errors.sellingPriceForeigner = t("common.required");
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast({ title: t("common.fillRequired"), variant: "destructive" });
+      const order = ["name", "unit", "unitCount", "boxPrice", "qtyPerBox", "sellingPriceLocal", "sellingPriceForeigner"] as const;
+      const firstKey = order.find(k => errors[k]);
+      const refMap = { name: refName, unit: refUnit, unitCount: refUnitCount, boxPrice: refBoxPrice, qtyPerBox: refQtyPerBox, sellingPriceLocal: refSellingLocal, sellingPriceForeigner: refSellingForeign } as const;
+      if (firstKey) (refMap[firstKey].current as HTMLElement | null)?.focus();
+      return;
+    }
 
     const payload = {
       name: form.name,
@@ -253,6 +277,7 @@ export default function MedicinesPage() {
   };
 
   const openEdit = (med: Medicine) => {
+    setFieldErrors({});
     setForm({
       name: med.name,
       genericName: med.genericName || "",
@@ -495,7 +520,8 @@ export default function MedicinesPage() {
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
             <Label htmlFor="name">{t("medicines.medicineName")} *</Label>
-            <Input id="name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} data-testid="input-medicine-name" />
+            <Input ref={refName} id="name" value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFieldErrors(prev => ({ ...prev, name: "" })); }} data-testid="input-medicine-name" className={fieldErrors.name ? "border-destructive" : ""} />
+            {fieldErrors.name && <p className="text-xs text-destructive mt-1">{fieldErrors.name}</p>}
           </div>
           <div className="col-span-2">
             <Label htmlFor="genericName">{t("medicines.genericName")}</Label>
@@ -598,26 +624,30 @@ export default function MedicinesPage() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Unit Type *</Label>
-            <Select value={form.unit} onValueChange={v => setForm(f => ({ ...f, unit: v }))}>
-              <SelectTrigger data-testid="select-medicine-unit"><SelectValue /></SelectTrigger>
+            <Select value={form.unit} onValueChange={v => { setForm(f => ({ ...f, unit: v })); setFieldErrors(prev => ({ ...prev, unit: "" })); }}>
+              <SelectTrigger ref={refUnit} data-testid="select-medicine-unit"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {UNIT_TYPES.map(u => (
                   <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {fieldErrors.unit && <p className="text-xs text-destructive mt-1">{fieldErrors.unit}</p>}
           </div>
           <div>
             <Label htmlFor="unitCount">Unit Count ({form.unit}) *</Label>
-            <Input id="unitCount" type="number" min={1} value={form.unitCount} onChange={e => setForm(f => ({ ...f, unitCount: Number(e.target.value) || 0 }))} data-testid="input-medicine-unit-count" />
+            <Input ref={refUnitCount} id="unitCount" type="number" min={1} value={form.unitCount} onChange={e => { setForm(f => ({ ...f, unitCount: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, unitCount: "" })); }} data-testid="input-medicine-unit-count" className={fieldErrors.unitCount ? "border-destructive" : ""} />
+            {fieldErrors.unitCount && <p className="text-xs text-destructive mt-1">{fieldErrors.unitCount}</p>}
           </div>
           <div>
             <Label htmlFor="boxPrice">{form.unit} Price ($) *</Label>
-            <Input id="boxPrice" type="number" step="0.01" min={0} value={form.boxPrice || ""} onChange={e => setForm(f => ({ ...f, boxPrice: Number(e.target.value) || 0 }))} data-testid="input-medicine-box-price" />
+            <Input ref={refBoxPrice} id="boxPrice" type="number" step="0.01" min={0} value={form.boxPrice || ""} onChange={e => { setForm(f => ({ ...f, boxPrice: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, boxPrice: "" })); }} data-testid="input-medicine-box-price" className={fieldErrors.boxPrice ? "border-destructive" : ""} />
+            {fieldErrors.boxPrice && <p className="text-xs text-destructive mt-1">{fieldErrors.boxPrice}</p>}
           </div>
           <div>
             <Label htmlFor="qtyPerBox">Qty per {form.unit} *</Label>
-            <Input id="qtyPerBox" type="number" min={1} value={form.qtyPerBox} onChange={e => setForm(f => ({ ...f, qtyPerBox: Number(e.target.value) || 1 }))} data-testid="input-medicine-qty-per-box" />
+            <Input ref={refQtyPerBox} id="qtyPerBox" type="number" min={1} value={form.qtyPerBox} onChange={e => { setForm(f => ({ ...f, qtyPerBox: Number(e.target.value) || 1 })); setFieldErrors(prev => ({ ...prev, qtyPerBox: "" })); }} data-testid="input-medicine-qty-per-box" className={fieldErrors.qtyPerBox ? "border-destructive" : ""} />
+            {fieldErrors.qtyPerBox && <p className="text-xs text-destructive mt-1">{fieldErrors.qtyPerBox}</p>}
           </div>
         </div>
 
@@ -657,13 +687,15 @@ export default function MedicinesPage() {
             <Label htmlFor="sellingPriceLocal" className="flex items-center gap-1">
               <Users className="h-3 w-3 text-green-500" /> {t("medicines.localPrice")} ($) *
             </Label>
-            <Input id="sellingPriceLocal" type="number" step="0.01" min={0} value={form.sellingPriceLocal || ""} onChange={e => setForm(f => ({ ...f, sellingPriceLocal: Number(e.target.value) || 0 }))} data-testid="input-medicine-sell-local" />
+            <Input ref={refSellingLocal} id="sellingPriceLocal" type="number" step="0.01" min={0} value={form.sellingPriceLocal || ""} onChange={e => { setForm(f => ({ ...f, sellingPriceLocal: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, sellingPriceLocal: "" })); }} data-testid="input-medicine-sell-local" className={fieldErrors.sellingPriceLocal ? "border-destructive" : ""} />
+            {fieldErrors.sellingPriceLocal && <p className="text-xs text-destructive mt-1">{fieldErrors.sellingPriceLocal}</p>}
           </div>
           <div>
             <Label htmlFor="sellingPriceForeigner" className="flex items-center gap-1">
               <Globe className="h-3 w-3 text-blue-500" /> {t("medicines.foreignerPrice")} ($) *
             </Label>
-            <Input id="sellingPriceForeigner" type="number" step="0.01" min={0} value={form.sellingPriceForeigner || ""} onChange={e => setForm(f => ({ ...f, sellingPriceForeigner: Number(e.target.value) || 0 }))} data-testid="input-medicine-sell-foreign" />
+            <Input ref={refSellingForeign} id="sellingPriceForeigner" type="number" step="0.01" min={0} value={form.sellingPriceForeigner || ""} onChange={e => { setForm(f => ({ ...f, sellingPriceForeigner: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, sellingPriceForeigner: "" })); }} data-testid="input-medicine-sell-foreign" className={fieldErrors.sellingPriceForeigner ? "border-destructive" : ""} />
+            {fieldErrors.sellingPriceForeigner && <p className="text-xs text-destructive mt-1">{fieldErrors.sellingPriceForeigner}</p>}
           </div>
         </div>
 
@@ -761,7 +793,7 @@ export default function MedicinesPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setForm(defaultForm); }}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setForm(defaultForm); setFieldErrors({}); } }}>
               <DialogTrigger asChild>
                 <Button size="sm" data-testid="button-new-medicine">
                   <Plus className="h-4 w-4 mr-1" /> {t("medicines.addMedicine")}
@@ -786,7 +818,7 @@ export default function MedicinesPage() {
       />
 
       {editMed && (
-        <Dialog open={!!editMed} onOpenChange={(open) => { if (!open) { setEditMed(null); setForm(defaultForm); } }}>
+        <Dialog open={!!editMed} onOpenChange={(open) => { if (!open) { setEditMed(null); setForm(defaultForm); setFieldErrors({}); } }}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">

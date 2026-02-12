@@ -113,12 +113,13 @@ function LiveTimer({ createdAt, status, turnaroundTime }: { createdAt: string | 
   );
 }
 
-function MultiSelect({ options, selected, onChange, placeholder, testId }: {
+function MultiSelect({ options, selected, onChange, placeholder, testId, triggerRef }: {
   options: string[];
   selected: string[];
   onChange: (val: string[]) => void;
   placeholder: string;
   testId: string;
+  triggerRef?: React.RefObject<HTMLButtonElement | null>;
 }) {
   const [open, setOpen] = useState(false);
   const toggle = (item: string) => {
@@ -127,7 +128,7 @@ function MultiSelect({ options, selected, onChange, placeholder, testId }: {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-full justify-between font-normal h-9 text-sm" data-testid={testId}>
+        <Button ref={triggerRef} variant="outline" className="w-full justify-between font-normal h-9 text-sm" data-testid={testId}>
           {selected.length > 0 ? (
             <span className="truncate">{selected.join(", ")}</span>
           ) : (
@@ -165,6 +166,11 @@ export default function LabTestsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [form, setForm] = useState(defaultForm);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const refTestName = useRef<HTMLInputElement>(null);
+  const refCategories = useRef<HTMLButtonElement>(null);
+  const refSampleTypes = useRef<HTMLButtonElement>(null);
+  const refPrice = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadReferrer, setUploadReferrer] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -210,6 +216,7 @@ export default function LabTestsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
       setEditTest(null);
       setForm(defaultForm);
+      setFieldErrors({});
       toast({ title: t("labTests.updatedSuccess") });
     },
     onError: (err: Error) => {
@@ -249,8 +256,19 @@ export default function LabTestsPage() {
   };
 
   const handleSubmit = () => {
-    if (!form.testName || form.categories.length === 0 || form.sampleTypes.length === 0 || !form.price) {
-      return toast({ title: t("common.fillRequired"), variant: "destructive" });
+    const errors: Record<string, string> = {};
+    if (!form.testName?.trim()) errors.testName = t("common.required");
+    if (form.categories.length === 0) errors.categories = t("common.required");
+    if (form.sampleTypes.length === 0) errors.sampleTypes = t("common.required");
+    if (!form.price || Number(form.price) <= 0) errors.price = t("common.required");
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast({ title: t("common.fillRequired"), variant: "destructive" });
+      const order = ["testName", "categories", "sampleTypes", "price"] as const;
+      const firstKey = order.find(k => errors[k]);
+      const refMap = { testName: refTestName, categories: refCategories, sampleTypes: refSampleTypes, price: refPrice } as const;
+      if (firstKey) (refMap[firstKey].current as HTMLElement | null)?.focus();
+      return;
     }
     const payload: any = {
       testName: form.testName,
@@ -271,6 +289,7 @@ export default function LabTestsPage() {
   };
 
   const openEdit = (test: LabTestWithPatient) => {
+    setFieldErrors({});
     setForm({
       testName: test.testName,
       categories: test.category.split(",").map(s => s.trim()).filter(Boolean),
@@ -500,7 +519,8 @@ export default function LabTestsPage() {
       <div className="space-y-3">
         <div>
           <Label htmlFor="test-name">{t("labTests.testName")} *</Label>
-          <Input id="test-name" value={form.testName} onChange={e => setForm(f => ({ ...f, testName: e.target.value }))} data-testid="input-test-name" />
+          <Input ref={refTestName} id="test-name" value={form.testName} onChange={e => { setForm(f => ({ ...f, testName: e.target.value })); setFieldErrors(prev => ({ ...prev, testName: "" })); }} data-testid="input-test-name" className={fieldErrors.testName ? "border-destructive" : ""} />
+          {fieldErrors.testName && <p className="text-xs text-destructive mt-1">{fieldErrors.testName}</p>}
         </div>
         <div>
           <Label>{t("billing.patient")}</Label>
@@ -520,26 +540,31 @@ export default function LabTestsPage() {
             <MultiSelect
               options={LAB_CATEGORIES}
               selected={form.categories}
-              onChange={v => setForm(f => ({ ...f, categories: v }))}
+              onChange={v => { setForm(f => ({ ...f, categories: v })); setFieldErrors(prev => ({ ...prev, categories: "" })); }}
               placeholder={t("labTests.selectCategories")}
               testId="select-test-category"
+              triggerRef={refCategories}
             />
+            {fieldErrors.categories && <p className="text-xs text-destructive mt-1">{fieldErrors.categories}</p>}
           </div>
           <div>
             <Label>{t("labTests.sampleType")} *</Label>
             <MultiSelect
               options={SAMPLE_TYPES}
               selected={form.sampleTypes}
-              onChange={v => setForm(f => ({ ...f, sampleTypes: v }))}
+              onChange={v => { setForm(f => ({ ...f, sampleTypes: v })); setFieldErrors(prev => ({ ...prev, sampleTypes: "" })); }}
               placeholder={t("labTests.selectSampleTypes")}
               testId="select-sample-type"
+              triggerRef={refSampleTypes}
             />
+            {fieldErrors.sampleTypes && <p className="text-xs text-destructive mt-1">{fieldErrors.sampleTypes}</p>}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label htmlFor="test-price">{t("common.price")} ($) *</Label>
-            <Input id="test-price" type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} data-testid="input-test-price" />
+            <Input ref={refPrice} id="test-price" type="number" step="0.01" value={form.price} onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setFieldErrors(prev => ({ ...prev, price: "" })); }} data-testid="input-test-price" className={fieldErrors.price ? "border-destructive" : ""} />
+            {fieldErrors.price && <p className="text-xs text-destructive mt-1">{fieldErrors.price}</p>}
           </div>
           <div>
             <Label htmlFor="test-tat">{t("labTests.turnaroundTime")}</Label>
@@ -575,7 +600,7 @@ export default function LabTestsPage() {
         title={t("labTests.title")}
         description={t("labTests.subtitle")}
         actions={
-          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setForm(defaultForm); }}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setForm(defaultForm); setFieldErrors({}); } }}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-lab-test">
                 <Plus className="h-4 w-4 mr-1" /> {t("labTests.addTest")}

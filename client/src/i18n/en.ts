@@ -70,6 +70,7 @@ export const en = {
     categoryAdded: "Category added",
     categoryRemoved: "Category removed",
     fillRequired: "Please fill in all required fields",
+    required: "This field is required",
     dataRefreshed: "Data refreshed",
     deleteConfirmPrefix: "Are you sure you want to delete",
     cannotBeUndone: "This action cannot be undone.",

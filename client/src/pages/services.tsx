@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
@@ -84,6 +84,10 @@ export default function ServicesPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [form, setForm] = useState(defaultForm);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const refName = useRef<HTMLInputElement>(null);
+  const refCategory = useRef<HTMLButtonElement>(null);
+  const refPrice = useRef<HTMLInputElement>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [categories, setCategories] = useState<string[]>(getServiceCategories());
   const [newCategory, setNewCategory] = useState("");
@@ -218,8 +222,18 @@ export default function ServicesPage() {
   };
 
   const handleSubmit = () => {
-    if (!form.name || !form.category || !form.price) {
-      return toast({ title: t("common.fillRequired"), variant: "destructive" });
+    const errors: Record<string, string> = {};
+    if (!form.name?.trim()) errors.name = t("common.required");
+    if (!form.category?.trim()) errors.category = t("common.required");
+    if (!form.price || Number(form.price) <= 0) errors.price = t("common.required");
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast({ title: t("common.fillRequired"), variant: "destructive" });
+      const order = ["name", "category", "price"] as const;
+      const firstKey = order.find(k => errors[k]);
+      const refMap = { name: refName, category: refCategory, price: refPrice } as const;
+      if (firstKey) (refMap[firstKey].current as HTMLElement | null)?.focus();
+      return;
     }
     const payload = {
       name: form.name,
@@ -237,6 +251,7 @@ export default function ServicesPage() {
   };
 
   const openEdit = (svc: Service) => {
+    setFieldErrors({});
     setForm({
       name: svc.name,
       category: svc.category,
@@ -291,23 +306,26 @@ export default function ServicesPage() {
       <div className="space-y-3">
         <div>
           <Label htmlFor="svc-name">{t("services.serviceName")} *</Label>
-          <Input id="svc-name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} data-testid="input-service-name" />
+          <Input ref={refName} id="svc-name" value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFieldErrors(prev => ({ ...prev, name: "" })); }} data-testid="input-service-name" className={fieldErrors.name ? "border-destructive" : ""} />
+          {fieldErrors.name && <p className="text-xs text-destructive mt-1">{fieldErrors.name}</p>}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>{t("common.category")} *</Label>
-            <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-              <SelectTrigger data-testid="select-service-category"><SelectValue placeholder={t("common.category")} /></SelectTrigger>
+            <Select value={form.category} onValueChange={v => { setForm(f => ({ ...f, category: v })); setFieldErrors(prev => ({ ...prev, category: "" })); }}>
+              <SelectTrigger ref={refCategory} data-testid="select-service-category"><SelectValue placeholder={t("common.category")} /></SelectTrigger>
               <SelectContent>
                 {categories.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {fieldErrors.category && <p className="text-xs text-destructive mt-1">{fieldErrors.category}</p>}
           </div>
           <div>
             <Label htmlFor="svc-price">{t("common.price")} ($) *</Label>
-            <Input id="svc-price" type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} data-testid="input-service-price" />
+            <Input ref={refPrice} id="svc-price" type="number" step="0.01" value={form.price} onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setFieldErrors(prev => ({ ...prev, price: "" })); }} data-testid="input-service-price" className={fieldErrors.price ? "border-destructive" : ""} />
+            {fieldErrors.price && <p className="text-xs text-destructive mt-1">{fieldErrors.price}</p>}
           </div>
         </div>
         <div>
@@ -664,7 +682,7 @@ export default function ServicesPage() {
             <Button variant="outline" size="icon" onClick={handleRefresh} data-testid="button-refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
-            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setForm(defaultForm); }}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setForm(defaultForm); setFieldErrors({}); } }}>
               <DialogTrigger asChild>
                 <Button data-testid="button-new-service">
                   <Plus className="h-4 w-4 mr-1" /> {t("services.addService")}
@@ -909,7 +927,7 @@ export default function ServicesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!editService} onOpenChange={(open) => { if (!open) { setEditService(null); setForm(defaultForm); } }}>
+      <Dialog open={!!editService} onOpenChange={(open) => { if (!open) { setEditService(null); setForm(defaultForm); setFieldErrors({}); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle data-testid="text-edit-service-title">{t("services.editService")}</DialogTitle>

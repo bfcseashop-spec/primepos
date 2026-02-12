@@ -107,6 +107,8 @@ export default function BillingPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [viewBill, setViewBill] = useState<any>(null);
   const [editBill, setEditBill] = useState<any>(null);
+  const [medicineQty, setMedicineQty] = useState(1);
+  const [medicineUnit, setMedicineUnit] = useState<"pieces" | "boxes">("pieces");
 
   const getPaymentLabel = (method: string) => {
     const found = PAYMENT_METHODS.find(p => p.value === method);
@@ -358,27 +360,33 @@ export default function BillingPage() {
     }]);
   };
 
-  const calcUnitPrice = (med: Medicine) => {
-    const boxPrice = Number(med.boxPrice) || 0;
-    const qtyPerBox = Number(med.qtyPerBox) || 0;
-    if (qtyPerBox <= 0 || boxPrice <= 0) return 0;
-    return Math.round((boxPrice / qtyPerBox) * 100) / 100;
+  /** Selling price per piece (use for bills). Prefer local; fallback to foreigner or legacy sellingPrice. */
+  const getSellingPricePerPiece = (med: Medicine) => {
+    const local = Number(med.sellingPriceLocal) ?? 0;
+    const foreign = Number(med.sellingPriceForeigner) ?? 0;
+    const legacy = Number(med.sellingPrice) ?? 0;
+    if (local > 0) return Math.round(local * 100) / 100;
+    if (foreign > 0) return Math.round(foreign * 100) / 100;
+    return Math.round(legacy * 100) / 100;
   };
 
   const addMedicineItem = (medicineId: string) => {
     const med = medicines.find(m => m.id === Number(medicineId));
     if (!med) return;
-    const unitPrice = calcUnitPrice(med);
+    const unitPrice = getSellingPricePerPiece(med);
     if (unitPrice <= 0) {
-      toast({ title: "This medicine has no valid box price or qty per box set", variant: "destructive" });
+      toast({ title: "This medicine has no selling price set (Local or Foreigner)", variant: "destructive" });
       return;
     }
+    const qtyPerBox = Number(med.qtyPerBox) || 1;
+    const addQty = medicineUnit === "boxes" ? Math.max(1, Math.floor(medicineQty)) * qtyPerBox : Math.max(1, Math.floor(medicineQty));
+    const total = Math.round(unitPrice * addQty * 100) / 100;
     setBillItems(prev => [...prev, {
       name: med.name,
       type: "medicine",
-      quantity: 1,
+      quantity: addQty,
       unitPrice,
-      total: unitPrice,
+      total,
     }]);
   };
 
@@ -673,23 +681,48 @@ export default function BillingPage() {
                     />
                   </div>
                   <div>
-                    <Label>{t("billing.medicines")} <span className="text-xs text-muted-foreground">(per piece)</span></Label>
-                    <SearchableSelect
-                      onValueChange={addMedicineItem}
-                      placeholder={t("billing.selectMedicine")}
-                      searchPlaceholder="Search medicine..."
-                      emptyText="No medicine found."
-                      data-testid="select-add-medicine"
-                      resetAfterSelect
-                      options={medicines.filter(m => m.isActive).map(m => {
-                        const unitPrice = calcUnitPrice(m);
-                        return {
-                          value: String(m.id),
-                          label: `${m.name} - $${unitPrice.toFixed(2)}/pc`,
-                          searchText: `${m.name} ${m.genericName || ""}`,
-                        };
-                      })}
-                    />
+                    <Label>{t("billing.medicines")}</Label>
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <SearchableSelect
+                          onValueChange={addMedicineItem}
+                          placeholder={t("billing.selectMedicine")}
+                          searchPlaceholder="Search medicine..."
+                          emptyText="No medicine found."
+                          data-testid="select-add-medicine"
+                          resetAfterSelect
+                          options={medicines.filter(m => m.isActive).map(m => {
+                            const unitPrice = getSellingPricePerPiece(m);
+                            const qtyPerBox = Number(m.qtyPerBox) || 1;
+                            return {
+                              value: String(m.id),
+                              label: `${m.name} - $${unitPrice.toFixed(2)}/pc${qtyPerBox > 1 ? ` (${qtyPerBox}/box)` : ""}`,
+                              searchText: `${m.name} ${m.genericName || ""}`,
+                            };
+                          })}
+                        />
+                      </div>
+                      <div className="flex gap-1.5 items-center shrink-0">
+                        <Input
+                          type="number"
+                          min={1}
+                          className="w-16 h-9 text-center"
+                          value={medicineQty}
+                          onChange={(e) => setMedicineQty(Math.max(1, Number(e.target.value) || 1))}
+                          data-testid="input-medicine-qty-add"
+                        />
+                        <Select value={medicineUnit} onValueChange={(v: "pieces" | "boxes") => setMedicineUnit(v)}>
+                          <SelectTrigger className="w-24 h-9" data-testid="select-medicine-unit-add">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pieces">Pieces</SelectItem>
+                            <SelectItem value="boxes">Boxes</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">Uses selling price per piece. Add by pieces or boxes.</p>
                   </div>
                 </div>
 
