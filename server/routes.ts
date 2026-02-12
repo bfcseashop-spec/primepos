@@ -886,14 +886,44 @@ export async function registerRoutes(
     }
   });
 
+  const medicinePatchSchema = medicineUpdateSchema.extend({
+    reason: z.string().nullable().optional(),
+    adjustmentType: z.enum(["set", "add", "subtract"]).optional(),
+  });
+
   app.patch("/api/medicines/:id", async (req, res) => {
     try {
-      const data = validateBody(medicineUpdateSchema, req.body);
-      const medicine = await storage.updateMedicine(Number(req.params.id), data);
+      const data = validateBody(medicinePatchSchema, req.body);
+      const id = Number(req.params.id);
+      const existing = await storage.getMedicine(id);
+      if (!existing) return res.status(404).json({ message: "Medicine not found" });
+      const { reason, adjustmentType, ...updateData } = data;
+      const medicine = await storage.updateMedicine(id, updateData);
       if (!medicine) return res.status(404).json({ message: "Medicine not found" });
+      if (data.stockCount !== undefined && typeof data.stockCount === "number") {
+        await storage.createStockAdjustment({
+          medicineId: id,
+          previousStock: existing.stockCount ?? 0,
+          newStock: data.stockCount,
+          adjustmentType: adjustmentType ?? "set",
+          reason: reason ?? null,
+        });
+      }
       res.json(medicine);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/medicines/:id/stock-history", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const medicine = await storage.getMedicine(id);
+      if (!medicine) return res.status(404).json({ message: "Medicine not found" });
+      const history = await storage.getStockAdjustmentsByMedicineId(id);
+      res.json(history);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
     }
   });
 

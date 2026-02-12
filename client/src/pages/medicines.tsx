@@ -20,9 +20,10 @@ import {
   Calculator, ShieldAlert, CheckCircle2, X,
   List, LayoutGrid, RefreshCw, Tag, FolderPlus, Printer, Barcode,
   PackageX, PackageCheck, Filter, ImagePlus, Trash,
-  Upload, Download, FileSpreadsheet, FileText, FileDown
+  Upload, Download, FileSpreadsheet, FileText, FileDown,
+  History
 } from "lucide-react";
-import type { Medicine } from "@shared/schema";
+import type { Medicine, StockAdjustment } from "@shared/schema";
 
 const MEDICINE_CATEGORIES = [
   "Tablet", "Capsule", "Syrup", "Injection", "Cream",
@@ -78,6 +79,11 @@ export default function MedicinesPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [adjustStockMed, setAdjustStockMed] = useState<Medicine | null>(null);
+  const [adjustStockMode, setAdjustStockMode] = useState<"set" | "add" | "subtract">("add");
+  const [adjustStockValue, setAdjustStockValue] = useState("");
+  const [adjustStockReason, setAdjustStockReason] = useState("");
+  const [stockHistoryMed, setStockHistoryMed] = useState<Medicine | null>(null);
 
   const allCategories = [...MEDICINE_CATEGORIES, ...customCategories];
 
@@ -128,6 +134,11 @@ export default function MedicinesPage() {
     queryKey: ["/api/medicines"],
   });
 
+  const { data: stockHistory = [], isLoading: stockHistoryLoading } = useQuery<StockAdjustment[]>({
+    queryKey: ["/api/medicines", stockHistoryMed?.id ?? "", "stock-history"],
+    enabled: !!stockHistoryMed?.id,
+  });
+
   const perMedPrice = form.qtyPerBox > 0 ? form.boxPrice / form.qtyPerBox : 0;
   const totalPurchasePrice = form.unitCount * form.boxPrice;
   const sellingPricePerPiece = Number(form.sellingPrice) >= 0 ? Number(form.sellingPrice) : 0;
@@ -172,6 +183,24 @@ export default function MedicinesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
       toast({ title: t("medicines.deleted") });
+    },
+    onError: (err: Error) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const adjustStockMutation = useMutation({
+    mutationFn: async ({ id, stockCount, reason, adjustmentType }: { id: number; stockCount: number; reason?: string; adjustmentType?: "set" | "add" | "subtract" }) => {
+      const res = await apiRequest("PATCH", `/api/medicines/${id}`, { stockCount, reason: reason || undefined, adjustmentType });
+      return res.json();
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/medicines", id, "stock-history"] });
+      setAdjustStockMed(null);
+      setAdjustStockValue("");
+      setAdjustStockReason("");
+      toast({ title: "Stock updated successfully" });
     },
     onError: (err: Error) => {
       toast({ title: t("common.error"), description: err.message, variant: "destructive" });
@@ -494,6 +523,12 @@ export default function MedicinesPage() {
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
             <Pencil className="h-4 w-4 text-amber-500" /> {t("common.edit")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setAdjustStockMed(row); setAdjustStockValue(""); setAdjustStockReason(""); setAdjustStockMode("add"); }} data-testid={`action-adjust-stock-${row.id}`} className="gap-2">
+            <Package className="h-4 w-4 text-cyan-500" /> Adjust stock
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setStockHistoryMed(row); }} data-testid={`action-stock-history-${row.id}`} className="gap-2">
+            <History className="h-4 w-4 text-slate-400" /> Stock history
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handlePrint(row); }} data-testid={`action-print-${row.id}`} className="gap-2">
             <Printer className="h-4 w-4 text-purple-500" /> {t("medicines.printLabel")}
@@ -827,6 +862,115 @@ export default function MedicinesPage() {
         </Dialog>
       )}
 
+      {adjustStockMed && (
+        <Dialog open={!!adjustStockMed} onOpenChange={(open) => { if (!open) { setAdjustStockMed(null); setAdjustStockValue(""); setAdjustStockReason(""); } }}>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-cyan-500" />
+                Adjust stock — {adjustStockMed.name}
+              </DialogTitle>
+              <DialogDescription>Update inventory count. Current stock: <strong>{adjustStockMed.stockCount}</strong> pieces.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div>
+                <Label>Adjustment type</Label>
+                <Select value={adjustStockMode} onValueChange={(v: "set" | "add" | "subtract") => setAdjustStockMode(v)}>
+                  <SelectTrigger data-testid="select-adjust-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="set">Set stock to (exact value)</SelectItem>
+                    <SelectItem value="add">Add to stock</SelectItem>
+                    <SelectItem value="subtract">Subtract from stock</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{adjustStockMode === "set" ? "New stock count" : "Quantity"}</Label>
+                <Input
+                  type="number"
+                  min={adjustStockMode === "subtract" ? 0 : 1}
+                  value={adjustStockValue}
+                  onChange={(e) => setAdjustStockValue(e.target.value)}
+                  placeholder={adjustStockMode === "set" ? "e.g. 500" : "e.g. 100"}
+                  data-testid="input-adjust-stock-value"
+                />
+              </div>
+              <div>
+                <Label>Reason (optional)</Label>
+                <Input
+                  value={adjustStockReason}
+                  onChange={(e) => setAdjustStockReason(e.target.value)}
+                  placeholder="e.g. Restock, Sale, Damaged"
+                  data-testid="input-adjust-stock-reason"
+                />
+              </div>
+              <Button
+                className="w-full"
+                disabled={adjustStockMutation.isPending || !adjustStockValue}
+                onClick={() => {
+                  const num = Math.floor(Number(adjustStockValue));
+                  if (isNaN(num) || (adjustStockMode === "subtract" && num < 0)) return;
+                  const current = adjustStockMed.stockCount ?? 0;
+                  const newStock = adjustStockMode === "set" ? Math.max(0, num) : adjustStockMode === "add" ? current + num : Math.max(0, current - num);
+                  adjustStockMutation.mutate({ id: adjustStockMed.id, stockCount: newStock, reason: adjustStockReason || undefined, adjustmentType: adjustStockMode });
+                }}
+                data-testid="button-confirm-adjust-stock"
+              >
+                {adjustStockMutation.isPending ? "Updating..." : "Update stock"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {stockHistoryMed && (
+        <Dialog open={!!stockHistoryMed} onOpenChange={(open) => { if (!open) setStockHistoryMed(null); }}>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-2xl sm:max-w-3xl max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <History className="h-5 w-5 text-slate-500" />
+                Stock history — {stockHistoryMed.name}
+              </DialogTitle>
+              <DialogDescription>Adjustments and movements for this medicine.</DialogDescription>
+            </DialogHeader>
+            <div className="overflow-auto flex-1 min-h-0 border rounded-lg">
+              {stockHistoryLoading ? (
+                <div className="p-6 text-center text-muted-foreground">Loading...</div>
+              ) : stockHistory.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground">No stock adjustments recorded yet.</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 sticky top-0">
+                    <tr>
+                      <th className="text-left p-3 font-medium">Date & time</th>
+                      <th className="text-left p-3 font-medium">Type</th>
+                      <th className="text-right p-3 font-medium">Previous</th>
+                      <th className="text-right p-3 font-medium">New</th>
+                      <th className="text-left p-3 font-medium">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stockHistory.map((adj) => (
+                      <tr key={adj.id} className="border-t">
+                        <td className="p-3 text-muted-foreground">
+                          {adj.createdAt ? new Date(adj.createdAt).toLocaleString() : "—"}
+                        </td>
+                        <td className="p-3 capitalize">{adj.adjustmentType}</td>
+                        <td className="p-3 text-right">{adj.previousStock}</td>
+                        <td className="p-3 text-right font-medium">{adj.newStock}</td>
+                        <td className="p-3 text-muted-foreground">{adj.reason || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {viewMed && (
         <Dialog open={!!viewMed} onOpenChange={(open) => { if (!open) setViewMed(null); }}>
           <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
@@ -1120,6 +1264,12 @@ export default function MedicinesPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEdit(med)} className="gap-2">
                                 <Pencil className="h-4 w-4 text-amber-500" /> {t("common.edit")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setAdjustStockMed(med); setAdjustStockValue(""); setAdjustStockReason(""); setAdjustStockMode("add"); }} className="gap-2">
+                                <Package className="h-4 w-4 text-cyan-500" /> Adjust stock
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setStockHistoryMed(med)} className="gap-2">
+                                <History className="h-4 w-4 text-slate-400" /> Stock history
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handlePrint(med)} className="gap-2">
                                 <Printer className="h-4 w-4 text-purple-500" /> {t("medicines.printLabel")}

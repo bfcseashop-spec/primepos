@@ -7,7 +7,9 @@ import {
   salaryProfiles, salaryLoans, loanInstallments, payrollRuns, payslips,
   type InsertUser, type User, type InsertRole, type Role,
   type InsertPatient, type Patient, type InsertService, type Service,
-  type InsertMedicine, type Medicine, type InsertOpdVisit, type OpdVisit,
+  type InsertMedicine, type Medicine,
+  stockAdjustments, type InsertStockAdjustment, type StockAdjustment,
+  type InsertOpdVisit, type OpdVisit,
   type InsertBill, type Bill, type InsertExpense, type Expense,
   type InsertBankTransaction, type BankTransaction,
   type InsertInvestment, type Investment,
@@ -57,6 +59,8 @@ export interface IStorage {
   updateMedicine(id: number, data: Partial<InsertMedicine>): Promise<Medicine | undefined>;
   deleteMedicine(id: number): Promise<void>;
   bulkDeleteMedicines(ids: number[]): Promise<void>;
+  createStockAdjustment(adjustment: InsertStockAdjustment): Promise<StockAdjustment>;
+  getStockAdjustmentsByMedicineId(medicineId: number): Promise<StockAdjustment[]>;
 
   getOpdVisits(): Promise<any[]>;
   getOpdVisit(id: number): Promise<OpdVisit | undefined>;
@@ -295,6 +299,15 @@ export class DatabaseStorage implements IStorage {
 
   async bulkDeleteMedicines(ids: number[]): Promise<void> {
     await db.delete(medicines).where(inArray(medicines.id, ids));
+  }
+
+  async createStockAdjustment(adjustment: InsertStockAdjustment): Promise<StockAdjustment> {
+    const [created] = await db.insert(stockAdjustments).values(adjustment).returning();
+    return created;
+  }
+
+  async getStockAdjustmentsByMedicineId(medicineId: number): Promise<StockAdjustment[]> {
+    return db.select().from(stockAdjustments).where(eq(stockAdjustments.medicineId, medicineId)).orderBy(desc(stockAdjustments.createdAt));
   }
 
   async getOpdVisits(): Promise<any[]> {

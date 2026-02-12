@@ -108,7 +108,6 @@ export default function BillingPage() {
   const [viewBill, setViewBill] = useState<any>(null);
   const [editBill, setEditBill] = useState<any>(null);
   const [medicineQty, setMedicineQty] = useState(1);
-  const [medicineUnit, setMedicineUnit] = useState<"pieces" | "boxes">("pieces");
 
   const getPaymentLabel = (method: string) => {
     const found = PAYMENT_METHODS.find(p => p.value === method);
@@ -382,8 +381,7 @@ export default function BillingPage() {
       toast({ title: "This medicine has no selling price set (Local or Foreigner)", variant: "destructive" });
       return;
     }
-    const qtyPerBox = Number(med.qtyPerBox) || 1;
-    const addQty = medicineUnit === "boxes" ? Math.max(1, Math.floor(medicineQty)) * qtyPerBox : Math.max(1, Math.floor(medicineQty));
+    const addQty = Math.max(1, Math.floor(medicineQty));
     const total = Math.round(unitPrice * addQty * 100) / 100;
     setBillItems(prev => [...prev, {
       name: med.name,
@@ -511,10 +509,10 @@ export default function BillingPage() {
                 <Plus className="h-4 w-4 mr-1" /> {t("billing.createBill")}
               </Button>
             </DialogTrigger>
-            <DialogContent className="w-[calc(100%-2rem)] max-w-4xl sm:max-w-5xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{showPreview ? t("billing.invoice") : t("billing.createBill")}</DialogTitle>
-                <DialogDescription>{showPreview ? t("billing.invoice") : t("billing.subtitle")}</DialogDescription>
+            <DialogContent className="w-[calc(100%-2rem)] max-w-5xl lg:max-w-6xl max-h-[92vh] overflow-y-auto p-6 sm:p-8">
+              <DialogHeader className="pb-4 border-b border-border/50">
+                <DialogTitle className="text-xl sm:text-2xl font-bold tracking-tight">{showPreview ? t("billing.invoice") : t("billing.createBill")}</DialogTitle>
+                <DialogDescription className="text-muted-foreground">{showPreview ? t("billing.invoice") : t("billing.subtitle")}</DialogDescription>
               </DialogHeader>
 
               {showPreview ? (
@@ -649,9 +647,9 @@ export default function BillingPage() {
                 </div>
               ) : (
 
-              <div className="space-y-4">
-                <div>
-                  <Label>{t("billing.patient")} *</Label>
+              <div className="space-y-6">
+                <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
+                  <h3 className="text-sm font-semibold text-foreground">{t("billing.patient")} *</h3>
                   <SearchableSelect
                     value={selectedPatient}
                     onValueChange={setSelectedPatient}
@@ -667,9 +665,9 @@ export default function BillingPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>{t("billing.services")}</Label>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
+                    <h3 className="text-sm font-semibold text-foreground">{t("billing.services")}</h3>
                     <SearchableSelect
                       onValueChange={addServiceItem}
                       placeholder={t("billing.selectService")}
@@ -684,10 +682,10 @@ export default function BillingPage() {
                       }))}
                     />
                   </div>
-                  <div>
-                    <Label>{t("billing.medicines")}</Label>
+                  <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
+                    <h3 className="text-sm font-semibold text-foreground">{t("billing.medicines")} <span className="text-xs font-normal text-muted-foreground">(pieces)</span></h3>
                     <div className="flex gap-2 items-end">
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <SearchableSelect
                           onValueChange={addMedicineItem}
                           placeholder={t("billing.selectMedicine")}
@@ -697,42 +695,38 @@ export default function BillingPage() {
                           resetAfterSelect
                           options={medicines.filter(m => m.isActive).map(m => {
                             const unitPrice = getSellingPricePerPiece(m);
-                            const qtyPerBox = Number(m.qtyPerBox) || 1;
+                            const stock = m.stockCount ?? 0;
+                            const alert = m.stockAlert ?? 10;
+                            const status = stock === 0 ? "Out" : stock < alert ? "Low" : "In stock";
+                            const statusClr = stock === 0 ? "text-red-600" : stock < alert ? "text-amber-600" : "text-emerald-600";
                             return {
                               value: String(m.id),
-                              label: `${m.name} - $${unitPrice.toFixed(2)}/pc${qtyPerBox > 1 ? ` (${qtyPerBox}/box)` : ""}`,
-                              searchText: `${m.name} ${m.genericName || ""}`,
+                              label: `${m.name} · $${unitPrice.toFixed(2)}/pc · ${stock} ${status}`,
+                              searchText: `${m.name} ${m.genericName || ""} ${m.category || ""}`,
                             };
                           })}
                         />
                       </div>
-                      <div className="flex gap-1.5 items-center shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Label htmlFor="med-qty-add" className="text-xs text-muted-foreground whitespace-nowrap">Qty</Label>
                         <Input
+                          id="med-qty-add"
                           type="number"
                           min={1}
-                          className="w-16 h-9 text-center"
+                          className="w-20 h-9 text-center"
                           value={medicineQty}
                           onChange={(e) => setMedicineQty(Math.max(1, Number(e.target.value) || 1))}
                           data-testid="input-medicine-qty-add"
                         />
-                        <Select value={medicineUnit} onValueChange={(v: "pieces" | "boxes") => setMedicineUnit(v)}>
-                          <SelectTrigger className="w-24 h-9" data-testid="select-medicine-unit-add">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pieces">Pieces</SelectItem>
-                            <SelectItem value="boxes">Boxes</SelectItem>
-                          </SelectContent>
-                        </Select>
                       </div>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">Uses selling price per piece. Add by pieces or boxes.</p>
+                    <p className="text-xs text-muted-foreground">Selling price per piece. Quantity is always in pieces.</p>
                   </div>
                 </div>
 
                 {billItems.length > 0 && (
-                  <div className="border rounded-md overflow-hidden">
-                    <div className="grid grid-cols-[1fr,80px,80px,80px,40px] gap-2 p-2 bg-gradient-to-r from-blue-600 to-violet-600 text-white text-xs font-semibold">
+                  <div className="rounded-xl border bg-card/50 overflow-hidden">
+                    <div className="grid grid-cols-[1fr,80px,80px,80px,40px] gap-2 p-3 bg-gradient-to-r from-blue-600 to-violet-600 text-white text-xs font-semibold">
                       <span>Item</span>
                       <span className="text-right">Price</span>
                       <span className="text-center">Qty</span>
@@ -767,10 +761,8 @@ export default function BillingPage() {
                   </div>
                 )}
 
-                <Separator />
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
                     <Label>{t("billing.discount")}</Label>
                     <div className="flex gap-1">
                       <Input
@@ -801,7 +793,7 @@ export default function BillingPage() {
                       </Button>
                     </div>
                   </div>
-                  <div>
+                  <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
                     <Label>{t("billing.paymentMethod")}</Label>
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                       <SelectTrigger data-testid="select-payment-method"><SelectValue /></SelectTrigger>
@@ -814,8 +806,8 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
                     <Label>{t("dashboard.doctor")} <span className="text-xs text-muted-foreground">(optional)</span></Label>
                     <SearchableSelect
                       value={referenceDoctor}
@@ -833,7 +825,7 @@ export default function BillingPage() {
                       ]}
                     />
                   </div>
-                  <div>
+                  <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
                     <Label>{t("billing.billDate")} <span className="text-xs text-muted-foreground">(optional)</span></Label>
                     <Input
                       type="date"
@@ -844,7 +836,7 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-blue-500/5 to-violet-500/5 dark:from-blue-500/10 dark:to-violet-500/10 rounded-md p-3 space-y-1 border border-blue-500/20">
+                <div className="rounded-xl bg-gradient-to-r from-blue-500/5 to-violet-500/5 dark:from-blue-500/10 dark:to-violet-500/10 p-4 sm:p-5 space-y-2 border border-blue-500/20">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{t("common.subtotal")}</span>
                     <span className="text-emerald-600 dark:text-emerald-400">{formatDualCurrency(subtotal, settings)}</span>

@@ -100,6 +100,20 @@ export const insertMedicineSchema = createInsertSchema(medicines).omit({ id: tru
 export type InsertMedicine = z.infer<typeof insertMedicineSchema>;
 export type Medicine = typeof medicines.$inferSelect;
 
+export const stockAdjustments = pgTable("stock_adjustments", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  medicineId: integer("medicine_id").references(() => medicines.id).notNull(),
+  previousStock: integer("previous_stock").notNull(),
+  newStock: integer("new_stock").notNull(),
+  adjustmentType: text("adjustment_type").notNull(), // "set" | "add" | "subtract"
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertStockAdjustmentSchema = createInsertSchema(stockAdjustments).omit({ id: true, createdAt: true });
+export type InsertStockAdjustment = z.infer<typeof insertStockAdjustmentSchema>;
+export type StockAdjustment = typeof stockAdjustments.$inferSelect;
+
 export const opdVisits = pgTable("opd_visits", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   visitId: text("visit_id").notNull().unique(),
