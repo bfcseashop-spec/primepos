@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -627,38 +628,53 @@ export default function BillingPage() {
               <div className="space-y-4">
                 <div>
                   <Label>{t("billing.patient")} *</Label>
-                  <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-                    <SelectTrigger data-testid="select-bill-patient"><SelectValue placeholder={t("billing.selectPatient")} /></SelectTrigger>
-                    <SelectContent>
-                      {patients.map(p => (
-                        <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.patientId})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={selectedPatient}
+                    onValueChange={setSelectedPatient}
+                    placeholder={t("billing.selectPatient")}
+                    searchPlaceholder="Search patient name or ID..."
+                    emptyText="No patient found."
+                    data-testid="select-bill-patient"
+                    options={patients.map(p => ({
+                      value: String(p.id),
+                      label: `${p.name} (${p.patientId})`,
+                      searchText: `${p.name} ${p.patientId}`,
+                    }))}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>{t("billing.services")}</Label>
-                    <Select onValueChange={addServiceItem}>
-                      <SelectTrigger data-testid="select-add-service"><SelectValue placeholder={t("billing.selectService")} /></SelectTrigger>
-                      <SelectContent>
-                        {services.filter(s => s.isActive).map(s => (
-                          <SelectItem key={s.id} value={String(s.id)}>{s.name} - ${s.price}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      onValueChange={addServiceItem}
+                      placeholder={t("billing.selectService")}
+                      searchPlaceholder="Search service..."
+                      emptyText="No service found."
+                      data-testid="select-add-service"
+                      resetAfterSelect
+                      options={services.filter(s => s.isActive).map(s => ({
+                        value: String(s.id),
+                        label: `${s.name} - $${s.price}`,
+                        searchText: s.name,
+                      }))}
+                    />
                   </div>
                   <div>
                     <Label>{t("billing.medicines")}</Label>
-                    <Select onValueChange={addMedicineItem}>
-                      <SelectTrigger data-testid="select-add-medicine"><SelectValue placeholder={t("billing.selectMedicine")} /></SelectTrigger>
-                      <SelectContent>
-                        {medicines.filter(m => m.isActive).map(m => (
-                          <SelectItem key={m.id} value={String(m.id)}>{m.name} - ${m.sellingPrice}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      onValueChange={addMedicineItem}
+                      placeholder={t("billing.selectMedicine")}
+                      searchPlaceholder="Search medicine..."
+                      emptyText="No medicine found."
+                      data-testid="select-add-medicine"
+                      resetAfterSelect
+                      options={medicines.filter(m => m.isActive).map(m => ({
+                        value: String(m.id),
+                        label: `${m.name} - $${m.sellingPrice}`,
+                        searchText: `${m.name} ${m.genericName || ""}`,
+                      }))}
+                    />
                   </div>
                 </div>
 
@@ -749,15 +765,21 @@ export default function BillingPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>{t("dashboard.doctor")} <span className="text-xs text-muted-foreground">(optional)</span></Label>
-                    <Select value={referenceDoctor} onValueChange={setReferenceDoctor}>
-                      <SelectTrigger data-testid="select-reference-doctor"><SelectValue placeholder="Select doctor" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {doctorNames.map(name => (
-                          <SelectItem key={name} value={name}>{name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={referenceDoctor}
+                      onValueChange={setReferenceDoctor}
+                      placeholder="Select doctor"
+                      searchPlaceholder="Search doctor..."
+                      emptyText="No doctor found."
+                      data-testid="select-reference-doctor"
+                      options={[
+                        { value: "none", label: "None" },
+                        ...doctorNames.map(name => ({
+                          value: name,
+                          label: name,
+                        })),
+                      ]}
+                    />
                   </div>
                   <div>
                     <Label>{t("billing.billDate")} <span className="text-xs text-muted-foreground">(optional)</span></Label>
