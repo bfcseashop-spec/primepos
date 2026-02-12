@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 
 interface SearchableSelectOption {
@@ -36,8 +34,16 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const selectedLabel = options.find((o) => o.value === value)?.label;
+
+  const filtered = options.filter((o) => {
+    if (!search) return true;
+    const text = (o.searchText || o.label).toLowerCase();
+    return text.includes(search.toLowerCase());
+  });
 
   const handleSelect = (selectedValue: string) => {
     onValueChange(selectedValue);
@@ -48,42 +54,69 @@ export function SearchableSelect({
     }
   };
 
+  useEffect(() => {
+    if (open && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn(
-            "w-full justify-between font-normal",
-            !value && "text-muted-foreground",
-            className
-          )}
-          data-testid={testId}
-        >
-          <span className="truncate">
-            {selectedLabel || placeholder}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command shouldFilter={true}>
-          <CommandInput
-            placeholder={searchPlaceholder}
-            value={search}
-            onValueChange={setSearch}
-            data-testid={testId ? `${testId}-search` : undefined}
-          />
-          <CommandList>
-            <CommandEmpty>{emptyText}</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
+    <div ref={containerRef} className="relative">
+      <Button
+        type="button"
+        variant="outline"
+        role="combobox"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className={cn(
+          "w-full justify-between font-normal",
+          !value && "text-muted-foreground",
+          className
+        )}
+        data-testid={testId}
+      >
+        <span className="truncate">
+          {selectedLabel || placeholder}
+        </span>
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </Button>
+
+      {open && (
+        <div className="absolute z-[9999] mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md">
+          <div className="flex items-center border-b px-3">
+            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder={searchPlaceholder}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex h-10 w-full bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+              data-testid={testId ? `${testId}-search` : undefined}
+            />
+          </div>
+          <div className="max-h-[200px] overflow-y-auto p-1">
+            {filtered.length === 0 ? (
+              <div className="py-4 text-center text-sm text-muted-foreground">{emptyText}</div>
+            ) : (
+              filtered.map((option) => (
+                <div
                   key={option.value}
-                  value={option.searchText || option.label}
-                  onSelect={() => handleSelect(option.value)}
+                  onClick={() => handleSelect(option.value)}
+                  className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                   data-testid={testId ? `${testId}-option-${option.value}` : undefined}
                 >
                   <Check
@@ -93,12 +126,12 @@ export function SearchableSelect({
                     )}
                   />
                   <span className="truncate">{option.label}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
