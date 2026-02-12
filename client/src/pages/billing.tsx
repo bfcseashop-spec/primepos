@@ -103,6 +103,7 @@ export default function BillingPage() {
     .filter((u) => u.fullName?.toLowerCase().startsWith("dr"))
     .map((u) => u.fullName);
 
+  const [priceType, setPriceType] = useState<"local" | "foreign">("local");
   const [billAction, setBillAction] = useState<"create" | "print" | "payment">("create");
   const [showPreview, setShowPreview] = useState(false);
   const [viewBill, setViewBill] = useState<any>(null);
@@ -342,6 +343,7 @@ export default function BillingPage() {
     setDiscountType("amount");
     setPaymentMethod("cash");
     setReferenceDoctor("");
+    setPriceType("local");
     setPaymentDate(new Date().toISOString().split("T")[0]);
     setShowPreview(false);
   };
@@ -358,15 +360,23 @@ export default function BillingPage() {
     }]);
   };
 
+  const getMedicinePrice = (med: Medicine) => {
+    if (priceType === "foreign") {
+      return Number(med.sellingPriceForeigner) || Number(med.perMedPrice) || 0;
+    }
+    return Number(med.sellingPriceLocal) || Number(med.perMedPrice) || 0;
+  };
+
   const addMedicineItem = (medicineId: string) => {
     const med = medicines.find(m => m.id === Number(medicineId));
     if (!med) return;
+    const price = getMedicinePrice(med);
     setBillItems(prev => [...prev, {
       name: med.name,
       type: "medicine",
       quantity: 1,
-      unitPrice: Number(med.sellingPrice),
-      total: Number(med.sellingPrice),
+      unitPrice: price,
+      total: price,
     }]);
   };
 
@@ -643,6 +653,32 @@ export default function BillingPage() {
                   />
                 </div>
 
+                <div>
+                  <Label>Price Type</Label>
+                  <div className="flex gap-1">
+                    <Button
+                      type="button"
+                      variant={priceType === "local" ? "default" : "outline"}
+                      className={priceType === "local" ? "flex-1 bg-emerald-600 hover:bg-emerald-600 text-white border-emerald-700" : "flex-1"}
+                      onClick={() => setPriceType("local")}
+                      data-testid="button-price-local"
+                    >
+                      <Globe className="h-4 w-4 mr-1.5" />
+                      Local Price
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={priceType === "foreign" ? "default" : "outline"}
+                      className={priceType === "foreign" ? "flex-1 bg-blue-600 hover:bg-blue-600 text-white border-blue-700" : "flex-1"}
+                      onClick={() => setPriceType("foreign")}
+                      data-testid="button-price-foreign"
+                    >
+                      <Wallet className="h-4 w-4 mr-1.5" />
+                      Foreign Price
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>{t("billing.services")}</Label>
@@ -661,7 +697,7 @@ export default function BillingPage() {
                     />
                   </div>
                   <div>
-                    <Label>{t("billing.medicines")}</Label>
+                    <Label>{t("billing.medicines")} <span className="text-xs text-muted-foreground">({priceType === "local" ? "Local" : "Foreign"} price)</span></Label>
                     <SearchableSelect
                       onValueChange={addMedicineItem}
                       placeholder={t("billing.selectMedicine")}
@@ -669,11 +705,14 @@ export default function BillingPage() {
                       emptyText="No medicine found."
                       data-testid="select-add-medicine"
                       resetAfterSelect
-                      options={medicines.filter(m => m.isActive).map(m => ({
-                        value: String(m.id),
-                        label: `${m.name} - $${m.sellingPrice}`,
-                        searchText: `${m.name} ${m.genericName || ""}`,
-                      }))}
+                      options={medicines.filter(m => m.isActive).map(m => {
+                        const price = getMedicinePrice(m);
+                        return {
+                          value: String(m.id),
+                          label: `${m.name} - $${price.toFixed(2)}`,
+                          searchText: `${m.name} ${m.genericName || ""}`,
+                        };
+                      })}
                     />
                   </div>
                 </div>
