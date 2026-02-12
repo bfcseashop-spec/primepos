@@ -183,7 +183,12 @@ export async function registerRoutes(
       }
       req.session.save((err) => {
         if (err) {
-          return res.status(500).json({ message: "Session error" });
+          console.error("Session save error on login:", err);
+          return res.status(500).json({
+            message: process.env.NODE_ENV === "production"
+              ? "Session error. Check server logs (pm2 logs primepos) and database connectivity."
+              : err?.message || "Session error",
+          });
         }
         res.json({ id: user.id, username: user.username, fullName: user.fullName, email: user.email, roleId: user.roleId, role: roleName });
       });

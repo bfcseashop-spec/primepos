@@ -253,6 +253,7 @@ curl -s http://localhost:5010/api/health
 |-------|--------|
 | 502 from pos.primeclinic24.com | App listening on 5010? `curl http://localhost:5010` on server. |
 | **APIs return index.html / “All APIs not working” on VPS** | See **“API returned a web page”** section above. |
+| **"Session error" on login** | Login returns 500 and "Session error" when the session store (Postgres) fails to save. On the VPS run `pm2 logs primepos --lines 30` and look for `Session save error on login:` — the next line shows the real error (e.g. connection refused, permission denied, table missing). Fix: (1) Ensure `DATABASE_URL` in `.env` is correct and the database is running. (2) Ensure the DB user can create tables; the app uses `connect-pg-simple` with `createTableIfMissing: true` and table name `session`. (3) If the `session` table was created by another app with different schema, drop it and restart so this app can recreate it: `psql $DATABASE_URL -c 'DROP TABLE IF EXISTS session;'` then `pm2 restart primepos`. |
 | Permission denied in /var/www/primepos | `sudo chown -R $USER:$USER /var/www/primepos` |
 | DATABASE_URL must be set | Create `/var/www/primepos/.env` with `DATABASE_URL=...`; use `start.cjs` (via ecosystem) so `.env` is loaded. |
 | Build fails on server | `node -v` (need 20+), `npm ci` and `npm run build` |
