@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Switch, Route } from "wouter";
-import { queryClient, apiRequest } from "./lib/queryClient";
+import { queryClient, apiRequest, safeJsonRes, API_NOT_REACHABLE_MSG } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -62,16 +62,19 @@ function App() {
 
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
-      .then((res) => {
-        if (res.ok) return res.json();
-        throw new Error("Not authenticated");
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Not authenticated");
+        return safeJsonRes(res);
       })
       .then((user) => {
         setCurrentUser(user);
         localStorage.setItem("clinicpos_user", JSON.stringify(user));
         setAuthChecked(true);
       })
-      .catch(async () => {
+      .catch(async (err: Error) => {
+        if (err?.message === API_NOT_REACHABLE_MSG) {
+          console.error(API_NOT_REACHABLE_MSG);
+        }
         const stored = localStorage.getItem("clinicpos_user");
         let restored: any = null;
         if (stored) {
@@ -85,7 +88,6 @@ function App() {
         if (restored) {
           setCurrentUser(restored);
           setAuthChecked(true);
-          // Revalidate session in background; if server says 401, clear stale client state
           try {
             const recheck = await fetch("/api/auth/me", { credentials: "include" });
             if (!recheck.ok) {
@@ -93,12 +95,12 @@ function App() {
               localStorage.removeItem("clinicpos_user");
               queryClient.clear();
             } else {
-              const user = await recheck.json();
+              const user = await safeJsonRes(recheck);
               setCurrentUser(user);
               localStorage.setItem("clinicpos_user", JSON.stringify(user));
             }
           } catch {
-            // Network error: keep restored user; next API call will 401 if session invalid
+            // Network or HTML response: keep restored user; next API call will fail if API unreachable
           }
         } else {
           setCurrentUser(null);

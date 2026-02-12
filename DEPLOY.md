@@ -227,10 +227,32 @@ Ensure one of PM2 or systemd is set up so restarts are reliable.
 
 ## 6. Troubleshooting
 
+### "API returned a web page" / "Unexpected token '<'" / Settings or APIs not working
+
+This means the browser is getting **HTML** (the app’s index.html) instead of **JSON** from `/api/settings` (and other APIs). The request is **not** reaching the Node app.
+
+**On the VPS, run:**
+
+```bash
+curl -s http://localhost:5010/api/health
+```
+
+- If you see **`{"status":"ok","timestamp":"..."}`** → Node is fine. The problem is **how traffic reaches the server** (see below).
+- If you see **HTML** or **connection refused** → Node is not running or not on 5010. Run `pm2 list`, `pm2 restart primepos`, and ensure `PORT=5010` and the app is started with `start.cjs` (e.g. `pm2 start ecosystem.config.cjs`).
+
+**Then in the browser open:** `https://pos.primeclinic24.com/api/health`
+
+- If you see **JSON** → APIs are reaching Node; the issue may be limited to one endpoint.
+- If you see **the ClinicPOS login page (HTML)** → Your **hostname is not pointing at the Node app**. Only the Node process should serve `pos.primeclinic24.com`. Do **not** point the same hostname to nginx/caddy that serves `dist/public` for all paths. Fix: Cloudflared (or your proxy) must send **all** traffic for `pos.primeclinic24.com` to `http://localhost:5010` with **no** other server in front serving the SPA for that host.
+
+**Checklist:** (1) Cloudflared config: single ingress `pos.primeclinic24.com` → `http://localhost:5010`. (2) No nginx/caddy serving the same hostname. (3) `pm2 start ecosystem.config.cjs` and after deploy: `npm run build && pm2 restart primepos`.
+
+---
+
 | Issue | Check |
 |-------|--------|
 | 502 from pos.primeclinic24.com | App listening on 5010? `curl http://localhost:5010` on server. |
-| **APIs return index.html / “All APIs not working” on VPS** | **Only the Node app must receive traffic for this host.** On the server run `curl -s http://localhost:5010/api/health` — you should see `{"status":"ok",...}`. If you get HTML, the request is not reaching the Node process. Ensure: (1) Cloudflared ingress points to `http://localhost:5010` with no other proxy in between. (2) You are not running nginx/caddy that serves the same hostname and returns the built `dist/public` for all paths. (3) Start the app with `pm2 start ecosystem.config.cjs` (so `start.cjs` runs and loads `.env` before the app). (4) After code changes, run `npm run build` and `pm2 restart primepos`. |
+| **APIs return index.html / “All APIs not working” on VPS** | See **“API returned a web page”** section above. |
 | Permission denied in /var/www/primepos | `sudo chown -R $USER:$USER /var/www/primepos` |
 | DATABASE_URL must be set | Create `/var/www/primepos/.env` with `DATABASE_URL=...`; use `start.cjs` (via ecosystem) so `.env` is loaded. |
 | Build fails on server | `node -v` (need 20+), `npm ci` and `npm run build` |
