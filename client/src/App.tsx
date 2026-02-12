@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { DocumentHeadFromSettings } from "@/components/document-head-from-settings";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LayoutHeader } from "@/components/page-header";
 import { I18nProvider } from "@/i18n";
@@ -176,6 +177,7 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
             <SidebarProvider style={sidebarStyle as React.CSSProperties}>
+              <DocumentHeadFromSettings />
               <div className="flex h-screen w-full">
                 <AppSidebar />
                 <div className="flex flex-col flex-1 overflow-hidden">
