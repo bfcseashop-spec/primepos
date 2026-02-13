@@ -201,10 +201,11 @@ export default function BillingPage() {
     },
   });
 
-  const printReceipt = (bill: any) => {
+  type PrintLayout = "compact" | "full";
+  const printReceipt = (bill: any, layout: PrintLayout = "full") => {
     const patient = patients.find(p => p.id === Number(selectedPatient || bill.patientId));
     const items = bill.items || billItems;
-    const printWindow = window.open("", "_blank", "width=800,height=900");
+    const printWindow = window.open("", "_blank", layout === "compact" ? "width=400,height=600" : "width=800,height=900");
     if (!printWindow) return;
     const clinicName = settings?.clinicName || "";
     const clinicEmail = settings?.email || "";
@@ -218,13 +219,20 @@ export default function BillingPage() {
     const formattedDate = new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
     const pSym = CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$";
+    const isCompact = layout === "compact";
+    const pad = isCompact ? "4px 6px" : "8px 10px";
+    const fBase = isCompact ? 10 : 13;
+    const fSm = isCompact ? 9 : 11;
+    const fLg = isCompact ? 12 : 18;
+    const maxW = isCompact ? "380px" : "800px";
+    const bodyPad = isCompact ? "12px" : "30px";
     const itemRows = (Array.isArray(items) ? items : []).map((item: any, idx: number) => `
       <tr>
-        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;color:#6b7280;">${idx + 1}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;">${item.name}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;">${pSym}${Number(item.unitPrice).toFixed(2)}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;">${item.quantity}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;">${pSym}${Number(item.total).toFixed(2)}</td>
+        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;text-align:center;color:#6b7280;font-size:${fSm}px;">${idx + 1}</td>
+        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;font-size:${fSm}px;">${item.name}</td>
+        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;text-align:right;font-size:${fSm}px;">${pSym}${Number(item.unitPrice).toFixed(2)}</td>
+        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;text-align:center;font-size:${fSm}px;">${item.quantity}</td>
+        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;text-align:right;font-size:${fSm}px;">${pSym}${Number(item.total).toFixed(2)}</td>
       </tr>
     `).join("");
 
@@ -232,97 +240,92 @@ export default function BillingPage() {
     const logoHref = settings?.logo
       ? (settings.logo.startsWith("http") ? settings.logo : `${typeof window !== "undefined" ? window.location.origin : ""}${settings.logo.startsWith("/") ? settings.logo : "/" + settings.logo}`)
       : "";
+    const barcodeSize = isCompact ? 32 : 48;
     printWindow.document.write(`
       <html><head><title>Invoice - ${bill.billNo}</title>
       <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937; padding: 30px; max-width: 800px; margin: 0 auto; font-size: 13px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .invoice-barcode { font-family: 'Libre Barcode 128', monospace; font-size: 48px; letter-spacing: 2px; line-height: 1; color: #1f2937; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937; padding: ${bodyPad}; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .invoice-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 2px; line-height: 1; color: #1f2937; }
         @media print {
-          body { padding: 15px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          body { padding: ${isCompact ? "8px" : "15px"}; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           table, tr, td, th, div, span { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       </style></head><body>
 
-        <!-- Header -->
-        <table style="width:100%;margin-bottom:20px;">
+        <table style="width:100%;margin-bottom:${isCompact ? "8px" : "20px"};">
           <tr>
             <td style="width:50%;vertical-align:middle;">
-              ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:50px;margin-bottom:4px;display:block;" />` : ""}
-              <div style="font-size:18px;font-weight:700;color:#0f766e;">${clinicNameDisplay}</div>
-              ${clinicAddress ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">${clinicAddress}</div>` : ""}
-              ${clinicPhone ? `<div style="font-size:11px;color:#6b7280;">${clinicPhone}</div>` : ""}
-              <div style="font-size:11px;color:#6b7280;">${clinicEmailDisplay}</div>
+              ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "32px" : "50px"};margin-bottom:2px;display:block;" />` : ""}
+              <div style="font-size:${fLg}px;font-weight:700;color:#0f766e;">${clinicNameDisplay}</div>
+              ${clinicAddress ? `<div style="font-size:${fSm}px;color:#6b7280;margin-top:1px;">${clinicAddress}</div>` : ""}
+              ${clinicPhone ? `<div style="font-size:${fSm}px;color:#6b7280;">${clinicPhone}</div>` : ""}
+              <div style="font-size:${fSm}px;color:#6b7280;">${clinicEmailDisplay}</div>
             </td>
             <td style="width:50%;text-align:right;vertical-align:top;">
-              <div style="font-size:24px;font-weight:800;color:#1f2937;letter-spacing:1px;">INVOICE</div>
-              <div style="font-size:12px;color:#6b7280;margin-top:4px;">Invoice #: <strong>${bill.billNo}</strong></div>
-              <div style="font-size:12px;color:#6b7280;">Date: ${formattedDate}</div>
-              ${billNoBarcode ? `<div class="invoice-barcode" style="margin-top:6px;">${billNoBarcode}</div><div style="font-size:10px;color:#9ca3af;margin-top:2px;letter-spacing:1px;">${bill.billNo}</div>` : ""}
-              <div style="margin-top:6px;">
-                <span style="display:inline-block;padding:3px 12px;border-radius:4px;font-size:11px;font-weight:600;color:white;background:${statusColor};">${statusLabel}</span>
+              <div style="font-size:${isCompact ? 16 : 24}px;font-weight:800;color:#1f2937;letter-spacing:1px;">INVOICE</div>
+              <div style="font-size:${fSm}px;color:#6b7280;margin-top:2px;">Invoice #: <strong>${bill.billNo}</strong></div>
+              <div style="font-size:${fSm}px;color:#6b7280;">Date: ${formattedDate}</div>
+              ${billNoBarcode ? `<div class="invoice-barcode" style="margin-top:4px;font-size:${barcodeSize}px;">${billNoBarcode}</div><div style="font-size:${isCompact ? 8 : 10}px;color:#9ca3af;margin-top:1px;letter-spacing:1px;">${bill.billNo}</div>` : ""}
+              <div style="margin-top:4px;">
+                <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:${fSm}px;font-weight:600;color:white;background:${statusColor};">${statusLabel}</span>
               </div>
             </td>
           </tr>
         </table>
 
-        <!-- Patient & Payment Info -->
-        <table style="width:100%;margin-bottom:18px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;">
+        <table style="width:100%;margin-bottom:${isCompact ? "6px" : "18px"};background:#f9fafb;border-radius:4px;border:1px solid #e5e7eb;">
           <tr>
-            <td style="padding:12px 14px;width:50%;vertical-align:top;">
-              <div style="font-size:10px;text-transform:uppercase;color:#9ca3af;font-weight:600;letter-spacing:0.5px;margin-bottom:4px;">Patient</div>
-              <div style="font-size:13px;font-weight:600;">${patient?.name || "N/A"}</div>
-              ${patient?.patientId ? `<div style="font-size:11px;color:#6b7280;">ID: ${patient.patientId}</div>` : ""}
-              ${patient?.gender ? `<div style="font-size:11px;color:#6b7280;">Gender: ${patient.gender}</div>` : ""}
+            <td style="padding:${isCompact ? "6px 8px" : "12px 14px"};width:50%;vertical-align:top;">
+              <div style="font-size:${isCompact ? 8 : 10}px;text-transform:uppercase;color:#9ca3af;font-weight:600;letter-spacing:0.5px;margin-bottom:2px;">Patient</div>
+              <div style="font-size:${fBase}px;font-weight:600;">${patient?.name || "N/A"}</div>
+              ${patient?.patientId ? `<div style="font-size:${fSm}px;color:#6b7280;">ID: ${patient.patientId}</div>` : ""}
+              ${patient?.gender ? `<div style="font-size:${fSm}px;color:#6b7280;">Gender: ${patient.gender}</div>` : ""}
             </td>
-            <td style="padding:12px 14px;width:50%;vertical-align:top;border-left:1px solid #e5e7eb;">
-              <div style="font-size:10px;text-transform:uppercase;color:#9ca3af;font-weight:600;letter-spacing:0.5px;margin-bottom:4px;">Details</div>
-              ${bill.referenceDoctor ? `<div style="font-size:12px;"><span style="color:#6b7280;">Ref Doctor:</span> <strong>${bill.referenceDoctor}</strong></div>` : ""}
-              <div style="font-size:12px;"><span style="color:#6b7280;">Payment:</span> <strong>${getPaymentLabel(bill.paymentMethod)}</strong></div>
+            <td style="padding:${isCompact ? "6px 8px" : "12px 14px"};width:50%;vertical-align:top;border-left:1px solid #e5e7eb;">
+              <div style="font-size:${isCompact ? 8 : 10}px;text-transform:uppercase;color:#9ca3af;font-weight:600;letter-spacing:0.5px;margin-bottom:2px;">Details</div>
+              ${bill.referenceDoctor ? `<div style="font-size:${fSm}px;"><span style="color:#6b7280;">Ref Doctor:</span> <strong>${bill.referenceDoctor}</strong></div>` : ""}
+              <div style="font-size:${fSm}px;"><span style="color:#6b7280;">Payment:</span> <strong>${getPaymentLabel(bill.paymentMethod)}</strong></div>
             </td>
           </tr>
         </table>
 
-        <!-- Items Table -->
-        <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
+        <table style="width:100%;border-collapse:collapse;margin-bottom:${isCompact ? "8px" : "14px"};">
           <thead>
             <tr style="background:#0f766e;color:white;">
-              <th style="padding:8px 10px;text-align:center;font-size:11px;font-weight:600;width:40px;">#</th>
-              <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;">Description</th>
-              <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;width:80px;">Price</th>
-              <th style="padding:8px 10px;text-align:center;font-size:11px;font-weight:600;width:50px;">Qty</th>
-              <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:600;width:90px;">Total (${settings?.currency || "USD"})</th>
+              <th style="padding:${pad};text-align:center;font-size:${fSm}px;font-weight:600;width:28px;">#</th>
+              <th style="padding:${pad};text-align:left;font-size:${fSm}px;font-weight:600;">Description</th>
+              <th style="padding:${pad};text-align:right;font-size:${fSm}px;font-weight:600;width:${isCompact ? 52 : 80}px;">Price</th>
+              <th style="padding:${pad};text-align:center;font-size:${fSm}px;font-weight:600;width:${isCompact ? 32 : 50}px;">Qty</th>
+              <th style="padding:${pad};text-align:right;font-size:${fSm}px;font-weight:600;width:${isCompact ? 58 : 90}px;">Total</th>
             </tr>
           </thead>
-          <tbody>
-            ${itemRows}
-          </tbody>
+          <tbody>${itemRows}</tbody>
         </table>
 
-        <!-- Totals -->
-        <table style="width:100%;margin-bottom:20px;">
+        <table style="width:100%;margin-bottom:${isCompact ? "8px" : "20px"};">
           <tr>
             <td style="width:60%;"></td>
             <td style="width:40%;">
               <table style="width:100%;border-collapse:collapse;">
                 <tr>
-                  <td style="padding:5px 10px;font-size:12px;color:#6b7280;">Subtotal</td>
-                  <td style="padding:5px 10px;text-align:right;font-size:12px;">${dualCurrencyHTML(Number(bill.subtotal), settings)}</td>
+                  <td style="padding:${pad};font-size:${fSm}px;color:#6b7280;">Subtotal</td>
+                  <td style="padding:${pad};text-align:right;font-size:${fSm}px;">${dualCurrencyHTML(Number(bill.subtotal), settings)}</td>
                 </tr>
                 <tr>
-                  <td style="padding:5px 10px;font-size:12px;color:#6b7280;">Discount</td>
-                  <td style="padding:5px 10px;text-align:right;font-size:12px;color:#ef4444;">-${dualCurrencyHTML(Number(bill.discount), settings)}</td>
+                  <td style="padding:${pad};font-size:${fSm}px;color:#6b7280;">Discount</td>
+                  <td style="padding:${pad};text-align:right;font-size:${fSm}px;color:#ef4444;">-${dualCurrencyHTML(Number(bill.discount), settings)}</td>
                 </tr>
                 <tr style="border-top:2px solid #0f766e;">
-                  <td style="padding:8px 10px;font-size:14px;font-weight:700;color:#0f766e;">Grand Total</td>
-                  <td style="padding:8px 10px;text-align:right;font-size:14px;font-weight:700;color:#0f766e;">${getCurrencyParts(Number(bill.total), settings).primaryStr}</td>
+                  <td style="padding:${pad};font-size:${isCompact ? 11 : 14}px;font-weight:700;color:#0f766e;">Grand Total</td>
+                  <td style="padding:${pad};text-align:right;font-size:${isCompact ? 11 : 14}px;font-weight:700;color:#0f766e;">${getCurrencyParts(Number(bill.total), settings).primaryStr}</td>
                 </tr>
                 ${getCurrencyParts(Number(bill.total), settings).secondaryStr ? `
                 <tr>
-                  <td style="padding:4px 10px;font-size:14px;font-weight:700;color:#0f766e;">Grand Total</td>
-                  <td style="padding:4px 10px;text-align:right;font-size:14px;font-weight:700;color:#0f766e;">${getCurrencyParts(Number(bill.total), settings).secondaryStr}</td>
+                  <td style="padding:${pad};font-size:${isCompact ? 11 : 14}px;font-weight:700;color:#0f766e;">Grand Total</td>
+                  <td style="padding:${pad};text-align:right;font-size:${isCompact ? 11 : 14}px;font-weight:700;color:#0f766e;">${getCurrencyParts(Number(bill.total), settings).secondaryStr}</td>
                 </tr>
                 ` : ""}
               </table>
@@ -330,17 +333,15 @@ export default function BillingPage() {
           </tr>
         </table>
 
-        <!-- Payment Information -->
-        <div style="background:#f0fdfa;border:1px solid #ccfbf1;border-radius:6px;padding:12px 14px;margin-bottom:20px;">
-          <div style="font-size:11px;font-weight:600;color:#0f766e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Payment Information</div>
-          <div style="font-size:12px;color:#374151;">Payment for the above medical services at ${clinicNameDisplay}.</div>
-          <div style="font-size:11px;color:#6b7280;margin-top:4px;">Amount Paid: <strong>${dualCurrencyHTML(Number(bill.paidAmount), settings)}</strong> via <strong>${getPaymentLabel(bill.paymentMethod)}</strong></div>
+        <div style="background:#f0fdfa;border:1px solid #ccfbf1;border-radius:4px;padding:${isCompact ? "6px 8px" : "12px 14px"};margin-bottom:${isCompact ? "8px" : "20px"};">
+          <div style="font-size:${fSm}px;font-weight:600;color:#0f766e;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;">Payment Information</div>
+          <div style="font-size:${fSm}px;color:#374151;">Payment for the above medical services at ${clinicNameDisplay}.</div>
+          <div style="font-size:${fSm}px;color:#6b7280;margin-top:2px;">Amount Paid: <strong>${dualCurrencyHTML(Number(bill.paidAmount), settings)}</strong> via <strong>${getPaymentLabel(bill.paymentMethod)}</strong></div>
         </div>
 
-        <!-- Footer -->
-        <div style="text-align:center;padding-top:16px;border-top:1px solid #e5e7eb;">
-          <div style="font-size:13px;font-weight:600;color:#1f2937;margin-bottom:3px;">Thank you for choosing ${clinicNameDisplay}!</div>
-          <div style="font-size:11px;color:#6b7280;">For questions, contact ${clinicEmailDisplay}</div>
+        <div style="text-align:center;padding-top:${isCompact ? "8px" : "16px"};border-top:1px solid #e5e7eb;">
+          <div style="font-size:${fBase}px;font-weight:600;color:#1f2937;margin-bottom:2px;">Thank you for choosing ${clinicNameDisplay}!</div>
+          <div style="font-size:${fSm}px;color:#6b7280;">For questions, contact ${clinicEmailDisplay}</div>
         </div>
 
         <script>window.onload = function() { window.print(); }</script>
@@ -1085,6 +1086,12 @@ export default function BillingPage() {
                       <h3 className="text-xl font-extrabold tracking-wide">{t("billing.invoice")}</h3>
                       <p className="text-xs text-muted-foreground mt-1">Invoice #: <span className="font-semibold text-foreground">{viewBill.billNo}</span></p>
                       <p className="text-xs text-muted-foreground">{t("common.date")}: {new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+                      {(viewBill.billNo || "").replace(/[^A-Za-z0-9\-]/g, "") && (
+                        <div className="mt-1.5" style={{ fontFamily: "'Libre Barcode 128', monospace", fontSize: 36, letterSpacing: 2, lineHeight: 1, color: "var(--foreground)" }}>
+                          {(viewBill.billNo || "").replace(/[^A-Za-z0-9\-]/g, "")}
+                        </div>
+                      )}
+                      <p className="text-[10px] text-muted-foreground mt-0.5 tracking-wide">{viewBill.billNo}</p>
                       <Badge className={`mt-1.5 ${viewBill.status === "paid" ? "bg-emerald-600 border-emerald-700" : "bg-amber-500 border-amber-600"} text-white`}>
                         {viewBill.status === "paid" ? t("billing.paid") : t("billing.pending")}
                       </Badge>
@@ -1168,9 +1175,14 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                <Button onClick={() => { printReceipt(viewBill); }} className="w-full bg-blue-600 hover:bg-blue-600 text-white border-blue-700" data-testid="button-view-print">
-                  <Printer className="h-4 w-4 mr-1.5" /> {t("billing.printInvoice")}
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button onClick={() => { printReceipt(viewBill, "compact"); }} variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white" data-testid="button-view-print-compact">
+                    <Printer className="h-4 w-4 mr-1.5" /> Print (Compact)
+                  </Button>
+                  <Button onClick={() => { printReceipt(viewBill, "full"); }} className="bg-blue-600 hover:bg-blue-600 text-white border-blue-700" data-testid="button-view-print-full">
+                    <Printer className="h-4 w-4 mr-1.5" /> Print (Full size)
+                  </Button>
+                </div>
               </div>
             );
           })()}
