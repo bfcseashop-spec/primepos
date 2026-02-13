@@ -39,7 +39,14 @@ export default function SignInPage({ onLogin }: SignInPageProps) {
 
   const { data: publicSettings } = useQuery<PublicSettings>({
     queryKey: ["/api/public/settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/public/settings", { credentials: "include" });
+      if (!res.ok) return {} as PublicSettings;
+      const json = await res.json();
+      return json as PublicSettings;
+    },
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   const appName = publicSettings?.appName?.trim() || t("common.appName");
