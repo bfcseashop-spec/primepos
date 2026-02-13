@@ -873,6 +873,18 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/medicines/lookup", async (req, res) => {
+    try {
+      const code = (req.query.code as string)?.trim();
+      if (!code) return res.status(400).json({ message: "Query parameter 'code' is required" });
+      const medicine = await storage.getMedicineByCode(code);
+      if (!medicine) return res.status(404).json({ message: "Medicine not found" });
+      res.json(medicine);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/medicines", async (req, res) => {
     try {
       const data = validateBody(insertMedicineSchema, req.body);

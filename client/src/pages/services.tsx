@@ -25,6 +25,7 @@ import {
   Download, Upload, FileSpreadsheet, FileDown,
 } from "lucide-react";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { Service } from "@shared/schema";
 
 const DEFAULT_SERVICE_CATEGORIES = [
@@ -726,13 +727,12 @@ export default function ServicesPage() {
           <CardContent className="p-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="relative w-64">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
+                <div className="w-64">
+                  <SearchInputWithBarcode
                     placeholder={t("services.searchServices")}
-                    className="pl-8"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onSearch={(v) => setSearchTerm(v)}
                     data-testid="input-search-services"
                   />
                 </div>

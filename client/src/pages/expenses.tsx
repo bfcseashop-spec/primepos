@@ -20,6 +20,7 @@ import {
   CreditCard, Banknote, FileText, FolderPlus, Upload, Download,
   FileSpreadsheet, FileDown, File
 } from "lucide-react";
+import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { Expense } from "@shared/schema";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
 import { useTranslation } from "@/i18n";
@@ -537,13 +538,12 @@ export default function ExpensesPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
+          <div className="flex-1 min-w-[200px]">
+            <SearchInputWithBarcode
               placeholder="Search expenses..."
-              className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onSearch={(v) => setSearchTerm(v)}
               data-testid="input-search-expenses"
             />
           </div>

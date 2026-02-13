@@ -15,6 +15,7 @@ import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw
 import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { Doctor } from "@shared/schema";
 
 const defaultPositions = [
@@ -271,9 +272,8 @@ export default function DoctorManagementPage() {
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[250px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search doctors by name, specialty, or department..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="input-search-doctors" />
+        <div className="flex-1 min-w-[250px]">
+          <SearchInputWithBarcode placeholder="Search doctors by name, specialty, or department..." value={search} onChange={(e) => setSearch(e.target.value)} onSearch={(v) => setSearch(v)} data-testid="input-search-doctors" />
         </div>
         <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
           <SelectTrigger className="w-[180px]" data-testid="select-department-filter">

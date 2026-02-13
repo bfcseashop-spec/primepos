@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, TrendingUp, DollarSign, Briefcase, X, Tag, Trash2 } from "lucide-react";
+import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { Investment } from "@shared/schema";
 import { useTranslation } from "@/i18n";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
@@ -346,13 +347,13 @@ export default function InvestmentsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
             <CardTitle className="text-sm font-semibold">{t("investments.title")}</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
+            <div className="w-64">
+              <SearchInputWithBarcode
                 placeholder="Search investments..."
-                className="pl-8 h-8 text-sm"
+                className="h-8 text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onSearch={(v) => setSearchTerm(v)}
                 data-testid="input-search-investments"
               />
             </div>

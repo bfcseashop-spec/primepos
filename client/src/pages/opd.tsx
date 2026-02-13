@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, User as UserIcon, Phone, Mail, MapPin, Droplets, Calendar, AlertTriangle, FileText, Heart, Users, UserCheck, Activity, Clock, Stethoscope } from "lucide-react";
 import { useLocation } from "wouter";
+import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { Patient } from "@shared/schema";
 
 export default function OpdPage() {
@@ -337,13 +338,12 @@ export default function OpdPage() {
           <CardContent className="p-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="relative w-64">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
+                <div className="w-64">
+                  <SearchInputWithBarcode
                     placeholder={t("opd.searchPatients")}
-                    className="pl-8"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onSearch={(v) => setSearchTerm(v)}
                     data-testid="input-search-patients"
                   />
                 </div>

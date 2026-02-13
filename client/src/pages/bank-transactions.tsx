@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp, Trash2, MoreHorizontal, Calendar } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { BankTransaction } from "@shared/schema";
 
 const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; bgColor: string; progressColor: string }> = {
@@ -482,13 +483,13 @@ export default function BankTransactionsPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <div className="relative w-52">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
+                  <div className="w-52">
+                    <SearchInputWithBarcode
                       placeholder={t("common.search")}
-                      className="pl-8 text-xs"
+                      className="text-xs"
                       value={billSearchTerm}
                       onChange={(e) => setBillSearchTerm(e.target.value)}
+                      onSearch={(v) => setBillSearchTerm(v)}
                       data-testid="input-search-bill-payments"
                     />
                   </div>
@@ -515,13 +516,13 @@ export default function BankTransactionsPage() {
                   <Landmark className="h-4 w-4 text-blue-500" />
                   <CardTitle className="text-sm font-semibold">{t("bank.bankTransactions")}</CardTitle>
                 </div>
-                <div className="relative w-64">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
+                <div className="w-64">
+                  <SearchInputWithBarcode
                     placeholder={t("common.search")}
-                    className="pl-8 text-sm"
+                    className="text-sm"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onSearch={(v) => setSearchTerm(v)}
                     data-testid="input-search-transactions"
                   />
                 </div>

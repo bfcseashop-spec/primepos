@@ -20,6 +20,7 @@ import {
   Upload, Image, FileImage, Printer
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { Salary, SalaryProfile, SalaryLoan, LoanInstallment, PayrollRun, Payslip } from "@shared/schema";
 
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -292,9 +293,8 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name or role..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="input-search-profiles" />
+        <div className="flex-1 min-w-[200px]">
+          <SearchInputWithBarcode placeholder="Search by name or role..." value={search} onChange={(e) => setSearch(e.target.value)} onSearch={(v) => setSearch(v)} data-testid="input-search-profiles" />
         </div>
         <Select value={deptFilter} onValueChange={setDeptFilter}>
           <SelectTrigger className="w-[160px]" data-testid="select-dept-filter-profiles">
@@ -769,9 +769,8 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by staff name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="input-search-loans" />
+        <div className="flex-1 min-w-[200px]">
+          <SearchInputWithBarcode placeholder="Search by staff name..." value={search} onChange={(e) => setSearch(e.target.value)} onSearch={(v) => setSearch(v)} data-testid="input-search-loans" />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-[130px]" data-testid="select-type-filter-loans">
@@ -1565,9 +1564,8 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by staff name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="input-search-ledger" />
+        <div className="flex-1 min-w-[200px]">
+          <SearchInputWithBarcode placeholder="Search by staff name..." value={search} onChange={(e) => setSearch(e.target.value)} onSearch={(v) => setSearch(v)} data-testid="input-search-ledger" />
         </div>
         <Select value={monthFilter} onValueChange={setMonthFilter}>
           <SelectTrigger className="w-[140px]" data-testid="select-month-filter-ledger">

@@ -1,4 +1,4 @@
-import { eq, desc, sql, and, gte, lte, count, sum, inArray } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lte, count, sum, inArray, ilike } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, roles, patients, services, medicines, opdVisits, bills,
@@ -55,6 +55,7 @@ export interface IStorage {
 
   getMedicines(): Promise<Medicine[]>;
   getMedicine(id: number): Promise<Medicine | undefined>;
+  getMedicineByCode(code: string): Promise<Medicine | undefined>;
   createMedicine(medicine: InsertMedicine): Promise<Medicine>;
   updateMedicine(id: number, data: Partial<InsertMedicine>): Promise<Medicine | undefined>;
   deleteMedicine(id: number): Promise<void>;
@@ -281,6 +282,24 @@ export class DatabaseStorage implements IStorage {
   async getMedicine(id: number): Promise<Medicine | undefined> {
     const [med] = await db.select().from(medicines).where(eq(medicines.id, id));
     return med;
+  }
+
+  /** Find medicine by barcode-like code: MED-{id}, numeric id, or batchNo (case-insensitive). */
+  async getMedicineByCode(code: string): Promise<Medicine | undefined> {
+    const trimmed = (code || "").trim();
+    if (!trimmed) return undefined;
+    const medIdMatch = trimmed.match(/^MED-(\d+)$/i);
+    if (medIdMatch) {
+      return this.getMedicine(parseInt(medIdMatch[1], 10));
+    }
+    const asNum = parseInt(trimmed, 10);
+    if (!isNaN(asNum) && String(asNum) === trimmed) {
+      return this.getMedicine(asNum);
+    }
+    const [byBatch] = await db.select().from(medicines).where(ilike(medicines.batchNo, trimmed)).limit(1);
+    if (byBatch) return byBatch;
+    const [byBatchContains] = await db.select().from(medicines).where(ilike(medicines.batchNo, "%" + trimmed + "%")).limit(1);
+    return byBatchContains;
   }
 
   async createMedicine(medicine: InsertMedicine): Promise<Medicine> {

@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Calendar, Clock, Search, MoreVertical, Trash2, Edit, User, CalendarCheck, CheckCircle2, XCircle, AlertCircle, Stethoscope, CreditCard, Video, Phone as PhoneIcon, UserCheck, RefreshCw, CalendarDays } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
 import type { Patient } from "@shared/schema"; // used for patients query type
 
@@ -346,13 +347,12 @@ export default function AppointmentsPage() {
           <CardContent className="p-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="relative w-64">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
+                <div className="w-64">
+                  <SearchInputWithBarcode
                     placeholder={t("common.search")}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="pl-8"
+                    onSearch={(v) => setSearch(v)}
                     data-testid="input-search-appointments"
                   />
                 </div>

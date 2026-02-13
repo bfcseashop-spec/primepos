@@ -15,7 +15,8 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone } from "lucide-react";
+import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode } from "lucide-react";
+import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
 import type { Patient, Service, Medicine, BillItem, User, ClinicSettings } from "@shared/schema";
 
@@ -108,6 +109,7 @@ export default function BillingPage() {
   const [viewBill, setViewBill] = useState<any>(null);
   const [editBill, setEditBill] = useState<any>(null);
   const [medicineQty, setMedicineQty] = useState(1);
+  const [medicineBarcodeScan, setMedicineBarcodeScan] = useState("");
 
   const getPaymentLabel = (method: string) => {
     const found = PAYMENT_METHODS.find(p => p.value === method);
@@ -226,11 +228,17 @@ export default function BillingPage() {
       </tr>
     `).join("");
 
+    const billNoBarcode = (bill.billNo || "").replace(/[^A-Za-z0-9\-]/g, "");
+    const logoHref = settings?.logo
+      ? (settings.logo.startsWith("http") ? settings.logo : `${typeof window !== "undefined" ? window.location.origin : ""}${settings.logo.startsWith("/") ? settings.logo : "/" + settings.logo}`)
+      : "";
     printWindow.document.write(`
       <html><head><title>Invoice - ${bill.billNo}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         body { font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937; padding: 30px; max-width: 800px; margin: 0 auto; font-size: 13px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .invoice-barcode { font-family: 'Libre Barcode 128', monospace; font-size: 48px; letter-spacing: 2px; line-height: 1; color: #1f2937; }
         @media print {
           body { padding: 15px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -242,7 +250,7 @@ export default function BillingPage() {
         <table style="width:100%;margin-bottom:20px;">
           <tr>
             <td style="width:50%;vertical-align:middle;">
-              ${settings?.logo ? `<img src="${settings.logo}" alt="Logo" style="max-height:50px;margin-bottom:4px;display:block;" />` : ""}
+              ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:50px;margin-bottom:4px;display:block;" />` : ""}
               <div style="font-size:18px;font-weight:700;color:#0f766e;">${clinicNameDisplay}</div>
               ${clinicAddress ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">${clinicAddress}</div>` : ""}
               ${clinicPhone ? `<div style="font-size:11px;color:#6b7280;">${clinicPhone}</div>` : ""}
@@ -252,6 +260,7 @@ export default function BillingPage() {
               <div style="font-size:24px;font-weight:800;color:#1f2937;letter-spacing:1px;">INVOICE</div>
               <div style="font-size:12px;color:#6b7280;margin-top:4px;">Invoice #: <strong>${bill.billNo}</strong></div>
               <div style="font-size:12px;color:#6b7280;">Date: ${formattedDate}</div>
+              ${billNoBarcode ? `<div class="invoice-barcode" style="margin-top:6px;">${billNoBarcode}</div><div style="font-size:10px;color:#9ca3af;margin-top:2px;letter-spacing:1px;">${bill.billNo}</div>` : ""}
               <div style="margin-top:6px;">
                 <span style="display:inline-block;padding:3px 12px;border-radius:4px;font-size:11px;font-weight:600;color:white;background:${statusColor};">${statusLabel}</span>
               </div>
@@ -373,9 +382,7 @@ export default function BillingPage() {
     return Math.round(legacy * 100) / 100;
   };
 
-  const addMedicineItem = (medicineId: string) => {
-    const med = medicines.find(m => m.id === Number(medicineId));
-    if (!med) return;
+  const addMedicineFromObject = (med: Medicine) => {
     const unitPrice = getSellingPricePerPiece(med);
     if (unitPrice <= 0) {
       toast({ title: "This medicine has no selling price set (Local or Foreigner)", variant: "destructive" });
@@ -383,13 +390,40 @@ export default function BillingPage() {
     }
     const addQty = Math.max(1, Math.floor(medicineQty));
     const total = Math.round(unitPrice * addQty * 100) / 100;
-    setBillItems(prev => [...prev, {
-      name: med.name,
-      type: "medicine",
-      quantity: addQty,
-      unitPrice,
-      total,
-    }]);
+    setBillItems(prev => [...prev, { name: med.name, type: "medicine", quantity: addQty, unitPrice, total }]);
+  };
+
+  const addMedicineByBarcode = async (code: string) => {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    let med: Medicine | undefined;
+    if (/^MED-\d+$/i.test(trimmed)) {
+      const id = parseInt(trimmed.replace(/^MED-/i, ""), 10);
+      med = medicines.find(m => m.id === id);
+    } else {
+      med = medicines.find(m => (m.batchNo || "").toLowerCase() === trimmed.toLowerCase() || (m.batchNo || "").toLowerCase().includes(trimmed.toLowerCase()));
+      if (!med) med = medicines.find(m => String(m.id) === trimmed);
+    }
+    if (med) {
+      addMedicineFromObject(med);
+      setMedicineBarcodeScan("");
+      return;
+    }
+    try {
+      const res = await apiRequest("GET", `/api/medicines/lookup?code=${encodeURIComponent(trimmed)}`);
+      const fromApi = await res.json() as Medicine;
+      addMedicineFromObject(fromApi);
+      setMedicineBarcodeScan("");
+      queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+    } catch {
+      toast({ title: "Medicine not found", description: `No medicine for barcode: ${trimmed}`, variant: "destructive" });
+    }
+  };
+
+  const addMedicineItem = (medicineId: string) => {
+    const med = medicines.find(m => m.id === Number(medicineId));
+    if (!med) return;
+    addMedicineFromObject(med);
   };
 
   const updateItemQuantity = (index: number, qty: number) => {
@@ -684,6 +718,19 @@ export default function BillingPage() {
                   </div>
                   <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
                     <h3 className="text-sm font-semibold text-foreground">{t("billing.medicines")} <span className="text-xs font-normal text-muted-foreground">(pieces)</span></h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Barcode className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <SearchInputWithBarcode
+                          placeholder="Scan barcode to add medicine (batch or MED-id)"
+                          className="flex-1 h-9 text-sm"
+                          value={medicineBarcodeScan}
+                          onChange={(e) => setMedicineBarcodeScan(e.target.value)}
+                          onSearch={addMedicineByBarcode}
+                          data-testid="input-medicine-barcode-scan"
+                        />
+                      </div>
+                    </div>
                     <div className="flex gap-2 items-end">
                       <div className="flex-1 min-w-0">
                         <SearchableSelect
@@ -992,13 +1039,13 @@ export default function BillingPage() {
               <CardTitle className="text-sm font-semibold">{t("billing.totalBills")}</CardTitle>
               <Badge variant="secondary" className="text-[10px]">{filteredBills.length}</Badge>
             </div>
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
+            <div className="w-64">
+              <SearchInputWithBarcode
                 placeholder={t("common.search")}
-                className="pl-8 h-8 text-sm"
+                className="h-8 text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onSearch={(v) => setSearchTerm(v)}
                 data-testid="input-search-bills"
               />
             </div>
