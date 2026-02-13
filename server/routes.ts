@@ -133,6 +133,7 @@ function validateBody<T>(schema: z.ZodSchema<T>, body: unknown): T {
 }
 
 function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (req.path === "/api/public/settings") return next();
   if (!req.session || !req.session.userId) {
     return res.status(401).json({ message: "Not authenticated" });
   }
@@ -1327,6 +1328,36 @@ export async function registerRoutes(
   });
 
   // Settings
+  app.get("/api/public/settings", async (_req, res) => {
+    try {
+      const settings = await storage.getSettings();
+      if (!settings) {
+        return res.json({
+          appName: "ClinicPOS",
+          appTagline: "Clinic Management System",
+          appVersion: "1.0.0",
+          logo: null,
+          clinicName: "My Clinic",
+          address: null,
+          phone: null,
+          email: null,
+        });
+      }
+      res.json({
+        appName: settings.appName ?? "ClinicPOS",
+        appTagline: settings.appTagline ?? null,
+        appVersion: settings.appVersion ?? "1.0.0",
+        logo: settings.logo ?? null,
+        clinicName: settings.clinicName ?? "My Clinic",
+        address: settings.address ?? null,
+        phone: settings.phone ?? null,
+        email: settings.email ?? null,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/settings", async (_req, res) => {
     try {
       const settings = await storage.getSettings();

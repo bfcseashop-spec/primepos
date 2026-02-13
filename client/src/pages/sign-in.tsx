@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Heart, User, Lock, Eye, EyeOff, Globe } from "lucide-react";
 import { useTranslation, LANGUAGES, type Language } from "@/i18n";
+
+type PublicSettings = {
+  appName?: string | null;
+  appTagline?: string | null;
+  appVersion?: string | null;
+  logo?: string | null;
+  clinicName?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +36,22 @@ export default function SignInPage({ onLogin }: SignInPageProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  const { data: publicSettings } = useQuery<PublicSettings>({
+    queryKey: ["/api/public/settings"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const appName = publicSettings?.appName?.trim() || t("common.appName");
+  const appTagline = publicSettings?.appTagline?.trim() || t("common.appTagline");
+  const rawVersion = publicSettings?.appVersion?.trim() || t("common.version");
+  const appVersion = rawVersion.startsWith("v") ? rawVersion : `v${rawVersion}`;
+  const logoUrl = publicSettings?.logo?.trim();
+  const logoSrc = logoUrl ? (logoUrl.startsWith("http") ? logoUrl : `${typeof window !== "undefined" ? window.location.origin : ""}${logoUrl.startsWith("/") ? logoUrl : "/" + logoUrl}`) : null;
+
+  useEffect(() => {
+    document.title = appTagline ? `${appName} | ${appTagline}` : appName;
+  }, [appName, appTagline]);
 
   const loginMutation = useMutation({
     mutationFn: async (data: { username: string; password: string }) => {
@@ -68,8 +95,12 @@ export default function SignInPage({ onLogin }: SignInPageProps) {
 
       <div className="relative z-10 w-full max-w-md mx-4">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg mb-4">
-            <Heart className="h-10 w-10 text-white" fill="white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg mb-4 overflow-hidden">
+            {logoSrc ? (
+              <img src={logoSrc} alt={appName} className="w-full h-full object-contain p-1" data-testid="img-signin-logo" />
+            ) : (
+              <Heart className="h-10 w-10 text-white" fill="white" />
+            )}
           </div>
           <div className="absolute top-4 right-4">
             <DropdownMenu>
@@ -91,9 +122,9 @@ export default function SignInPage({ onLogin }: SignInPageProps) {
             </DropdownMenu>
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight" data-testid="text-app-title">
-            {t("common.appName")}
+            {appName}
           </h1>
-          <p className="text-white/70 text-sm mt-1">{t("common.appTagline")}</p>
+          <p className="text-white/70 text-sm mt-1">{appTagline}</p>
         </div>
 
         <Card className="border-0 shadow-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md">
@@ -159,7 +190,7 @@ export default function SignInPage({ onLogin }: SignInPageProps) {
         </Card>
 
         <p className="text-center text-white/50 text-xs mt-6">
-          {t("common.appName")} {t("common.version")} &middot; {t("common.appTagline")}
+          {appName} {appVersion} &middot; {appTagline}
         </p>
       </div>
     </div>
