@@ -13,16 +13,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileText, User, LogOut, Calendar, Clock, ShoppingCart, Activity, Globe } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, ShoppingCart, Activity, Globe, User, LogOut } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
 import { useTranslation, LANGUAGES } from "@/i18n";
 
 const LOCALE_MAP: Record<string, string> = { en: "en-US", km: "km-KH", zh: "zh-CN" };
 
 function LiveDateTime() {
   const [now, setNow] = useState(new Date());
+  const [open, setOpen] = useState(false);
   const { language } = useTranslation();
   const locale = LOCALE_MAP[language] || "en-US";
 
@@ -45,18 +48,79 @@ function LiveDateTime() {
     hour12: true,
   });
 
+  const timeOnly = now.toLocaleTimeString(locale, { hour12: true });
+  const amPm = timeOnly.includes("AM") ? "AM" : "PM";
+
   return (
-    <div className="flex items-center gap-3 text-sm flex-wrap" data-testid="text-live-datetime">
-      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-        <Calendar className="h-3.5 w-3.5" />
-        <span className="font-medium">{dateStr}</span>
-      </div>
-      <Separator orientation="vertical" className="h-4" />
-      <div className="flex items-center gap-1.5 text-violet-600 dark:text-violet-400">
-        <Clock className="h-3.5 w-3.5" />
-        <span className="tabular-nums font-medium">{timeStr}</span>
-      </div>
-    </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex items-center gap-3 text-sm flex-wrap rounded-lg px-2.5 py-1.5 hover:bg-accent/50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-testid="text-live-datetime"
+        >
+          <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+            <CalendarIcon className="h-3.5 w-3.5" />
+            <span className="font-medium">{dateStr}</span>
+          </div>
+          <Separator orientation="vertical" className="h-4" />
+          <div className="flex items-center gap-1.5 text-violet-600 dark:text-violet-400">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="tabular-nums font-medium">{timeStr}</span>
+          </div>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-auto p-0 border shadow-xl rounded-xl overflow-hidden" sideOffset={8}>
+        <div className="flex flex-col sm:flex-row">
+          <div className="p-3 border-b sm:border-b-0 sm:border-r bg-muted/30">
+            <Calendar
+              mode="single"
+              selected={now}
+              defaultMonth={now}
+              onSelect={() => {}}
+              locale={locale}
+              className="rounded-md border-0"
+              disabled
+            />
+          </div>
+          <div className="p-5 flex flex-col items-center justify-center min-w-[200px] bg-gradient-to-br from-violet-500/10 to-blue-500/10 dark:from-violet-500/20 dark:to-blue-500/20">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+              {now.toLocaleDateString(locale, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+            </p>
+            <div className="flex items-baseline gap-1 tabular-nums">
+              <span className="text-4xl font-bold text-foreground">
+                {now.getHours() % 12 || 12}:{String(now.getMinutes()).padStart(2, "0")}
+              </span>
+              <span className="text-lg font-medium text-muted-foreground">:{String(now.getSeconds()).padStart(2, "0")}</span>
+            </div>
+            <p className="text-sm font-medium text-violet-600 dark:text-violet-400 mt-1">{amPm}</p>
+            <div className="mt-4 w-32 h-32 rounded-full border-2 border-violet-500/30 dark:border-violet-400/30 flex items-center justify-center relative">
+              <div
+                className="absolute w-1 bg-violet-600 dark:bg-violet-400 rounded-full origin-bottom transition-transform duration-100"
+                style={{
+                  height: "28%",
+                  transform: `rotate(${(now.getHours() % 12) * 30 + now.getMinutes() / 2 - 90}deg)`,
+                }}
+              />
+              <div
+                className="absolute w-0.5 bg-blue-600 dark:bg-blue-400 rounded-full origin-bottom transition-transform duration-100"
+                style={{
+                  height: "38%",
+                  transform: `rotate(${now.getMinutes() * 6 + now.getSeconds() / 10 - 90}deg)`,
+                }}
+              />
+              <div
+                className="absolute w-0.5 bg-amber-500 rounded-full origin-bottom transition-transform duration-100"
+                style={{
+                  height: "42%",
+                  transform: `rotate(${now.getSeconds() * 6 - 90}deg)`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
