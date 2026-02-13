@@ -60,6 +60,18 @@ export default function SignInPage({ onLogin }: SignInPageProps) {
     document.title = appTagline ? `${appName} | ${appTagline}` : appName;
   }, [appName, appTagline]);
 
+  useEffect(() => {
+    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    const href = logoSrc || `${typeof window !== "undefined" ? window.location.origin : ""}/favicon.png`;
+    link.href = href;
+    link.type = href.toLowerCase().endsWith(".svg") ? "image/svg+xml" : "image/png";
+  }, [logoSrc]);
+
   const loginMutation = useMutation({
     mutationFn: async (data: { username: string; password: string }) => {
       const res = await apiRequest("POST", "/api/auth/login", data);
