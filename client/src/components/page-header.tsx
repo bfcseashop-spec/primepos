@@ -18,10 +18,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar as CalendarIcon, Clock, ShoppingCart, Activity, Globe, User, LogOut } from "lucide-react";
+import { enUS, km, zhCN } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { useTranslation, LANGUAGES } from "@/i18n";
 
 const LOCALE_MAP: Record<string, string> = { en: "en-US", km: "km-KH", zh: "zh-CN" };
+const DAY_PICKER_LOCALE_MAP: Record<string, typeof enUS> = { en: enUS, km, zh: zhCN };
 
 function LiveDateTime() {
   const [now, setNow] = useState(new Date());
@@ -78,7 +80,7 @@ function LiveDateTime() {
               selected={now}
               defaultMonth={now}
               onSelect={() => {}}
-              locale={locale}
+              locale={DAY_PICKER_LOCALE_MAP[language] ?? enUS}
               className="rounded-md border-0"
               disabled
             />
