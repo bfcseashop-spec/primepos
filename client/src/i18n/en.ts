@@ -315,7 +315,7 @@ export const en = {
     downloadTemplate: "Download Sample Template",
     exportExcel: "Export as Excel (.xlsx)",
     exportCsv: "Export as CSV",
-    searchMedicines: "Search by name, generic, batch, manufacturer...",
+    searchMedicines: "Search by name, batch, manufacturer...",
     noMedicines: "No medicines yet",
     defaultCategories: "Default Categories",
     customCategories: "Custom Categories",

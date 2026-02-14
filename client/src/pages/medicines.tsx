@@ -42,7 +42,7 @@ const UNIT_TYPES = [
 ];
 
 const defaultForm = {
-  name: "", genericName: "", category: "", manufacturer: "",
+  name: "", category: "", manufacturer: "",
   batchNo: "", expiryDate: "", unit: "Box",
   unitCount: 1, boxPrice: 0, qtyPerBox: 1,
   sellingPrice: 0,
@@ -142,8 +142,9 @@ export default function MedicinesPage() {
 
   const perMedPrice = form.qtyPerBox > 0 ? form.boxPrice / form.qtyPerBox : 0;
   const totalPurchasePrice = form.unitCount * form.boxPrice;
-  const sellingPricePerPiece = Number(form.sellingPrice) >= 0 ? Number(form.sellingPrice) : 0;
-  const formTotalSalesValue = sellingPricePerPiece * form.unitCount * form.qtyPerBox;
+  const sellingPricePerUnit = Number(form.sellingPrice) >= 0 ? Number(form.sellingPrice) : 0;
+  const sellingPricePerPiece = form.qtyPerBox > 0 ? sellingPricePerUnit / form.qtyPerBox : 0;
+  const formTotalSalesValue = sellingPricePerUnit * form.unitCount;
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -277,7 +278,7 @@ export default function MedicinesPage() {
 
     const payload = {
       name: form.name,
-      genericName: form.genericName || null,
+      genericName: null,
       category: form.category || null,
       manufacturer: form.manufacturer || null,
       batchNo: form.batchNo || null,
@@ -288,14 +289,14 @@ export default function MedicinesPage() {
       qtyPerBox: form.qtyPerBox,
       perMedPrice: String(perMedPrice.toFixed(4)),
       totalPurchasePrice: String(totalPurchasePrice.toFixed(2)),
-      sellingPriceLocal: String(form.sellingPrice),
-      sellingPriceForeigner: String(form.sellingPrice),
+      sellingPriceLocal: String(sellingPricePerPiece.toFixed(2)),
+      sellingPriceForeigner: String(sellingPricePerPiece.toFixed(2)),
       stockCount: form.unitCount * form.qtyPerBox,
       stockAlert: form.stockAlert,
       imageUrl: form.imageUrl || null,
       quantity: form.unitCount * form.qtyPerBox,
       unitPrice: String(perMedPrice.toFixed(2)),
-      sellingPrice: String(form.sellingPrice),
+      sellingPrice: String(sellingPricePerPiece.toFixed(2)),
       isActive: true,
     };
 
@@ -310,7 +311,6 @@ export default function MedicinesPage() {
     setFieldErrors({});
     setForm({
       name: med.name,
-      genericName: med.genericName || "",
       category: med.category || "",
       manufacturer: med.manufacturer || "",
       batchNo: med.batchNo || "",
@@ -319,7 +319,7 @@ export default function MedicinesPage() {
       unitCount: med.unitCount || 1,
       boxPrice: Number(med.boxPrice) || 0,
       qtyPerBox: med.qtyPerBox || 1,
-      sellingPrice: Number(med.sellingPriceLocal ?? med.sellingPrice ?? med.sellingPriceForeigner) || 0,
+      sellingPrice: (Number(med.sellingPriceLocal ?? med.sellingPrice ?? med.sellingPriceForeigner) || 0) * (med.qtyPerBox || 1),
       stockAlert: med.stockAlert || 10,
       imageUrl: med.imageUrl || "",
     });
@@ -329,7 +329,6 @@ export default function MedicinesPage() {
   const filtered = medicines.filter(m => {
     const matchesSearch = searchTerm === "" ||
       m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (m.genericName?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
       (m.category?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
       (m.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
       (m.batchNo?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
@@ -388,7 +387,6 @@ export default function MedicinesPage() {
       <body>
         <div class="label">
           <h2>${med.name}</h2>
-          ${med.genericName ? `<p style="color:#666;margin:0 0 8px;font-size:12px;font-style:italic">${med.genericName}</p>` : ""}
           <div class="row"><span class="lbl">Category:</span><span class="val">${med.category || "-"}</span></div>
           <div class="row"><span class="lbl">Batch:</span><span class="val">${med.batchNo || "-"}</span></div>
           <div class="row"><span class="lbl">Expiry:</span><span class="val">${med.expiryDate || "-"}</span></div>
@@ -456,9 +454,6 @@ export default function MedicinesPage() {
     { header: "Medicine Name", accessor: (row: Medicine) => (
       <span className="font-semibold text-sm">{row.name}</span>
     )},
-    { header: "Generic Name", accessor: (row: Medicine) => (
-      <span className="text-sm text-muted-foreground italic">{row.genericName || "-"}</span>
-    )},
     { header: t("common.category"), accessor: (row: Medicine) => (
       <Badge variant="outline" className="text-[11px]">
         {row.category || "-"}
@@ -480,6 +475,14 @@ export default function MedicinesPage() {
       const perPiece = qtyPerBox > 0 ? boxPrice / qtyPerBox : 0;
       return (
         <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">${perPiece.toFixed(2)}</span>
+      );
+    }},
+    { header: "Sales Unit Price", accessor: (row: Medicine) => {
+      const perPiece = Number(row.sellingPriceLocal ?? row.sellingPrice ?? 0);
+      const qtyPerBox = Number(row.qtyPerBox || 1);
+      const perUnit = perPiece * qtyPerBox;
+      return (
+        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${perUnit.toFixed(2)}</span>
       );
     }},
     { header: "Sales Value/pc", accessor: (row: Medicine) => (
@@ -557,10 +560,6 @@ export default function MedicinesPage() {
             <Label htmlFor="name">{t("medicines.medicineName")} *</Label>
             <Input ref={refName} id="name" value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFieldErrors(prev => ({ ...prev, name: "" })); }} data-testid="input-medicine-name" className={fieldErrors.name ? "border-destructive" : ""} />
             {fieldErrors.name && <p className="text-xs text-destructive mt-1">{fieldErrors.name}</p>}
-          </div>
-          <div className="col-span-2">
-            <Label htmlFor="genericName">{t("medicines.genericName")}</Label>
-            <Input id="genericName" value={form.genericName} onChange={e => setForm(f => ({ ...f, genericName: e.target.value }))} placeholder="Optional" data-testid="input-medicine-generic" />
           </div>
           <div>
             <Label>{t("common.category")}</Label>
@@ -718,7 +717,7 @@ export default function MedicinesPage() {
           {t("medicines.salesValue")}
         </div>
         <div>
-          <Label htmlFor="sellingPrice">Selling Price ($) per piece *</Label>
+          <Label htmlFor="sellingPrice">Selling Price ($) per {form.unit} *</Label>
           <Input ref={refSellingPrice} id="sellingPrice" type="number" step="0.01" min={0} value={form.sellingPrice || ""} onChange={e => { setForm(f => ({ ...f, sellingPrice: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, sellingPrice: "" })); }} data-testid="input-medicine-selling-price" className={fieldErrors.sellingPrice ? "border-destructive" : ""} />
           {fieldErrors.sellingPrice && <p className="text-xs text-destructive mt-1">{fieldErrors.sellingPrice}</p>}
         </div>
@@ -742,7 +741,10 @@ export default function MedicinesPage() {
             </div>
           </div>
           <p className="text-[10px] text-muted-foreground italic">
-            Formula: Selling Price (${sellingPricePerPiece.toFixed(2)}) × Unit Count ({form.unitCount}) × Qty per {form.unit} ({form.qtyPerBox}) = ${formTotalSalesValue.toFixed(2)}
+            Formula: {form.unit} Selling Price (${sellingPricePerUnit.toFixed(2)}) / Qty per {form.unit} ({form.qtyPerBox}) = ${sellingPricePerPiece.toFixed(2)} per piece
+          </p>
+          <p className="text-[10px] text-muted-foreground italic">
+            Total: {form.unit} Selling Price (${sellingPricePerUnit.toFixed(2)}) × Unit Count ({form.unitCount}) = ${formTotalSalesValue.toFixed(2)}
           </p>
         </div>
       </div>
@@ -994,10 +996,6 @@ export default function MedicinesPage() {
                   <p className="font-semibold">{viewMed.name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">{t("medicines.genericName")}</p>
-                  <p className="font-medium">{viewMed.genericName || "-"}</p>
-                </div>
-                <div>
                   <p className="text-xs text-muted-foreground">{t("common.category")}</p>
                   <p>{viewMed.category || "-"}</p>
                 </div>
@@ -1175,7 +1173,7 @@ export default function MedicinesPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex-1 min-w-[200px]">
                 <SearchInputWithBarcode
-                  placeholder="Search by name, generic, batch, manufacturer..."
+                  placeholder="Search by name, batch, manufacturer..."
                   className="text-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -1251,7 +1249,6 @@ export default function MedicinesPage() {
                         <div className="flex items-start justify-between gap-1">
                           <div className="min-w-0">
                             <p className="font-semibold text-sm truncate">{med.name}</p>
-                            {med.genericName && <p className="text-xs text-muted-foreground italic truncate">{med.genericName}</p>}
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

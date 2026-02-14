@@ -786,7 +786,7 @@ export default function BillingPage() {
                             return {
                               value: String(m.id),
                               label: `${m.name} · $${unitPrice.toFixed(2)}/pc · ${stock} ${status}`,
-                              searchText: `${m.name} ${m.genericName || ""} ${m.category || ""}`,
+                              searchText: `${m.name} ${m.category || ""}`,
                             };
                           })}
                         />
