@@ -420,6 +420,13 @@ export default function MedicinesPage() {
     barcodeWindow.document.close();
   };
 
+  const getMedicineImageSrc = (url: string | null | undefined): string | null => {
+    if (!url?.trim()) return null;
+    if (url.startsWith("http") || url.startsWith("data:")) return url;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    return url.startsWith("/") ? base + url : base + "/" + url;
+  };
+
   const getUnitBadge = (unit: string) => {
     const colors: Record<string, string> = {
       Box: "bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800",
@@ -451,6 +458,18 @@ export default function MedicinesPage() {
   };
 
   const columns = [
+    { header: "", accessor: (row: Medicine) => {
+      const src = getMedicineImageSrc(row.imageUrl);
+      return (
+        <div className="w-10 h-10 rounded-md overflow-hidden bg-muted shrink-0 flex items-center justify-center border">
+          {src ? (
+            <img src={src} alt={row.name} className="w-full h-full object-cover" data-testid={`img-medicine-list-${row.id}`} />
+          ) : (
+            <Pill className="h-5 w-5 text-muted-foreground" />
+          )}
+        </div>
+      );
+    }, className: "w-12" },
     { header: "Medicine Name", accessor: (row: Medicine) => (
       <span className="font-semibold text-sm">{row.name}</span>
     )},
@@ -985,11 +1004,13 @@ export default function MedicinesPage() {
               <DialogDescription className="sr-only">View medicine information</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
-              {viewMed.imageUrl && (
-                <div className="w-full h-40 rounded-md overflow-hidden">
-                  <img src={viewMed.imageUrl} alt={viewMed.name} className="w-full h-full object-cover" data-testid="img-medicine-detail" />
-                </div>
-              )}
+              <div className="w-full h-40 rounded-md overflow-hidden bg-muted flex items-center justify-center border">
+                {getMedicineImageSrc(viewMed.imageUrl) ? (
+                  <img src={getMedicineImageSrc(viewMed.imageUrl)!} alt={viewMed.name} className="w-full h-full object-cover" data-testid="img-medicine-detail" />
+                ) : (
+                  <Pill className="h-16 w-16 text-muted-foreground/50" />
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground">{t("medicines.medicineName")}</p>
@@ -1241,11 +1262,13 @@ export default function MedicinesPage() {
                   return (
                     <Card key={med.id} className="hover-elevate" data-testid={`card-medicine-${med.id}`}>
                       <CardContent className="p-3 space-y-2">
-                        {med.imageUrl && (
-                          <div className="w-full h-28 rounded-md overflow-hidden mb-2">
-                            <img src={med.imageUrl} alt={med.name} className="w-full h-full object-cover" data-testid={`img-medicine-${med.id}`} />
-                          </div>
-                        )}
+                        <div className="w-full h-28 rounded-md overflow-hidden mb-2 bg-muted flex items-center justify-center border">
+                          {getMedicineImageSrc(med.imageUrl) ? (
+                            <img src={getMedicineImageSrc(med.imageUrl)!} alt={med.name} className="w-full h-full object-cover" data-testid={`img-medicine-${med.id}`} />
+                          ) : (
+                            <Pill className="h-12 w-12 text-muted-foreground/50" />
+                          )}
+                        </div>
                         <div className="flex items-start justify-between gap-1">
                           <div className="min-w-0">
                             <p className="font-semibold text-sm truncate">{med.name}</p>
