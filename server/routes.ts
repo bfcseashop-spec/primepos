@@ -43,6 +43,30 @@ if (!fs.existsSync(logoUploadsDir)) {
   fs.mkdirSync(logoUploadsDir, { recursive: true });
 }
 
+const paymentSlipDir = path.join(process.cwd(), "uploads", "payment-slips");
+if (!fs.existsSync(paymentSlipDir)) {
+  fs.mkdirSync(paymentSlipDir, { recursive: true });
+}
+
+const paymentSlipUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, paymentSlipDir),
+    filename: (_req, file, cb) => {
+      const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+      cb(null, uniqueName);
+    },
+  }),
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only JPG, PNG, GIF, WebP image files are allowed"));
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
 const logoUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, logoUploadsDir),
@@ -1462,6 +1486,14 @@ export async function registerRoutes(
       res.status(500).json({ message: err.message });
     }
   });
+
+  app.post("/api/contributions/upload-slip", paymentSlipUpload.single('slip'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const slipUrl = `/uploads/payment-slips/${req.file.filename}`;
+    res.json({ url: slipUrl });
+  });
+
+  app.use("/uploads/payment-slips", express.static(paymentSlipDir));
 
   // Users / Staff
   app.get("/api/users", async (_req, res) => {

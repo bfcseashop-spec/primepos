@@ -248,6 +248,7 @@ export const contributions = pgTable("contributions", {
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   date: date("date").notNull(),
   category: text("category"),
+  paymentSlip: text("payment_slip"),
   note: text("note"),
   createdAt: timestamp("created_at").defaultNow(),
 });

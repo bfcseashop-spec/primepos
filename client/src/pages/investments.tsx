@@ -14,7 +14,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Plus, DollarSign, X, Tag, Trash2, Eye, Pencil, Printer,
   MoreHorizontal, Users, Wallet, AlertTriangle, CheckCircle2, CreditCard,
-  TrendingUp, ArrowDownRight, ArrowUpRight, CircleDollarSign, PiggyBank, Receipt, ChevronUp
+  TrendingUp, ArrowDownRight, ArrowUpRight, CircleDollarSign, PiggyBank, Receipt, ChevronUp,
+  Upload, ImageIcon
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -79,7 +80,8 @@ export default function InvestmentsPage() {
   const [deleteInvestorConfirm, setDeleteInvestorConfirm] = useState<number | null>(null);
 
   const [contributionDialogOpen, setContributionDialogOpen] = useState(false);
-  const [contributionForm, setContributionForm] = useState({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", note: "" });
+  const [contributionForm, setContributionForm] = useState({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", note: "" });
+  const [uploadingSlip, setUploadingSlip] = useState(false);
   const [contributionFilter, setContributionFilter] = useState("all");
   const [editContribution, setEditContribution] = useState<Contribution | null>(null);
   const [deleteContributionConfirm, setDeleteContributionConfirm] = useState<number | null>(null);
@@ -220,7 +222,7 @@ export default function InvestmentsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
       setContributionDialogOpen(false);
-      setContributionForm({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", note: "" });
+      setContributionForm({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", note: "" });
       toast({ title: "Contribution recorded" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -406,6 +408,7 @@ export default function InvestmentsPage() {
       amount: "",
       date: new Date().toISOString().split("T")[0],
       category: "",
+      paymentSlip: "",
       note: "",
     });
     setContributionDialogOpen(true);
@@ -423,6 +426,7 @@ export default function InvestmentsPage() {
       amount: contributionForm.amount,
       date: contributionForm.date,
       category: contributionForm.category || null,
+      paymentSlip: contributionForm.paymentSlip || null,
       note: contributionForm.note || null,
     });
   };
@@ -437,10 +441,31 @@ export default function InvestmentsPage() {
         amount: (editContribution as any)._editAmount ?? String(editContribution.amount),
         date: (editContribution as any)._editDate ?? editContribution.date,
         category: (editContribution as any)._editCategory ?? editContribution.category,
+        paymentSlip: (editContribution as any)._editPaymentSlip ?? editContribution.paymentSlip,
         note: (editContribution as any)._editNote ?? editContribution.note,
       },
     });
   };
+
+  const handleSlipUpload = useCallback(async (file: File, target: "create" | "edit") => {
+    setUploadingSlip(true);
+    try {
+      const formData = new FormData();
+      formData.append("slip", file);
+      const res = await fetch("/api/contributions/upload-slip", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      if (target === "create") {
+        setContributionForm(f => ({ ...f, paymentSlip: url }));
+      } else {
+        setEditContribution(prev => prev ? { ...prev, _editPaymentSlip: url } as any : null);
+      }
+    } catch {
+      toast({ title: "Failed to upload image", variant: "destructive" });
+    } finally {
+      setUploadingSlip(false);
+    }
+  }, [toast]);
 
   const investorsForSelectedInvestment = useMemo(() => {
     const inv = investments.find(i => i.id === contributionForm.investmentId);
@@ -784,6 +809,7 @@ export default function InvestmentsPage() {
                       <th className="text-left p-2.5 font-medium">Investor</th>
                       <th className="text-left p-2.5 font-medium">Category</th>
                       <th className="text-right p-2.5 font-medium">Amount</th>
+                      <th className="text-center p-2.5 font-medium">Slip</th>
                       <th className="text-left p-2.5 font-medium">Note</th>
                       <th className="text-right p-2.5 font-medium">Actions</th>
                     </tr>
@@ -804,6 +830,15 @@ export default function InvestmentsPage() {
                             )}
                           </td>
                           <td className="text-right p-2.5 text-emerald-600 dark:text-emerald-400 font-medium">${fmt(Number(c.amount))}</td>
+                          <td className="p-2.5 text-center">
+                            {c.paymentSlip ? (
+                              <a href={c.paymentSlip} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs hover:underline" data-testid={`link-slip-${c.id}`}>
+                                <ImageIcon className="h-3.5 w-3.5" /> View
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
                           <td className="p-2.5 text-muted-foreground max-w-[200px] truncate">{c.note || "-"}</td>
                           <td className="text-right p-2.5">
                             <DropdownMenu>
@@ -813,7 +848,7 @@ export default function InvestmentsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editNote: c.note || "" } as any)} className="gap-2">
+                                <DropdownMenuItem onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editNote: c.note || "" } as any)} className="gap-2">
                                   <Pencil className="h-4 w-4 text-amber-500" /> Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setDeleteContributionConfirm(c.id)} className="text-red-600 gap-2">
@@ -956,10 +991,29 @@ export default function InvestmentsPage() {
               </div>
             </div>
             <div>
+              <Label>Payment Slip</Label>
+              <div className="flex items-center gap-2 mt-1">
+                {contributionForm.paymentSlip ? (
+                  <div className="relative group">
+                    <img src={contributionForm.paymentSlip} alt="Payment slip" className="h-20 w-20 object-cover rounded-md border" />
+                    <button type="button" className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5" onClick={() => setContributionForm(f => ({ ...f, paymentSlip: "" }))} data-testid="button-remove-create-slip">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-2 cursor-pointer border border-dashed rounded-md px-4 py-2 text-sm text-muted-foreground hover-elevate" data-testid="label-upload-create-slip">
+                    <Upload className="h-4 w-4" />
+                    {uploadingSlip ? "Uploading..." : "Upload Image"}
+                    <input type="file" accept="image/*" className="hidden" disabled={uploadingSlip} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSlipUpload(f, "create"); }} />
+                  </label>
+                )}
+              </div>
+            </div>
+            <div>
               <Label>Note</Label>
               <Textarea rows={2} value={contributionForm.note} onChange={(e) => setContributionForm(f => ({ ...f, note: e.target.value }))} data-testid="input-contribution-note" />
             </div>
-            <Button type="submit" className="w-full" disabled={createContributionMutation.isPending} data-testid="button-submit-contribution">
+            <Button type="submit" className="w-full" disabled={createContributionMutation.isPending || uploadingSlip} data-testid="button-submit-contribution">
               {createContributionMutation.isPending ? "Recording..." : "Record Contribution"}
             </Button>
           </form>
@@ -1005,10 +1059,29 @@ export default function InvestmentsPage() {
                 </div>
               </div>
               <div>
+                <Label>Payment Slip</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  {((editContribution as any)._editPaymentSlip ?? editContribution.paymentSlip) ? (
+                    <div className="relative group">
+                      <img src={(editContribution as any)._editPaymentSlip ?? editContribution.paymentSlip} alt="Payment slip" className="h-20 w-20 object-cover rounded-md border" />
+                      <button type="button" className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5" onClick={() => setEditContribution({ ...editContribution, _editPaymentSlip: "" } as any)} data-testid="button-remove-edit-slip">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex items-center gap-2 cursor-pointer border border-dashed rounded-md px-4 py-2 text-sm text-muted-foreground hover-elevate" data-testid="label-upload-edit-slip">
+                      <Upload className="h-4 w-4" />
+                      {uploadingSlip ? "Uploading..." : "Upload Image"}
+                      <input type="file" accept="image/*" className="hidden" disabled={uploadingSlip} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSlipUpload(f, "edit"); }} />
+                    </label>
+                  )}
+                </div>
+              </div>
+              <div>
                 <Label>Note</Label>
                 <Textarea rows={2} value={(editContribution as any)._editNote || ""} onChange={(e) => setEditContribution({ ...editContribution, _editNote: e.target.value } as any)} data-testid="input-edit-contribution-note" />
               </div>
-              <Button type="submit" className="w-full" disabled={updateContributionMutation.isPending} data-testid="button-update-contribution">
+              <Button type="submit" className="w-full" disabled={updateContributionMutation.isPending || uploadingSlip} data-testid="button-update-contribution">
                 {updateContributionMutation.isPending ? "Updating..." : "Update Contribution"}
               </Button>
             </form>
