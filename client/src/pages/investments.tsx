@@ -80,10 +80,11 @@ export default function InvestmentsPage() {
   const [deleteInvestorConfirm, setDeleteInvestorConfirm] = useState<number | null>(null);
 
   const [contributionDialogOpen, setContributionDialogOpen] = useState(false);
-  const [contributionForm, setContributionForm] = useState({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", note: "" });
+  const [contributionForm, setContributionForm] = useState({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", images: [] as string[], note: "" });
   const [uploadingSlip, setUploadingSlip] = useState(false);
   const [contributionFilter, setContributionFilter] = useState("all");
   const [editContribution, setEditContribution] = useState<Contribution | null>(null);
+  const [viewContribution, setViewContribution] = useState<Contribution | null>(null);
   const [deleteContributionConfirm, setDeleteContributionConfirm] = useState<number | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [capitalDialogOpen, setCapitalDialogOpen] = useState(false);
@@ -228,7 +229,7 @@ export default function InvestmentsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
       setContributionDialogOpen(false);
-      setContributionForm({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", note: "" });
+      setContributionForm({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", images: [], note: "" });
       toast({ title: "Contribution recorded" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -546,6 +547,7 @@ export default function InvestmentsPage() {
       date: new Date().toISOString().split("T")[0],
       category: "",
       paymentSlip: "",
+      images: [],
       note: "",
     });
     setContributionDialogOpen(true);
@@ -564,6 +566,7 @@ export default function InvestmentsPage() {
       date: contributionForm.date,
       category: contributionForm.category || null,
       paymentSlip: contributionForm.paymentSlip || null,
+      images: contributionForm.images.length > 0 ? contributionForm.images : null,
       note: contributionForm.note || null,
     });
   };
@@ -579,12 +582,13 @@ export default function InvestmentsPage() {
         date: (editContribution as any)._editDate ?? editContribution.date,
         category: (editContribution as any)._editCategory ?? editContribution.category,
         paymentSlip: (editContribution as any)._editPaymentSlip ?? editContribution.paymentSlip,
+        images: (editContribution as any)._editImages ?? editContribution.images,
         note: (editContribution as any)._editNote ?? editContribution.note,
       },
     });
   };
 
-  const handleSlipUpload = useCallback(async (file: File, target: "create" | "edit") => {
+  const handleSlipUpload = useCallback(async (file: File, target: "create" | "edit" | "create-multi" | "edit-multi") => {
     setUploadingSlip(true);
     try {
       const formData = new FormData();
@@ -594,6 +598,10 @@ export default function InvestmentsPage() {
       const { url } = await res.json();
       if (target === "create") {
         setContributionForm(f => ({ ...f, paymentSlip: url }));
+      } else if (target === "create-multi") {
+        setContributionForm(f => ({ ...f, images: [...f.images, url] }));
+      } else if (target === "edit-multi") {
+        setEditContribution(prev => prev ? { ...prev, _editImages: [...((prev as any)._editImages ?? prev.images ?? []), url] } as any : null);
       } else {
         setEditContribution(prev => prev ? { ...prev, _editPaymentSlip: url } as any : null);
       }
@@ -1112,10 +1120,10 @@ export default function InvestmentsPage() {
                           </td>
                           <td className="text-right p-2.5 text-emerald-600 dark:text-emerald-400 font-medium">${fmt(Number(c.amount))}</td>
                           <td className="p-2.5 text-center">
-                            {c.paymentSlip ? (
-                              <a href={c.paymentSlip} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs hover:underline" data-testid={`link-slip-${c.id}`}>
-                                <ImageIcon className="h-3.5 w-3.5" /> View
-                              </a>
+                            {(c.images && c.images.length > 0) || c.paymentSlip ? (
+                              <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs">
+                                <ImageIcon className="h-3.5 w-3.5" /> {(c.images?.length || 0) + (c.paymentSlip ? 1 : 0)}
+                              </span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -1129,7 +1137,10 @@ export default function InvestmentsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editNote: c.note || "" } as any)} className="gap-2">
+                                <DropdownMenuItem onClick={() => setViewContribution(c)} className="gap-2">
+                                  <Eye className="h-4 w-4 text-blue-500" /> View
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editImages: c.images || [], _editNote: c.note || "" } as any)} className="gap-2">
                                   <Pencil className="h-4 w-4 text-amber-500" /> Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setDeleteContributionConfirm(c.id)} className="text-red-600 gap-2">
@@ -1266,22 +1277,21 @@ export default function InvestmentsPage() {
               </div>
             </div>
             <div>
-              <Label>Payment Slip</Label>
-              <div className="flex items-center gap-2 mt-1">
-                {contributionForm.paymentSlip ? (
-                  <div className="relative group">
-                    <img src={contributionForm.paymentSlip} alt="Payment slip" className="h-20 w-20 object-cover rounded-md border" />
-                    <button type="button" className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5" onClick={() => setContributionForm(f => ({ ...f, paymentSlip: "" }))} data-testid="button-remove-create-slip">
+              <Label>Images</Label>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                {contributionForm.images.map((img, idx) => (
+                  <div key={idx} className="relative group">
+                    <img src={img} alt={`Image ${idx + 1}`} className="h-16 w-16 object-cover rounded-md border" />
+                    <button type="button" className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5" onClick={() => setContributionForm(f => ({ ...f, images: f.images.filter((_, i) => i !== idx) }))} data-testid={`button-remove-create-image-${idx}`}>
                       <X className="h-3 w-3" />
                     </button>
                   </div>
-                ) : (
-                  <label className="flex items-center gap-2 cursor-pointer border border-dashed rounded-md px-4 py-2 text-sm text-muted-foreground hover-elevate" data-testid="label-upload-create-slip">
-                    <Upload className="h-4 w-4" />
-                    {uploadingSlip ? "Uploading..." : "Upload Image"}
-                    <input type="file" accept="image/*" className="hidden" disabled={uploadingSlip} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSlipUpload(f, "create"); }} />
-                  </label>
-                )}
+                ))}
+                <label className="flex items-center gap-2 cursor-pointer border border-dashed rounded-md px-3 py-2 text-sm text-muted-foreground hover-elevate" data-testid="label-upload-create-images">
+                  <Upload className="h-4 w-4" />
+                  {uploadingSlip ? "Uploading..." : "Add Image"}
+                  <input type="file" accept="image/*" className="hidden" disabled={uploadingSlip} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSlipUpload(f, "create-multi"); }} />
+                </label>
               </div>
             </div>
             <div>
@@ -1328,22 +1338,21 @@ export default function InvestmentsPage() {
                 </div>
               </div>
               <div>
-                <Label>Payment Slip</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  {((editContribution as any)._editPaymentSlip ?? editContribution.paymentSlip) ? (
-                    <div className="relative group">
-                      <img src={(editContribution as any)._editPaymentSlip ?? editContribution.paymentSlip} alt="Payment slip" className="h-20 w-20 object-cover rounded-md border" />
-                      <button type="button" className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5" onClick={() => setEditContribution({ ...editContribution, _editPaymentSlip: "" } as any)} data-testid="button-remove-edit-slip">
+                <Label>Images</Label>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  {((editContribution as any)._editImages ?? editContribution.images ?? []).map((img: string, idx: number) => (
+                    <div key={idx} className="relative group">
+                      <img src={img} alt={`Image ${idx + 1}`} className="h-16 w-16 object-cover rounded-md border" />
+                      <button type="button" className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5" onClick={() => setEditContribution(prev => prev ? { ...prev, _editImages: ((prev as any)._editImages ?? prev.images ?? []).filter((_: string, i: number) => i !== idx) } as any : null)} data-testid={`button-remove-edit-image-${idx}`}>
                         <X className="h-3 w-3" />
                       </button>
                     </div>
-                  ) : (
-                    <label className="flex items-center gap-2 cursor-pointer border border-dashed rounded-md px-4 py-2 text-sm text-muted-foreground hover-elevate" data-testid="label-upload-edit-slip">
-                      <Upload className="h-4 w-4" />
-                      {uploadingSlip ? "Uploading..." : "Upload Image"}
-                      <input type="file" accept="image/*" className="hidden" disabled={uploadingSlip} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSlipUpload(f, "edit"); }} />
-                    </label>
-                  )}
+                  ))}
+                  <label className="flex items-center gap-2 cursor-pointer border border-dashed rounded-md px-3 py-2 text-sm text-muted-foreground hover-elevate" data-testid="label-upload-edit-images">
+                    <Upload className="h-4 w-4" />
+                    {uploadingSlip ? "Uploading..." : "Add Image"}
+                    <input type="file" accept="image/*" className="hidden" disabled={uploadingSlip} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSlipUpload(f, "edit-multi"); }} />
+                  </label>
                 </div>
               </div>
               <div>
@@ -1355,6 +1364,110 @@ export default function InvestmentsPage() {
               </Button>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Contribution Dialog */}
+      <Dialog open={!!viewContribution} onOpenChange={(open) => { if (!open) setViewContribution(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-blue-500" /> Contribution Details
+            </DialogTitle>
+            <DialogDescription className="sr-only">View contribution details</DialogDescription>
+          </DialogHeader>
+          {viewContribution && (() => {
+            const inv = investments.find(i => i.id === viewContribution.investmentId);
+            const allImages = [
+              ...(viewContribution.paymentSlip ? [viewContribution.paymentSlip] : []),
+              ...(viewContribution.images || []),
+            ];
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Investment</p>
+                    <p className="font-medium">{inv?.title || `#${viewContribution.investmentId}`}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Investor</p>
+                    <p className="font-medium">{viewContribution.investorName}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Amount</p>
+                    <p className="font-medium text-emerald-600 dark:text-emerald-400">${fmt(Number(viewContribution.amount))}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Date</p>
+                    <p className="font-medium">{viewContribution.date}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Category</p>
+                    {viewContribution.category ? (
+                      <Badge variant="secondary" className="text-xs mt-0.5">{viewContribution.category}</Badge>
+                    ) : (
+                      <p className="text-muted-foreground">-</p>
+                    )}
+                  </div>
+                </div>
+                {viewContribution.note && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Note</p>
+                    <p className="text-sm bg-muted/50 rounded-md p-2.5">{viewContribution.note}</p>
+                  </div>
+                )}
+                <div>
+                  <div className="flex items-center justify-between gap-1 mb-2">
+                    <p className="text-xs text-muted-foreground">Images ({allImages.length})</p>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-blue-600 dark:text-blue-400 hover:underline" data-testid="label-view-add-image">
+                      <Plus className="h-3.5 w-3.5" /> Add Image
+                      <input type="file" accept="image/*" className="hidden" disabled={uploadingSlip} onChange={async (e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setUploadingSlip(true);
+                        try {
+                          const formData = new FormData();
+                          formData.append("slip", f);
+                          const res = await fetch("/api/contributions/upload-slip", { method: "POST", body: formData });
+                          if (!res.ok) throw new Error("Upload failed");
+                          const { url } = await res.json();
+                          const currentImages = viewContribution.images || [];
+                          const newImages = [...currentImages, url];
+                          await apiRequest("PATCH", `/api/contributions/${viewContribution.id}`, { images: newImages });
+                          queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+                          setViewContribution({ ...viewContribution, images: newImages });
+                          toast({ title: "Image added successfully" });
+                        } catch {
+                          toast({ title: "Failed to upload image", variant: "destructive" });
+                        } finally {
+                          setUploadingSlip(false);
+                        }
+                      }} />
+                    </label>
+                  </div>
+                  {allImages.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {allImages.map((img, idx) => (
+                        <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="block" data-testid={`link-view-image-${idx}`}>
+                          <img src={img} alt={`Image ${idx + 1}`} className="w-full h-24 object-cover rounded-md border hover:opacity-80 transition-opacity" />
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-md">No images uploaded</p>
+                  )}
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" className="flex-1" onClick={() => { setViewContribution(null); setEditContribution({ ...viewContribution, _editName: viewContribution.investorName, _editAmount: String(viewContribution.amount), _editDate: viewContribution.date, _editCategory: viewContribution.category || "", _editPaymentSlip: viewContribution.paymentSlip || "", _editImages: viewContribution.images || [], _editNote: viewContribution.note || "" } as any); }} data-testid="button-view-to-edit">
+                    <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                  </Button>
+                  <Button variant="outline" onClick={() => setViewContribution(null)} data-testid="button-close-view-contribution">
+                    Close
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

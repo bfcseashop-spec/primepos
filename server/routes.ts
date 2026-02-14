@@ -1466,6 +1466,30 @@ export async function registerRoutes(
         investorName: z.string().optional(),
         amount: z.string().optional(),
         date: z.string().optional(),
+        category: z.string().nullable().optional(),
+        paymentSlip: z.string().nullable().optional(),
+        images: z.array(z.string()).nullable().optional(),
+        note: z.string().nullable().optional(),
+      });
+      const data = validateBody(updateSchema, req.body);
+      const contribution = await storage.updateContribution(id, data);
+      if (!contribution) return res.status(404).json({ message: "Contribution not found" });
+      res.json(contribution);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/contributions/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const updateSchema = z.object({
+        investorName: z.string().optional(),
+        amount: z.string().optional(),
+        date: z.string().optional(),
+        category: z.string().nullable().optional(),
+        paymentSlip: z.string().nullable().optional(),
+        images: z.array(z.string()).nullable().optional(),
         note: z.string().nullable().optional(),
       });
       const data = validateBody(updateSchema, req.body);
