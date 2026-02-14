@@ -1,4 +1,6 @@
-// PM2 config for PrimePOS. Usage: pm2 start ecosystem.config.cjs
+// PM2 config for PrimePOS.
+// First time: pm2 start ecosystem.config.cjs
+// Deploy (build then restart): npm run build && npm run db:push && npm run pm2:restart
 // Ensure .env exists with DATABASE_URL and PORT (e.g. 5010).
 
 module.exports = {
