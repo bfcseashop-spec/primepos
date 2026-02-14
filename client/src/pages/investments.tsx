@@ -86,6 +86,10 @@ export default function InvestmentsPage() {
   const [editContribution, setEditContribution] = useState<Contribution | null>(null);
   const [deleteContributionConfirm, setDeleteContributionConfirm] = useState<number | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [capitalDialogOpen, setCapitalDialogOpen] = useState(false);
+  const [capitalEditTarget, setCapitalEditTarget] = useState<{ investmentId: number; investorIdx: number } | null>(null);
+  const [capitalForm, setCapitalForm] = useState({ investmentId: 0, investorName: "", sharePercentage: 0 });
+  const [deleteCapitalConfirm, setDeleteCapitalConfirm] = useState<{ investmentId: number; investorIdx: number; investorName: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = useCallback(() => {
@@ -306,6 +310,95 @@ export default function InvestmentsPage() {
     });
   };
 
+  const openCapitalDialog = (investmentId?: number) => {
+    setCapitalEditTarget(null);
+    setCapitalForm({
+      investmentId: investmentId || (investments.length > 0 ? investments[0].id : 0),
+      investorName: "",
+      sharePercentage: 0,
+    });
+    setCapitalDialogOpen(true);
+  };
+
+  const openCapitalEdit = (investmentId: number, investorIdx: number) => {
+    const inv = investments.find(i => i.id === investmentId);
+    if (!inv) return;
+    const invInvestors = ((inv as any).investors ?? []) as InvestmentInvestor[];
+    const investor = invInvestors[investorIdx];
+    if (!investor) return;
+    setCapitalEditTarget({ investmentId, investorIdx });
+    setCapitalForm({
+      investmentId,
+      investorName: investor.name,
+      sharePercentage: investor.sharePercentage,
+    });
+    setCapitalDialogOpen(true);
+  };
+
+  const handleCapitalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!capitalForm.investorName.trim() || capitalForm.sharePercentage <= 0) {
+      toast({ title: "Fill in investor name and percentage", variant: "destructive" });
+      return;
+    }
+    const inv = investments.find(i => i.id === capitalForm.investmentId);
+    if (!inv) return;
+    const total = Number(inv.amount) || 0;
+    let currentInvestors = [...((inv as any).investors ?? [])] as { investorId?: number; name: string; sharePercentage: number }[];
+
+    if (capitalEditTarget) {
+      currentInvestors[capitalEditTarget.investorIdx] = {
+        ...currentInvestors[capitalEditTarget.investorIdx],
+        name: capitalForm.investorName.trim(),
+        sharePercentage: capitalForm.sharePercentage,
+      };
+    } else {
+      const match = investorsList.find(i => i.name === capitalForm.investorName.trim());
+      currentInvestors.push({
+        investorId: match?.id,
+        name: capitalForm.investorName.trim(),
+        sharePercentage: capitalForm.sharePercentage,
+      });
+    }
+
+    const normalized = normalizeInvestors(total, currentInvestors);
+    updateMutation.mutate({
+      id: capitalForm.investmentId,
+      data: { investors: normalized },
+    }, {
+      onSuccess: () => {
+        setCapitalDialogOpen(false);
+        setCapitalEditTarget(null);
+        toast({ title: capitalEditTarget ? "Capital updated" : "Capital added" });
+      }
+    });
+  };
+
+  const handleCapitalDelete = () => {
+    if (!deleteCapitalConfirm) return;
+    const { investmentId, investorIdx } = deleteCapitalConfirm;
+    const inv = investments.find(i => i.id === investmentId);
+    if (!inv) return;
+    const total = Number(inv.amount) || 0;
+    let currentInvestors = [...((inv as any).investors ?? [])] as { investorId?: number; name: string; sharePercentage: number }[];
+    if (currentInvestors.length <= 1) {
+      toast({ title: "Cannot remove the last investor", variant: "destructive" });
+      setDeleteCapitalConfirm(null);
+      return;
+    }
+    currentInvestors.splice(investorIdx, 1);
+    const normalized = normalizeInvestors(total, currentInvestors);
+    updateMutation.mutate({
+      id: investmentId,
+      data: { investors: normalized },
+    }, {
+      onSuccess: () => {
+        setDeleteCapitalConfirm(null);
+        toast({ title: "Capital removed" });
+      }
+    });
+  };
+
   const openEdit = (inv: Investment) => {
     setEditInvestment(inv);
     const invWithInvestors = inv as Investment & { investors?: InvestmentInvestor[] };
@@ -377,6 +470,40 @@ export default function InvestmentsPage() {
       ...r,
       sharePct: grandTotal > 0 ? Math.round((r.shareAmount / grandTotal) * 10000) / 100 : 0,
     }));
+  }, [filtered, allContributions]);
+
+  const investorCardData = useMemo(() => {
+    const result: { name: string; sharePercentage: number; shareAmount: number; paid: number; investmentId: number; investorIdx: number }[] = [];
+    for (const inv of filtered) {
+      const invInvestors = ((inv as any).investors ?? []) as InvestmentInvestor[];
+      invInvestors.forEach((e, idx) => {
+        result.push({
+          name: e.name || "Unknown",
+          sharePercentage: e.sharePercentage,
+          shareAmount: Number(e.amount || 0),
+          paid: 0,
+          investmentId: inv.id,
+          investorIdx: idx,
+        });
+      });
+      if (invInvestors.length === 0 && inv.investorName) {
+        result.push({
+          name: inv.investorName,
+          sharePercentage: 100,
+          shareAmount: Number(inv.amount),
+          paid: 0,
+          investmentId: inv.id,
+          investorIdx: -1,
+        });
+      }
+    }
+    const investmentIds = new Set(filtered.map(i => i.id));
+    for (const c of allContributions) {
+      if (!investmentIds.has(c.investmentId)) continue;
+      const match = result.find(r => r.name === c.investorName && r.investmentId === c.investmentId);
+      if (match) match.paid += Number(c.amount);
+    }
+    return result;
   }, [filtered, allContributions]);
 
   const filteredContributions = useMemo(() => {
@@ -691,14 +818,22 @@ export default function InvestmentsPage() {
         </div>
 
         {/* Investor Detail Cards */}
-        {investorTableData.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {investorTableData.map((row) => {
+        {investorCardData.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Capital & Share</h3>
+              <Button variant="outline" size="sm" onClick={() => openCapitalDialog()} data-testid="button-add-capital">
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add Capital
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {investorCardData.map((row, cardIdx) => {
               const due = Math.max(0, row.shareAmount - row.paid);
               const overpaid = Math.max(0, row.paid - row.shareAmount);
               const paidPct = row.shareAmount > 0 ? Math.min(100, Math.round((row.paid / row.shareAmount) * 100)) : 0;
+              const inv = investments.find(i => i.id === row.investmentId);
               return (
-                <Card key={row.name} data-testid={`card-investor-${row.name}`}>
+                <Card key={`${row.investmentId}-${row.investorIdx}-${cardIdx}`} data-testid={`card-investor-${row.name}-${row.investmentId}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -707,16 +842,36 @@ export default function InvestmentsPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-sm truncate">{row.name}</p>
-                          <Badge variant="secondary" className="text-[10px] mt-0.5">{row.sharePct}% share</Badge>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <Badge variant="secondary" className="text-[10px]">{row.sharePercentage}% share</Badge>
+                            {inv && <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{inv.title}</span>}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="flex items-center gap-1 shrink-0">
                         {due > 0 ? (
                           <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 text-xs">Due</Badge>
                         ) : overpaid > 0 ? (
                           <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20 text-xs">Overpaid</Badge>
                         ) : (
                           <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 text-xs">Fully Paid</Badge>
+                        )}
+                        {row.investorIdx >= 0 && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" data-testid={`button-capital-actions-${row.name}-${row.investmentId}`}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openCapitalEdit(row.investmentId, row.investorIdx)} className="gap-2">
+                                <Pencil className="h-4 w-4 text-amber-500" /> Edit Capital
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDeleteCapitalConfirm({ investmentId: row.investmentId, investorIdx: row.investorIdx, investorName: row.name })} className="text-red-600 gap-2">
+                                <Trash2 className="h-4 w-4" /> Remove
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
                       </div>
                     </div>
@@ -736,7 +891,7 @@ export default function InvestmentsPage() {
 
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Share Amount</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Capital Amount</p>
                         <p className="font-semibold">${fmt(row.shareAmount)}</p>
                       </div>
                       <div>
@@ -767,6 +922,7 @@ export default function InvestmentsPage() {
                 </Card>
               );
             })}
+            </div>
           </div>
         )}
 
@@ -1297,6 +1453,88 @@ export default function InvestmentsPage() {
       <ConfirmDialog open={deleteConfirm.open} onOpenChange={(open) => setDeleteConfirm({ open })} title="Delete Investment?" description="This action cannot be undone." onConfirm={handleConfirmDelete} />
       <ConfirmDialog open={deleteInvestorConfirm !== null} onOpenChange={(open) => { if (!open) setDeleteInvestorConfirm(null); }} title="Delete Investor?" description="Remove this investor from the list." onConfirm={() => { if (deleteInvestorConfirm !== null) deleteInvestorMutation.mutate(deleteInvestorConfirm); setDeleteInvestorConfirm(null); }} />
       <ConfirmDialog open={deleteContributionConfirm !== null} onOpenChange={(open) => { if (!open) setDeleteContributionConfirm(null); }} title="Delete Contribution?" description="This payment record will be removed." onConfirm={() => { if (deleteContributionConfirm !== null) deleteContributionMutation.mutate(deleteContributionConfirm); setDeleteContributionConfirm(null); }} />
+      <ConfirmDialog open={deleteCapitalConfirm !== null} onOpenChange={(open) => { if (!open) setDeleteCapitalConfirm(null); }} title="Remove Capital?" description={`Remove ${deleteCapitalConfirm?.investorName}'s capital share? The remaining percentages will be re-normalized to 100%.`} onConfirm={handleCapitalDelete} />
+
+      {/* Add / Edit Capital Dialog */}
+      <Dialog open={capitalDialogOpen} onOpenChange={setCapitalDialogOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {capitalEditTarget ? <Pencil className="h-5 w-5 text-amber-500" /> : <Plus className="h-5 w-5 text-blue-500" />}
+              {capitalEditTarget ? "Edit Capital" : "Add Capital"}
+            </DialogTitle>
+            <DialogDescription className="sr-only">{capitalEditTarget ? "Edit capital share" : "Add new capital share"}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCapitalSubmit} className="space-y-3">
+            <div>
+              <Label>Investment *</Label>
+              <Select value={String(capitalForm.investmentId)} onValueChange={(v) => setCapitalForm(f => ({ ...f, investmentId: Number(v) }))} disabled={!!capitalEditTarget}>
+                <SelectTrigger data-testid="select-capital-investment"><SelectValue placeholder="Select investment" /></SelectTrigger>
+                <SelectContent>
+                  {investments.map(inv => (
+                    <SelectItem key={inv.id} value={String(inv.id)}>{inv.title} (${fmt(Number(inv.amount))})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Investor Name *</Label>
+              <Select
+                value={investorsList.find(i => i.name === capitalForm.investorName) ? capitalForm.investorName : "__custom__"}
+                onValueChange={(v) => {
+                  if (v === "__custom__") {
+                    setCapitalForm(f => ({ ...f, investorName: "" }));
+                  } else {
+                    setCapitalForm(f => ({ ...f, investorName: v }));
+                  }
+                }}
+              >
+                <SelectTrigger data-testid="select-capital-investor"><SelectValue placeholder="Select investor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__custom__">Type name...</SelectItem>
+                  {investorsList.map(i => (
+                    <SelectItem key={i.id} value={i.name}>{i.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(!investorsList.find(i => i.name === capitalForm.investorName) || capitalForm.investorName === "") && (
+                <Input
+                  className="mt-2"
+                  placeholder="Enter investor name"
+                  value={capitalForm.investorName}
+                  onChange={(e) => setCapitalForm(f => ({ ...f, investorName: e.target.value }))}
+                  data-testid="input-capital-investor-name"
+                />
+              )}
+            </div>
+            <div>
+              <Label>Share Percentage (%) *</Label>
+              <Input type="number" min={0.01} max={100} step={0.5} value={capitalForm.sharePercentage || ""} onChange={(e) => setCapitalForm(f => ({ ...f, sharePercentage: Number(e.target.value) || 0 }))} data-testid="input-capital-percentage" />
+              {capitalForm.investmentId > 0 && capitalForm.sharePercentage > 0 && (() => {
+                const inv = investments.find(i => i.id === capitalForm.investmentId);
+                if (!inv) return null;
+                const total = Number(inv.amount) || 0;
+                const currentInvestors = [...((inv as any).investors ?? [])] as InvestmentInvestor[];
+                let sumPct = capitalForm.sharePercentage;
+                currentInvestors.forEach((ci, idx) => {
+                  if (capitalEditTarget && idx === capitalEditTarget.investorIdx) return;
+                  sumPct += ci.sharePercentage;
+                });
+                const normalizedPct = sumPct > 0 ? Math.round((capitalForm.sharePercentage / sumPct) * 10000) / 100 : 0;
+                const computedAmount = ((total * normalizedPct) / 100).toFixed(2);
+                return (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Normalized: {normalizedPct}% = <span className="font-medium text-foreground">${fmt(Number(computedAmount))}</span>
+                  </p>
+                );
+              })()}
+            </div>
+            <Button type="submit" className="w-full" disabled={updateMutation.isPending} data-testid="button-submit-capital">
+              {updateMutation.isPending ? "Saving..." : capitalEditTarget ? "Update Capital" : "Add Capital"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
