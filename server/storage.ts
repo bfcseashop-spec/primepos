@@ -14,6 +14,7 @@ import {
   type InsertBankTransaction, type BankTransaction,
   type InsertInvestor, type Investor,
   type InsertInvestment, type Investment,
+  contributions, type InsertContribution, type Contribution,
   type InsertIntegration, type Integration,
   type InsertClinicSettings, type ClinicSettings,
   type InsertLabTest, type LabTest,
@@ -99,6 +100,11 @@ export interface IStorage {
   updateInvestment(id: number, data: Partial<InsertInvestment>): Promise<Investment | undefined>;
   deleteInvestment(id: number): Promise<void>;
   bulkDeleteInvestments(ids: number[]): Promise<void>;
+
+  getContributions(investmentId?: number): Promise<Contribution[]>;
+  createContribution(data: InsertContribution): Promise<Contribution>;
+  updateContribution(id: number, data: Partial<InsertContribution>): Promise<Contribution | undefined>;
+  deleteContribution(id: number): Promise<void>;
 
   getIntegrations(): Promise<Integration[]>;
   createIntegration(int: InsertIntegration): Promise<Integration>;
@@ -504,6 +510,27 @@ export class DatabaseStorage implements IStorage {
 
   async bulkDeleteInvestments(ids: number[]): Promise<void> {
     await db.delete(investments).where(inArray(investments.id, ids));
+  }
+
+  async getContributions(investmentId?: number): Promise<Contribution[]> {
+    if (investmentId != null) {
+      return db.select().from(contributions).where(eq(contributions.investmentId, investmentId)).orderBy(desc(contributions.date));
+    }
+    return db.select().from(contributions).orderBy(desc(contributions.date));
+  }
+
+  async createContribution(data: InsertContribution): Promise<Contribution> {
+    const [created] = await db.insert(contributions).values(data as typeof contributions.$inferInsert).returning();
+    return created;
+  }
+
+  async updateContribution(id: number, data: Partial<InsertContribution>): Promise<Contribution | undefined> {
+    const [updated] = await db.update(contributions).set(data).where(eq(contributions.id, id)).returning();
+    return updated;
+  }
+
+  async deleteContribution(id: number): Promise<void> {
+    await db.delete(contributions).where(eq(contributions.id, id));
   }
 
   async getIntegrations(): Promise<Integration[]> {

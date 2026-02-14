@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import {
   insertPatientSchema, insertOpdVisitSchema, insertBillSchema,
   insertServiceSchema, insertMedicineSchema, insertExpenseSchema,
-  insertBankTransactionSchema, insertInvestorSchema, insertInvestmentSchema,
+  insertBankTransactionSchema, insertInvestorSchema, insertInvestmentSchema, insertContributionSchema,
   insertUserSchema, insertRoleSchema, insertIntegrationSchema,
   insertClinicSettingsSchema, insertLabTestSchema, insertAppointmentSchema,
   insertDoctorSchema, insertSalarySchema,
@@ -1409,6 +1409,55 @@ export async function registerRoutes(
       }
       await storage.bulkDeleteInvestments(ids);
       res.json({ success: true, deleted: ids.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Contributions
+  app.get("/api/contributions", async (req, res) => {
+    try {
+      const investmentId = req.query.investmentId ? Number(req.query.investmentId) : undefined;
+      const result = await storage.getContributions(investmentId);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/contributions", async (req, res) => {
+    try {
+      const data = validateBody(insertContributionSchema, req.body);
+      const contribution = await storage.createContribution(data);
+      res.status(201).json(contribution);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.put("/api/contributions/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const updateSchema = z.object({
+        investorName: z.string().optional(),
+        amount: z.string().optional(),
+        date: z.string().optional(),
+        note: z.string().nullable().optional(),
+      });
+      const data = validateBody(updateSchema, req.body);
+      const contribution = await storage.updateContribution(id, data);
+      if (!contribution) return res.status(404).json({ message: "Contribution not found" });
+      res.json(contribution);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/contributions/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      await storage.deleteContribution(id);
+      res.json({ message: "Deleted" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
