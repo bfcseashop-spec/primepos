@@ -84,7 +84,36 @@ const injectionAvatarGradients = [
   "from-amber-500 to-orange-400",
 ];
 
-const defaultInjForm = { name: "", price: "", description: "" };
+const DEFAULT_INJECTION_CATEGORIES = [
+  "General", "Vaccine", "Antibiotic", "Pain Relief", "Vitamin",
+  "Steroid", "Hormonal", "IV Fluid", "Other"
+];
+
+function getInjectionCategories(): string[] {
+  const stored = localStorage.getItem("injection_categories");
+  if (stored) {
+    try { return JSON.parse(stored); } catch { return DEFAULT_INJECTION_CATEGORIES; }
+  }
+  return DEFAULT_INJECTION_CATEGORIES;
+}
+
+function saveInjectionCategories(cats: string[]) {
+  localStorage.setItem("injection_categories", JSON.stringify(cats));
+}
+
+const injCategoryColors: Record<string, { bg: string; text: string; dot: string }> = {
+  General: { bg: "bg-blue-500/10", text: "text-blue-700 dark:text-blue-300", dot: "bg-blue-500" },
+  Vaccine: { bg: "bg-emerald-500/10", text: "text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500" },
+  Antibiotic: { bg: "bg-amber-500/10", text: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500" },
+  "Pain Relief": { bg: "bg-red-500/10", text: "text-red-700 dark:text-red-300", dot: "bg-red-500" },
+  Vitamin: { bg: "bg-green-500/10", text: "text-green-700 dark:text-green-300", dot: "bg-green-500" },
+  Steroid: { bg: "bg-pink-500/10", text: "text-pink-700 dark:text-pink-300", dot: "bg-pink-500" },
+  Hormonal: { bg: "bg-violet-500/10", text: "text-violet-700 dark:text-violet-300", dot: "bg-violet-500" },
+  "IV Fluid": { bg: "bg-cyan-500/10", text: "text-cyan-700 dark:text-cyan-300", dot: "bg-cyan-500" },
+};
+const defaultInjCatColor = { bg: "bg-indigo-500/10", text: "text-indigo-700 dark:text-indigo-300", dot: "bg-indigo-500" };
+
+const defaultInjForm = { name: "", category: "", price: "", description: "" };
 
 function InjectionManagement() {
   const { t } = useTranslation();
@@ -94,10 +123,15 @@ function InjectionManagement() {
   const [viewInj, setViewInj] = useState<Injection | null>(null);
   const [deleteInj, setDeleteInj] = useState<Injection | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [form, setForm] = useState(defaultInjForm);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const refName = useRef<HTMLInputElement>(null);
   const refPrice = useRef<HTMLInputElement>(null);
+  const refCategory = useRef<HTMLButtonElement>(null);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [categories, setCategories] = useState<string[]>(getInjectionCategories());
+  const [newCategory, setNewCategory] = useState("");
 
   const { data: injections = [], isLoading } = useQuery<Injection[]>({
     queryKey: ["/api/injections"],
@@ -149,17 +183,20 @@ function InjectionManagement() {
   const handleSubmit = () => {
     const errors: Record<string, string> = {};
     if (!form.name?.trim()) errors.name = t("common.required");
+    if (!form.category?.trim()) errors.category = t("common.required");
     if (!form.price || Number(form.price) <= 0) errors.price = t("common.required");
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       toast({ title: t("common.fillRequired"), variant: "destructive" });
-      if (errors.name) refName.current?.focus();
-      else if (errors.price) refPrice.current?.focus();
+      const order = ["name", "category", "price"] as const;
+      const firstKey = order.find(k => errors[k]);
+      const refMap = { name: refName, category: refCategory, price: refPrice } as const;
+      if (firstKey) (refMap[firstKey].current as HTMLElement | null)?.focus();
       return;
     }
     const payload = {
       name: form.name,
-      category: "Injection",
+      category: form.category,
       price: form.price,
       description: form.description || null,
       isActive: true,
@@ -175,6 +212,7 @@ function InjectionManagement() {
     setFieldErrors({});
     setForm({
       name: inj.name,
+      category: inj.category || "",
       price: inj.price,
       description: inj.description || "",
     });
@@ -183,19 +221,25 @@ function InjectionManagement() {
 
   const filtered = injections.filter(inj => {
     const term = searchTerm.toLowerCase();
-    return inj.name.toLowerCase().includes(term) ||
-      (inj.description || "").toLowerCase().includes(term);
+    const matchSearch = inj.name.toLowerCase().includes(term) ||
+      (inj.description || "").toLowerCase().includes(term) ||
+      (inj.category || "").toLowerCase().includes(term);
+    const matchCategory = categoryFilter === "all" || inj.category === categoryFilter;
+    return matchSearch && matchCategory;
   });
 
   const activeCount = injections.filter(i => i.isActive).length;
   const totalValue = injections.reduce((sum, i) => sum + parseFloat(i.price || "0"), 0);
+  const uniqueCategories = Array.from(new Set(injections.map(i => i.category).filter(Boolean)));
   const getInitials = (name: string) => name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
   const getGradient = (id: number) => injectionAvatarGradients[id % injectionAvatarGradients.length];
+  const getInjCatColor = (cat: string) => injCategoryColors[cat] || defaultInjCatColor;
 
   const statCards = [
     { label: "Total Injections", value: injections.length, gradient: "from-cyan-500 to-cyan-600", icon: Syringe },
     { label: t("common.active"), value: activeCount, gradient: "from-emerald-500 to-emerald-600", icon: CheckCircle2 },
     { label: t("common.inactive"), value: injections.length - activeCount, gradient: "from-red-500 to-red-600", icon: XCircle },
+    { label: t("services.categories"), value: uniqueCategories.length, gradient: "from-violet-500 to-violet-600", icon: Layers },
     { label: "Total Value", value: `$${totalValue.toFixed(0)}`, gradient: "from-amber-500 to-amber-600", icon: DollarSign },
   ];
 
@@ -206,10 +250,24 @@ function InjectionManagement() {
         <Input ref={refName} id="inj-name" value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFieldErrors(prev => ({ ...prev, name: "" })); }} data-testid="input-injection-name" className={fieldErrors.name ? "border-destructive" : ""} />
         {fieldErrors.name && <p className="text-xs text-destructive mt-1">{fieldErrors.name}</p>}
       </div>
-      <div>
-        <Label htmlFor="inj-price">{t("common.price")} ($) *</Label>
-        <Input ref={refPrice} id="inj-price" type="number" step="0.01" value={form.price} onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setFieldErrors(prev => ({ ...prev, price: "" })); }} data-testid="input-injection-price" className={fieldErrors.price ? "border-destructive" : ""} />
-        {fieldErrors.price && <p className="text-xs text-destructive mt-1">{fieldErrors.price}</p>}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>{t("common.category")} *</Label>
+          <Select value={form.category} onValueChange={v => { setForm(f => ({ ...f, category: v })); setFieldErrors(prev => ({ ...prev, category: "" })); }}>
+            <SelectTrigger ref={refCategory} data-testid="select-injection-category"><SelectValue placeholder={t("common.category")} /></SelectTrigger>
+            <SelectContent>
+              {categories.map(cat => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {fieldErrors.category && <p className="text-xs text-destructive mt-1">{fieldErrors.category}</p>}
+        </div>
+        <div>
+          <Label htmlFor="inj-price">{t("common.price")} ($) *</Label>
+          <Input ref={refPrice} id="inj-price" type="number" step="0.01" value={form.price} onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setFieldErrors(prev => ({ ...prev, price: "" })); }} data-testid="input-injection-price" className={fieldErrors.price ? "border-destructive" : ""} />
+          {fieldErrors.price && <p className="text-xs text-destructive mt-1">{fieldErrors.price}</p>}
+        </div>
       </div>
       <div>
         <Label htmlFor="inj-remarks">Remarks</Label>
@@ -220,8 +278,88 @@ function InjectionManagement() {
 
   return (
     <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div />
+      <div className="flex items-center justify-end gap-2 flex-wrap">
+        <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" data-testid="button-inj-category-manage">
+              <FolderPlus className="h-4 w-4 mr-1" /> {t("common.category")}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{t("services.manageCategories")}</DialogTitle>
+              <DialogDescription>Add or remove injection categories</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="New category name..."
+                  value={newCategory}
+                  onChange={e => setNewCategory(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && newCategory.trim()) {
+                      if (categories.includes(newCategory.trim())) {
+                        toast({ title: t("common.categoryExists"), variant: "destructive" });
+                        return;
+                      }
+                      const updated = [...categories, newCategory.trim()].sort();
+                      setCategories(updated);
+                      saveInjectionCategories(updated);
+                      setNewCategory("");
+                      toast({ title: t("common.categoryAdded") });
+                    }
+                  }}
+                  data-testid="input-new-inj-category"
+                />
+                <Button
+                  onClick={() => {
+                    if (!newCategory.trim()) return;
+                    if (categories.includes(newCategory.trim())) {
+                      toast({ title: t("common.categoryExists"), variant: "destructive" });
+                      return;
+                    }
+                    const updated = [...categories, newCategory.trim()].sort();
+                    setCategories(updated);
+                    saveInjectionCategories(updated);
+                    setNewCategory("");
+                    toast({ title: t("common.categoryAdded") });
+                  }}
+                  data-testid="button-add-inj-category"
+                >
+                  {t("common.add")}
+                </Button>
+              </div>
+              <div className="max-h-60 overflow-y-auto space-y-1">
+                {categories.map(cat => {
+                  const cc = getInjCatColor(cat);
+                  return (
+                    <div key={cat} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md hover-elevate">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-block h-2 w-2 rounded-full ${cc.dot}`} />
+                        <span className="text-sm">{cat}</span>
+                      </div>
+                      {!DEFAULT_INJECTION_CATEGORIES.includes(cat) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const updated = categories.filter(c => c !== cat);
+                            setCategories(updated);
+                            saveInjectionCategories(updated);
+                            toast({ title: t("common.categoryRemoved") });
+                          }}
+                          data-testid={`button-remove-inj-category-${cat}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setForm(defaultInjForm); setFieldErrors({}); } }}>
           <DialogTrigger asChild>
             <Button data-testid="button-new-injection">
@@ -241,7 +379,7 @@ function InjectionManagement() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {statCards.map((s, i) => (
           <Card key={i} data-testid={`stat-inj-${i}`}>
             <CardContent className="p-4">
@@ -262,13 +400,26 @@ function InjectionManagement() {
       <Card>
         <CardContent className="p-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="w-64">
-              <Input
-                placeholder="Search injections..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                data-testid="input-search-injections"
-              />
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="w-64">
+                <Input
+                  placeholder="Search injections..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  data-testid="input-search-injections"
+                />
+              </div>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[160px]" data-testid="select-inj-category-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {uniqueCategories.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="text-xs text-muted-foreground">
               {t("common.showing")} <span className="font-semibold text-foreground">{filtered.length}</span> {t("common.of")} {injections.length}
@@ -306,8 +457,9 @@ function InjectionManagement() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {filtered.map(inj => (
-            <Card key={inj.id} className="overflow-visible hover-elevate" data-testid={`card-injection-${inj.id}`}>
+          {filtered.map(inj => {
+            const catColor = getInjCatColor(inj.category);
+            return (<Card key={inj.id} className="overflow-visible hover-elevate" data-testid={`card-injection-${inj.id}`}>
               <CardContent className="p-0">
                 <div className={`h-1.5 rounded-t-md bg-gradient-to-r ${["from-cyan-500 to-teal-500", "from-blue-500 to-indigo-500", "from-emerald-500 to-green-500", "from-violet-500 to-purple-500"][inj.id % 4]}`} />
                 <div className="p-4">
@@ -320,9 +472,12 @@ function InjectionManagement() {
                       </Avatar>
                       <div className="min-w-0">
                         <h4 className="text-sm font-semibold truncate" data-testid={`text-injection-name-${inj.id}`}>{inj.name}</h4>
-                        <Badge variant="outline" className="text-[10px] mt-0.5 no-default-hover-elevate no-default-active-elevate bg-cyan-500/10 text-cyan-700 dark:text-cyan-300">
-                          <span className="inline-block h-1.5 w-1.5 rounded-full mr-1 bg-cyan-500" />
-                          Injection
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] mt-0.5 no-default-hover-elevate no-default-active-elevate ${catColor.bg} ${catColor.text}`}
+                        >
+                          <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${catColor.dot}`} />
+                          {inj.category}
                         </Badge>
                       </div>
                     </div>
@@ -372,7 +527,8 @@ function InjectionManagement() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -392,10 +548,12 @@ function InjectionManagement() {
                 </Avatar>
                 <div>
                   <h3 className="font-semibold">{viewInj.name}</h3>
-                  <Badge variant="outline" className="text-[10px] mt-1 no-default-hover-elevate no-default-active-elevate bg-cyan-500/10 text-cyan-700 dark:text-cyan-300">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full mr-1 bg-cyan-500" />
-                    Injection
+                  {(() => { const vc = getInjCatColor(viewInj.category); return (
+                  <Badge variant="outline" className={`text-[10px] mt-1 no-default-hover-elevate no-default-active-elevate ${vc.bg} ${vc.text}`}>
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${vc.dot}`} />
+                    {viewInj.category}
                   </Badge>
+                  ); })()}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
