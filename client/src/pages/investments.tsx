@@ -1033,7 +1033,7 @@ export default function InvestmentsPage() {
                         {row.investorIdx >= 0 && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" data-testid={`button-capital-actions-${row.name}-${row.investmentId}`}>
+                              <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" aria-label="Actions" data-testid={`button-capital-actions-${row.name}-${row.investmentId}`}>
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -1041,7 +1041,7 @@ export default function InvestmentsPage() {
                               <DropdownMenuItem onClick={() => openCapitalEdit(row.investmentId, row.investorIdx)} className="gap-2">
                                 <Pencil className="h-4 w-4 text-amber-500" /> Edit Capital
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setDeleteCapitalConfirm({ investmentId: row.investmentId, investorIdx: row.investorIdx, investorName: row.name })} className="text-red-600 gap-2">
+                              <DropdownMenuItem onClick={() => setDeleteCapitalConfirm({ investmentId: row.investmentId, investorIdx: row.investorIdx, investorName: row.name })} className="text-destructive gap-2">
                                 <Trash2 className="h-4 w-4" /> Remove
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -1194,7 +1194,7 @@ export default function InvestmentsPage() {
                           <td className="text-right p-2.5">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" data-testid={`button-contribution-actions-${c.id}`}>
+                                <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" aria-label="Actions" data-testid={`button-contribution-actions-${c.id}`}>
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -1205,7 +1205,7 @@ export default function InvestmentsPage() {
                                 <DropdownMenuItem onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editImages: c.images || [], _editNote: c.note || "" } as any)} className="gap-2">
                                   <Pencil className="h-4 w-4 text-amber-500" /> Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setDeleteContributionConfirm(c.id)} className="text-red-600 gap-2">
+                                <DropdownMenuItem onClick={() => setDeleteContributionConfirm(c.id)} className="text-destructive gap-2">
                                   <Trash2 className="h-4 w-4" /> Delete
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
