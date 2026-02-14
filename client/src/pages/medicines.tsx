@@ -1302,7 +1302,7 @@ export default function MedicinesPage() {
                     </Button>
                   </div>
                 )}
-                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No medicines yet" selectedIds={selectedIds} onSelectionChange={setSelectedIds} />
+                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No medicines yet" selectedIds={selectedIds} onSelectionChange={setSelectedIds} onRowClick={(row) => setViewMed(row)} />
               </>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3" data-testid="medicine-grid">
