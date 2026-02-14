@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Plus, DollarSign, X, Tag, Trash2, Eye, Pencil, Printer,
   MoreHorizontal, Users, Wallet, AlertTriangle, CheckCircle2, CreditCard,
-  TrendingUp, ArrowDownRight, ArrowUpRight, CircleDollarSign, PiggyBank, Receipt
+  TrendingUp, ArrowDownRight, ArrowUpRight, CircleDollarSign, PiggyBank, Receipt, ChevronUp
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -83,6 +83,18 @@ export default function InvestmentsPage() {
   const [contributionFilter, setContributionFilter] = useState("all");
   const [editContribution, setEditContribution] = useState<Contribution | null>(null);
   const [deleteContributionConfirm, setDeleteContributionConfirm] = useState<number | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = useCallback(() => {
+    if (scrollRef.current) {
+      setShowScrollTop(scrollRef.current.scrollTop > 300);
+    }
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   const { data: investorsList = [] } = useQuery<Investor[]>({ queryKey: ["/api/investors"] });
   const { data: investments = [], isLoading } = useQuery<Investment[]>({ queryKey: ["/api/investments"] });
@@ -594,7 +606,7 @@ export default function InvestmentsPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-4 space-y-5">
+      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto scroll-smooth p-4 space-y-5 relative">
         {/* Top KPI Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Card data-testid="stat-total-capital">
@@ -965,6 +977,18 @@ export default function InvestmentsPage() {
             )}
           </CardContent>
         </Card>
+
+        {showScrollTop && (
+          <Button
+            size="icon"
+            variant="secondary"
+            className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg"
+            onClick={scrollToTop}
+            data-testid="button-scroll-to-top"
+          >
+            <ChevronUp className="h-5 w-5" />
+          </Button>
+        )}
       </div>
 
       {/* Manage Investors Dialog */}
