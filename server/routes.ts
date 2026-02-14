@@ -916,6 +916,7 @@ export async function registerRoutes(
     unitPrice: z.string().optional(),
     sellingPrice: z.string().optional(),
     isActive: z.boolean().optional(),
+    imageUrl: z.string().nullable().optional(),
   });
 
   app.put("/api/medicines/:id", async (req, res) => {
