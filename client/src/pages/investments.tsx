@@ -226,8 +226,10 @@ export default function InvestmentsPage() {
       const res = await apiRequest("POST", "/api/contributions", data);
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/contributions"] });
       setContributionDialogOpen(false);
       setContributionForm({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", images: [], note: "" });
       toast({ title: "Contribution recorded" });
@@ -238,11 +240,17 @@ export default function InvestmentsPage() {
   const updateContributionMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
       const res = await apiRequest("PUT", `/api/contributions/${id}`, data);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error((err as { message?: string }).message || "Update failed");
+      }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+    onSuccess: async () => {
       setEditContribution(null);
+      await queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/contributions"] });
       toast({ title: "Contribution updated" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -250,8 +258,11 @@ export default function InvestmentsPage() {
 
   const deleteContributionMutation = useMutation({
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/contributions/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+    onSuccess: async () => {
+      setDeleteContributionConfirm(null);
+      await queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/contributions"] });
       toast({ title: "Contribution deleted" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -569,16 +580,19 @@ export default function InvestmentsPage() {
   const handleEditContributionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editContribution) return;
+    const raw = editContribution as Contribution & { _editName?: string; _editAmount?: string; _editDate?: string; _editCategory?: string; _editPaymentSlip?: string | null; _editImages?: string[] | null; _editNote?: string | null };
+    const category = raw._editCategory ?? raw.category ?? null;
+    const note = raw._editNote ?? raw.note ?? null;
     updateContributionMutation.mutate({
       id: editContribution.id,
       data: {
-        investorName: (editContribution as any)._editName ?? editContribution.investorName,
-        amount: (editContribution as any)._editAmount ?? String(editContribution.amount),
-        date: (editContribution as any)._editDate ?? editContribution.date,
-        category: (editContribution as any)._editCategory ?? editContribution.category,
-        paymentSlip: (editContribution as any)._editPaymentSlip ?? editContribution.paymentSlip,
-        images: (editContribution as any)._editImages ?? editContribution.images,
-        note: (editContribution as any)._editNote ?? editContribution.note,
+        investorName: (raw._editName ?? raw.investorName).trim() || raw.investorName,
+        amount: String(raw._editAmount ?? raw.amount ?? 0),
+        date: raw._editDate ?? raw.date,
+        category: category === "" ? null : category,
+        paymentSlip: raw._editPaymentSlip ?? raw.paymentSlip ?? null,
+        images: raw._editImages ?? raw.images ?? null,
+        note: note === "" ? null : note,
       },
     });
   };
