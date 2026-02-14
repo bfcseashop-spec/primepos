@@ -90,6 +90,8 @@ export default function InvestmentsPage() {
   const [capitalEditTarget, setCapitalEditTarget] = useState<{ investmentId: number; investorIdx: number } | null>(null);
   const [capitalForm, setCapitalForm] = useState({ investmentId: 0, investorName: "", sharePercentage: 0, capitalAmount: "" });
   const [deleteCapitalConfirm, setDeleteCapitalConfirm] = useState<{ investmentId: number; investorIdx: number; investorName: string } | null>(null);
+  const [editTotalCapitalOpen, setEditTotalCapitalOpen] = useState(false);
+  const [editCapitalAmounts, setEditCapitalAmounts] = useState<{ id: number; title: string; amount: string }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = useCallback(() => {
@@ -880,13 +882,20 @@ export default function InvestmentsPage() {
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto scroll-smooth p-4 space-y-5 relative">
         {/* Top KPI Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card data-testid="stat-total-capital">
+          <Card
+            className="cursor-pointer hover-elevate"
+            onClick={() => {
+              setEditCapitalAmounts(investments.map(inv => ({ id: inv.id, title: inv.title, amount: String(inv.amount) })));
+              setEditTotalCapitalOpen(true);
+            }}
+            data-testid="stat-total-capital"
+          >
             <CardContent className="p-4">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-500/10 shrink-0">
                   <PiggyBank className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
                 </div>
-                <TrendingUp className="h-4 w-4 text-blue-500/40" />
+                <Pencil className="h-3.5 w-3.5 text-blue-500/40" />
               </div>
               <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Capital</p>
               <p className="text-xl font-bold mt-0.5" data-testid="text-total-capital">${fmt(totalInvestment)}</p>
@@ -1779,6 +1788,61 @@ export default function InvestmentsPage() {
               {updateMutation.isPending ? "Saving..." : capitalEditTarget ? "Update Capital" : "Add Capital"}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Total Capital Dialog */}
+      <Dialog open={editTotalCapitalOpen} onOpenChange={setEditTotalCapitalOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-blue-500" /> Edit Capital
+            </DialogTitle>
+            <DialogDescription className="sr-only">Edit investment capital amounts</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {editCapitalAmounts.map((item, idx) => (
+              <div key={item.id}>
+                <Label className="text-xs text-muted-foreground">{item.title}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={item.amount}
+                  onChange={(e) => {
+                    setEditCapitalAmounts(prev => prev.map((p, i) => i === idx ? { ...p, amount: e.target.value } : p));
+                  }}
+                  data-testid={`input-edit-capital-${item.id}`}
+                />
+              </div>
+            ))}
+            <div className="pt-2 border-t flex items-center justify-between gap-2">
+              <span className="text-sm font-medium">Total Capital</span>
+              <span className="text-sm font-bold">${fmt(editCapitalAmounts.reduce((s, i) => s + (Number(i.amount) || 0), 0))}</span>
+            </div>
+            <Button
+              className="w-full"
+              disabled={updateMutation.isPending}
+              onClick={() => {
+                let pending = editCapitalAmounts.length;
+                editCapitalAmounts.forEach((item) => {
+                  const inv = investments.find(i => i.id === item.id);
+                  if (!inv) { pending--; return; }
+                  const oldTotal = Number(inv.amount) || 0;
+                  const newTotal = Number(item.amount) || 0;
+                  if (oldTotal === newTotal) { pending--; if (pending === 0) { setEditTotalCapitalOpen(false); toast({ title: "Capital updated" }); } return; }
+                  const currentInvestors = [...((inv as any).investors ?? [])] as { investorId?: number; name: string; sharePercentage: number }[];
+                  const normalized = normalizeInvestors(newTotal, currentInvestors);
+                  updateMutation.mutate({ id: item.id, data: { amount: item.amount, investors: normalized } }, {
+                    onSuccess: () => { pending--; if (pending === 0) { setEditTotalCapitalOpen(false); toast({ title: "Capital updated" }); } },
+                  });
+                });
+              }}
+              data-testid="button-save-total-capital"
+            >
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
