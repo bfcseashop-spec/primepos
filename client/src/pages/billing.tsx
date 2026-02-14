@@ -15,6 +15,7 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
@@ -110,6 +111,7 @@ export default function BillingPage() {
   const [editBill, setEditBill] = useState<any>(null);
   const [medicineQty, setMedicineQty] = useState(1);
   const [medicineBarcodeScan, setMedicineBarcodeScan] = useState("");
+  const [deleteBillConfirm, setDeleteBillConfirm] = useState<{ open: boolean; billId?: number }>({ open: false });
 
   const getPaymentLabel = (method: string) => {
     const found = PAYMENT_METHODS.find(p => p.value === method);
@@ -153,6 +155,7 @@ export default function BillingPage() {
     onSuccess: (bill: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
 
       if (billAction === "print") {
         printReceipt(bill);
@@ -391,7 +394,7 @@ export default function BillingPage() {
     }
     const addQty = Math.max(1, Math.floor(medicineQty));
     const total = Math.round(unitPrice * addQty * 100) / 100;
-    setBillItems(prev => [...prev, { name: med.name, type: "medicine", quantity: addQty, unitPrice, total }]);
+    setBillItems(prev => [...prev, { name: med.name, type: "medicine", quantity: addQty, unitPrice, total, medicineId: med.id }]);
   };
 
   const addMedicineByBarcode = async (code: string) => {
@@ -524,7 +527,7 @@ export default function BillingPage() {
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditBill(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
             <Pencil className="h-4 w-4 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (confirm("Are you sure you want to delete this bill?")) deleteBillMutation.mutate(row.id); }} className="text-red-600 dark:text-red-400 gap-2" data-testid={`action-delete-${row.id}`}>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDeleteBillConfirm({ open: true, billId: row.id }); }} className="text-red-600 dark:text-red-400 gap-2" data-testid={`action-delete-${row.id}`}>
             <Trash2 className="h-4 w-4" /> {t("common.delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -1194,6 +1197,17 @@ export default function BillingPage() {
           })()}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteBillConfirm.open}
+        onOpenChange={(open) => setDeleteBillConfirm((c) => ({ ...c, open }))}
+        title={t("common.delete") || "Delete bill"}
+        description="Are you sure you want to delete this bill? This cannot be undone."
+        confirmLabel={t("common.delete") || "Delete"}
+        cancelLabel={t("common.cancel") || "Cancel"}
+        variant="destructive"
+        onConfirm={() => { if (deleteBillConfirm.billId != null) deleteBillMutation.mutate(deleteBillConfirm.billId); }}
+      />
 
       {/* Edit Bill Dialog */}
       <Dialog open={!!editBill} onOpenChange={(open) => { if (!open) setEditBill(null); }}>

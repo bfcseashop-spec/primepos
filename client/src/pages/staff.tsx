@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Eye, Edit, Trash2, ShieldCheck, Check, X, Users, Shield, UserCheck } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { Role } from "@shared/schema";
 
@@ -118,6 +119,8 @@ export default function StaffPage() {
   const [permissionMap, setPermissionMap] = useState<PermissionMap>(getDefaultPermissions());
   const [roleName, setRoleName] = useState("");
   const [roleDescription, setRoleDescription] = useState("");
+  const [deleteUserConfirm, setDeleteUserConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
+  const [deleteRoleConfirm, setDeleteRoleConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
 
   const { data: staff = [], isLoading: staffLoading } = useQuery<any[]>({
     queryKey: ["/api/users"],
@@ -443,7 +446,7 @@ export default function StaffPage() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => { if (confirm("Are you sure you want to delete this user?")) deleteUserMutation.mutate(user.id); }}
+                        onClick={() => setDeleteUserConfirm({ open: true, id: user.id })}
                         data-testid={`button-delete-user-${user.id}`}
                       >
                         <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
@@ -564,7 +567,7 @@ export default function StaffPage() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => { if (confirm("Are you sure you want to delete this role?")) deleteRoleMutation.mutate(role.id); }}
+                          onClick={() => setDeleteRoleConfirm({ open: true, id: role.id })}
                           data-testid={`button-delete-role-${role.id}`}
                         >
                           <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
@@ -579,6 +582,27 @@ export default function StaffPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteUserConfirm.open}
+        onOpenChange={(open) => setDeleteUserConfirm((c) => ({ ...c, open }))}
+        title="Delete user"
+        description="Are you sure you want to delete this user? This cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => { if (deleteUserConfirm.id != null) deleteUserMutation.mutate(deleteUserConfirm.id); }}
+      />
+      <ConfirmDialog
+        open={deleteRoleConfirm.open}
+        onOpenChange={(open) => setDeleteRoleConfirm((c) => ({ ...c, open }))}
+        title="Delete role"
+        description="Are you sure you want to delete this role? This cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => { if (deleteRoleConfirm.id != null) deleteRoleMutation.mutate(deleteRoleConfirm.id); }}
+      />
 
       <Dialog open={staffDialogOpen} onOpenChange={setStaffDialogOpen}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">

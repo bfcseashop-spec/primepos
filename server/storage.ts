@@ -87,7 +87,10 @@ export interface IStorage {
   bulkDeleteBankTransactions(ids: number[]): Promise<void>;
 
   getInvestments(): Promise<Investment[]>;
+  getInvestment(id: number): Promise<Investment | undefined>;
   createInvestment(inv: InsertInvestment): Promise<Investment>;
+  updateInvestment(id: number, data: Partial<InsertInvestment>): Promise<Investment | undefined>;
+  deleteInvestment(id: number): Promise<void>;
   bulkDeleteInvestments(ids: number[]): Promise<void>;
 
   getIntegrations(): Promise<Integration[]>;
@@ -189,7 +192,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const [created] = await db.insert(users).values(user).returning();
+    const [created] = await db.insert(users).values(user as typeof users.$inferInsert).returning();
     return created;
   }
 
@@ -212,7 +215,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createRole(role: InsertRole): Promise<Role> {
-    const [created] = await db.insert(roles).values(role).returning();
+    const [created] = await db.insert(roles).values(role as typeof roles.$inferInsert).returning();
     return created;
   }
 
@@ -235,7 +238,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPatient(patient: InsertPatient): Promise<Patient> {
-    const [created] = await db.insert(patients).values(patient).returning();
+    const [created] = await db.insert(patients).values(patient as typeof patients.$inferInsert).returning();
     return created;
   }
 
@@ -258,7 +261,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createService(service: InsertService): Promise<Service> {
-    const [created] = await db.insert(services).values(service).returning();
+    const [created] = await db.insert(services).values(service as typeof services.$inferInsert).returning();
     return created;
   }
 
@@ -303,7 +306,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMedicine(medicine: InsertMedicine): Promise<Medicine> {
-    const [created] = await db.insert(medicines).values(medicine).returning();
+    const [created] = await db.insert(medicines).values(medicine as typeof medicines.$inferInsert).returning();
     return created;
   }
 
@@ -321,7 +324,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createStockAdjustment(adjustment: InsertStockAdjustment): Promise<StockAdjustment> {
-    const [created] = await db.insert(stockAdjustments).values(adjustment).returning();
+    const [created] = await db.insert(stockAdjustments).values(adjustment as typeof stockAdjustments.$inferInsert).returning();
     return created;
   }
 
@@ -352,7 +355,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createOpdVisit(visit: InsertOpdVisit): Promise<OpdVisit> {
-    const [created] = await db.insert(opdVisits).values(visit).returning();
+    const [created] = await db.insert(opdVisits).values(visit as typeof opdVisits.$inferInsert).returning();
     return created;
   }
 
@@ -390,7 +393,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createBill(bill: InsertBill): Promise<Bill> {
-    const [created] = await db.insert(bills).values(bill).returning();
+    const [created] = await db.insert(bills).values(bill as typeof bills.$inferInsert).returning();
     return created;
   }
 
@@ -412,7 +415,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createExpense(expense: InsertExpense): Promise<Expense> {
-    const [created] = await db.insert(expenses).values(expense).returning();
+    const [created] = await db.insert(expenses).values(expense as typeof expenses.$inferInsert).returning();
     return created;
   }
 
@@ -434,7 +437,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createBankTransaction(tx: InsertBankTransaction): Promise<BankTransaction> {
-    const [created] = await db.insert(bankTransactions).values(tx).returning();
+    const [created] = await db.insert(bankTransactions).values(tx as typeof bankTransactions.$inferInsert).returning();
     return created;
   }
 
@@ -450,9 +453,23 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(investments).orderBy(desc(investments.startDate));
   }
 
+  async getInvestment(id: number): Promise<Investment | undefined> {
+    const [row] = await db.select().from(investments).where(eq(investments.id, id));
+    return row;
+  }
+
   async createInvestment(inv: InsertInvestment): Promise<Investment> {
-    const [created] = await db.insert(investments).values(inv).returning();
+    const [created] = await db.insert(investments).values(inv as typeof investments.$inferInsert).returning();
     return created;
+  }
+
+  async updateInvestment(id: number, data: Partial<InsertInvestment>): Promise<Investment | undefined> {
+    const [updated] = await db.update(investments).set(data).where(eq(investments.id, id)).returning();
+    return updated;
+  }
+
+  async deleteInvestment(id: number): Promise<void> {
+    await db.delete(investments).where(eq(investments.id, id));
   }
 
   async bulkDeleteInvestments(ids: number[]): Promise<void> {
@@ -464,7 +481,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createIntegration(int: InsertIntegration): Promise<Integration> {
-    const [created] = await db.insert(integrations).values(int).returning();
+    const [created] = await db.insert(integrations).values(int as typeof integrations.$inferInsert).returning();
     return created;
   }
 
@@ -485,7 +502,7 @@ export class DatabaseStorage implements IStorage {
       const [updated] = await db.update(clinicSettings).set(data).where(eq(clinicSettings.id, existing.id)).returning();
       return updated;
     }
-    const [created] = await db.insert(clinicSettings).values(data).returning();
+    const [created] = await db.insert(clinicSettings).values(data as typeof clinicSettings.$inferInsert).returning();
     return created;
   }
 
@@ -651,7 +668,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLabTest(test: InsertLabTest): Promise<LabTest> {
-    const [created] = await db.insert(labTests).values(test).returning();
+    const [created] = await db.insert(labTests).values(test as typeof labTests.$inferInsert).returning();
     return created;
   }
 
@@ -685,7 +702,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAppointment(appointment: InsertAppointment): Promise<Appointment> {
-    const [created] = await db.insert(appointments).values(appointment).returning();
+    const [created] = await db.insert(appointments).values(appointment as typeof appointments.$inferInsert).returning();
     return created;
   }
 
@@ -712,7 +729,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDoctor(doctor: InsertDoctor): Promise<Doctor> {
-    const [created] = await db.insert(doctors).values(doctor).returning();
+    const [created] = await db.insert(doctors).values(doctor as typeof doctors.$inferInsert).returning();
     return created;
   }
 
@@ -741,7 +758,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSalary(salary: InsertSalary): Promise<Salary> {
-    const [created] = await db.insert(salaries).values(salary).returning();
+    const [created] = await db.insert(salaries).values(salary as typeof salaries.$inferInsert).returning();
     return created;
   }
 
@@ -764,7 +781,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSalaryProfile(profile: InsertSalaryProfile): Promise<SalaryProfile> {
-    const [created] = await db.insert(salaryProfiles).values(profile).returning();
+    const [created] = await db.insert(salaryProfiles).values(profile as typeof salaryProfiles.$inferInsert).returning();
     return created;
   }
 
@@ -787,7 +804,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSalaryLoan(loan: InsertSalaryLoan): Promise<SalaryLoan> {
-    const [created] = await db.insert(salaryLoans).values(loan).returning();
+    const [created] = await db.insert(salaryLoans).values(loan as typeof salaryLoans.$inferInsert).returning();
     return created;
   }
 
@@ -805,7 +822,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLoanInstallment(installment: InsertLoanInstallment): Promise<LoanInstallment> {
-    const [created] = await db.insert(loanInstallments).values(installment).returning();
+    const [created] = await db.insert(loanInstallments).values(installment as typeof loanInstallments.$inferInsert).returning();
     return created;
   }
 
@@ -824,7 +841,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPayrollRun(run: InsertPayrollRun): Promise<PayrollRun> {
-    const [created] = await db.insert(payrollRuns).values(run).returning();
+    const [created] = await db.insert(payrollRuns).values(run as typeof payrollRuns.$inferInsert).returning();
     return created;
   }
 
@@ -842,7 +859,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPayslip(payslip: InsertPayslip): Promise<Payslip> {
-    const [created] = await db.insert(payslips).values(payslip).returning();
+    const [created] = await db.insert(payslips).values(payslip as typeof payslips.$inferInsert).returning();
     return created;
   }
 
@@ -865,7 +882,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
-    const [created] = await db.insert(activityLogs).values(log).returning();
+    const [created] = await db.insert(activityLogs).values(log as typeof activityLogs.$inferInsert).returning();
     return created;
   }
 

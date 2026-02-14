@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,6 +94,7 @@ export default function ServicesPage() {
   const [categories, setCategories] = useState<string[]>(getServiceCategories());
   const [newCategory, setNewCategory] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleteBulkConfirm, setDeleteBulkConfirm] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
@@ -160,9 +162,7 @@ export default function ServicesPage() {
 
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (confirm(`Delete ${selectedIds.size} selected service(s)?`)) {
-      bulkDeleteMutation.mutate(Array.from(selectedIds));
-    }
+    setDeleteBulkConfirm(true);
   };
 
   const toggleServiceSelection = (id: number) => {
@@ -939,6 +939,17 @@ export default function ServicesPage() {
           </Button>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteBulkConfirm}
+        onOpenChange={setDeleteBulkConfirm}
+        title={t("common.delete") || "Delete services"}
+        description={`Delete ${selectedIds.size} selected service(s)? This cannot be undone.`}
+        confirmLabel={t("common.delete") || "Delete"}
+        cancelLabel={t("common.cancel") || "Cancel"}
+        variant="destructive"
+        onConfirm={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
+      />
 
       <AlertDialog open={!!deleteService} onOpenChange={(open) => { if (!open) setDeleteService(null); }}>
         <AlertDialogContent>

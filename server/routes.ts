@@ -516,8 +516,26 @@ export async function registerRoutes(
 
   app.post("/api/bills", async (req, res) => {
     try {
-      const data = validateBody(insertBillSchema, req.body);
-      const bill = await storage.createBill(data);
+      const data = validateBody(insertBillSchema, req.body) as Record<string, unknown>;
+      const bill = await storage.createBill(data as Parameters<typeof storage.createBill>[0]);
+      const items = Array.isArray(data.items) ? data.items : [];
+      for (const item of items) {
+        if (item?.type === "medicine" && item.medicineId != null && typeof item.quantity === "number" && item.quantity > 0) {
+          const med = await storage.getMedicine(Number(item.medicineId));
+          if (med) {
+            const prev = Number(med.stockCount ?? 0);
+            const newStock = Math.max(0, prev - item.quantity);
+            await storage.updateMedicine(med.id, { stockCount: newStock, quantity: newStock });
+            await storage.createStockAdjustment({
+              medicineId: med.id,
+              previousStock: prev,
+              newStock,
+              adjustmentType: "subtract",
+              reason: `Bill ${bill.billNo} – sold ${item.quantity} pc`,
+            });
+          }
+        }
+      }
       res.status(201).json(bill);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -942,9 +960,8 @@ export async function registerRoutes(
       const existing = await storage.getMedicine(id);
       if (!existing) return res.status(404).json({ message: "Medicine not found" });
       const { reason, adjustmentType, ...updateData } = data;
-      const medicine = await storage.updateMedicine(id, updateData);
-      if (!medicine) return res.status(404).json({ message: "Medicine not found" });
       if (data.stockCount !== undefined && typeof data.stockCount === "number") {
+        updateData.quantity = data.stockCount;
         await storage.createStockAdjustment({
           medicineId: id,
           previousStock: existing.stockCount ?? 0,
@@ -953,6 +970,8 @@ export async function registerRoutes(
           reason: reason ?? null,
         });
       }
+      const medicine = await storage.updateMedicine(id, updateData);
+      if (!medicine) return res.status(404).json({ message: "Medicine not found" });
       res.json(medicine);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -1227,13 +1246,103 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/investments/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const inv = await storage.getInvestment(id);
+      if (!inv) return res.status(404).json({ message: "Investment not found" });
+      res.json(inv);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  const investmentInvestorSchema = z.object({
+    name: z.string().min(1, "Investor name is required"),
+    sharePercentage: z.number().min(0).max(100),
+    amount: z.string(),
+  });
+
+  const createInvestmentBodySchema = insertInvestmentSchema.extend({
+    investors: z.array(investmentInvestorSchema).optional(),
+  });
+
+  function normalizeInvestmentInvestors(
+    totalAmount: number,
+    investors: { name: string; sharePercentage: number; amount: string }[]
+  ): { name: string; sharePercentage: number; amount: string }[] {
+    if (investors.length === 0) return [];
+    const sum = investors.reduce((s, i) => s + i.sharePercentage, 0);
+    const scale = sum > 0 ? 100 / sum : 0;
+    return investors.map((i) => {
+      const pct = Math.round(i.sharePercentage * scale * 100) / 100;
+      const amt = ((totalAmount * pct) / 100).toFixed(2);
+      return { name: i.name.trim(), sharePercentage: pct, amount: amt };
+    });
+  }
+
+  type CreateInvestmentBody = { title: string; category: string; amount: string; returnAmount?: string | null; investorName?: string | null; status?: string; startDate: string; endDate?: string | null; notes?: string | null; investors?: { name: string; sharePercentage: number; amount: string }[] };
   app.post("/api/investments", async (req, res) => {
     try {
-      const data = validateBody(insertInvestmentSchema, req.body);
+      const raw = validateBody(createInvestmentBodySchema, req.body) as CreateInvestmentBody;
+      const total = Number(raw.amount) || 0;
+      const investorsList = Array.isArray(raw.investors) && raw.investors.length > 0
+        ? normalizeInvestmentInvestors(total, raw.investors)
+        : [];
+      const investorName = investorsList.length === 0
+        ? (raw.investorName ?? null)
+        : investorsList.map((i) => i.name).join(", ");
+      const data = {
+        ...raw,
+        investorName: (investorName || raw.investorName) ?? null,
+        investors: investorsList,
+      };
       const inv = await storage.createInvestment(data);
       res.status(201).json(inv);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
+    }
+  });
+
+  const investmentUpdateSchema = z.object({
+    title: z.string().optional(),
+    category: z.string().optional(),
+    amount: z.string().optional(),
+    returnAmount: z.string().nullable().optional(),
+    investorName: z.string().nullable().optional(),
+    investors: z.array(investmentInvestorSchema).optional(),
+    status: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+  });
+
+  app.put("/api/investments/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const raw = validateBody(investmentUpdateSchema, req.body);
+      const total = raw.amount != null ? Number(raw.amount) : undefined;
+      const data = { ...raw };
+      if (raw.investors && Array.isArray(raw.investors) && raw.investors.length > 0 && total != null) {
+        const normalized = normalizeInvestmentInvestors(total, raw.investors);
+        data.investors = normalized;
+        data.investorName = normalized.map((i) => i.name).join(", ");
+      }
+      const inv = await storage.updateInvestment(id, data);
+      if (!inv) return res.status(404).json({ message: "Investment not found" });
+      res.json(inv);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/investments/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      await storage.deleteInvestment(id);
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
     }
   });
 

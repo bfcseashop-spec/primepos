@@ -10,7 +10,7 @@ export const roles = pgTable("roles", {
   permissions: jsonb("permissions").notNull().default({}),
 });
 
-export const insertRoleSchema = createInsertSchema(roles).omit({ id: true });
+export const insertRoleSchema = createInsertSchema(roles).omit({ id: true } as any);
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type Role = typeof roles.$inferSelect;
 
@@ -26,7 +26,7 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true } as any);
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -53,7 +53,7 @@ export const patients = pgTable("patients", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertPatientSchema = createInsertSchema(patients).omit({ id: true, createdAt: true });
+export const insertPatientSchema = createInsertSchema(patients).omit({ id: true, createdAt: true } as any);
 export type InsertPatient = z.infer<typeof insertPatientSchema>;
 export type Patient = typeof patients.$inferSelect;
 
@@ -67,7 +67,7 @@ export const services = pgTable("services", {
   isActive: boolean("is_active").notNull().default(true),
 });
 
-export const insertServiceSchema = createInsertSchema(services).omit({ id: true });
+export const insertServiceSchema = createInsertSchema(services).omit({ id: true } as any);
 export type InsertService = z.infer<typeof insertServiceSchema>;
 export type Service = typeof services.$inferSelect;
 
@@ -96,7 +96,7 @@ export const medicines = pgTable("medicines", {
   isActive: boolean("is_active").notNull().default(true),
 });
 
-export const insertMedicineSchema = createInsertSchema(medicines).omit({ id: true });
+export const insertMedicineSchema = createInsertSchema(medicines).omit({ id: true } as any);
 export type InsertMedicine = z.infer<typeof insertMedicineSchema>;
 export type Medicine = typeof medicines.$inferSelect;
 
@@ -110,7 +110,7 @@ export const stockAdjustments = pgTable("stock_adjustments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertStockAdjustmentSchema = createInsertSchema(stockAdjustments).omit({ id: true, createdAt: true });
+export const insertStockAdjustmentSchema = createInsertSchema(stockAdjustments).omit({ id: true, createdAt: true } as any);
 export type InsertStockAdjustment = z.infer<typeof insertStockAdjustmentSchema>;
 export type StockAdjustment = typeof stockAdjustments.$inferSelect;
 
@@ -127,7 +127,7 @@ export const opdVisits = pgTable("opd_visits", {
   visitDate: timestamp("visit_date").defaultNow(),
 });
 
-export const insertOpdVisitSchema = createInsertSchema(opdVisits).omit({ id: true, visitDate: true });
+export const insertOpdVisitSchema = createInsertSchema(opdVisits).omit({ id: true, visitDate: true } as any);
 export type InsertOpdVisit = z.infer<typeof insertOpdVisitSchema>;
 export type OpdVisit = typeof opdVisits.$inferSelect;
 
@@ -148,7 +148,7 @@ export const appointments = pgTable("appointments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true });
+export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true } as any);
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Appointment = typeof appointments.$inferSelect;
 
@@ -171,7 +171,7 @@ export const bills = pgTable("bills", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertBillSchema = createInsertSchema(bills).omit({ id: true, createdAt: true });
+export const insertBillSchema = createInsertSchema(bills).omit({ id: true, createdAt: true } as any);
 export type InsertBill = z.infer<typeof insertBillSchema>;
 export type Bill = typeof bills.$inferSelect;
 
@@ -188,7 +188,7 @@ export const expenses = pgTable("expenses", {
   receiptUrl: text("receipt_url"),
 });
 
-export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true });
+export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true } as any);
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
 export type Expense = typeof expenses.$inferSelect;
 
@@ -203,9 +203,11 @@ export const bankTransactions = pgTable("bank_transactions", {
   date: date("date").notNull(),
 });
 
-export const insertBankTransactionSchema = createInsertSchema(bankTransactions).omit({ id: true });
+export const insertBankTransactionSchema = createInsertSchema(bankTransactions).omit({ id: true } as any);
 export type InsertBankTransaction = z.infer<typeof insertBankTransactionSchema>;
 export type BankTransaction = typeof bankTransactions.$inferSelect;
+
+export type InvestmentInvestor = { name: string; sharePercentage: number; amount: string };
 
 export const investments = pgTable("investments", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -214,13 +216,14 @@ export const investments = pgTable("investments", {
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   returnAmount: numeric("return_amount", { precision: 10, scale: 2 }).default("0"),
   investorName: text("investor_name"),
+  investors: jsonb("investors").$type<InvestmentInvestor[]>().default([]),
   status: text("status").notNull().default("active"),
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
   notes: text("notes"),
 });
 
-export const insertInvestmentSchema = createInsertSchema(investments).omit({ id: true });
+export const insertInvestmentSchema = createInsertSchema(investments).omit({ id: true } as any);
 export type InsertInvestment = z.infer<typeof insertInvestmentSchema>;
 export type Investment = typeof investments.$inferSelect;
 
@@ -236,7 +239,7 @@ export const integrations = pgTable("integrations", {
   config: jsonb("config").default({}),
 });
 
-export const insertIntegrationSchema = createInsertSchema(integrations).omit({ id: true, lastConnected: true });
+export const insertIntegrationSchema = createInsertSchema(integrations).omit({ id: true, lastConnected: true } as any);
 export type InsertIntegration = z.infer<typeof insertIntegrationSchema>;
 export type Integration = typeof integrations.$inferSelect;
 
@@ -270,7 +273,7 @@ export const clinicSettings = pgTable("clinic_settings", {
   appVersion: text("app_version").default("1.0.0"),
 });
 
-export const insertClinicSettingsSchema = createInsertSchema(clinicSettings).omit({ id: true });
+export const insertClinicSettingsSchema = createInsertSchema(clinicSettings).omit({ id: true } as any);
 export type InsertClinicSettings = z.infer<typeof insertClinicSettingsSchema>;
 export type ClinicSettings = typeof clinicSettings.$inferSelect;
 
@@ -291,7 +294,7 @@ export const labTests = pgTable("lab_tests", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertLabTestSchema = createInsertSchema(labTests).omit({ id: true, createdAt: true });
+export const insertLabTestSchema = createInsertSchema(labTests).omit({ id: true, createdAt: true } as any);
 export type InsertLabTest = z.infer<typeof insertLabTestSchema>;
 export type LabTest = typeof labTests.$inferSelect;
 
@@ -315,7 +318,7 @@ export const doctors = pgTable("doctors", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertDoctorSchema = createInsertSchema(doctors).omit({ id: true, createdAt: true });
+export const insertDoctorSchema = createInsertSchema(doctors).omit({ id: true, createdAt: true } as any);
 export type InsertDoctor = z.infer<typeof insertDoctorSchema>;
 export type Doctor = typeof doctors.$inferSelect;
 
@@ -339,7 +342,7 @@ export const salaries = pgTable("salaries", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertSalarySchema = createInsertSchema(salaries).omit({ id: true, createdAt: true });
+export const insertSalarySchema = createInsertSchema(salaries).omit({ id: true, createdAt: true } as any);
 export type InsertSalary = z.infer<typeof insertSalarySchema>;
 export type Salary = typeof salaries.$inferSelect;
 
@@ -366,7 +369,7 @@ export const salaryProfiles = pgTable("salary_profiles", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertSalaryProfileSchema = createInsertSchema(salaryProfiles).omit({ id: true, createdAt: true });
+export const insertSalaryProfileSchema = createInsertSchema(salaryProfiles).omit({ id: true, createdAt: true } as any);
 export type InsertSalaryProfile = z.infer<typeof insertSalaryProfileSchema>;
 export type SalaryProfile = typeof salaryProfiles.$inferSelect;
 
@@ -387,7 +390,7 @@ export const salaryLoans = pgTable("salary_loans", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertSalaryLoanSchema = createInsertSchema(salaryLoans).omit({ id: true, createdAt: true });
+export const insertSalaryLoanSchema = createInsertSchema(salaryLoans).omit({ id: true, createdAt: true } as any);
 export type InsertSalaryLoan = z.infer<typeof insertSalaryLoanSchema>;
 export type SalaryLoan = typeof salaryLoans.$inferSelect;
 
@@ -401,7 +404,7 @@ export const loanInstallments = pgTable("loan_installments", {
   paidDate: text("paid_date"),
 });
 
-export const insertLoanInstallmentSchema = createInsertSchema(loanInstallments).omit({ id: true });
+export const insertLoanInstallmentSchema = createInsertSchema(loanInstallments).omit({ id: true } as any);
 export type InsertLoanInstallment = z.infer<typeof insertLoanInstallmentSchema>;
 export type LoanInstallment = typeof loanInstallments.$inferSelect;
 
@@ -419,7 +422,7 @@ export const payrollRuns = pgTable("payroll_runs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertPayrollRunSchema = createInsertSchema(payrollRuns).omit({ id: true, createdAt: true });
+export const insertPayrollRunSchema = createInsertSchema(payrollRuns).omit({ id: true, createdAt: true } as any);
 export type InsertPayrollRun = z.infer<typeof insertPayrollRunSchema>;
 export type PayrollRun = typeof payrollRuns.$inferSelect;
 
@@ -441,7 +444,7 @@ export const payslips = pgTable("payslips", {
   notes: text("notes"),
 });
 
-export const insertPayslipSchema = createInsertSchema(payslips).omit({ id: true });
+export const insertPayslipSchema = createInsertSchema(payslips).omit({ id: true } as any);
 export type InsertPayslip = z.infer<typeof insertPayslipSchema>;
 export type Payslip = typeof payslips.$inferSelect;
 
@@ -456,7 +459,7 @@ export const activityLogs = pgTable("activity_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true, createdAt: true });
+export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true, createdAt: true } as any);
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
 
@@ -466,6 +469,7 @@ export type BillItem = {
   quantity: number;
   unitPrice: number;
   total: number;
+  medicineId?: number;
 };
 
 export const permissionModules = [

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -103,6 +104,8 @@ export default function ExpensesPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
+  const [deleteBulkConfirm, setDeleteBulkConfirm] = useState(false);
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
 
   const allCategories = [...DEFAULT_EXPENSE_CATEGORIES, ...customCategories];
@@ -206,9 +209,7 @@ export default function ExpensesPage() {
 
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (confirm(`Delete ${selectedIds.size} selected expense(s)?`)) {
-      bulkDeleteMutation.mutate(Array.from(selectedIds));
-    }
+    setDeleteBulkConfirm(true);
   };
 
   const handleAddCategory = () => {
@@ -337,7 +338,7 @@ export default function ExpensesPage() {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
-            onClick={() => { if (confirm("Delete this expense?")) deleteMutation.mutate(row.id); }}
+            onClick={() => setDeleteConfirm({ open: true, id: row.id })}
             data-testid={`button-delete-expense-${row.id}`}
           >
             <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> {t("common.delete")}
@@ -646,7 +647,7 @@ export default function ExpensesPage() {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
-                            onClick={() => { if (confirm("Delete this expense?")) deleteMutation.mutate(exp.id); }}
+                            onClick={() => setDeleteConfirm({ open: true, id: exp.id })}
                             data-testid={`button-grid-delete-expense-${exp.id}`}
                           >
                             <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> {t("common.delete")}
@@ -889,6 +890,27 @@ export default function ExpensesPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm((c) => ({ ...c, open }))}
+        title={t("common.delete") || "Delete expense"}
+        description="Delete this expense? This cannot be undone."
+        confirmLabel={t("common.delete") || "Delete"}
+        cancelLabel={t("common.cancel") || "Cancel"}
+        variant="destructive"
+        onConfirm={() => { if (deleteConfirm.id != null) deleteMutation.mutate(deleteConfirm.id); }}
+      />
+      <ConfirmDialog
+        open={deleteBulkConfirm}
+        onOpenChange={setDeleteBulkConfirm}
+        title={t("common.delete") || "Delete expenses"}
+        description={`Delete ${selectedIds.size} selected expense(s)? This cannot be undone.`}
+        confirmLabel={t("common.delete") || "Delete"}
+        cancelLabel={t("common.cancel") || "Cancel"}
+        variant="destructive"
+        onConfirm={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
+      />
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp, Trash2, MoreHorizontal, Calendar } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { BankTransaction } from "@shared/schema";
 
@@ -41,6 +42,9 @@ export default function BankTransactionsPage() {
   const [methodFilter, setMethodFilter] = useState<string>("all");
   const [selectedBillIds, setSelectedBillIds] = useState<Set<number>>(new Set());
   const [selectedTxIds, setSelectedTxIds] = useState<Set<number>>(new Set());
+  const [deleteBillsConfirm, setDeleteBillsConfirm] = useState(false);
+  const [deleteTxBulkConfirm, setDeleteTxBulkConfirm] = useState(false);
+  const [deleteTxConfirm, setDeleteTxConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
 
   const { data: transactions = [], isLoading } = useQuery<BankTransaction[]>({
@@ -96,9 +100,7 @@ export default function BankTransactionsPage() {
 
   const handleBulkDeleteBills = () => {
     if (selectedBillIds.size === 0) return;
-    if (confirm(`Delete ${selectedBillIds.size} selected bill(s)?`)) {
-      bulkDeleteBillsMutation.mutate(Array.from(selectedBillIds));
-    }
+    setDeleteBillsConfirm(true);
   };
 
   const deleteTxMutation = useMutation({
@@ -116,9 +118,7 @@ export default function BankTransactionsPage() {
 
   const handleBulkDeleteTx = () => {
     if (selectedTxIds.size === 0) return;
-    if (confirm(`Delete ${selectedTxIds.size} selected transaction(s)?`)) {
-      bulkDeleteTxMutation.mutate(Array.from(selectedTxIds));
-    }
+    setDeleteTxBulkConfirm(true);
   };
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
@@ -251,11 +251,7 @@ export default function BankTransactionsPage() {
         <DropdownMenuContent align="end">
           <DropdownMenuItem
             className="text-red-600 dark:text-red-400"
-            onClick={() => {
-              if (confirm("Delete this transaction?")) {
-                deleteTxMutation.mutate(row.id);
-              }
-            }}
+            onClick={() => setDeleteTxConfirm({ open: true, id: row.id })}
             data-testid={`button-delete-tx-${row.id}`}
           >
             <Trash2 className="h-3.5 w-3.5 mr-2" />
@@ -542,6 +538,37 @@ export default function BankTransactionsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <ConfirmDialog
+        open={deleteBillsConfirm}
+        onOpenChange={setDeleteBillsConfirm}
+        title={t("common.delete") || "Delete bills"}
+        description={`Delete ${selectedBillIds.size} selected bill(s)? This cannot be undone.`}
+        confirmLabel={t("common.delete") || "Delete"}
+        cancelLabel={t("common.cancel") || "Cancel"}
+        variant="destructive"
+        onConfirm={() => bulkDeleteBillsMutation.mutate(Array.from(selectedBillIds))}
+      />
+      <ConfirmDialog
+        open={deleteTxBulkConfirm}
+        onOpenChange={setDeleteTxBulkConfirm}
+        title={t("common.delete") || "Delete transactions"}
+        description={`Delete ${selectedTxIds.size} selected transaction(s)? This cannot be undone.`}
+        confirmLabel={t("common.delete") || "Delete"}
+        cancelLabel={t("common.cancel") || "Cancel"}
+        variant="destructive"
+        onConfirm={() => bulkDeleteTxMutation.mutate(Array.from(selectedTxIds))}
+      />
+      <ConfirmDialog
+        open={deleteTxConfirm.open}
+        onOpenChange={(open) => setDeleteTxConfirm((c) => ({ ...c, open }))}
+        title={t("common.delete") || "Delete transaction"}
+        description="Delete this transaction? This cannot be undone."
+        confirmLabel={t("common.delete") || "Delete"}
+        cancelLabel={t("common.cancel") || "Cancel"}
+        variant="destructive"
+        onConfirm={() => { if (deleteTxConfirm.id != null) deleteTxMutation.mutate(deleteTxConfirm.id); }}
+      />
     </div>
   );
 }

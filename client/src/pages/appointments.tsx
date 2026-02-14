@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Calendar, Clock, Search, MoreVertical, Trash2, Edit, User, CalendarCheck, CheckCircle2, XCircle, AlertCircle, Stethoscope, CreditCard, Video, Phone as PhoneIcon, UserCheck, RefreshCw, CalendarDays } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -73,6 +74,7 @@ export default function AppointmentsPage() {
   const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const [editStatus, setEditStatus] = useState("");
   const [deleteAppointment, setDeleteAppointment] = useState<any>(null);
+  const [deleteBulkConfirm, setDeleteBulkConfirm] = useState(false);
   const [viewAppointment, setViewAppointment] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
@@ -118,9 +120,7 @@ export default function AppointmentsPage() {
 
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (confirm(`Delete ${selectedIds.size} selected appointment(s)?`)) {
-      bulkDeleteMutation.mutate(Array.from(selectedIds));
-    }
+    setDeleteBulkConfirm(true);
   };
 
   const toggleAppointmentSelection = (id: number) => {
@@ -604,6 +604,17 @@ export default function AppointmentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteBulkConfirm}
+        onOpenChange={setDeleteBulkConfirm}
+        title={t("common.delete") || "Delete appointments"}
+        description={`Delete ${selectedIds.size} selected appointment(s)? This cannot be undone.`}
+        confirmLabel={t("common.delete") || "Delete"}
+        cancelLabel={t("common.cancel") || "Cancel"}
+        variant="destructive"
+        onConfirm={() => { bulkDeleteMutation.mutate(Array.from(selectedIds)); }}
+      />
 
       <AlertDialog open={!!deleteAppointment} onOpenChange={(open) => { if (!open) setDeleteAppointment(null); }}>
         <AlertDialogContent>

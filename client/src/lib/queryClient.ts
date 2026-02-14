@@ -93,7 +93,7 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    return await parseJsonOrThrow(res);
+    return await parseJsonOrThrow(res) as any;
   };
 
 export const queryClient = new QueryClient({

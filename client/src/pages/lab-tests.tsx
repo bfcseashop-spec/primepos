@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -129,7 +130,7 @@ function MultiSelect({ options, selected, onChange, placeholder, testId, trigger
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button ref={triggerRef} variant="outline" className="w-full justify-between font-normal h-9 text-sm" data-testid={testId}>
+        <Button ref={triggerRef as React.LegacyRef<HTMLButtonElement>} variant="outline" className="w-full justify-between font-normal h-9 text-sm" data-testid={testId}>
           {selected.length > 0 ? (
             <span className="truncate">{selected.join(", ")}</span>
           ) : (
@@ -176,6 +177,8 @@ export default function LabTestsPage() {
   const [uploadReferrer, setUploadReferrer] = useState("");
   const [uploading, setUploading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
+  const [deleteBulkConfirm, setDeleteBulkConfirm] = useState(false);
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
 
   const { data: labTests = [], isLoading } = useQuery<LabTestWithPatient[]>({
@@ -251,9 +254,7 @@ export default function LabTestsPage() {
 
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (confirm(`Delete ${selectedIds.size} selected lab test(s)?`)) {
-      bulkDeleteMutation.mutate(Array.from(selectedIds));
-    }
+    setDeleteBulkConfirm(true);
   };
 
   const handleSubmit = () => {
@@ -505,7 +506,7 @@ export default function LabTestsPage() {
             <Printer className="h-4 w-4 text-violet-500" /> {t("common.print")}
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={(e) => { e.stopPropagation(); if (confirm("Delete this lab test?")) deleteMutation.mutate(row.id); }}
+            onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, id: row.id }); }}
             className="text-red-600 gap-2"
             data-testid={`action-delete-${row.id}`}
           >
@@ -876,6 +877,27 @@ export default function LabTestsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm((c) => ({ ...c, open }))}
+        title={t("common.delete") || "Delete lab test"}
+        description="Delete this lab test? This cannot be undone."
+        confirmLabel={t("common.delete") || "Delete"}
+        cancelLabel={t("common.cancel") || "Cancel"}
+        variant="destructive"
+        onConfirm={() => { if (deleteConfirm.id != null) deleteMutation.mutate(deleteConfirm.id); }}
+      />
+      <ConfirmDialog
+        open={deleteBulkConfirm}
+        onOpenChange={setDeleteBulkConfirm}
+        title={t("common.delete") || "Delete lab tests"}
+        description={`Delete ${selectedIds.size} selected lab test(s)? This cannot be undone.`}
+        confirmLabel={t("common.delete") || "Delete"}
+        cancelLabel={t("common.cancel") || "Cancel"}
+        variant="destructive"
+        onConfirm={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
+      />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw, LayoutGrid, List, Eye, Camera, X, UserCheck, UserX, Activity, BedDouble, Building2, Briefcase, Users, CircleCheck, CircleOff, CalendarOff, Stethoscope, DollarSign, GraduationCap, MapPin, CalendarDays, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { Doctor } from "@shared/schema";
@@ -80,6 +81,7 @@ export default function DoctorManagementPage() {
     joiningDate: "", notes: "", photoUrl: "",
   });
   const [uploading, setUploading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
 
   const { data: doctors = [], isLoading } = useQuery<Doctor[]>({ queryKey: ["/api/doctors"] });
 
@@ -328,7 +330,7 @@ export default function DoctorManagementPage() {
                         <BedDouble className="h-4 w-4 mr-2 text-amber-600" /> On Leave
                       </DropdownMenuItem>
                       <Separator className="my-1" />
-                      <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(doc.id)} data-testid={`button-delete-${doc.id}`}>
+                      <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirm({ open: true, id: doc.id })} data-testid={`button-delete-${doc.id}`}>
                         <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> {t("common.delete")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -461,7 +463,7 @@ export default function DoctorManagementPage() {
                         <BedDouble className="h-4 w-4 mr-2 text-amber-600" /> On Leave
                       </DropdownMenuItem>
                       <Separator className="my-1" />
-                      <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(doc.id)} data-testid={`button-delete-${doc.id}`}>
+                      <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirm({ open: true, id: doc.id })} data-testid={`button-delete-${doc.id}`}>
                         <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> {t("common.delete")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -473,6 +475,17 @@ export default function DoctorManagementPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm((c) => ({ ...c, open }))}
+        title={t("common.delete") || "Delete doctor"}
+        description="Are you sure you want to delete this doctor? This cannot be undone."
+        confirmLabel={t("common.delete") || "Delete"}
+        cancelLabel={t("common.cancel") || "Cancel"}
+        variant="destructive"
+        onConfirm={() => { if (deleteConfirm.id != null) deleteMutation.mutate(deleteConfirm.id); }}
+      />
 
       {viewDialog && viewingDoctor && (
         <Dialog open={viewDialog} onOpenChange={setViewDialog}>

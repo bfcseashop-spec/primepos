@@ -20,6 +20,7 @@ import {
   Upload, Image, FileImage, Printer
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { Salary, SalaryProfile, SalaryLoan, LoanInstallment, PayrollRun, Payslip } from "@shared/schema";
 
@@ -222,6 +223,7 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
     profileImage: "", paymentSlip: ""
   };
   const [form, setForm] = useState(emptyForm);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => apiRequest("POST", "/api/salary-profiles", data),
@@ -375,7 +377,7 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
                   <Button size="icon" variant="ghost" onClick={() => openEdit(p)} data-testid={`button-edit-profile-${p.id}`}>
                     <Edit className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(p.id)} data-testid={`button-delete-profile-${p.id}`}>
+                  <Button size="icon" variant="ghost" onClick={() => setDeleteConfirm({ open: true, id: p.id })} data-testid={`button-delete-profile-${p.id}`}>
                     <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
                   </Button>
                 </div>
@@ -389,6 +391,17 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm((c) => ({ ...c, open }))}
+        title="Delete employee profile"
+        description="Delete this employee profile? This cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => { if (deleteConfirm.id != null) deleteMutation.mutate(deleteConfirm.id); }}
+      />
 
       <Dialog open={addDialog || editDialog} onOpenChange={(open) => { if (!open) { setAddDialog(false); setEditDialog(false); } }}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-3xl sm:max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -638,6 +651,7 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
     termMonths: "1", installmentAmount: "", outstanding: "", startDate: "", notes: "", status: "active"
   };
   const [form, setForm] = useState(emptyForm);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => apiRequest("POST", "/api/salary-loans", data),
@@ -890,7 +904,7 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
                           <Button size="icon" variant="ghost" onClick={() => printLoan(loan)} data-testid={`button-print-loan-${loan.id}`}>
                             <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(loan.id)} data-testid={`button-delete-loan-${loan.id}`}>
+                          <Button size="icon" variant="ghost" onClick={() => setDeleteConfirm({ open: true, id: loan.id })} data-testid={`button-delete-loan-${loan.id}`}>
                             <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
                           </Button>
                         </div>
@@ -903,6 +917,17 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm((c) => ({ ...c, open }))}
+        title="Delete loan / advance"
+        description="Delete this loan or advance? This cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => { if (deleteConfirm.id != null) deleteMutation.mutate(deleteConfirm.id); }}
+      />
 
       <Dialog open={addDialog || editDialog} onOpenChange={(open) => { if (!open) { setAddDialog(false); setEditDialog(false); setEditingLoan(null); } }}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl">
@@ -1063,6 +1088,7 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
     year: String(currentYear),
     notes: ""
   });
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
 
   const createRunMutation = useMutation({
     mutationFn: async (data: any) => apiRequest("POST", "/api/payroll-runs", data),
@@ -1285,7 +1311,7 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
                               <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
                             </Button>
                           )}
-                          <Button size="icon" variant="ghost" onClick={() => deleteRunMutation.mutate(run.id)} data-testid={`button-delete-payroll-${run.id}`}>
+                          <Button size="icon" variant="ghost" onClick={() => setDeleteConfirm({ open: true, id: run.id })} data-testid={`button-delete-payroll-${run.id}`}>
                             <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
                           </Button>
                         </div>
@@ -1298,6 +1324,17 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm((c) => ({ ...c, open }))}
+        title="Delete payroll run"
+        description="Delete this payroll run? This cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => { if (deleteConfirm.id != null) deleteRunMutation.mutate(deleteConfirm.id); }}
+      />
 
       <Dialog open={runDialog} onOpenChange={setRunDialog}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
@@ -1482,6 +1519,7 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
     deductions: "0", netSalary: "", month: "", year: "", status: "pending", paymentDate: ""
   };
   const [ledgerForm, setLedgerForm] = useState(ledgerEmptyForm);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
 
   const { data: salaryList = [] } = useQuery<Salary[]>({ queryKey: ["/api/salaries"] });
 
@@ -1688,7 +1726,7 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
                               <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
                             </Button>
                           )}
-                          <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(sal.id)} data-testid={`button-delete-ledger-${sal.id}`}>
+                          <Button size="icon" variant="ghost" onClick={() => setDeleteConfirm({ open: true, id: sal.id })} data-testid={`button-delete-ledger-${sal.id}`}>
                             <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
                           </Button>
                         </div>
@@ -1701,6 +1739,17 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm((c) => ({ ...c, open }))}
+        title="Delete salary record"
+        description="Delete this salary record? This cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => { if (deleteConfirm.id != null) deleteMutation.mutate(deleteConfirm.id); }}
+      />
 
       <Dialog open={editDialog} onOpenChange={(open) => { if (!open) { setEditDialog(false); setEditingSalary(null); } }}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">

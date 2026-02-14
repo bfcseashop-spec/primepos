@@ -24,6 +24,7 @@ import {
   History
 } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { Medicine, StockAdjustment } from "@shared/schema";
 
 const MEDICINE_CATEGORIES = [
@@ -85,6 +86,7 @@ export default function MedicinesPage() {
   const [adjustStockValue, setAdjustStockValue] = useState("");
   const [adjustStockReason, setAdjustStockReason] = useState("");
   const [stockHistoryMed, setStockHistoryMed] = useState<Medicine | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number; ids?: number[] }>({ open: false });
 
   const allCategories = [...MEDICINE_CATEGORIES, ...customCategories];
 
@@ -136,7 +138,7 @@ export default function MedicinesPage() {
   });
 
   const { data: stockHistory = [], isLoading: stockHistoryLoading } = useQuery<StockAdjustment[]>({
-    queryKey: ["/api/medicines", stockHistoryMed?.id ?? "", "stock-history"],
+    queryKey: ["/api/medicines", String(stockHistoryMed?.id ?? ""), "stock-history"],
     enabled: !!stockHistoryMed?.id,
   });
 
@@ -198,7 +200,7 @@ export default function MedicinesPage() {
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/medicines", id, "stock-history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/medicines", String(id), "stock-history"] });
       setAdjustStockMed(null);
       setAdjustStockValue("");
       setAdjustStockReason("");
@@ -225,8 +227,15 @@ export default function MedicinesPage() {
 
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (confirm(`Delete ${selectedIds.size} selected medicine(s)?`)) {
-      bulkDeleteMutation.mutate(Array.from(selectedIds));
+    setDeleteConfirm({ open: true, ids: Array.from(selectedIds) });
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteConfirm.id != null) {
+      deleteMutation.mutate(deleteConfirm.id);
+    } else if (deleteConfirm.ids?.length) {
+      bulkDeleteMutation.mutate(deleteConfirm.ids);
+      setSelectedIds(new Set());
     }
   };
 
@@ -507,6 +516,16 @@ export default function MedicinesPage() {
         <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">${perPiece.toFixed(2)}</span>
       );
     }},
+    { header: "Total Purchase", accessor: (row: Medicine) => {
+      const boxPrice = Number(row.boxPrice || 0);
+      const qtyPerBox = Number(row.qtyPerBox || 1);
+      const stockCount = Number(row.stockCount || 0);
+      const perPiece = qtyPerBox > 0 ? boxPrice / qtyPerBox : 0;
+      const total = perPiece * stockCount;
+      return (
+        <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">${total.toFixed(2)}</span>
+      );
+    }},
     { header: "Sales Unit Price", accessor: (row: Medicine) => {
       const perPiece = Number(row.sellingPriceLocal ?? row.sellingPrice ?? 0);
       const qtyPerBox = Number(row.qtyPerBox || 1);
@@ -570,7 +589,7 @@ export default function MedicinesPage() {
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleBarcode(row); }} data-testid={`action-barcode-${row.id}`} className="gap-2">
             <Barcode className="h-4 w-4 text-teal-500" /> {t("medicines.printBarcode")}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (confirm("Delete this medicine?")) deleteMutation.mutate(row.id); }} className="text-red-600 gap-2" data-testid={`action-delete-${row.id}`}>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, id: row.id }); }} className="text-red-600 gap-2" data-testid={`action-delete-${row.id}`}>
             <Trash2 className="h-4 w-4" /> {t("common.delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -1046,6 +1065,19 @@ export default function MedicinesPage() {
         </Dialog>
       )}
 
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm((c) => ({ ...c, open }))}
+        title={deleteConfirm.ids?.length ? t("common.delete") || "Delete" : t("common.delete") || "Delete"}
+        description={deleteConfirm.ids?.length
+          ? `Delete ${deleteConfirm.ids.length} selected medicine(s)? This cannot be undone.`
+          : "Delete this medicine? This cannot be undone."}
+        confirmLabel={t("common.delete") || "Delete"}
+        cancelLabel={t("common.cancel") || "Cancel"}
+        variant="destructive"
+        onConfirm={handleConfirmDelete}
+      />
+
       {viewMed && (
         <Dialog open={!!viewMed} onOpenChange={(open) => { if (!open) setViewMed(null); }}>
           <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
@@ -1351,7 +1383,7 @@ export default function MedicinesPage() {
                               <DropdownMenuItem onClick={() => handleBarcode(med)} className="gap-2">
                                 <Barcode className="h-4 w-4 text-teal-500" /> {t("medicines.printBarcode")}
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => { if (confirm("Delete this medicine?")) deleteMutation.mutate(med.id); }} className="text-red-600 gap-2">
+                              <DropdownMenuItem onClick={() => setDeleteConfirm({ open: true, id: med.id })} className="text-red-600 gap-2">
                                 <Trash2 className="h-4 w-4" /> {t("common.delete")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>

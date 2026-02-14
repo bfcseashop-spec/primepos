@@ -19,6 +19,7 @@ import {
   Trash2, Clock, User, ArrowRightLeft, Upload, X, ImageIcon, FileText,
   Globe, Hash,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { ClinicSettings, ActivityLog } from "@shared/schema";
 
 const tabsList = [
@@ -67,6 +68,7 @@ const timezones = [
 export default function SettingsPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<TabId>("metadata");
+  const [clearLogsConfirm, setClearLogsConfirm] = useState(false);
 
   const [appName, setAppName] = useState("");
   const [appTagline, setAppTagline] = useState("");
@@ -761,7 +763,7 @@ export default function SettingsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => { if (confirm("Clear all activity logs?")) clearLogsMutation.mutate(); }}
+                  onClick={() => setClearLogsConfirm(true)}
                   disabled={clearLogsMutation.isPending}
                   data-testid="button-clear-logs"
                 >
@@ -816,6 +818,17 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={clearLogsConfirm}
+        onOpenChange={setClearLogsConfirm}
+        title="Clear activity logs"
+        description="Clear all activity logs? This cannot be undone."
+        confirmLabel="Clear"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => clearLogsMutation.mutate()}
+      />
     </div>
   );
 }
