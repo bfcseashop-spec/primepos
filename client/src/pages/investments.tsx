@@ -649,16 +649,16 @@ export default function InvestmentsPage() {
               <p className="text-xl font-bold mt-0.5" data-testid="text-total-capital">${fmt(totalInvestment)}</p>
             </CardContent>
           </Card>
-          <Card data-testid="stat-total-investment">
+          <Card data-testid="stat-total-contributions">
             <CardContent className="p-4">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-md bg-violet-500/10 shrink-0">
-                  <CircleDollarSign className="h-4.5 w-4.5 text-violet-600 dark:text-violet-400" />
+                  <Receipt className="h-4.5 w-4.5 text-violet-600 dark:text-violet-400" />
                 </div>
-                <span className="text-xs text-muted-foreground">{filtered.length} inv.</span>
+                <span className="text-xs text-muted-foreground">{filteredContributions.length} records</span>
               </div>
-              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Investment</p>
-              <p className="text-xl font-bold mt-0.5" data-testid="text-total-investment-amount">${fmt(totalInvestment)}</p>
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Contributions</p>
+              <p className="text-xl font-bold mt-0.5" data-testid="text-total-contributions">${fmt(totalPaid)}</p>
             </CardContent>
           </Card>
           <Card data-testid="stat-total-paid">
