@@ -132,6 +132,9 @@ function InjectionManagement() {
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [categories, setCategories] = useState<string[]>(getInjectionCategories());
   const [newCategory, setNewCategory] = useState("");
+  const [injImportDialogOpen, setInjImportDialogOpen] = useState(false);
+  const [injImportFile, setInjImportFile] = useState<File | null>(null);
+  const [injImportResult, setInjImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
 
   const { data: injections = [], isLoading } = useQuery<Injection[]>({
     queryKey: ["/api/injections"],
@@ -179,6 +182,36 @@ function InjectionManagement() {
       setDeleteInj(null);
     },
   });
+
+  const injImportMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/injections/import", { method: "POST", body: formData });
+      if (!res.ok) throw new Error((await res.json()).message || "Import failed");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/injections"] });
+      setInjImportResult(data);
+      toast({ title: `Imported ${data.imported} injection(s)` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Import failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleInjImport = () => {
+    if (injImportFile) injImportMutation.mutate(injImportFile);
+  };
+
+  const handleInjDownloadSample = () => {
+    window.open("/api/injections/sample-template", "_blank");
+  };
+
+  const handleInjExport = () => {
+    window.open("/api/injections/export/xlsx", "_blank");
+  };
 
   const handleSubmit = () => {
     const errors: Record<string, string> = {};
@@ -279,6 +312,25 @@ function InjectionManagement() {
   return (
     <div className="space-y-4 p-4">
       <div className="flex items-center justify-end gap-2 flex-wrap">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" data-testid="button-import-injections">
+              <Upload className="h-4 w-4 mr-1" /> Import
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => { setInjImportResult(null); setInjImportFile(null); setInjImportDialogOpen(true); }} data-testid="button-inj-import-file">
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Import from File
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleInjDownloadSample} data-testid="button-inj-download-sample">
+              <FileDown className="h-4 w-4 mr-2" /> Download Sample File
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button variant="outline" onClick={handleInjExport} data-testid="button-export-injections">
+          <Download className="h-4 w-4 mr-1" /> Export
+        </Button>
         <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" data-testid="button-inj-category-manage">
@@ -634,6 +686,64 @@ function InjectionManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={injImportDialogOpen} onOpenChange={setInjImportDialogOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import Injections</DialogTitle>
+            <DialogDescription>Upload an Excel file with Name and Price columns to import injections.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed rounded-md p-6 text-center">
+              <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground mb-2">Select an Excel file (.xlsx)</p>
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={e => { setInjImportFile(e.target.files?.[0] || null); setInjImportResult(null); }}
+                className="max-w-xs mx-auto"
+                data-testid="input-inj-import-file"
+              />
+              {injImportFile && (
+                <p className="text-sm text-muted-foreground mt-2">{injImportFile.name}</p>
+              )}
+            </div>
+
+            {injImportResult && (
+              <div className="rounded-md border p-3 space-y-2">
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <span className="font-medium">{injImportResult.imported} imported</span>
+                  </div>
+                  {injImportResult.skipped > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <XCircle className="h-4 w-4 text-amber-500" />
+                      <span className="font-medium">{injImportResult.skipped} skipped</span>
+                    </div>
+                  )}
+                </div>
+                {injImportResult.errors.length > 0 && (
+                  <div className="text-xs text-muted-foreground space-y-0.5 max-h-24 overflow-y-auto">
+                    {injImportResult.errors.map((err, i) => (
+                      <p key={i}>{err}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              <Button variant="ghost" size="sm" onClick={handleInjDownloadSample} data-testid="button-inj-download-sample-dialog">
+                <FileDown className="h-4 w-4 mr-1" /> Download Sample File
+              </Button>
+              <Button onClick={handleInjImport} disabled={!injImportFile || injImportMutation.isPending} data-testid="button-submit-inj-import">
+                {injImportMutation.isPending ? "Importing..." : "Import Injections"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

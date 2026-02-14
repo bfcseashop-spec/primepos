@@ -969,6 +969,89 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/injections/sample-template", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const sampleRows = [
+        { Name: "Paracetamol 1000mg/100ml", Price: "8.00" },
+        { Name: "Dexamethasone 4mg/ml", Price: "5.00" },
+        { Name: "Vitamin B12 1000mcg", Price: "12.00" },
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Injections");
+      const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = Buffer.from(raw);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=injection_import_template.xlsx");
+      res.setHeader("Content-Length", String(buf.length));
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/injections/export/:format", async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const allInjections = await storage.getInjections();
+      const rows = allInjections.map(inj => ({
+        Name: inj.name,
+        Price: inj.price,
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Injections");
+      const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = Buffer.from(raw);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=injections.xlsx");
+      res.setHeader("Content-Length", String(buf.length));
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  const injectionImportUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  });
+
+  app.post("/api/injections/import", injectionImportUpload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const XLSX = await import("xlsx");
+      const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+
+      if (rows.length === 0) return res.status(400).json({ message: "File is empty or has no data rows" });
+      let imported = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const name = row["Name"] || row["name"];
+        const price = row["Price"] || row["price"];
+        if (!name) { skipped++; errors.push(`Row ${i + 2}: Missing name`); continue; }
+        try {
+          await storage.createInjection({
+            name,
+            category: "General",
+            price: (parseFloat(price) || 0).toString(),
+            description: null,
+            isActive: true,
+          });
+          imported++;
+        } catch (err: any) { skipped++; errors.push(`Row ${i + 2}: ${err.message}`); }
+      }
+      res.json({ imported, skipped, total: rows.length, errors: errors.slice(0, 10) });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/medicines", async (_req, res) => {
     try {
       const result = await storage.getMedicines();
