@@ -79,7 +79,7 @@ export default function InvestmentsPage() {
   const [deleteInvestorConfirm, setDeleteInvestorConfirm] = useState<number | null>(null);
 
   const [contributionDialogOpen, setContributionDialogOpen] = useState(false);
-  const [contributionForm, setContributionForm] = useState({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], note: "" });
+  const [contributionForm, setContributionForm] = useState({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", note: "" });
   const [contributionFilter, setContributionFilter] = useState("all");
   const [editContribution, setEditContribution] = useState<Contribution | null>(null);
   const [deleteContributionConfirm, setDeleteContributionConfirm] = useState<number | null>(null);
@@ -220,7 +220,7 @@ export default function InvestmentsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
       setContributionDialogOpen(false);
-      setContributionForm({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], note: "" });
+      setContributionForm({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", note: "" });
       toast({ title: "Contribution recorded" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -405,6 +405,7 @@ export default function InvestmentsPage() {
       investorName: investorName || "",
       amount: "",
       date: new Date().toISOString().split("T")[0],
+      category: "",
       note: "",
     });
     setContributionDialogOpen(true);
@@ -421,6 +422,7 @@ export default function InvestmentsPage() {
       investorName: contributionForm.investorName,
       amount: contributionForm.amount,
       date: contributionForm.date,
+      category: contributionForm.category || null,
       note: contributionForm.note || null,
     });
   };
@@ -434,6 +436,7 @@ export default function InvestmentsPage() {
         investorName: (editContribution as any)._editName ?? editContribution.investorName,
         amount: (editContribution as any)._editAmount ?? String(editContribution.amount),
         date: (editContribution as any)._editDate ?? editContribution.date,
+        category: (editContribution as any)._editCategory ?? editContribution.category,
         note: (editContribution as any)._editNote ?? editContribution.note,
       },
     });
@@ -856,6 +859,7 @@ export default function InvestmentsPage() {
                       <th className="text-left p-2.5 font-medium">Date</th>
                       <th className="text-left p-2.5 font-medium">Investment</th>
                       <th className="text-left p-2.5 font-medium">Investor</th>
+                      <th className="text-left p-2.5 font-medium">Category</th>
                       <th className="text-right p-2.5 font-medium">Amount</th>
                       <th className="text-left p-2.5 font-medium">Note</th>
                       <th className="text-right p-2.5 font-medium">Actions</th>
@@ -869,6 +873,13 @@ export default function InvestmentsPage() {
                           <td className="p-2.5">{c.date}</td>
                           <td className="p-2.5 font-medium">{inv?.title || `#${c.investmentId}`}</td>
                           <td className="p-2.5">{c.investorName}</td>
+                          <td className="p-2.5">
+                            {c.category ? (
+                              <Badge variant="secondary" className="text-xs">{c.category}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
                           <td className="text-right p-2.5 text-emerald-600 dark:text-emerald-400 font-medium">${fmt(Number(c.amount))}</td>
                           <td className="p-2.5 text-muted-foreground max-w-[200px] truncate">{c.note || "-"}</td>
                           <td className="text-right p-2.5">
@@ -879,7 +890,7 @@ export default function InvestmentsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editNote: c.note || "" } as any)} className="gap-2">
+                                <DropdownMenuItem onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editNote: c.note || "" } as any)} className="gap-2">
                                   <Pencil className="h-4 w-4 text-amber-500" /> Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setDeleteContributionConfirm(c.id)} className="text-red-600 gap-2">
@@ -1076,6 +1087,21 @@ export default function InvestmentsPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Category</Label>
+              <Select value={contributionForm.category} onValueChange={(v) => setContributionForm(f => ({ ...f, category: v }))}>
+                <SelectTrigger data-testid="select-contribution-category"><SelectValue placeholder="Select category" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Deposit">Deposit</SelectItem>
+                  <SelectItem value="Advance">Advance</SelectItem>
+                  <SelectItem value="Monthly Payment">Monthly Payment</SelectItem>
+                  <SelectItem value="Equipment">Equipment</SelectItem>
+                  <SelectItem value="Renovation">Renovation</SelectItem>
+                  <SelectItem value="Operational">Operational</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Amount ($) *</Label>
@@ -1109,6 +1135,21 @@ export default function InvestmentsPage() {
               <div>
                 <Label>Investor</Label>
                 <Input value={(editContribution as any)._editName || ""} onChange={(e) => setEditContribution({ ...editContribution, _editName: e.target.value } as any)} data-testid="input-edit-contribution-name" />
+              </div>
+              <div>
+                <Label>Category</Label>
+                <Select value={(editContribution as any)._editCategory || ""} onValueChange={(v) => setEditContribution({ ...editContribution, _editCategory: v } as any)}>
+                  <SelectTrigger data-testid="select-edit-contribution-category"><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Deposit">Deposit</SelectItem>
+                    <SelectItem value="Advance">Advance</SelectItem>
+                    <SelectItem value="Monthly Payment">Monthly Payment</SelectItem>
+                    <SelectItem value="Equipment">Equipment</SelectItem>
+                    <SelectItem value="Renovation">Renovation</SelectItem>
+                    <SelectItem value="Operational">Operational</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
