@@ -88,7 +88,7 @@ export default function InvestmentsPage() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [capitalDialogOpen, setCapitalDialogOpen] = useState(false);
   const [capitalEditTarget, setCapitalEditTarget] = useState<{ investmentId: number; investorIdx: number } | null>(null);
-  const [capitalForm, setCapitalForm] = useState({ investmentId: 0, investorName: "", sharePercentage: 0 });
+  const [capitalForm, setCapitalForm] = useState({ investmentId: 0, investorName: "", sharePercentage: 0, capitalAmount: "" });
   const [deleteCapitalConfirm, setDeleteCapitalConfirm] = useState<{ investmentId: number; investorIdx: number; investorName: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -314,10 +314,12 @@ export default function InvestmentsPage() {
 
   const openCapitalDialog = (investmentId?: number) => {
     setCapitalEditTarget(null);
+    const invId = investmentId || (investments.length > 0 ? investments[0].id : 0);
     setCapitalForm({
-      investmentId: investmentId || (investments.length > 0 ? investments[0].id : 0),
+      investmentId: invId,
       investorName: "",
       sharePercentage: 0,
+      capitalAmount: "",
     });
     setCapitalDialogOpen(true);
   };
@@ -328,11 +330,14 @@ export default function InvestmentsPage() {
     const invInvestors = ((inv as any).investors ?? []) as InvestmentInvestor[];
     const investor = invInvestors[investorIdx];
     if (!investor) return;
+    const total = Number(inv.amount) || 0;
+    const amt = ((total * investor.sharePercentage) / 100).toFixed(2);
     setCapitalEditTarget({ investmentId, investorIdx });
     setCapitalForm({
       investmentId,
       investorName: investor.name,
       sharePercentage: investor.sharePercentage,
+      capitalAmount: amt,
     });
     setCapitalDialogOpen(true);
   };
@@ -1671,7 +1676,13 @@ export default function InvestmentsPage() {
           <form onSubmit={handleCapitalSubmit} className="space-y-3">
             <div>
               <Label>Investment *</Label>
-              <Select value={String(capitalForm.investmentId)} onValueChange={(v) => setCapitalForm(f => ({ ...f, investmentId: Number(v) }))} disabled={!!capitalEditTarget}>
+              <Select value={String(capitalForm.investmentId)} onValueChange={(v) => {
+                const newInvId = Number(v);
+                const inv = investments.find(i => i.id === newInvId);
+                const total = Number(inv?.amount) || 0;
+                const amt = capitalForm.sharePercentage > 0 ? ((total * capitalForm.sharePercentage) / 100).toFixed(2) : "";
+                setCapitalForm(f => ({ ...f, investmentId: newInvId, capitalAmount: amt }));
+              }} disabled={!!capitalEditTarget}>
                 <SelectTrigger data-testid="select-capital-investment"><SelectValue placeholder="Select investment" /></SelectTrigger>
                 <SelectContent>
                   {investments.map(inv => (
@@ -1711,8 +1722,40 @@ export default function InvestmentsPage() {
               )}
             </div>
             <div>
+              <Label>Capital Amount ($) *</Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.01}
+                placeholder="Enter capital amount"
+                value={capitalForm.capitalAmount}
+                onChange={(e) => {
+                  const amt = e.target.value;
+                  const inv = investments.find(i => i.id === capitalForm.investmentId);
+                  const total = Number(inv?.amount) || 0;
+                  const pct = total > 0 ? Math.round((Number(amt) / total) * 10000) / 100 : 0;
+                  setCapitalForm(f => ({ ...f, capitalAmount: amt, sharePercentage: Math.min(100, pct) }));
+                }}
+                data-testid="input-capital-amount"
+              />
+            </div>
+            <div>
               <Label>Share Percentage (%) *</Label>
-              <Input type="number" min={0.01} max={100} step={0.5} value={capitalForm.sharePercentage || ""} onChange={(e) => setCapitalForm(f => ({ ...f, sharePercentage: Number(e.target.value) || 0 }))} data-testid="input-capital-percentage" />
+              <Input
+                type="number"
+                min={0.01}
+                max={100}
+                step={0.5}
+                value={capitalForm.sharePercentage || ""}
+                onChange={(e) => {
+                  const pct = Number(e.target.value) || 0;
+                  const inv = investments.find(i => i.id === capitalForm.investmentId);
+                  const total = Number(inv?.amount) || 0;
+                  const amt = ((total * pct) / 100).toFixed(2);
+                  setCapitalForm(f => ({ ...f, sharePercentage: pct, capitalAmount: amt }));
+                }}
+                data-testid="input-capital-percentage"
+              />
               {capitalForm.investmentId > 0 && capitalForm.sharePercentage > 0 && (() => {
                 const inv = investments.find(i => i.id === capitalForm.investmentId);
                 if (!inv) return null;
@@ -1727,7 +1770,7 @@ export default function InvestmentsPage() {
                 const computedAmount = ((total * normalizedPct) / 100).toFixed(2);
                 return (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Normalized: {normalizedPct}% = <span className="font-medium text-foreground">${fmt(Number(computedAmount))}</span>
+                    After normalization: {normalizedPct}% = <span className="font-medium text-foreground">${fmt(Number(computedAmount))}</span>
                   </p>
                 );
               })()}
