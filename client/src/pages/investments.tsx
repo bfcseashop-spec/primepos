@@ -13,7 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Plus, DollarSign, X, Tag, Trash2, Eye, Pencil, Printer,
-  MoreHorizontal, Users, Wallet, AlertTriangle, CheckCircle2, CreditCard
+  MoreHorizontal, Users, Wallet, AlertTriangle, CheckCircle2, CreditCard,
+  TrendingUp, ArrowDownRight, ArrowUpRight, CircleDollarSign, PiggyBank, Receipt
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -593,175 +594,163 @@ export default function InvestmentsPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
-        {/* Investment Dashboard */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-blue-500" /> Investment Dashboard
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Row 1: Total Capital + Total Investment Amount */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex items-center gap-3 p-3 rounded-md bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/10">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shrink-0">
-                  <DollarSign className="h-5 w-5 text-white" />
+      <div className="flex-1 overflow-auto p-4 space-y-5">
+        {/* Top KPI Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card data-testid="stat-total-capital">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-500/10 shrink-0">
+                  <PiggyBank className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
                 </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Capital</p>
-                  <p className="text-xl font-bold" data-testid="text-total-capital">${fmt(totalInvestment)}</p>
-                </div>
+                <TrendingUp className="h-4 w-4 text-blue-500/40" />
               </div>
-              <div className="flex items-center gap-3 p-3 rounded-md bg-violet-500/5 dark:bg-violet-500/10 border border-violet-500/10">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-violet-600 shrink-0">
-                  <Wallet className="h-5 w-5 text-white" />
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Capital</p>
+              <p className="text-xl font-bold mt-0.5" data-testid="text-total-capital">${fmt(totalInvestment)}</p>
+            </CardContent>
+          </Card>
+          <Card data-testid="stat-total-investment">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-violet-500/10 shrink-0">
+                  <CircleDollarSign className="h-4.5 w-4.5 text-violet-600 dark:text-violet-400" />
                 </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Investment Amount</p>
-                  <p className="text-xl font-bold" data-testid="text-total-investment-amount">${fmt(totalInvestment)}</p>
-                  <p className="text-xs text-muted-foreground">{filtered.length} investment{filtered.length !== 1 ? "s" : ""}</p>
-                </div>
+                <span className="text-xs text-muted-foreground">{filtered.length} inv.</span>
               </div>
-            </div>
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Investment</p>
+              <p className="text-xl font-bold mt-0.5" data-testid="text-total-investment-amount">${fmt(totalInvestment)}</p>
+            </CardContent>
+          </Card>
+          <Card data-testid="stat-total-paid">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-emerald-500/10 shrink-0">
+                  <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                {totalPaid > 0 && <ArrowUpRight className="h-4 w-4 text-emerald-500/50" />}
+              </div>
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Paid</p>
+              <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5" data-testid="text-total-paid">${fmt(totalPaid)}</p>
+            </CardContent>
+          </Card>
+          <Card data-testid="stat-remaining">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className={`flex h-9 w-9 items-center justify-center rounded-md shrink-0 ${remainingTotal > 0 ? "bg-amber-500/10" : "bg-emerald-500/10"}`}>
+                  {remainingTotal > 0
+                    ? <AlertTriangle className="h-4.5 w-4.5 text-amber-600 dark:text-amber-400" />
+                    : <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400" />
+                  }
+                </div>
+                {remainingTotal > 0 && <ArrowDownRight className="h-4 w-4 text-amber-500/50" />}
+              </div>
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Remaining</p>
+              <p className={`text-xl font-bold mt-0.5 ${remainingTotal > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`} data-testid="text-remaining-total">${fmt(Math.max(0, remainingTotal))}</p>
+            </CardContent>
+          </Card>
+        </div>
 
-            {/* Row 2: Per-investor paid + share % amounts */}
-            {investorTableData.length > 0 && (
-              <>
-                <div className="border-t pt-3">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Paid by Investors</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {investorTableData.map((row, idx) => (
-                      <div key={row.name} className="flex items-center gap-3 p-3 rounded-md bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10" data-testid={`stat-paid-by-${row.name}`}>
-                        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shrink-0">
-                          <CheckCircle2 className="h-5 w-5 text-white" />
+        {/* Investor Detail Cards */}
+        {investorTableData.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {investorTableData.map((row) => {
+              const due = Math.max(0, row.shareAmount - row.paid);
+              const overpaid = Math.max(0, row.paid - row.shareAmount);
+              const paidPct = row.shareAmount > 0 ? Math.min(100, Math.round((row.paid / row.shareAmount) * 100)) : 0;
+              return (
+                <Card key={row.name} data-testid={`card-investor-${row.name}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-violet-600 shrink-0">
+                          <span className="text-white text-xs font-bold">{row.name.charAt(0).toUpperCase()}</span>
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide truncate">Paid by {row.name}</p>
-                          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">${fmt(row.paid)}</p>
+                          <p className="font-semibold text-sm truncate">{row.name}</p>
+                          <Badge variant="secondary" className="text-[10px] mt-0.5">{row.sharePct}% share</Badge>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border-t pt-3">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Investment Share (% of Capital)</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {investorTableData.map((row) => (
-                      <div key={row.name} className="flex items-center gap-3 p-3 rounded-md bg-cyan-500/5 dark:bg-cyan-500/10 border border-cyan-500/10" data-testid={`stat-share-${row.name}`}>
-                        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-cyan-500 to-cyan-600 shrink-0">
-                          <span className="text-white text-xs font-bold">{row.sharePct}%</span>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide truncate">{row.name} ({row.sharePct}%)</p>
-                          <p className="text-lg font-bold">${fmt(row.shareAmount)}</p>
-                        </div>
+                      <div className="text-right shrink-0">
+                        {due > 0 ? (
+                          <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 text-xs">Due</Badge>
+                        ) : overpaid > 0 ? (
+                          <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20 text-xs">Overpaid</Badge>
+                        ) : (
+                          <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 text-xs">Fully Paid</Badge>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
 
-                <div className="border-t pt-3">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Due Investment & Payable Amount</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {investorTableData.map((row) => {
-                      const due = Math.max(0, row.shareAmount - row.paid);
-                      const overpaid = Math.max(0, row.paid - row.shareAmount);
-                      return (
-                        <div key={row.name} className={`p-3 rounded-md border ${due > 0 ? "bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/10" : "bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/10"}`} data-testid={`stat-due-${row.name}`}>
-                          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide truncate mb-1">{row.name}</p>
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <div>
-                              <p className="text-[10px] text-muted-foreground">Due Investment</p>
-                              <p className={`text-base font-bold ${due > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                                {due > 0 ? `$${fmt(due)}` : "$0.00"}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-[10px] text-muted-foreground">Payable Amount</p>
-                              <p className={`text-base font-bold ${due > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                                {due > 0 ? `$${fmt(due)}` : "$0.00"}
-                              </p>
-                            </div>
-                          </div>
-                          {overpaid > 0 && (
-                            <div className="mt-1.5 pt-1.5 border-t border-dashed">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-[10px] text-muted-foreground">Overpaid</p>
-                                <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20 text-xs">${fmt(overpaid)}</Badge>
-                              </div>
-                            </div>
-                          )}
-                          {due === 0 && overpaid === 0 && (
-                            <div className="mt-1">
-                              <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 text-xs">Fully Paid</Badge>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </>
-            )}
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-1">
+                        <span>Payment Progress</span>
+                        <span className="font-medium">{paidPct}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${paidPct >= 100 ? "bg-emerald-500" : paidPct > 50 ? "bg-blue-500" : "bg-amber-500"}`}
+                          style={{ width: `${Math.min(100, paidPct)}%` }}
+                        />
+                      </div>
+                    </div>
 
-            {/* Summary totals row */}
-            <div className="border-t pt-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="flex items-center gap-3 p-3 rounded-md bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shrink-0">
-                    <CheckCircle2 className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Paid (All)</p>
-                    <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="text-total-paid">${fmt(totalPaid)}</p>
-                  </div>
-                </div>
-                <div className={`flex items-center gap-3 p-3 rounded-md border ${remainingTotal > 0 ? "bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/10" : "bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/10"}`}>
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-md shrink-0 ${remainingTotal > 0 ? "bg-gradient-to-br from-amber-500 to-amber-600" : "bg-gradient-to-br from-emerald-500 to-emerald-600"}`}>
-                    {remainingTotal > 0 ? <AlertTriangle className="h-5 w-5 text-white" /> : <CheckCircle2 className="h-5 w-5 text-white" />}
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Remaining Total</p>
-                    <p className={`text-xl font-bold ${remainingTotal > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`} data-testid="text-remaining-total">${fmt(Math.max(0, remainingTotal))}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-md bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/10">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shrink-0">
-                    <Users className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Active Investors</p>
-                    <p className="text-xl font-bold" data-testid="text-active-investors">{investorTableData.length}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Share Amount</p>
+                        <p className="font-semibold">${fmt(row.shareAmount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Paid</p>
+                        <p className="font-semibold text-emerald-600 dark:text-emerald-400">${fmt(row.paid)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Due Investment</p>
+                        <p className={`font-semibold ${due > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                          ${fmt(due)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Payable Amount</p>
+                        <p className={`font-semibold ${due > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`}>
+                          ${fmt(due)}
+                        </p>
+                      </div>
+                    </div>
 
-        {/* Investor Summary Table */}
+                    {overpaid > 0 && (
+                      <div className="mt-2 pt-2 border-t flex items-center justify-between gap-2">
+                        <span className="text-xs text-muted-foreground">Overpaid Amount</span>
+                        <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">${fmt(overpaid)}</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Investor Breakdown Table */}
         {investorTableData.length > 0 && (
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-0">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Users className="h-4 w-4" /> Investor Breakdown
+                <Receipt className="h-4 w-4 text-muted-foreground" /> Investor Breakdown
               </CardTitle>
+              <Badge variant="secondary" className="text-xs">{investorTableData.length} investor{investorTableData.length !== 1 ? "s" : ""}</Badge>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 pt-3">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="text-left p-2.5 font-medium">Investor</th>
-                      <th className="text-right p-2.5 font-medium">Share %</th>
-                      <th className="text-right p-2.5 font-medium">Share Amount</th>
-                      <th className="text-right p-2.5 font-medium">Paid</th>
-                      <th className="text-right p-2.5 font-medium">Due</th>
-                      <th className="text-right p-2.5 font-medium">Payable</th>
-                      <th className="text-right p-2.5 font-medium">Overpaid</th>
-                      <th className="text-center p-2.5 font-medium">Status</th>
+                    <tr className="border-y bg-muted/40">
+                      <th className="text-left py-2.5 px-4 font-medium text-xs text-muted-foreground uppercase tracking-wider">Investor</th>
+                      <th className="text-right py-2.5 px-3 font-medium text-xs text-muted-foreground uppercase tracking-wider">Share</th>
+                      <th className="text-right py-2.5 px-3 font-medium text-xs text-muted-foreground uppercase tracking-wider">Amount</th>
+                      <th className="text-right py-2.5 px-3 font-medium text-xs text-muted-foreground uppercase tracking-wider">Paid</th>
+                      <th className="text-right py-2.5 px-3 font-medium text-xs text-muted-foreground uppercase tracking-wider">Due</th>
+                      <th className="text-right py-2.5 px-3 font-medium text-xs text-muted-foreground uppercase tracking-wider">Payable</th>
+                      <th className="text-center py-2.5 px-3 font-medium text-xs text-muted-foreground uppercase tracking-wider">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -771,35 +760,27 @@ export default function InvestmentsPage() {
                       const status = overpaid > 0 ? "overpaid" : due === 0 ? "paid" : "due";
                       return (
                         <tr key={row.name} className="border-b last:border-0" data-testid={`row-investor-${row.name}`}>
-                          <td className="p-2.5 font-medium">{row.name}</td>
-                          <td className="text-right p-2.5">
-                            <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20">{row.sharePct}%</Badge>
+                          <td className="py-2.5 px-4">
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-violet-600 shrink-0">
+                                <span className="text-white text-[10px] font-bold">{row.name.charAt(0).toUpperCase()}</span>
+                              </div>
+                              <span className="font-medium">{row.name}</span>
+                            </div>
                           </td>
-                          <td className="text-right p-2.5 font-medium">${fmt(row.shareAmount)}</td>
-                          <td className="text-right p-2.5 text-emerald-600 dark:text-emerald-400 font-medium">${fmt(row.paid)}</td>
-                          <td className="text-right p-2.5">
-                            {due > 0 ? (
-                              <span className="text-amber-600 dark:text-amber-400 font-medium">${fmt(due)}</span>
-                            ) : (
-                              <span className="text-muted-foreground">$0.00</span>
-                            )}
+                          <td className="text-right py-2.5 px-3">
+                            <Badge variant="secondary" className="text-xs font-mono">{row.sharePct}%</Badge>
                           </td>
-                          <td className="text-right p-2.5">
-                            {due > 0 ? (
-                              <span className="text-red-600 dark:text-red-400 font-bold">${fmt(due)}</span>
-                            ) : (
-                              <span className="text-muted-foreground">$0.00</span>
-                            )}
+                          <td className="text-right py-2.5 px-3 font-medium">${fmt(row.shareAmount)}</td>
+                          <td className="text-right py-2.5 px-3 text-emerald-600 dark:text-emerald-400 font-medium">${fmt(row.paid)}</td>
+                          <td className="text-right py-2.5 px-3">
+                            <span className={due > 0 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"}>${fmt(due)}</span>
                           </td>
-                          <td className="text-right p-2.5">
-                            {overpaid > 0 ? (
-                              <span className="text-blue-600 dark:text-blue-400 font-medium">${fmt(overpaid)}</span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                          <td className="text-right py-2.5 px-3">
+                            <span className={due > 0 ? "text-red-600 dark:text-red-400 font-bold" : "text-muted-foreground"}>${fmt(due)}</span>
                           </td>
-                          <td className="text-center p-2.5">
-                            <Badge variant="outline" className={`no-default-hover-elevate no-default-active-elevate text-xs ${
+                          <td className="text-center py-2.5 px-3">
+                            <Badge variant="outline" className={`no-default-hover-elevate no-default-active-elevate text-[10px] ${
                               status === "paid" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
                               : status === "overpaid" ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
                               : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20"
@@ -808,17 +789,18 @@ export default function InvestmentsPage() {
                         </tr>
                       );
                     })}
-                    <tr className="bg-muted/30 font-semibold">
-                      <td className="p-2.5">Total</td>
-                      <td className="text-right p-2.5">100%</td>
-                      <td className="text-right p-2.5">${fmt(totalInvestment)}</td>
-                      <td className="text-right p-2.5 text-emerald-600 dark:text-emerald-400">${fmt(totalPaid)}</td>
-                      <td className="text-right p-2.5 text-amber-600 dark:text-amber-400">${fmt(Math.max(0, remainingTotal))}</td>
-                      <td className="text-right p-2.5 text-red-600 dark:text-red-400">${fmt(Math.max(0, remainingTotal))}</td>
-                      <td className="text-right p-2.5">-</td>
-                      <td className="p-2.5"></td>
-                    </tr>
                   </tbody>
+                  <tfoot>
+                    <tr className="bg-muted/40 border-t font-semibold">
+                      <td className="py-2.5 px-4 text-xs uppercase text-muted-foreground">Totals</td>
+                      <td className="text-right py-2.5 px-3"><Badge variant="secondary" className="text-xs font-mono">100%</Badge></td>
+                      <td className="text-right py-2.5 px-3">${fmt(totalInvestment)}</td>
+                      <td className="text-right py-2.5 px-3 text-emerald-600 dark:text-emerald-400">${fmt(totalPaid)}</td>
+                      <td className="text-right py-2.5 px-3 text-amber-600 dark:text-amber-400">${fmt(Math.max(0, remainingTotal))}</td>
+                      <td className="text-right py-2.5 px-3 text-red-600 dark:text-red-400">${fmt(Math.max(0, remainingTotal))}</td>
+                      <td className="py-2.5 px-3"></td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </CardContent>
