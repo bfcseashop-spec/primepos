@@ -207,7 +207,20 @@ export const insertBankTransactionSchema = createInsertSchema(bankTransactions).
 export type InsertBankTransaction = z.infer<typeof insertBankTransactionSchema>;
 export type BankTransaction = typeof bankTransactions.$inferSelect;
 
-export type InvestmentInvestor = { name: string; sharePercentage: number; amount: string };
+export const investors = pgTable("investors", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertInvestorSchema = createInsertSchema(investors).omit({ id: true, createdAt: true } as any);
+export type InsertInvestor = z.infer<typeof insertInvestorSchema>;
+export type Investor = typeof investors.$inferSelect;
+
+export type InvestmentInvestor = { investorId?: number; name: string; sharePercentage: number; amount: string };
 
 export const investments = pgTable("investments", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -217,6 +230,7 @@ export const investments = pgTable("investments", {
   returnAmount: numeric("return_amount", { precision: 10, scale: 2 }).default("0"),
   investorName: text("investor_name"),
   investors: jsonb("investors").$type<InvestmentInvestor[]>().default([]),
+  paymentMethod: text("payment_method").default("cash"),
   status: text("status").notNull().default("active"),
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),

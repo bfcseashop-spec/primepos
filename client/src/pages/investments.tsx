@@ -16,11 +16,12 @@ import { Plus, Search, TrendingUp, DollarSign, Briefcase, X, Tag, Trash2, Eye, P
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
-import type { Investment, InvestmentInvestor } from "@shared/schema";
+import type { Investment, InvestmentInvestor, Investor } from "@shared/schema";
 import { useTranslation } from "@/i18n";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
+import { Users } from "lucide-react";
 
-function normalizeInvestors(totalAmount: number, list: { name: string; sharePercentage: number }[]): InvestmentInvestor[] {
+function normalizeInvestors(totalAmount: number, list: { investorId?: number; name: string; sharePercentage: number }[]): InvestmentInvestor[] {
   const filtered = list.filter((i) => i.name.trim() !== "");
   if (filtered.length === 0) return [];
   const sum = filtered.reduce((s, i) => s + i.sharePercentage, 0);
@@ -28,7 +29,7 @@ function normalizeInvestors(totalAmount: number, list: { name: string; sharePerc
   return filtered.map((i) => {
     const pct = Math.round(i.sharePercentage * scale * 100) / 100;
     const amount = ((totalAmount * pct) / 100).toFixed(2);
-    return { name: i.name.trim(), sharePercentage: pct, amount };
+    return { investorId: i.investorId, name: i.name.trim(), sharePercentage: pct, amount };
   });
 }
 
@@ -38,6 +39,13 @@ function getInvestorSummary(inv: Investment): string {
   if (list.length === 1) return `${list[0].name} (100%)`;
   return list.map((i) => `${i.name} (${i.sharePercentage}%)`).join(", ");
 }
+
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Cash" },
+  { value: "aba", label: "ABA" },
+  { value: "acleda", label: "Acleda" },
+  { value: "others", label: "Others" },
+];
 
 const DEFAULT_INVESTMENT_CATEGORIES = [
   "Equipment", "Real Estate", "Expansion", "Technology",
@@ -58,16 +66,23 @@ export default function InvestmentsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewInvestment, setViewInvestment] = useState<Investment | null>(null);
   const [editInvestment, setEditInvestment] = useState<Investment | null>(null);
-  const [editForm, setEditForm] = useState<{ title: string; category: string; amount: string; returnAmount: string; investorName: string; investors: { name: string; sharePercentage: number }[]; status: string; startDate: string; endDate: string; notes: string }>({ title: "", category: "", amount: "", returnAmount: "", investorName: "", investors: [], status: "active", startDate: "", endDate: "", notes: "" });
+  const [editForm, setEditForm] = useState<{ title: string; category: string; amount: string; returnAmount: string; investorName: string; paymentMethod: string; investors: { investorId?: number; name: string; sharePercentage: number }[]; status: string; startDate: string; endDate: string; notes: string }>({ title: "", category: "", amount: "", returnAmount: "", investorName: "", paymentMethod: "cash", investors: [], status: "active", startDate: "", endDate: "", notes: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [categories, setCategories] = useState<string[]>(loadCategories);
   const [newCategory, setNewCategory] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number; ids?: number[] }>({ open: false });
-  const [createInvestors, setCreateInvestors] = useState<{ name: string; sharePercentage: number }[]>([{ name: "", sharePercentage: 100 }]);
+  const [createInvestors, setCreateInvestors] = useState<{ investorId?: number; name: string; sharePercentage: number }[]>([{ name: "", sharePercentage: 100 }]);
   const [createAmount, setCreateAmount] = useState("");
+  const [createPaymentMethod, setCreatePaymentMethod] = useState("cash");
+  const [investorsDialogOpen, setInvestorsDialogOpen] = useState(false);
+  const [editingInvestor, setEditingInvestor] = useState<Investor | null>(null);
+  const [investorForm, setInvestorForm] = useState({ name: "", email: "", phone: "", notes: "" });
+  const [deleteInvestorConfirm, setDeleteInvestorConfirm] = useState<number | null>(null);
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
+
+  const { data: investorsList = [] } = useQuery<Investor[]>({ queryKey: ["/api/investors"] });
 
   useEffect(() => {
     localStorage.setItem("investment_categories", JSON.stringify(categories));
@@ -77,6 +92,7 @@ export default function InvestmentsPage() {
     if (dialogOpen) {
       setCreateInvestors([{ name: "", sharePercentage: 100 }]);
       setCreateAmount("");
+      setCreatePaymentMethod("cash");
     }
   }, [dialogOpen]);
 
@@ -160,6 +176,40 @@ export default function InvestmentsPage() {
     },
   });
 
+  const createInvestorMutation = useMutation({
+    mutationFn: async (data: { name: string; email?: string; phone?: string; notes?: string }) => {
+      const res = await apiRequest("POST", "/api/investors", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/investors"] });
+      setInvestorForm({ name: "", email: "", phone: "", notes: "" });
+      setEditingInvestor(null);
+      toast({ title: "Investor added" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+  const updateInvestorMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<Investor> }) => {
+      const res = await apiRequest("PUT", `/api/investors/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/investors"] });
+      setEditingInvestor(null);
+      toast({ title: "Investor updated" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+  const deleteInvestorMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest("DELETE", `/api/investors/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/investors"] });
+      toast({ title: "Investor deleted" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
     setDeleteConfirm({ open: true, ids: Array.from(selectedIds) });
@@ -180,12 +230,17 @@ export default function InvestmentsPage() {
     const amountStr = (form.get("amount") as string) || createAmount || "0";
     const total = Number(amountStr) || 0;
     const investorsList = normalizeInvestors(total, createInvestors);
+    if (investorsList.length === 0 || !createInvestors.some((i) => i.name.trim())) {
+      toast({ title: "Add at least one investor with a name", variant: "destructive" });
+      return;
+    }
     createMutation.mutate({
       title: form.get("title"),
       category: form.get("category"),
       amount: amountStr,
       returnAmount: form.get("returnAmount") || "0",
       investorName: investorsList.length === 0 ? (form.get("investorName") as string) || null : null,
+      paymentMethod: createPaymentMethod || "cash",
       investors: investorsList.length > 0 ? investorsList : undefined,
       status: "active",
       startDate: form.get("startDate"),
@@ -207,6 +262,7 @@ export default function InvestmentsPage() {
         amount: editForm.amount,
         returnAmount: editForm.returnAmount || "0",
         investorName: investorsList.length === 0 ? editForm.investorName || null : null,
+        paymentMethod: editForm.paymentMethod || "cash",
         investors: investorsList.length > 0 ? investorsList : undefined,
         status: editForm.status || "active",
         startDate: editForm.startDate,
@@ -221,7 +277,10 @@ export default function InvestmentsPage() {
     const invWithInvestors = inv as Investment & { investors?: InvestmentInvestor[] };
     const list = invWithInvestors.investors ?? [];
     const investorsForm = list.length > 0
-      ? list.map((i) => ({ name: i.name, sharePercentage: i.sharePercentage }))
+      ? list.map((i) => {
+          const match = investorsList.find((m) => m.name === i.name);
+          return { investorId: match?.id, name: i.name, sharePercentage: i.sharePercentage };
+        })
       : [{ name: inv.investorName || "", sharePercentage: 100 }];
     setEditForm({
       title: inv.title,
@@ -229,6 +288,7 @@ export default function InvestmentsPage() {
       amount: String(inv.amount),
       returnAmount: String(inv.returnAmount || ""),
       investorName: inv.investorName || "",
+      paymentMethod: (inv as Investment & { paymentMethod?: string }).paymentMethod || "cash",
       investors: investorsForm,
       status: inv.status || "active",
       startDate: inv.startDate || "",
@@ -263,6 +323,7 @@ export default function InvestmentsPage() {
         <div class="row"><span class="label">Category</span><span class="val">${inv.category}</span></div>
         <div class="row"><span class="label">Amount</span><span class="val">$${inv.amount}</span></div>
         <div class="row"><span class="label">Total Returns</span><span class="val">$${inv.returnAmount || "0"}</span></div>
+        <div class="row"><span class="label">Pay by</span><span class="val">${PAYMENT_METHODS.find(m => m.value === ((inv as Investment & { paymentMethod?: string }).paymentMethod || "cash"))?.label ?? "Cash"}</span></div>
         ${breakdownTable}
         <div class="row"><span class="label">Status</span><span class="val">${inv.status}</span></div>
         <div class="row"><span class="label">Start Date</span><span class="val">${inv.startDate}</span></div>
@@ -289,6 +350,30 @@ export default function InvestmentsPage() {
   const totalReturns = filtered.reduce((s, i) => s + Number(i.returnAmount || 0), 0);
   const activeCount = filtered.filter(i => i.status === "active").length;
   const netROI = totalReturns - totalInvested;
+
+  const perInvestorStats = (() => {
+    const map: Record<string, { invested: number; returns: number; active: number }> = {};
+    for (const inv of filtered) {
+      const list = (inv as Investment & { investors?: InvestmentInvestor[] }).investors ?? [];
+      const returnTotal = Number(inv.returnAmount || 0);
+      if (list.length === 0) {
+        const name = inv.investorName || "Unknown";
+        if (!map[name]) map[name] = { invested: 0, returns: 0, active: 0 };
+        map[name].invested += Number(inv.amount);
+        map[name].returns += returnTotal;
+        if (inv.status === "active") map[name].active += 1;
+      } else {
+        for (const e of list) {
+          const name = e.name || "Unknown";
+          if (!map[name]) map[name] = { invested: 0, returns: 0, active: 0 };
+          map[name].invested += Number(e.amount || 0);
+          map[name].returns += returnTotal * (e.sharePercentage / 100);
+          if (inv.status === "active") map[name].active += 1;
+        }
+      }
+    }
+    return Object.entries(map).sort((a, b) => b[1].invested - a[1].invested);
+  })();
 
   const columns = [
     { header: "Title", accessor: "title" as keyof Investment },
@@ -341,6 +426,9 @@ export default function InvestmentsPage() {
         description={t("investments.subtitle")}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => { setInvestorsDialogOpen(true); setEditingInvestor(null); setInvestorForm({ name: "", email: "", phone: "", notes: "" }); }} data-testid="button-manage-investors">
+            <Users className="h-4 w-4 mr-1" /> Manage Investors
+          </Button>
           <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-manage-categories">
@@ -383,6 +471,46 @@ export default function InvestmentsPage() {
               </div>
             </DialogContent>
           </Dialog>
+          <Dialog open={investorsDialogOpen} onOpenChange={(open) => { setInvestorsDialogOpen(open); if (!open) setEditingInvestor(null); }}>
+            <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Manage Investors</DialogTitle>
+                <DialogDescription>Add and edit investors to select when creating investments.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Add new investor</Label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    <Input placeholder="Name *" value={investorForm.name} onChange={(e) => setInvestorForm((f) => ({ ...f, name: e.target.value }))} className="min-w-[120px]" />
+                    <Input placeholder="Email" value={investorForm.email} onChange={(e) => setInvestorForm((f) => ({ ...f, email: e.target.value }))} className="min-w-[120px]" />
+                    <Input placeholder="Phone" value={investorForm.phone} onChange={(e) => setInvestorForm((f) => ({ ...f, phone: e.target.value }))} className="min-w-[100px]" />
+                    <Button type="button" onClick={() => { if (editingInvestor) { updateInvestorMutation.mutate({ id: editingInvestor.id, data: investorForm }); setInvestorForm({ name: "", email: "", phone: "", notes: "" }); setEditingInvestor(null); } else { createInvestorMutation.mutate(investorForm); setInvestorForm({ name: "", email: "", phone: "", notes: "" }); } }} disabled={!investorForm.name.trim()} data-testid="button-save-investor">
+                      {editingInvestor ? "Update" : "Add"}
+                    </Button>
+                    {editingInvestor && <Button type="button" variant="ghost" onClick={() => { setEditingInvestor(null); setInvestorForm({ name: "", email: "", phone: "", notes: "" }); }}>Cancel</Button>}
+                  </div>
+                  <Input placeholder="Notes" value={investorForm.notes} onChange={(e) => setInvestorForm((f) => ({ ...f, notes: e.target.value }))} className="mt-2" />
+                </div>
+                <div>
+                  <Label>Investors list</Label>
+                  <div className="border rounded-md divide-y max-h-48 overflow-y-auto mt-1">
+                    {investorsList.length === 0 ? <p className="p-3 text-sm text-muted-foreground">No investors yet. Add one above.</p> : investorsList.map((inv) => (
+                      <div key={inv.id} className="flex items-center justify-between gap-2 p-2">
+                        <div>
+                          <span className="font-medium">{inv.name}</span>
+                          {(inv.email || inv.phone) && <span className="text-xs text-muted-foreground ml-2">{inv.email || inv.phone}</span>}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingInvestor(inv); setInvestorForm({ name: inv.name, email: inv.email || "", phone: inv.phone || "", notes: inv.notes || "" }); }}>Edit</Button>
+                          <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteInvestorConfirm(inv.id)}>Delete</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-new-investment">
@@ -396,42 +524,8 @@ export default function InvestmentsPage() {
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-3">
                 <div>
-                  <Label htmlFor="title">Title *</Label>
-                  <Input id="title" name="title" required data-testid="input-investment-title" />
-                </div>
-                <div>
-                  <Label>{t("common.category")} *</Label>
-                  <Select name="category" required>
-                    <SelectTrigger data-testid="select-investment-category"><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {categories.map(cat => (
-                        <SelectItem key={cat} value={cat} data-testid={`option-category-${cat}`}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="amount">{t("common.amount")} ($) *</Label>
-                    <Input
-                      id="amount"
-                      name="amount"
-                      type="number"
-                      step="0.01"
-                      required
-                      value={createAmount}
-                      onChange={(e) => setCreateAmount(e.target.value)}
-                      data-testid="input-investment-amount"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="returnAmount">Expected Return ($)</Label>
-                    <Input id="returnAmount" name="returnAmount" type="number" step="0.01" data-testid="input-investment-return" />
-                  </div>
-                </div>
-                <div>
-                  <Label>{t("investments.investorName")} / Share %</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Add multiple investors; share percentages will auto-normalize to 100%. Amounts are calculated from total.</p>
+                  <Label>{t("investments.investorName")} / Share % *</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Select investors first (or type name). Share % auto-normalize to 100%. Amounts calculated from total below.</p>
                   <div className="space-y-2 border rounded-md p-3 bg-muted/30">
                     {createInvestors.map((inv, idx) => {
                       const total = Number(createAmount) || 0;
@@ -441,13 +535,37 @@ export default function InvestmentsPage() {
                       const computedAmount = ((total * pct) / 100).toFixed(2);
                       return (
                         <div key={idx} className="flex flex-wrap items-center gap-2">
-                          <Input
-                            placeholder="Investor name"
-                            value={inv.name}
-                            onChange={(e) => setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))}
-                            className="flex-1 min-w-[120px]"
-                            data-testid={`input-investor-name-${idx}`}
-                          />
+                          <Select
+                            value={inv.investorId ? String(inv.investorId) : "__custom__"}
+                            onValueChange={(v) => {
+                              if (v === "__custom__") {
+                                setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { ...p, investorId: undefined, name: "" } : p));
+                                return;
+                              }
+                              const num = Number(v);
+                              const invObj = investorsList.find((i) => i.id === num);
+                              if (invObj) setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { investorId: invObj.id, name: invObj.name, sharePercentage: p.sharePercentage } : p));
+                            }}
+                          >
+                            <SelectTrigger className="flex-1 min-w-[140px]" data-testid={`select-investor-${idx}`}>
+                              <SelectValue placeholder="Select investor" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__custom__">Type name below...</SelectItem>
+                              {investorsList.map((i) => (
+                                <SelectItem key={i.id} value={String(i.id)}>{i.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {!inv.investorId && (
+                            <Input
+                              placeholder="Or type name"
+                              value={inv.name}
+                              onChange={(e) => setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))}
+                              className="flex-1 min-w-[100px]"
+                              data-testid={`input-investor-name-${idx}`}
+                            />
+                          )}
                           <Input
                             type="number"
                             min={0}
@@ -484,6 +602,53 @@ export default function InvestmentsPage() {
                       <Plus className="h-3.5 w-3.5 mr-1" /> Add investor
                     </Button>
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="amount">{t("common.amount")} ($) *</Label>
+                    <Input
+                      id="amount"
+                      name="amount"
+                      type="number"
+                      step="0.01"
+                      required
+                      value={createAmount}
+                      onChange={(e) => setCreateAmount(e.target.value)}
+                      data-testid="input-investment-amount"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="returnAmount">Expected Return ($)</Label>
+                    <Input id="returnAmount" name="returnAmount" type="number" step="0.01" data-testid="input-investment-return" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Pay by</Label>
+                  <Select value={createPaymentMethod} onValueChange={setCreatePaymentMethod} data-testid="select-payment-method">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map((m) => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="title">Title *</Label>
+                  <Input id="title" name="title" required data-testid="input-investment-title" />
+                </div>
+                <div>
+                  <Label>{t("common.category")} *</Label>
+                  <Select name="category" required>
+                    <SelectTrigger data-testid="select-investment-category"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {categories.map(cat => (
+                        <SelectItem key={cat} value={cat} data-testid={`option-category-${cat}`}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -569,6 +734,43 @@ export default function InvestmentsPage() {
           </Card>
         </div>
 
+        {perInvestorStats.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Users className="h-4 w-4" /> By investor
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">Breakdown by investor (filtered list)</p>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/30">
+                      <th className="text-left p-2 font-medium">Investor</th>
+                      <th className="text-right p-2 font-medium">Invested</th>
+                      <th className="text-right p-2 font-medium">Returns</th>
+                      <th className="text-right p-2 font-medium">Active</th>
+                      <th className="text-right p-2 font-medium">Net ROI</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {perInvestorStats.map(([name, s]) => (
+                      <tr key={name} className="border-b last:border-0">
+                        <td className="p-2 font-medium">{name}</td>
+                        <td className="text-right p-2 text-emerald-600 dark:text-emerald-400">${s.invested.toFixed(2)}</td>
+                        <td className="text-right p-2 text-emerald-600 dark:text-emerald-400">${s.returns.toFixed(2)}</td>
+                        <td className="text-right p-2">{s.active}</td>
+                        <td className="text-right p-2 font-medium">${(s.returns - s.invested).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
             <CardTitle className="text-sm font-semibold">{t("investments.title")}</CardTitle>
@@ -617,6 +819,7 @@ export default function InvestmentsPage() {
                   <div><p className="text-xs text-muted-foreground">{t("common.amount")}</p><p className="font-semibold text-emerald-600 dark:text-emerald-400">${viewInvestment.amount}</p></div>
                   <div><p className="text-xs text-muted-foreground">{t("investments.totalReturns")}</p><p className="font-semibold text-emerald-600 dark:text-emerald-400">${viewInvestment.returnAmount || "0"}</p></div>
                   <div className="col-span-2"><p className="text-xs text-muted-foreground">{t("investments.investorName")}</p><p>{getInvestorSummary(viewInvestment)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Pay by</p><p className="font-medium">{PAYMENT_METHODS.find(m => m.value === ((viewInvestment as Investment & { paymentMethod?: string }).paymentMethod || "cash"))?.label ?? "Cash"}</p></div>
                   {investorsList.length > 0 && (
                     <div className="col-span-2">
                       <p className="text-xs text-muted-foreground mb-1">Breakdown</p>
@@ -684,6 +887,17 @@ export default function InvestmentsPage() {
                     <Label htmlFor="edit-returnAmount">{t("investments.totalReturns")} ($)</Label>
                     <Input id="edit-returnAmount" type="number" step="0.01" value={editForm.returnAmount} onChange={e => setEditForm(f => ({ ...f, returnAmount: e.target.value }))} data-testid="input-edit-investment-return" />
                   </div>
+                </div>
+                <div>
+                  <Label>Pay by</Label>
+                  <Select value={editForm.paymentMethod} onValueChange={v => setEditForm(f => ({ ...f, paymentMethod: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map((m) => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>{t("investments.investorName")} / Share %</Label>
@@ -781,6 +995,16 @@ export default function InvestmentsPage() {
           cancelLabel={t("common.cancel") || "Cancel"}
           variant="destructive"
           onConfirm={handleConfirmDelete}
+        />
+        <ConfirmDialog
+          open={deleteInvestorConfirm != null}
+          onOpenChange={(open) => { if (!open) setDeleteInvestorConfirm(null); }}
+          title="Delete investor"
+          description="Delete this investor? Investments that reference them will keep the name."
+          confirmLabel={t("common.delete") || "Delete"}
+          cancelLabel={t("common.cancel") || "Cancel"}
+          variant="destructive"
+          onConfirm={() => { if (deleteInvestorConfirm != null) { deleteInvestorMutation.mutate(deleteInvestorConfirm); setDeleteInvestorConfirm(null); } }}
         />
       </div>
     </div>

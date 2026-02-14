@@ -2,7 +2,7 @@ import { eq, desc, sql, and, gte, lte, count, sum, inArray, ilike } from "drizzl
 import { db } from "./db";
 import {
   users, roles, patients, services, medicines, opdVisits, bills,
-  expenses, bankTransactions, investments, integrations, clinicSettings, labTests, appointments,
+  expenses, bankTransactions, investors, investments, integrations, clinicSettings, labTests, appointments,
   doctors, salaries, activityLogs,
   salaryProfiles, salaryLoans, loanInstallments, payrollRuns, payslips,
   type InsertUser, type User, type InsertRole, type Role,
@@ -12,6 +12,7 @@ import {
   type InsertOpdVisit, type OpdVisit,
   type InsertBill, type Bill, type InsertExpense, type Expense,
   type InsertBankTransaction, type BankTransaction,
+  type InsertInvestor, type Investor,
   type InsertInvestment, type Investment,
   type InsertIntegration, type Integration,
   type InsertClinicSettings, type ClinicSettings,
@@ -85,6 +86,12 @@ export interface IStorage {
   createBankTransaction(tx: InsertBankTransaction): Promise<BankTransaction>;
   deleteBankTransaction(id: number): Promise<void>;
   bulkDeleteBankTransactions(ids: number[]): Promise<void>;
+
+  getInvestors(): Promise<Investor[]>;
+  getInvestor(id: number): Promise<Investor | undefined>;
+  createInvestor(inv: InsertInvestor): Promise<Investor>;
+  updateInvestor(id: number, data: Partial<InsertInvestor>): Promise<Investor | undefined>;
+  deleteInvestor(id: number): Promise<void>;
 
   getInvestments(): Promise<Investment[]>;
   getInvestment(id: number): Promise<Investment | undefined>;
@@ -447,6 +454,29 @@ export class DatabaseStorage implements IStorage {
 
   async bulkDeleteBankTransactions(ids: number[]): Promise<void> {
     await db.delete(bankTransactions).where(inArray(bankTransactions.id, ids));
+  }
+
+  async getInvestors(): Promise<Investor[]> {
+    return db.select().from(investors).orderBy(investors.name);
+  }
+
+  async getInvestor(id: number): Promise<Investor | undefined> {
+    const [row] = await db.select().from(investors).where(eq(investors.id, id));
+    return row;
+  }
+
+  async createInvestor(inv: InsertInvestor): Promise<Investor> {
+    const [created] = await db.insert(investors).values(inv as typeof investors.$inferInsert).returning();
+    return created;
+  }
+
+  async updateInvestor(id: number, data: Partial<InsertInvestor>): Promise<Investor | undefined> {
+    const [updated] = await db.update(investors).set(data).where(eq(investors.id, id)).returning();
+    return updated;
+  }
+
+  async deleteInvestor(id: number): Promise<void> {
+    await db.delete(investors).where(eq(investors.id, id));
   }
 
   async getInvestments(): Promise<Investment[]> {

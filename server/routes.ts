@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import {
   insertPatientSchema, insertOpdVisitSchema, insertBillSchema,
   insertServiceSchema, insertMedicineSchema, insertExpenseSchema,
-  insertBankTransactionSchema, insertInvestmentSchema,
+  insertBankTransactionSchema, insertInvestorSchema, insertInvestmentSchema,
   insertUserSchema, insertRoleSchema, insertIntegrationSchema,
   insertClinicSettingsSchema, insertLabTestSchema, insertAppointmentSchema,
   insertDoctorSchema, insertSalarySchema,
@@ -1236,6 +1236,59 @@ export async function registerRoutes(
     }
   });
 
+  // Investors (management)
+  app.get("/api/investors", async (_req, res) => {
+    try {
+      const result = await storage.getInvestors();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/investors/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const inv = await storage.getInvestor(id);
+      if (!inv) return res.status(404).json({ message: "Investor not found" });
+      res.json(inv);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/investors", async (req, res) => {
+    try {
+      const data = validateBody(insertInvestorSchema, req.body);
+      const inv = await storage.createInvestor(data);
+      res.status(201).json(inv);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.put("/api/investors/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const data = validateBody(z.object({ name: z.string().optional(), email: z.string().nullable().optional(), phone: z.string().nullable().optional(), notes: z.string().nullable().optional() }), req.body);
+      const inv = await storage.updateInvestor(id, data);
+      if (!inv) return res.status(404).json({ message: "Investor not found" });
+      res.json(inv);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/investors/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      await storage.deleteInvestor(id);
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Investments
   app.get("/api/investments", async (_req, res) => {
     try {
@@ -1258,6 +1311,7 @@ export async function registerRoutes(
   });
 
   const investmentInvestorSchema = z.object({
+    investorId: z.number().optional(),
     name: z.string().min(1, "Investor name is required"),
     sharePercentage: z.number().min(0).max(100),
     amount: z.string(),
@@ -1281,7 +1335,7 @@ export async function registerRoutes(
     });
   }
 
-  type CreateInvestmentBody = { title: string; category: string; amount: string; returnAmount?: string | null; investorName?: string | null; status?: string; startDate: string; endDate?: string | null; notes?: string | null; investors?: { name: string; sharePercentage: number; amount: string }[] };
+  type CreateInvestmentBody = { title: string; category: string; amount: string; returnAmount?: string | null; investorName?: string | null; paymentMethod?: string | null; status?: string; startDate: string; endDate?: string | null; notes?: string | null; investors?: { name: string; sharePercentage: number; amount: string }[] };
   app.post("/api/investments", async (req, res) => {
     try {
       const raw = validateBody(createInvestmentBodySchema, req.body) as CreateInvestmentBody;
@@ -1310,6 +1364,7 @@ export async function registerRoutes(
     amount: z.string().optional(),
     returnAmount: z.string().nullable().optional(),
     investorName: z.string().nullable().optional(),
+    paymentMethod: z.string().nullable().optional(),
     investors: z.array(investmentInvestorSchema).optional(),
     status: z.string().optional(),
     startDate: z.string().optional(),
