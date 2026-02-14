@@ -716,7 +716,7 @@ export default function InvestmentsPage() {
               <form onSubmit={handleCreate} className="space-y-3">
                 <div>
                   <Label>{t("investments.investorName")} *</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Select investors from the list. Share % is set in Manage Investors. Amounts calculated from total below.</p>
+                  <p className="text-xs text-muted-foreground mb-2">Select investors and adjust share %. Amounts calculated from total below.</p>
                   <div className="space-y-2 border rounded-md p-3 bg-muted/30">
                     {createInvestors.map((inv, idx) => {
                       const total = Number(createAmount) || 0;
@@ -739,25 +739,41 @@ export default function InvestmentsPage() {
                               }
                             }}
                           >
-                            <SelectTrigger className="flex-1 min-w-[160px]" data-testid={`select-investor-${idx}`}>
+                            <SelectTrigger className="flex-1 min-w-[120px]" data-testid={`select-investor-${idx}`}>
                               <SelectValue placeholder="Select investor" />
                             </SelectTrigger>
                             <SelectContent>
                               {investorsList.map((i) => (
                                 <SelectItem key={i.id} value={String(i.id)} disabled={selectedIds.includes(i.id) && createInvestors[idx].investorId !== i.id}>
-                                  {i.name} ({(i as Investor & { sharePercentage?: string }).sharePercentage ?? "100"}%)
+                                  {i.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                           {inv.investorId ? (
-                            <span className="text-sm text-muted-foreground shrink-0">= ${computedAmount}</span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={0.01}
+                                value={inv.sharePercentage}
+                                onChange={(e) => {
+                                  const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                                  setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { ...p, sharePercentage: val } : p));
+                                }}
+                                className="w-16 text-center"
+                                data-testid={`input-investor-pct-${idx}`}
+                              />
+                              <span className="text-xs text-muted-foreground">%</span>
+                              <span className="text-sm text-muted-foreground ml-1">= ${computedAmount}</span>
+                            </div>
                           ) : null}
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="shrink-0 h-8 w-8"
+                            className="shrink-0"
                             onClick={() => setCreateInvestors((prev) => prev.filter((_, i) => i !== idx))}
                             disabled={createInvestors.length <= 1}
                             data-testid={`button-remove-investor-${idx}`}
@@ -1546,19 +1562,19 @@ export default function InvestmentsPage() {
                               }
                             }}
                           >
-                            <SelectTrigger className="flex-1 min-w-[160px]">
+                            <SelectTrigger className="flex-1 min-w-[120px]">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                               {investorsList.map((i) => (
                                 <SelectItem key={i.id} value={String(i.id)} disabled={selectedIds.includes(i.id) && editForm.investors[idx].investorId !== i.id}>
-                                  {i.name} ({(i as Investor & { sharePercentage?: string }).sharePercentage ?? "100"}%)
+                                  {i.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         ) : isLegacy ? (
-                          <span className="text-sm font-medium min-w-[160px]">{inv.name} ({(inv.sharePercentage)}%)</span>
+                          <span className="text-sm font-medium min-w-[120px]">{inv.name}</span>
                         ) : (
                           <Select
                             value=""
@@ -1571,19 +1587,35 @@ export default function InvestmentsPage() {
                               }
                             }}
                           >
-                            <SelectTrigger className="flex-1 min-w-[160px]">
+                            <SelectTrigger className="flex-1 min-w-[120px]">
                               <SelectValue placeholder="Select investor" />
                             </SelectTrigger>
                             <SelectContent>
                               {investorsList.map((i) => (
                                 <SelectItem key={i.id} value={String(i.id)} disabled={selectedIds.includes(i.id)}>
-                                  {i.name} ({(i as Investor & { sharePercentage?: string }).sharePercentage ?? "100"}%)
+                                  {i.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         )}
-                        <span className="text-sm text-muted-foreground shrink-0">= ${computedAmount}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.01}
+                            value={inv.sharePercentage}
+                            onChange={(e) => {
+                              const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                              setEditForm((f: any) => ({ ...f, investors: f.investors.map((p: any, i: number) => i === idx ? { ...p, sharePercentage: val } : p) }));
+                            }}
+                            className="w-16 text-center"
+                            data-testid={`input-edit-investor-pct-${idx}`}
+                          />
+                          <span className="text-xs text-muted-foreground">%</span>
+                          <span className="text-sm text-muted-foreground ml-1">= ${computedAmount}</span>
+                        </div>
                         <Button
                           type="button"
                           variant="ghost"
