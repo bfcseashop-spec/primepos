@@ -67,6 +67,23 @@ const paymentSlipUpload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+const excelUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'application/octet-stream',
+    ];
+    if (allowedTypes.includes(file.mimetype) || file.originalname.match(/\.(xlsx|xls)$/i)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only Excel files (.xlsx, .xls) are allowed"));
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
 const logoUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, logoUploadsDir),
@@ -1518,6 +1535,108 @@ export async function registerRoutes(
   });
 
   app.use("/uploads/payment-slips", express.static(paymentSlipDir));
+
+  app.get("/api/contributions/export/xlsx", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const allContributions = await storage.getContributions();
+      const allInvestments = await storage.getInvestments();
+      const rows = allContributions.map(c => {
+        const inv = allInvestments.find(i => i.id === c.investmentId);
+        return {
+          Date: c.date,
+          Investment: inv?.title || `#${c.investmentId}`,
+          Investor: c.investorName,
+          Category: c.category || "",
+          Amount: c.amount,
+          Note: c.note || "",
+        };
+      });
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Contributions");
+      const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = Buffer.from(raw);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=contributions.xlsx");
+      res.setHeader("Content-Length", String(buf.length));
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/contributions/sample-template", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const allInvestments = await storage.getInvestments();
+      const allInvestorNames = new Set<string>();
+      allInvestments.forEach(inv => {
+        if (inv.investors && Array.isArray(inv.investors)) {
+          (inv.investors as any[]).forEach(i => { if (i.name) allInvestorNames.add(i.name); });
+        }
+      });
+
+      const wb = XLSX.utils.book_new();
+
+      const sampleRows = [
+        { Date: "2026-02-14", Investment: allInvestments[0]?.title || "Investment Name", Investor: Array.from(allInvestorNames)[0] || "Investor Name", Category: "Advance Deposit", Amount: "5000.00", Note: "Monthly contribution" },
+        { Date: "2026-02-13", Investment: allInvestments[0]?.title || "Investment Name", Investor: Array.from(allInvestorNames)[1] || "Investor 2", Category: "Equipment", Amount: "3000.00", Note: "Equipment purchase" },
+        { Date: "2026-02-12", Investment: allInvestments[0]?.title || "Investment Name", Investor: Array.from(allInvestorNames)[0] || "Investor Name", Category: "Other", Amount: "1500.00", Note: "" },
+      ];
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Import Template");
+
+      Array.from(allInvestorNames).forEach(name => {
+        const investorContributions = sampleRows.filter(r => r.Investor === name);
+        if (investorContributions.length > 0) {
+          const iws = XLSX.utils.json_to_sheet(investorContributions);
+          const sheetName = name.substring(0, 31);
+          XLSX.utils.book_append_sheet(wb, iws, sheetName);
+        }
+      });
+
+      const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = Buffer.from(raw);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=contribution_import_template.xlsx");
+      res.setHeader("Content-Length", String(buf.length));
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/contributions/import", excelUpload.single('file'), async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const wb = XLSX.read(req.file.buffer);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      const allInvestments = await storage.getInvestments();
+      let imported = 0;
+      for (const row of rows) {
+        const invTitle = row["Investment"] || row["investment"];
+        const inv = allInvestments.find(i => i.title?.toLowerCase() === invTitle?.toLowerCase());
+        if (!inv) continue;
+        await storage.createContribution({
+          investmentId: inv.id,
+          investorName: row["Investor"] || row["investor"] || "",
+          amount: String(row["Amount"] || row["amount"] || "0"),
+          date: row["Date"] || row["date"] || new Date().toISOString().split("T")[0],
+          category: row["Category"] || row["category"] || null,
+          paymentSlip: null,
+          images: null,
+          note: row["Note"] || row["note"] || null,
+        });
+        imported++;
+      }
+      res.json({ message: `Successfully imported ${imported} contributions`, count: imported });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
 
   // Users / Staff
   app.get("/api/users", async (_req, res) => {

@@ -10,12 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile } from "@/lib/queryClient";
 import {
   Plus, DollarSign, X, Tag, Trash2, Eye, Pencil, Printer,
   MoreHorizontal, Users, Wallet, AlertTriangle, CheckCircle2, CreditCard,
   TrendingUp, ArrowDownRight, ArrowUpRight, CircleDollarSign, PiggyBank, Receipt, ChevronUp,
-  Upload, ImageIcon
+  Upload, ImageIcon, Download, FileSpreadsheet
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -612,6 +612,38 @@ export default function InvestmentsPage() {
     }
   }, [toast]);
 
+  const handleExportContributions = async () => {
+    try {
+      await downloadFile("/api/contributions/export/xlsx", "contributions.xlsx");
+      toast({ title: "Export started" });
+    } catch (err: any) {
+      toast({ title: err.message || "Export failed", variant: "destructive" });
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      await downloadFile("/api/contributions/sample-template", "contribution_import_template.xlsx");
+      toast({ title: "Template download started" });
+    } catch (err: any) {
+      toast({ title: err.message || "Download failed", variant: "destructive" });
+    }
+  };
+
+  const handleImportContributions = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/contributions/import", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Import failed");
+      const result = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+      toast({ title: result.message || `Imported ${result.count} contributions` });
+    } catch (err: any) {
+      toast({ title: err.message || "Import failed", variant: "destructive" });
+    }
+  };
+
   const investorsForSelectedInvestment = useMemo(() => {
     const inv = investments.find(i => i.id === contributionForm.investmentId);
     if (!inv) return [];
@@ -1080,6 +1112,27 @@ export default function InvestmentsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" data-testid="button-export-contributions">
+                    <Download className="h-3.5 w-3.5 mr-1" /> Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportContributions} className="gap-2" data-testid="button-export-xlsx">
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-500" /> Export Excel (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDownloadTemplate} className="gap-2" data-testid="button-download-template">
+                    <Download className="h-4 w-4 text-blue-500" /> Sample Template (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="gap-2" data-testid="button-import-xlsx">
+                    <label className="cursor-pointer flex items-center gap-2">
+                      <Upload className="h-4 w-4 text-violet-500" /> Import Excel (.xlsx)
+                      <input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportContributions(f); e.target.value = ""; }} />
+                    </label>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button size="sm" onClick={() => openContributionDialog()} data-testid="button-add-contribution">
                 <Plus className="h-3.5 w-3.5 mr-1" /> Add
               </Button>
