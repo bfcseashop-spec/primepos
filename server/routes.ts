@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import {
   insertPatientSchema, insertOpdVisitSchema, insertBillSchema,
-  insertServiceSchema, insertMedicineSchema, insertExpenseSchema,
+  insertServiceSchema, insertInjectionSchema, insertMedicineSchema, insertExpenseSchema,
   insertBankTransactionSchema, insertInvestorSchema, insertInvestmentSchema, insertContributionSchema,
   insertUserSchema, insertRoleSchema, insertIntegrationSchema,
   insertClinicSettingsSchema, insertLabTestSchema, insertAppointmentSchema,
@@ -62,6 +62,23 @@ const paymentSlipUpload = multer({
       cb(null, true);
     } else {
       cb(new Error("Only JPG, PNG, GIF, WebP image files are allowed"));
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
+const excelUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'application/octet-stream',
+    ];
+    if (allowedTypes.includes(file.mimetype) || file.originalname.match(/\.(xlsx|xls)$/i)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only Excel files (.xlsx, .xls) are allowed"));
     }
   },
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -906,6 +923,135 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/injections", async (_req, res) => {
+    try {
+      const result = await storage.getInjections();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/injections", async (req, res) => {
+    try {
+      const data = validateBody(insertInjectionSchema, req.body);
+      const injection = await storage.createInjection(data);
+      res.status(201).json(injection);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/injections/:id", async (req, res) => {
+    try {
+      const updateSchema = z.object({
+        isActive: z.boolean().optional(),
+        name: z.string().optional(),
+        category: z.string().optional(),
+        price: z.string().optional(),
+        description: z.string().optional().nullable(),
+      });
+      const data = validateBody(updateSchema, req.body);
+      const updated = await storage.updateInjection(Number(req.params.id), data);
+      if (!updated) return res.status(404).json({ message: "Not found" });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/injections/:id", async (req, res) => {
+    try {
+      await storage.deleteInjection(Number(req.params.id));
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/injections/sample-template", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const sampleRows = [
+        { Name: "Paracetamol 1000mg/100ml", Price: "8.00" },
+        { Name: "Dexamethasone 4mg/ml", Price: "5.00" },
+        { Name: "Vitamin B12 1000mcg", Price: "12.00" },
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Injections");
+      const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = Buffer.from(raw);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=injection_import_template.xlsx");
+      res.setHeader("Content-Length", String(buf.length));
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/injections/export/:format", async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const allInjections = await storage.getInjections();
+      const rows = allInjections.map(inj => ({
+        Name: inj.name,
+        Price: inj.price,
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Injections");
+      const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = Buffer.from(raw);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=injections.xlsx");
+      res.setHeader("Content-Length", String(buf.length));
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  const injectionImportUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  });
+
+  app.post("/api/injections/import", injectionImportUpload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const XLSX = await import("xlsx");
+      const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+
+      if (rows.length === 0) return res.status(400).json({ message: "File is empty or has no data rows" });
+      let imported = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const name = row["Name"] || row["name"];
+        const price = row["Price"] || row["price"];
+        if (!name) { skipped++; errors.push(`Row ${i + 2}: Missing name`); continue; }
+        try {
+          await storage.createInjection({
+            name,
+            category: "General",
+            price: (parseFloat(price) || 0).toString(),
+            description: null,
+            isActive: true,
+          });
+          imported++;
+        } catch (err: any) { skipped++; errors.push(`Row ${i + 2}: ${err.message}`); }
+      }
+      res.json({ imported, skipped, total: rows.length, errors: errors.slice(0, 10) });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/medicines", async (_req, res) => {
     try {
       const result = await storage.getMedicines();
@@ -1466,6 +1612,30 @@ export async function registerRoutes(
         investorName: z.string().optional(),
         amount: z.string().optional(),
         date: z.string().optional(),
+        category: z.string().nullable().optional(),
+        paymentSlip: z.string().nullable().optional(),
+        images: z.array(z.string()).nullable().optional(),
+        note: z.string().nullable().optional(),
+      });
+      const data = validateBody(updateSchema, req.body);
+      const contribution = await storage.updateContribution(id, data);
+      if (!contribution) return res.status(404).json({ message: "Contribution not found" });
+      res.json(contribution);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/contributions/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const updateSchema = z.object({
+        investorName: z.string().optional(),
+        amount: z.string().optional(),
+        date: z.string().optional(),
+        category: z.string().nullable().optional(),
+        paymentSlip: z.string().nullable().optional(),
+        images: z.array(z.string()).nullable().optional(),
         note: z.string().nullable().optional(),
       });
       const data = validateBody(updateSchema, req.body);
@@ -1494,6 +1664,108 @@ export async function registerRoutes(
   });
 
   app.use("/uploads/payment-slips", express.static(paymentSlipDir));
+
+  app.get("/api/contributions/export/xlsx", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const allContributions = await storage.getContributions();
+      const allInvestments = await storage.getInvestments();
+      const rows = allContributions.map(c => {
+        const inv = allInvestments.find(i => i.id === c.investmentId);
+        return {
+          Date: c.date,
+          Investment: inv?.title || `#${c.investmentId}`,
+          Investor: c.investorName,
+          Category: c.category || "",
+          Amount: c.amount,
+          Note: c.note || "",
+        };
+      });
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Contributions");
+      const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = Buffer.from(raw);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=contributions.xlsx");
+      res.setHeader("Content-Length", String(buf.length));
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/contributions/sample-template", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const allInvestments = await storage.getInvestments();
+      const allInvestorNames = new Set<string>();
+      allInvestments.forEach(inv => {
+        if (inv.investors && Array.isArray(inv.investors)) {
+          (inv.investors as any[]).forEach(i => { if (i.name) allInvestorNames.add(i.name); });
+        }
+      });
+
+      const wb = XLSX.utils.book_new();
+
+      const sampleRows = [
+        { Date: "2026-02-14", Investment: allInvestments[0]?.title || "Investment Name", Investor: Array.from(allInvestorNames)[0] || "Investor Name", Category: "Advance Deposit", Amount: "5000.00", Note: "Monthly contribution" },
+        { Date: "2026-02-13", Investment: allInvestments[0]?.title || "Investment Name", Investor: Array.from(allInvestorNames)[1] || "Investor 2", Category: "Equipment", Amount: "3000.00", Note: "Equipment purchase" },
+        { Date: "2026-02-12", Investment: allInvestments[0]?.title || "Investment Name", Investor: Array.from(allInvestorNames)[0] || "Investor Name", Category: "Other", Amount: "1500.00", Note: "" },
+      ];
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Import Template");
+
+      Array.from(allInvestorNames).forEach(name => {
+        const investorContributions = sampleRows.filter(r => r.Investor === name);
+        if (investorContributions.length > 0) {
+          const iws = XLSX.utils.json_to_sheet(investorContributions);
+          const sheetName = name.substring(0, 31);
+          XLSX.utils.book_append_sheet(wb, iws, sheetName);
+        }
+      });
+
+      const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = Buffer.from(raw);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=contribution_import_template.xlsx");
+      res.setHeader("Content-Length", String(buf.length));
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/contributions/import", excelUpload.single('file'), async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const wb = XLSX.read(req.file.buffer);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      const allInvestments = await storage.getInvestments();
+      let imported = 0;
+      for (const row of rows) {
+        const invTitle = row["Investment"] || row["investment"];
+        const inv = allInvestments.find(i => i.title?.toLowerCase() === invTitle?.toLowerCase());
+        if (!inv) continue;
+        await storage.createContribution({
+          investmentId: inv.id,
+          investorName: row["Investor"] || row["investor"] || "",
+          amount: String(row["Amount"] || row["amount"] || "0"),
+          date: row["Date"] || row["date"] || new Date().toISOString().split("T")[0],
+          category: row["Category"] || row["category"] || null,
+          paymentSlip: null,
+          images: null,
+          note: row["Note"] || row["note"] || null,
+        });
+        imported++;
+      }
+      res.json({ message: `Successfully imported ${imported} contributions`, count: imported });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
 
   // Users / Staff
   app.get("/api/users", async (_req, res) => {

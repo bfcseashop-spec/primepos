@@ -16,10 +16,10 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode } from "lucide-react";
+import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
-import type { Patient, Service, Medicine, BillItem, User, ClinicSettings } from "@shared/schema";
+import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings } from "@shared/schema";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "\u20AC", GBP: "\u00A3", JPY: "\u00A5", KHR: "\u17DB",
@@ -75,7 +75,7 @@ export default function BillingPage() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [referenceDoctor, setReferenceDoctor] = useState("");
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
-  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
 
   const { data: bills = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/bills"],
@@ -97,7 +97,11 @@ export default function BillingPage() {
     queryKey: ["/api/medicines"],
   });
 
-  const { data: users = [] } = useQuery<User[]>({
+  const { data: injectionsList = [] } = useQuery<Injection[]>({
+    queryKey: ["/api/injections"],
+  });
+
+  const { data: users = [] } = useQuery<UserType[]>({
     queryKey: ["/api/users"],
   });
 
@@ -373,6 +377,18 @@ export default function BillingPage() {
       quantity: 1,
       unitPrice: Number(service.price),
       total: Number(service.price),
+    }]);
+  };
+
+  const addInjectionItem = (injectionId: string) => {
+    const injection = injectionsList.find(inj => inj.id === Number(injectionId));
+    if (!injection) return;
+    setBillItems(prev => [...prev, {
+      name: injection.name,
+      type: "injection",
+      quantity: 1,
+      unitPrice: Number(injection.price),
+      total: Number(injection.price),
     }]);
   };
 
@@ -685,12 +701,15 @@ export default function BillingPage() {
                 </div>
               ) : (
 
-              <div className="space-y-6">
-                {/* Invoice Date at top right */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-                  <Label className="text-sm font-medium text-muted-foreground sm:order-2">Invoice Date</Label>
-                  <div className="flex items-center gap-2 sm:order-1">
-                    <span className="text-xs text-muted-foreground hidden sm:inline">Auto / Manual</span>
+              <div className="space-y-5">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Hash className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium text-muted-foreground">Invoice</span>
+                    <Badge variant="outline" className="font-mono text-xs">{settings?.invoicePrefix || "INV"}-{String((bills?.length || 0) + 1).padStart(4, "0")}</Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
                     <Input
                       type="date"
                       value={paymentDate}
@@ -701,10 +720,12 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                {/* Patient + Doctor/Refer Name in one row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 rounded-xl border bg-card/50 p-4 sm:p-5">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-foreground">{t("billing.patient")} *</h3>
+                    <div className="flex items-center gap-2">
+                      <UserIcon className="h-4 w-4 text-blue-500" />
+                      <Label className="text-sm font-semibold">{t("billing.patient")} *</Label>
+                    </div>
                     <SearchableSelect
                       value={selectedPatient}
                       onValueChange={setSelectedPatient}
@@ -720,7 +741,10 @@ export default function BillingPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-foreground">Doctor / Refer Name</Label>
+                    <div className="flex items-center gap-2">
+                      <Stethoscope className="h-4 w-4 text-violet-500" />
+                      <Label className="text-sm font-semibold">Doctor / Refer Name</Label>
+                    </div>
                     <SearchableSelect
                       value={referenceDoctor}
                       onValueChange={setReferenceDoctor}
@@ -739,30 +763,58 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
-                    <h3 className="text-sm font-semibold text-foreground">{t("billing.services")}</h3>
-                    <SearchableSelect
-                      onValueChange={addServiceItem}
-                      placeholder={t("billing.selectService")}
-                      searchPlaceholder="Search service..."
-                      emptyText="No service found."
-                      data-testid="select-add-service"
-                      resetAfterSelect
-                      options={services.filter(s => s.isActive).map(s => ({
-                        value: String(s.id),
-                        label: `${s.name} - $${s.price}`,
-                        searchText: s.name,
-                      }))}
-                    />
-                  </div>
-                  <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
-                    <h3 className="text-sm font-semibold text-foreground">{t("billing.medicines")} <span className="text-xs font-normal text-muted-foreground">(pieces)</span></h3>
-                    <div className="space-y-2">
+                <Separator />
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <Card className="border-dashed">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <ShoppingBag className="h-4 w-4 text-blue-500" />
+                        <span className="text-sm font-semibold">{t("billing.services")}</span>
+                      </div>
+                      <SearchableSelect
+                        onValueChange={addServiceItem}
+                        placeholder={t("billing.selectService")}
+                        searchPlaceholder="Search service..."
+                        emptyText="No service found."
+                        data-testid="select-add-service"
+                        resetAfterSelect
+                        options={services.filter(s => s.isActive).map(s => ({
+                          value: String(s.id),
+                          label: `${s.name} - $${s.price}`,
+                          searchText: s.name,
+                        }))}
+                      />
+                      <div className="flex items-center gap-2 pt-1">
+                        <Pill className="h-4 w-4 text-cyan-500" />
+                        <span className="text-sm font-semibold">Injection</span>
+                      </div>
+                      <SearchableSelect
+                        onValueChange={addInjectionItem}
+                        placeholder="Select Injection"
+                        searchPlaceholder="Search injection..."
+                        emptyText="No injection found."
+                        data-testid="select-add-injection"
+                        resetAfterSelect
+                        options={injectionsList.filter(inj => inj.isActive).map(inj => ({
+                          value: String(inj.id),
+                          label: `${inj.name} - $${inj.price}`,
+                          searchText: inj.name,
+                        }))}
+                      />
+                    </CardContent>
+                  </Card>
+                  <Card className="border-dashed">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Pill className="h-4 w-4 text-emerald-500" />
+                        <span className="text-sm font-semibold">{t("billing.medicines")}</span>
+                        <span className="text-xs text-muted-foreground">(pieces)</span>
+                      </div>
                       <div className="flex items-center gap-2">
                         <Barcode className="h-4 w-4 text-muted-foreground shrink-0" />
                         <SearchInputWithBarcode
-                          placeholder="Scan barcode to add medicine (batch or MED-id)"
+                          placeholder="Scan barcode to add medicine"
                           className="flex-1 h-9 text-sm"
                           value={medicineBarcodeScan}
                           onChange={(e) => setMedicineBarcodeScan(e.target.value)}
@@ -770,87 +822,89 @@ export default function BillingPage() {
                           data-testid="input-medicine-barcode-scan"
                         />
                       </div>
-                    </div>
-                    <div className="flex gap-2 items-end">
-                      <div className="flex-1 min-w-0">
-                        <SearchableSelect
-                          onValueChange={addMedicineItem}
-                          placeholder={t("billing.selectMedicine")}
-                          searchPlaceholder="Search medicine..."
-                          emptyText="No medicine found."
-                          data-testid="select-add-medicine"
-                          resetAfterSelect
-                          options={medicines.filter(m => m.isActive).map(m => {
-                            const unitPrice = getSellingPricePerPiece(m);
-                            const stock = m.stockCount ?? 0;
-                            const alert = m.stockAlert ?? 10;
-                            const status = stock === 0 ? "Out" : stock < alert ? "Low" : "In stock";
-                            const statusClr = stock === 0 ? "text-red-600" : stock < alert ? "text-amber-600" : "text-emerald-600";
-                            return {
-                              value: String(m.id),
-                              label: `${m.name} · $${unitPrice.toFixed(2)}/pc · ${stock} ${status}`,
-                              searchText: `${m.name} ${m.category || ""}`,
-                            };
-                          })}
-                        />
+                      <div className="flex gap-2 items-end">
+                        <div className="flex-1 min-w-0">
+                          <SearchableSelect
+                            onValueChange={addMedicineItem}
+                            placeholder={t("billing.selectMedicine")}
+                            searchPlaceholder="Search medicine..."
+                            emptyText="No medicine found."
+                            data-testid="select-add-medicine"
+                            resetAfterSelect
+                            options={medicines.filter(m => m.isActive).map(m => {
+                              const unitPrice = getSellingPricePerPiece(m);
+                              const stock = m.stockCount ?? 0;
+                              const alert = m.stockAlert ?? 10;
+                              const status = stock === 0 ? "Out" : stock < alert ? "Low" : "In stock";
+                              return {
+                                value: String(m.id),
+                                label: `${m.name} · $${unitPrice.toFixed(2)}/pc · ${stock} ${status}`,
+                                searchText: `${m.name} ${m.category || ""}`,
+                              };
+                            })}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Label htmlFor="med-qty-add" className="text-xs text-muted-foreground whitespace-nowrap">Qty</Label>
+                          <Input
+                            id="med-qty-add"
+                            type="number"
+                            min={1}
+                            className="w-20 h-9 text-center"
+                            value={medicineQty}
+                            onChange={(e) => setMedicineQty(Math.max(1, Number(e.target.value) || 1))}
+                            data-testid="input-medicine-qty-add"
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Label htmlFor="med-qty-add" className="text-xs text-muted-foreground whitespace-nowrap">Qty</Label>
-                        <Input
-                          id="med-qty-add"
-                          type="number"
-                          min={1}
-                          className="w-20 h-9 text-center"
-                          value={medicineQty}
-                          onChange={(e) => setMedicineQty(Math.max(1, Number(e.target.value) || 1))}
-                          data-testid="input-medicine-qty-add"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Selling price per piece. Quantity is always in pieces.</p>
-                  </div>
+                      <p className="text-xs text-muted-foreground">Selling price per piece. Quantity is always in pieces.</p>
+                    </CardContent>
+                  </Card>
                 </div>
 
                 {billItems.length > 0 && (
-                  <div className="rounded-xl border bg-card/50 overflow-hidden">
-                    <div className="grid grid-cols-[1fr,80px,80px,80px,40px] gap-2 p-3 bg-gradient-to-r from-blue-600 to-violet-600 text-white text-xs font-semibold">
-                      <span>Item</span>
-                      <span className="text-right">Price</span>
-                      <span className="text-center">Qty</span>
-                      <span className="text-right">Total</span>
-                      <span></span>
-                    </div>
-                    {billItems.map((item, i) => (
-                      <div key={i} className="grid grid-cols-[1fr,80px,80px,80px,40px] gap-2 p-2 items-center border-t text-sm">
-                        <div className="flex items-center gap-1.5">
-                          {item.type === "service" ? (
-                            <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">SVC</span>
-                          ) : (
-                            <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800">MED</span>
-                          )}
-                          <span className="truncate">{item.name}</span>
-                        </div>
-                        <span className="text-right text-muted-foreground">${item.unitPrice.toFixed(2)}</span>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={item.quantity}
-                          onChange={(e) => updateItemQuantity(i, Number(e.target.value))}
-                          className="h-7 text-center text-xs"
-                          data-testid={`input-bill-qty-${i}`}
-                        />
-                        <span className="text-right font-semibold text-emerald-600 dark:text-emerald-400">${item.total.toFixed(2)}</span>
-                        <Button variant="ghost" size="icon" onClick={() => removeItem(i)} data-testid={`button-remove-item-${i}`}>
-                          <Trash2 className="h-3 w-3 text-red-400" />
-                        </Button>
+                  <Card>
+                    <CardContent className="p-0 overflow-hidden">
+                      <div className="grid grid-cols-[1fr,80px,70px,85px,40px] gap-2 px-4 py-2.5 bg-muted/60 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        <span>Item</span>
+                        <span className="text-right">Price</span>
+                        <span className="text-center">Qty</span>
+                        <span className="text-right">Total</span>
+                        <span></span>
                       </div>
-                    ))}
-                  </div>
+                      {billItems.map((item, i) => (
+                        <div key={i} className="grid grid-cols-[1fr,80px,70px,85px,40px] gap-2 px-4 py-2 items-center border-t text-sm">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                              {item.type === "service" ? "SVC" : item.type === "injection" ? "INJ" : "MED"}
+                            </Badge>
+                            <span className="truncate">{item.name}</span>
+                          </div>
+                          <span className="text-right text-muted-foreground text-xs">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{item.unitPrice.toFixed(2)}</span>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) => updateItemQuantity(i, Number(e.target.value))}
+                            className="h-7 text-center text-xs"
+                            data-testid={`input-bill-qty-${i}`}
+                          />
+                          <span className="text-right font-semibold text-emerald-600 dark:text-emerald-400 text-xs">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{item.total.toFixed(2)}</span>
+                          <Button variant="ghost" size="icon" onClick={() => removeItem(i)} data-testid={`button-remove-item-${i}`}>
+                            <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                          </Button>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
-                    <Label>{t("billing.discount")}</Label>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Tag className="h-4 w-4 text-amber-500" />
+                      <Label className="text-sm font-semibold">{t("billing.discount")}</Label>
+                    </div>
                     <div className="flex gap-1">
                       <Input
                         type="number"
@@ -880,51 +934,61 @@ export default function BillingPage() {
                       </Button>
                     </div>
                   </div>
-                  <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
-                    <Label>{t("billing.paymentMethod")}</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-4 w-4 text-violet-500" />
+                      <Label className="text-sm font-semibold">{t("billing.paymentMethod")}</Label>
+                    </div>
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                       <SelectTrigger data-testid="select-payment-method"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {PAYMENT_METHODS.map(pm => (
-                          <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
+                          <SelectItem key={pm.value} value={pm.value}>
+                            <div className="flex items-center gap-2">
+                              <pm.icon className="h-3.5 w-3.5" />
+                              <span>{pm.label}</span>
+                            </div>
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-gradient-to-r from-blue-500/5 to-violet-500/5 dark:from-blue-500/10 dark:to-violet-500/10 p-4 sm:p-5 space-y-2 border border-blue-500/20">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t("common.subtotal")}</span>
-                    <span className="text-emerald-600 dark:text-emerald-400">{formatDualCurrency(subtotal, settings)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {t("billing.discount")}{discountType === "percentage" ? ` (${discountValue}%)` : ""}
-                    </span>
-                    <span className="text-red-500">-{formatDualCurrency(discountAmount, settings)}</span>
-                  </div>
-                  <Separator />
-                  {(() => {
-                    const { primaryStr, secondaryStr } = getCurrencyParts(total, settings);
-                    return (
-                      <>
-                        <div className="flex justify-between font-bold text-base text-emerald-700 dark:text-emerald-400">
-                          <span>{t("billing.grandTotal")}</span>
-                          <span>{primaryStr}</span>
-                        </div>
-                        {secondaryStr && (
-                          <div className="flex justify-between font-bold text-base text-emerald-700 dark:text-emerald-400">
-                            <span>{t("billing.grandTotal")}</span>
-                            <span>{secondaryStr}</span>
+                <Card className="bg-muted/30 border-border/50">
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{t("common.subtotal")}</span>
+                      <span className="font-medium">{formatDualCurrency(subtotal, settings)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {t("billing.discount")}{discountType === "percentage" ? ` (${discountValue}%)` : ""}
+                      </span>
+                      <span className="text-red-500 font-medium">-{formatDualCurrency(discountAmount, settings)}</span>
+                    </div>
+                    <Separator />
+                    {(() => {
+                      const { primaryStr, secondaryStr } = getCurrencyParts(total, settings);
+                      return (
+                        <>
+                          <div className="flex justify-between items-center pt-1">
+                            <span className="text-base font-bold">{t("billing.grandTotal")}</span>
+                            <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{primaryStr}</span>
                           </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
+                          {secondaryStr && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-muted-foreground">{t("billing.grandTotal")}</span>
+                              <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">{secondaryStr}</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <Button
                     onClick={() => { setBillAction("create"); handleCreateBill(); }}
                     disabled={createBillMutation.isPending}
@@ -1039,7 +1103,7 @@ export default function BillingPage() {
         </div>
 
         {/* Date Filter Bar */}
-        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} dateRange={dateRange} />
+        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} monthYear={monthYear} setMonthYear={setMonthYear} dateRange={dateRange} />
 
         {/* Bills Table */}
         <Card>

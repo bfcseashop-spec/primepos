@@ -71,6 +71,19 @@ export const insertServiceSchema = createInsertSchema(services).omit({ id: true 
 export type InsertService = z.infer<typeof insertServiceSchema>;
 export type Service = typeof services.$inferSelect;
 
+export const injections = pgTable("injections", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const insertInjectionSchema = createInsertSchema(injections).omit({ id: true } as any);
+export type InsertInjection = z.infer<typeof insertInjectionSchema>;
+export type Injection = typeof injections.$inferSelect;
+
 export const medicines = pgTable("medicines", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   name: text("name").notNull(),
@@ -250,6 +263,7 @@ export const contributions = pgTable("contributions", {
   date: date("date").notNull(),
   category: text("category"),
   paymentSlip: text("payment_slip"),
+  images: text("images").array(),
   note: text("note"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -496,7 +510,7 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 
 export type BillItem = {
   name: string;
-  type: "service" | "medicine";
+  type: "service" | "medicine" | "injection";
   quantity: number;
   unitPrice: number;
   total: number;

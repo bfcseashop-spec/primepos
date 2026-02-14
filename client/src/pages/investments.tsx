@@ -10,12 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile } from "@/lib/queryClient";
 import {
   Plus, DollarSign, X, Tag, Trash2, Eye, Pencil, Printer,
   MoreHorizontal, Users, Wallet, AlertTriangle, CheckCircle2, CreditCard,
   TrendingUp, ArrowDownRight, ArrowUpRight, CircleDollarSign, PiggyBank, Receipt, ChevronUp,
-  Upload, ImageIcon
+  Upload, ImageIcon, Download, FileSpreadsheet
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -80,16 +80,19 @@ export default function InvestmentsPage() {
   const [deleteInvestorConfirm, setDeleteInvestorConfirm] = useState<number | null>(null);
 
   const [contributionDialogOpen, setContributionDialogOpen] = useState(false);
-  const [contributionForm, setContributionForm] = useState({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", note: "" });
+  const [contributionForm, setContributionForm] = useState({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", images: [] as string[], note: "" });
   const [uploadingSlip, setUploadingSlip] = useState(false);
   const [contributionFilter, setContributionFilter] = useState("all");
   const [editContribution, setEditContribution] = useState<Contribution | null>(null);
+  const [viewContribution, setViewContribution] = useState<Contribution | null>(null);
   const [deleteContributionConfirm, setDeleteContributionConfirm] = useState<number | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [capitalDialogOpen, setCapitalDialogOpen] = useState(false);
   const [capitalEditTarget, setCapitalEditTarget] = useState<{ investmentId: number; investorIdx: number } | null>(null);
-  const [capitalForm, setCapitalForm] = useState({ investmentId: 0, investorName: "", sharePercentage: 0 });
+  const [capitalForm, setCapitalForm] = useState({ investmentId: 0, investorName: "", sharePercentage: 0, capitalAmount: "" });
   const [deleteCapitalConfirm, setDeleteCapitalConfirm] = useState<{ investmentId: number; investorIdx: number; investorName: string } | null>(null);
+  const [editTotalCapitalOpen, setEditTotalCapitalOpen] = useState(false);
+  const [editCapitalAmounts, setEditCapitalAmounts] = useState<{ id: number; title: string; amount: string }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = useCallback(() => {
@@ -189,7 +192,7 @@ export default function InvestmentsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/investors"] });
-      setInvestorForm({ name: "", email: "", phone: "", notes: "" });
+      setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" });
       setEditingInvestor(null);
       toast({ title: "Investor added" });
     },
@@ -226,7 +229,7 @@ export default function InvestmentsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
       setContributionDialogOpen(false);
-      setContributionForm({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", note: "" });
+      setContributionForm({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", images: [], note: "" });
       toast({ title: "Contribution recorded" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -278,9 +281,9 @@ export default function InvestmentsPage() {
       category: form.get("category"),
       amount: amountStr,
       returnAmount: form.get("returnAmount") || "0",
-      investorName: investorsList.length === 0 ? null : null,
+      investorName: null,
       paymentMethod: createPaymentMethod || "cash",
-      investors: investorsList.length > 0 ? investorsList : undefined,
+      investors: investorsList,
       status: "active",
       startDate: form.get("startDate"),
       endDate: form.get("endDate") || null,
@@ -292,8 +295,8 @@ export default function InvestmentsPage() {
     e.preventDefault();
     if (!editInvestment) return;
     const total = Number(editForm.amount) || 0;
-    const withSelection = editForm.investors.filter((i) => i.investorId != null || i.name.trim() !== "");
-    const investorsList = normalizeInvestors(total, withSelection.length > 0 ? withSelection : editForm.investors);
+    const withSelection = editForm.investors.filter((i: any) => i.investorId != null || i.name.trim() !== "");
+    const investorsList2 = normalizeInvestors(total, withSelection.length > 0 ? withSelection : editForm.investors);
     updateMutation.mutate({
       id: editInvestment.id,
       data: {
@@ -301,9 +304,9 @@ export default function InvestmentsPage() {
         category: editForm.category,
         amount: editForm.amount,
         returnAmount: editForm.returnAmount || "0",
-        investorName: investorsList.length === 0 ? editForm.investorName || null : null,
+        investorName: investorsList2.length === 0 ? editForm.investorName || null : null,
         paymentMethod: editForm.paymentMethod || "cash",
-        investors: investorsList.length > 0 ? investorsList : undefined,
+        investors: investorsList2.length > 0 ? investorsList2 : undefined,
         status: editForm.status || "active",
         startDate: editForm.startDate,
         endDate: editForm.endDate || null,
@@ -314,10 +317,12 @@ export default function InvestmentsPage() {
 
   const openCapitalDialog = (investmentId?: number) => {
     setCapitalEditTarget(null);
+    const invId = investmentId || (investments.length > 0 ? investments[0].id : 0);
     setCapitalForm({
-      investmentId: investmentId || (investments.length > 0 ? investments[0].id : 0),
+      investmentId: invId,
       investorName: "",
       sharePercentage: 0,
+      capitalAmount: "",
     });
     setCapitalDialogOpen(true);
   };
@@ -328,11 +333,14 @@ export default function InvestmentsPage() {
     const invInvestors = ((inv as any).investors ?? []) as InvestmentInvestor[];
     const investor = invInvestors[investorIdx];
     if (!investor) return;
+    const total = Number(inv.amount) || 0;
+    const amt = ((total * investor.sharePercentage) / 100).toFixed(2);
     setCapitalEditTarget({ investmentId, investorIdx });
     setCapitalForm({
       investmentId,
       investorName: investor.name,
       sharePercentage: investor.sharePercentage,
+      capitalAmount: amt,
     });
     setCapitalDialogOpen(true);
   };
@@ -539,6 +547,7 @@ export default function InvestmentsPage() {
       date: new Date().toISOString().split("T")[0],
       category: "",
       paymentSlip: "",
+      images: [],
       note: "",
     });
     setContributionDialogOpen(true);
@@ -557,6 +566,7 @@ export default function InvestmentsPage() {
       date: contributionForm.date,
       category: contributionForm.category || null,
       paymentSlip: contributionForm.paymentSlip || null,
+      images: contributionForm.images.length > 0 ? contributionForm.images : null,
       note: contributionForm.note || null,
     });
   };
@@ -572,12 +582,13 @@ export default function InvestmentsPage() {
         date: (editContribution as any)._editDate ?? editContribution.date,
         category: (editContribution as any)._editCategory ?? editContribution.category,
         paymentSlip: (editContribution as any)._editPaymentSlip ?? editContribution.paymentSlip,
+        images: (editContribution as any)._editImages ?? editContribution.images,
         note: (editContribution as any)._editNote ?? editContribution.note,
       },
     });
   };
 
-  const handleSlipUpload = useCallback(async (file: File, target: "create" | "edit") => {
+  const handleSlipUpload = useCallback(async (file: File, target: "create" | "edit" | "create-multi" | "edit-multi") => {
     setUploadingSlip(true);
     try {
       const formData = new FormData();
@@ -587,6 +598,10 @@ export default function InvestmentsPage() {
       const { url } = await res.json();
       if (target === "create") {
         setContributionForm(f => ({ ...f, paymentSlip: url }));
+      } else if (target === "create-multi") {
+        setContributionForm(f => ({ ...f, images: [...f.images, url] }));
+      } else if (target === "edit-multi") {
+        setEditContribution(prev => prev ? { ...prev, _editImages: [...((prev as any)._editImages ?? prev.images ?? []), url] } as any : null);
       } else {
         setEditContribution(prev => prev ? { ...prev, _editPaymentSlip: url } as any : null);
       }
@@ -596,6 +611,38 @@ export default function InvestmentsPage() {
       setUploadingSlip(false);
     }
   }, [toast]);
+
+  const handleExportContributions = async () => {
+    try {
+      await downloadFile("/api/contributions/export/xlsx", "contributions.xlsx");
+      toast({ title: "Export started" });
+    } catch (err: any) {
+      toast({ title: err.message || "Export failed", variant: "destructive" });
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      await downloadFile("/api/contributions/sample-template", "contribution_import_template.xlsx");
+      toast({ title: "Template download started" });
+    } catch (err: any) {
+      toast({ title: err.message || "Download failed", variant: "destructive" });
+    }
+  };
+
+  const handleImportContributions = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/contributions/import", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Import failed");
+      const result = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+      toast({ title: result.message || `Imported ${result.count} contributions` });
+    } catch (err: any) {
+      toast({ title: err.message || "Import failed", variant: "destructive" });
+    }
+  };
 
   const investorsForSelectedInvestment = useMemo(() => {
     const inv = investments.find(i => i.id === contributionForm.investmentId);
@@ -612,7 +659,7 @@ export default function InvestmentsPage() {
         description="Track investments, investor shares, contributions, and remaining dues"
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-<Button variant="outline" onClick={() => { setInvestorsDialogOpen(true); setEditingInvestor(null); setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" }); }} data-testid="button-manage-investors">
+          <Button variant="outline" onClick={() => { setInvestorsDialogOpen(true); setEditingInvestor(null); setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" }); }} data-testid="button-manage-investors">
             <Users className="h-4 w-4 mr-1" /> Manage Investors
           </Button>
           <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
@@ -674,7 +721,7 @@ export default function InvestmentsPage() {
                       <Input type="number" min={0} max={100} step={0.5} placeholder="Share %" value={investorForm.sharePercentage} onChange={(e) => setInvestorForm((f) => ({ ...f, sharePercentage: e.target.value }))} className="w-20" />
                       <span className="text-xs text-muted-foreground">%</span>
                     </div>
-                    <Button type="button" onClick={() => { if (editingInvestor) { updateInvestorMutation.mutate({ id: editingInvestor.id, data: { ...investorForm, sharePercentage: investorForm.sharePercentage || "100" } }); setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" }); setEditingInvestor(null); } else { createInvestorMutation.mutate({ ...investorForm, sharePercentage: investorForm.sharePercentage || "100" }); setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" }); } }} disabled={!investorForm.name.trim()} data-testid="button-save-investor">
+                    <Button type="button" onClick={() => { const { sharePercentage: sp, ...rest } = investorForm; if (editingInvestor) { updateInvestorMutation.mutate({ id: editingInvestor.id, data: rest }); setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" }); setEditingInvestor(null); } else { createInvestorMutation.mutate(rest); setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" }); } }} disabled={!investorForm.name.trim()} data-testid="button-save-investor">
                       {editingInvestor ? "Update" : "Add"}
                     </Button>
                     {editingInvestor && <Button type="button" variant="ghost" onClick={() => { setEditingInvestor(null); setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" }); }}>Cancel</Button>}
@@ -716,7 +763,7 @@ export default function InvestmentsPage() {
               <form onSubmit={handleCreate} className="space-y-3">
                 <div>
                   <Label>{t("investments.investorName")} *</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Select investors from the list. Share % is set in Manage Investors. Amounts calculated from total below.</p>
+                  <p className="text-xs text-muted-foreground mb-2">Select investors and adjust share %. Amounts calculated from total below.</p>
                   <div className="space-y-2 border rounded-md p-3 bg-muted/30">
                     {createInvestors.map((inv, idx) => {
                       const total = Number(createAmount) || 0;
@@ -739,25 +786,41 @@ export default function InvestmentsPage() {
                               }
                             }}
                           >
-                            <SelectTrigger className="flex-1 min-w-[160px]" data-testid={`select-investor-${idx}`}>
+                            <SelectTrigger className="flex-1 min-w-[120px]" data-testid={`select-investor-${idx}`}>
                               <SelectValue placeholder="Select investor" />
                             </SelectTrigger>
                             <SelectContent>
                               {investorsList.map((i) => (
                                 <SelectItem key={i.id} value={String(i.id)} disabled={selectedIds.includes(i.id) && createInvestors[idx].investorId !== i.id}>
-                                  {i.name} ({(i as Investor & { sharePercentage?: string }).sharePercentage ?? "100"}%)
+                                  {i.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                           {inv.investorId ? (
-                            <span className="text-sm text-muted-foreground shrink-0">= ${computedAmount}</span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={0.01}
+                                value={inv.sharePercentage}
+                                onChange={(e) => {
+                                  const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                                  setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { ...p, sharePercentage: val } : p));
+                                }}
+                                className="w-16 text-center"
+                                data-testid={`input-investor-pct-${idx}`}
+                              />
+                              <span className="text-xs text-muted-foreground">%</span>
+                              <span className="text-sm text-muted-foreground ml-1">= ${computedAmount}</span>
+                            </div>
                           ) : null}
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="shrink-0 h-8 w-8"
+                            className="shrink-0"
                             onClick={() => setCreateInvestors((prev) => prev.filter((_, i) => i !== idx))}
                             disabled={createInvestors.length <= 1}
                             data-testid={`button-remove-investor-${idx}`}
@@ -849,6 +912,9 @@ export default function InvestmentsPage() {
               </form>
             </DialogContent>
           </Dialog>
+          <Button variant="outline" onClick={() => openContributionDialog()} data-testid="button-record-contribution">
+            <CreditCard className="h-4 w-4 mr-1" /> Record Contribution
+          </Button>
           </div>
         }
       />
@@ -856,13 +922,20 @@ export default function InvestmentsPage() {
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto scroll-smooth p-4 space-y-5 relative">
         {/* Top KPI Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card data-testid="stat-total-capital">
+          <Card
+            className="cursor-pointer hover-elevate"
+            onClick={() => {
+              setEditCapitalAmounts(investments.map(inv => ({ id: inv.id, title: inv.title, amount: String(inv.amount) })));
+              setEditTotalCapitalOpen(true);
+            }}
+            data-testid="stat-total-capital"
+          >
             <CardContent className="p-4">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-500/10 shrink-0">
                   <PiggyBank className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
                 </div>
-                <TrendingUp className="h-4 w-4 text-blue-500/40" />
+                <Pencil className="h-3.5 w-3.5 text-blue-500/40" />
               </div>
               <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total Capital</p>
               <p className="text-xl font-bold mt-0.5" data-testid="text-total-capital">${fmt(totalInvestment)}</p>
@@ -1039,6 +1112,27 @@ export default function InvestmentsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" data-testid="button-export-contributions">
+                    <Download className="h-3.5 w-3.5 mr-1" /> Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportContributions} className="gap-2" data-testid="button-export-xlsx">
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-500" /> Export Excel (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDownloadTemplate} className="gap-2" data-testid="button-download-template">
+                    <Download className="h-4 w-4 text-blue-500" /> Sample Template (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="gap-2" data-testid="button-import-xlsx">
+                    <label className="cursor-pointer flex items-center gap-2">
+                      <Upload className="h-4 w-4 text-violet-500" /> Import Excel (.xlsx)
+                      <input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportContributions(f); e.target.value = ""; }} />
+                    </label>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button size="sm" onClick={() => openContributionDialog()} data-testid="button-add-contribution">
                 <Plus className="h-3.5 w-3.5 mr-1" /> Add
               </Button>
@@ -1079,10 +1173,10 @@ export default function InvestmentsPage() {
                           </td>
                           <td className="text-right p-2.5 text-emerald-600 dark:text-emerald-400 font-medium">${fmt(Number(c.amount))}</td>
                           <td className="p-2.5 text-center">
-                            {c.paymentSlip ? (
-                              <a href={c.paymentSlip} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs hover:underline" data-testid={`link-slip-${c.id}`}>
-                                <ImageIcon className="h-3.5 w-3.5" /> View
-                              </a>
+                            {(c.images && c.images.length > 0) || c.paymentSlip ? (
+                              <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs">
+                                <ImageIcon className="h-3.5 w-3.5" /> {(c.images?.length || 0) + (c.paymentSlip ? 1 : 0)}
+                              </span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -1096,7 +1190,10 @@ export default function InvestmentsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editNote: c.note || "" } as any)} className="gap-2">
+                                <DropdownMenuItem onClick={() => setViewContribution(c)} className="gap-2">
+                                  <Eye className="h-4 w-4 text-blue-500" /> View
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editImages: c.images || [], _editNote: c.note || "" } as any)} className="gap-2">
                                   <Pencil className="h-4 w-4 text-amber-500" /> Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setDeleteContributionConfirm(c.id)} className="text-red-600 gap-2">
@@ -1155,7 +1252,7 @@ export default function InvestmentsPage() {
                 >
                   {editingInvestor ? "Update" : "Add"}
                 </Button>
-                {editingInvestor && <Button type="button" variant="ghost" onClick={() => { setEditingInvestor(null); setInvestorForm({ name: "", email: "", phone: "", notes: "" }); }}>Cancel</Button>}
+                {editingInvestor && <Button type="button" variant="ghost" onClick={() => { setEditingInvestor(null); setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" }); }}>Cancel</Button>}
               </div>
               <Input placeholder="Notes" value={investorForm.notes} onChange={(e) => setInvestorForm((f) => ({ ...f, notes: e.target.value }))} className="mt-2" />
             </div>
@@ -1169,7 +1266,7 @@ export default function InvestmentsPage() {
                       {(inv.email || inv.phone) && <span className="text-xs text-muted-foreground ml-2">{inv.email || inv.phone}</span>}
                     </div>
                     <div className="flex gap-1">
-                      <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingInvestor(inv); setInvestorForm({ name: inv.name, email: inv.email || "", phone: inv.phone || "", notes: inv.notes || "" }); }}>Edit</Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingInvestor(inv); setInvestorForm({ name: inv.name, email: inv.email || "", phone: inv.phone || "", notes: inv.notes || "", sharePercentage: (inv as any).sharePercentage ?? "100" }); }}>Edit</Button>
                       <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteInvestorConfirm(inv.id)}>Delete</Button>
                     </div>
                   </div>
@@ -1233,22 +1330,21 @@ export default function InvestmentsPage() {
               </div>
             </div>
             <div>
-              <Label>Payment Slip</Label>
-              <div className="flex items-center gap-2 mt-1">
-                {contributionForm.paymentSlip ? (
-                  <div className="relative group">
-                    <img src={contributionForm.paymentSlip} alt="Payment slip" className="h-20 w-20 object-cover rounded-md border" />
-                    <button type="button" className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5" onClick={() => setContributionForm(f => ({ ...f, paymentSlip: "" }))} data-testid="button-remove-create-slip">
+              <Label>Images</Label>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                {contributionForm.images.map((img, idx) => (
+                  <div key={idx} className="relative group">
+                    <img src={img} alt={`Image ${idx + 1}`} className="h-16 w-16 object-cover rounded-md border" />
+                    <button type="button" className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5" onClick={() => setContributionForm(f => ({ ...f, images: f.images.filter((_, i) => i !== idx) }))} data-testid={`button-remove-create-image-${idx}`}>
                       <X className="h-3 w-3" />
                     </button>
                   </div>
-                ) : (
-                  <label className="flex items-center gap-2 cursor-pointer border border-dashed rounded-md px-4 py-2 text-sm text-muted-foreground hover-elevate" data-testid="label-upload-create-slip">
-                    <Upload className="h-4 w-4" />
-                    {uploadingSlip ? "Uploading..." : "Upload Image"}
-                    <input type="file" accept="image/*" className="hidden" disabled={uploadingSlip} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSlipUpload(f, "create"); }} />
-                  </label>
-                )}
+                ))}
+                <label className="flex items-center gap-2 cursor-pointer border border-dashed rounded-md px-3 py-2 text-sm text-muted-foreground hover-elevate" data-testid="label-upload-create-images">
+                  <Upload className="h-4 w-4" />
+                  {uploadingSlip ? "Uploading..." : "Add Image"}
+                  <input type="file" accept="image/*" className="hidden" disabled={uploadingSlip} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSlipUpload(f, "create-multi"); }} />
+                </label>
               </div>
             </div>
             <div>
@@ -1295,22 +1391,21 @@ export default function InvestmentsPage() {
                 </div>
               </div>
               <div>
-                <Label>Payment Slip</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  {((editContribution as any)._editPaymentSlip ?? editContribution.paymentSlip) ? (
-                    <div className="relative group">
-                      <img src={(editContribution as any)._editPaymentSlip ?? editContribution.paymentSlip} alt="Payment slip" className="h-20 w-20 object-cover rounded-md border" />
-                      <button type="button" className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5" onClick={() => setEditContribution({ ...editContribution, _editPaymentSlip: "" } as any)} data-testid="button-remove-edit-slip">
+                <Label>Images</Label>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  {((editContribution as any)._editImages ?? editContribution.images ?? []).map((img: string, idx: number) => (
+                    <div key={idx} className="relative group">
+                      <img src={img} alt={`Image ${idx + 1}`} className="h-16 w-16 object-cover rounded-md border" />
+                      <button type="button" className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5" onClick={() => setEditContribution(prev => prev ? { ...prev, _editImages: ((prev as any)._editImages ?? prev.images ?? []).filter((_: string, i: number) => i !== idx) } as any : null)} data-testid={`button-remove-edit-image-${idx}`}>
                         <X className="h-3 w-3" />
                       </button>
                     </div>
-                  ) : (
-                    <label className="flex items-center gap-2 cursor-pointer border border-dashed rounded-md px-4 py-2 text-sm text-muted-foreground hover-elevate" data-testid="label-upload-edit-slip">
-                      <Upload className="h-4 w-4" />
-                      {uploadingSlip ? "Uploading..." : "Upload Image"}
-                      <input type="file" accept="image/*" className="hidden" disabled={uploadingSlip} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSlipUpload(f, "edit"); }} />
-                    </label>
-                  )}
+                  ))}
+                  <label className="flex items-center gap-2 cursor-pointer border border-dashed rounded-md px-3 py-2 text-sm text-muted-foreground hover-elevate" data-testid="label-upload-edit-images">
+                    <Upload className="h-4 w-4" />
+                    {uploadingSlip ? "Uploading..." : "Add Image"}
+                    <input type="file" accept="image/*" className="hidden" disabled={uploadingSlip} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSlipUpload(f, "edit-multi"); }} />
+                  </label>
                 </div>
               </div>
               <div>
@@ -1322,6 +1417,110 @@ export default function InvestmentsPage() {
               </Button>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Contribution Dialog */}
+      <Dialog open={!!viewContribution} onOpenChange={(open) => { if (!open) setViewContribution(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-blue-500" /> Contribution Details
+            </DialogTitle>
+            <DialogDescription className="sr-only">View contribution details</DialogDescription>
+          </DialogHeader>
+          {viewContribution && (() => {
+            const inv = investments.find(i => i.id === viewContribution.investmentId);
+            const allImages = [
+              ...(viewContribution.paymentSlip ? [viewContribution.paymentSlip] : []),
+              ...(viewContribution.images || []),
+            ];
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Investment</p>
+                    <p className="font-medium">{inv?.title || `#${viewContribution.investmentId}`}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Investor</p>
+                    <p className="font-medium">{viewContribution.investorName}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Amount</p>
+                    <p className="font-medium text-emerald-600 dark:text-emerald-400">${fmt(Number(viewContribution.amount))}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Date</p>
+                    <p className="font-medium">{viewContribution.date}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Category</p>
+                    {viewContribution.category ? (
+                      <Badge variant="secondary" className="text-xs mt-0.5">{viewContribution.category}</Badge>
+                    ) : (
+                      <p className="text-muted-foreground">-</p>
+                    )}
+                  </div>
+                </div>
+                {viewContribution.note && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Note</p>
+                    <p className="text-sm bg-muted/50 rounded-md p-2.5">{viewContribution.note}</p>
+                  </div>
+                )}
+                <div>
+                  <div className="flex items-center justify-between gap-1 mb-2">
+                    <p className="text-xs text-muted-foreground">Images ({allImages.length})</p>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-blue-600 dark:text-blue-400 hover:underline" data-testid="label-view-add-image">
+                      <Plus className="h-3.5 w-3.5" /> Add Image
+                      <input type="file" accept="image/*" className="hidden" disabled={uploadingSlip} onChange={async (e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setUploadingSlip(true);
+                        try {
+                          const formData = new FormData();
+                          formData.append("slip", f);
+                          const res = await fetch("/api/contributions/upload-slip", { method: "POST", body: formData });
+                          if (!res.ok) throw new Error("Upload failed");
+                          const { url } = await res.json();
+                          const currentImages = viewContribution.images || [];
+                          const newImages = [...currentImages, url];
+                          await apiRequest("PATCH", `/api/contributions/${viewContribution.id}`, { images: newImages });
+                          queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+                          setViewContribution({ ...viewContribution, images: newImages });
+                          toast({ title: "Image added successfully" });
+                        } catch {
+                          toast({ title: "Failed to upload image", variant: "destructive" });
+                        } finally {
+                          setUploadingSlip(false);
+                        }
+                      }} />
+                    </label>
+                  </div>
+                  {allImages.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {allImages.map((img, idx) => (
+                        <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="block" data-testid={`link-view-image-${idx}`}>
+                          <img src={img} alt={`Image ${idx + 1}`} className="w-full h-24 object-cover rounded-md border hover:opacity-80 transition-opacity" />
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-md">No images uploaded</p>
+                  )}
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" className="flex-1" onClick={() => { setViewContribution(null); setEditContribution({ ...viewContribution, _editName: viewContribution.investorName, _editAmount: String(viewContribution.amount), _editDate: viewContribution.date, _editCategory: viewContribution.category || "", _editPaymentSlip: viewContribution.paymentSlip || "", _editImages: viewContribution.images || [], _editNote: viewContribution.note || "" } as any); }} data-testid="button-view-to-edit">
+                    <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                  </Button>
+                  <Button variant="outline" onClick={() => setViewContribution(null)} data-testid="button-close-view-contribution">
+                    Close
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
@@ -1510,133 +1709,128 @@ export default function InvestmentsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="edit-startDate">Start Date *</Label>
-                  <Input id="edit-startDate" type="date" required value={editForm.startDate} onChange={e => setEditForm((f: any) => ({ ...f, startDate: e.target.value }))} />
+                  <Input id="edit-startDate" type="date" required value={editForm.startDate} onChange={e => setEditForm((f: any) => ({ ...f, startDate: e.target.value }))} data-testid="input-edit-investment-start" />
                 </div>
                 <div>
                   <Label htmlFor="edit-endDate">Return Date</Label>
-                  <Input id="edit-endDate" type="date" value={editForm.endDate} onChange={e => setEditForm((f: any) => ({ ...f, endDate: e.target.value }))} />
+                  <Input id="edit-endDate" type="date" value={editForm.endDate} onChange={e => setEditForm((f: any) => ({ ...f, endDate: e.target.value }))} data-testid="input-edit-investment-end" />
                 </div>
               </div>
-                <div>
-                  <Label>{t("investments.investorName")}</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Select investors. Share % comes from Manage Investors. Amounts calculated from total.</p>
-                  <div className="space-y-2 border rounded-md p-3 bg-muted/30">
-                    {editForm.investors.map((inv, idx) => {
-                      const total = Number(editForm.amount) || 0;
-                      const selectedSum = editForm.investors.filter((i) => i.investorId != null || i.name.trim()).reduce((s, i) => s + i.sharePercentage, 0);
-                      const scale = selectedSum > 0 ? 100 / selectedSum : 0;
-                      const pct = inv.sharePercentage * scale;
-                      const computedAmount = ((total * pct) / 100).toFixed(2);
-                      const selectedIds = editForm.investors.map((i) => i.investorId).filter(Boolean) as number[];
-                      const isLegacy = !inv.investorId && inv.name.trim() !== "";
-                      return (
-                        <div key={idx} className="flex flex-wrap items-center gap-2">
-                          {inv.investorId != null ? (
-                            <Select
-                              value={String(inv.investorId)}
-                              onValueChange={(v) => {
-                                const num = Number(v);
-                                const invObj = investorsList.find((i) => i.id === num);
-                                if (invObj) {
-                                  const pctVal = Number((invObj as Investor & { sharePercentage?: string }).sharePercentage) || 100;
-                                  setEditForm((f) => ({ ...f, investors: f.investors.map((p, i) => i === idx ? { investorId: invObj.id, name: invObj.name, sharePercentage: pctVal } : p) }));
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="flex-1 min-w-[160px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {investorsList.map((i) => (
-                                  <SelectItem key={i.id} value={String(i.id)} disabled={selectedIds.includes(i.id) && editForm.investors[idx].investorId !== i.id}>
-                                    {i.name} ({(i as Investor & { sharePercentage?: string }).sharePercentage ?? "100"}%)
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : isLegacy ? (
-                            <span className="text-sm font-medium min-w-[160px]">{inv.name} ({(inv.sharePercentage)}%)</span>
-                          ) : (
-                            <Select
-                              value=""
-                              onValueChange={(v) => {
-                                const num = Number(v);
-                                const invObj = investorsList.find((i) => i.id === num);
-                                if (invObj) {
-                                  const pctVal = Number((invObj as Investor & { sharePercentage?: string }).sharePercentage) || 100;
-                                  setEditForm((f) => ({ ...f, investors: f.investors.map((p, i) => i === idx ? { investorId: invObj.id, name: invObj.name, sharePercentage: pctVal } : p) }));
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="flex-1 min-w-[160px]">
-                                <SelectValue placeholder="Select investor" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {investorsList.map((i) => (
-                                  <SelectItem key={i.id} value={String(i.id)} disabled={selectedIds.includes(i.id)}>
-                                    {i.name} ({(i as Investor & { sharePercentage?: string }).sharePercentage ?? "100"}%)
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                          <span className="text-sm text-muted-foreground shrink-0">= ${computedAmount}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="shrink-0 h-8 w-8"
-                            onClick={() => setEditForm((f) => ({ ...f, investors: f.investors.filter((_, i) => i !== idx) }))}
-                            disabled={editForm.investors.length <= 1}
+              <div>
+                <Label>{t("investments.investorName")}</Label>
+                <p className="text-xs text-muted-foreground mb-2">Select investors. Share % comes from Manage Investors. Amounts calculated from total.</p>
+                <div className="space-y-2 border rounded-md p-3 bg-muted/30">
+                  {editForm.investors.map((inv: any, idx: number) => {
+                    const total = Number(editForm.amount) || 0;
+                    const selectedSum = editForm.investors.filter((i: any) => i.investorId != null || i.name.trim()).reduce((s: number, i: any) => s + i.sharePercentage, 0);
+                    const scale = selectedSum > 0 ? 100 / selectedSum : 0;
+                    const pct = inv.sharePercentage * scale;
+                    const computedAmount = ((total * pct) / 100).toFixed(2);
+                    const selectedIds = editForm.investors.map((i: any) => i.investorId).filter(Boolean) as number[];
+                    const isLegacy = !inv.investorId && inv.name.trim() !== "";
+                    return (
+                      <div key={idx} className="flex flex-wrap items-center gap-2">
+                        {inv.investorId != null ? (
+                          <Select
+                            value={String(inv.investorId)}
+                            onValueChange={(v) => {
+                              const num = Number(v);
+                              const invObj = investorsList.find((i) => i.id === num);
+                              if (invObj) {
+                                const pctVal = Number((invObj as Investor & { sharePercentage?: string }).sharePercentage) || 100;
+                                setEditForm((f: any) => ({ ...f, investors: f.investors.map((p: any, i: number) => i === idx ? { investorId: invObj.id, name: invObj.name, sharePercentage: pctVal } : p) }));
+                              }
+                            }}
                           >
-                            <X className="h-4 w-4" />
-                          </Button>
+                            <SelectTrigger className="flex-1 min-w-[120px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {investorsList.map((i) => (
+                                <SelectItem key={i.id} value={String(i.id)} disabled={selectedIds.includes(i.id) && editForm.investors[idx].investorId !== i.id}>
+                                  {i.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : isLegacy ? (
+                          <span className="text-sm font-medium min-w-[120px]">{inv.name}</span>
+                        ) : (
+                          <Select
+                            value=""
+                            onValueChange={(v) => {
+                              const num = Number(v);
+                              const invObj = investorsList.find((i) => i.id === num);
+                              if (invObj) {
+                                const pctVal = Number((invObj as Investor & { sharePercentage?: string }).sharePercentage) || 100;
+                                setEditForm((f: any) => ({ ...f, investors: f.investors.map((p: any, i: number) => i === idx ? { investorId: invObj.id, name: invObj.name, sharePercentage: pctVal } : p) }));
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="flex-1 min-w-[120px]">
+                              <SelectValue placeholder="Select investor" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {investorsList.map((i) => (
+                                <SelectItem key={i.id} value={String(i.id)} disabled={selectedIds.includes(i.id)}>
+                                  {i.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.01}
+                            value={inv.sharePercentage}
+                            onChange={(e) => {
+                              const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                              setEditForm((f: any) => ({ ...f, investors: f.investors.map((p: any, i: number) => i === idx ? { ...p, sharePercentage: val } : p) }));
+                            }}
+                            className="w-16 text-center"
+                            data-testid={`input-edit-investor-pct-${idx}`}
+                          />
+                          <span className="text-xs text-muted-foreground">%</span>
+                          <span className="text-sm text-muted-foreground ml-1">= ${computedAmount}</span>
                         </div>
-                      );
-                    })}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditForm((f) => ({ ...f, investors: [...f.investors, { investorId: undefined, name: "", sharePercentage: 0 }] }))}
-                      disabled={investorsList.length === 0}
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" /> Add investor
-                    </Button>
-                  </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0"
+                          onClick={() => setEditForm((f: any) => ({ ...f, investors: f.investors.filter((_: any, i: number) => i !== idx) }))}
+                          disabled={editForm.investors.length <= 1}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditForm((f: any) => ({ ...f, investors: [...f.investors, { investorId: undefined, name: "", sharePercentage: 0 }] }))}
+                    disabled={investorsList.length === 0}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add investor
+                  </Button>
                 </div>
-                <div>
-                  <Label>{t("common.status")}</Label>
-                  <Select value={editForm.status} onValueChange={v => setEditForm(f => ({ ...f, status: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">active</SelectItem>
-                      <SelectItem value="completed">completed</SelectItem>
-                      <SelectItem value="pending">pending</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="edit-startDate">{t("common.date")} *</Label>
-                    <Input id="edit-startDate" type="date" required value={editForm.startDate} onChange={e => setEditForm(f => ({ ...f, startDate: e.target.value }))} data-testid="input-edit-investment-start" />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-endDate">{t("investments.returnDate")}</Label>
-                    <Input id="edit-endDate" type="date" value={editForm.endDate} onChange={e => setEditForm(f => ({ ...f, endDate: e.target.value }))} data-testid="input-edit-investment-end" />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="edit-notes">{t("common.notes")}</Label>
-                  <Textarea id="edit-notes" rows={2} value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} data-testid="input-edit-investment-notes" />
-                </div>
-                <Button type="submit" className="w-full" disabled={updateMutation.isPending} data-testid="button-update-investment">
-                  {updateMutation.isPending ? "Updating..." : t("common.update")}
-                </Button>
-              </form>
-            )}
-          </DialogContent>
-        </Dialog>
+              </div>
+              <div>
+                <Label htmlFor="edit-notes">Notes</Label>
+                <Textarea id="edit-notes" rows={2} value={editForm.notes} onChange={e => setEditForm((f: any) => ({ ...f, notes: e.target.value }))} data-testid="input-edit-investment-notes" />
+              </div>
+              <Button type="submit" className="w-full" disabled={updateMutation.isPending} data-testid="button-update-investment">
+                {updateMutation.isPending ? "Updating..." : t("common.update")}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Confirm Dialogs */}
       <ConfirmDialog open={deleteConfirm.open} onOpenChange={(open) => setDeleteConfirm({ open })} title="Delete Investment?" description="This action cannot be undone." onConfirm={handleConfirmDelete} />
@@ -1657,7 +1851,13 @@ export default function InvestmentsPage() {
           <form onSubmit={handleCapitalSubmit} className="space-y-3">
             <div>
               <Label>Investment *</Label>
-              <Select value={String(capitalForm.investmentId)} onValueChange={(v) => setCapitalForm(f => ({ ...f, investmentId: Number(v) }))} disabled={!!capitalEditTarget}>
+              <Select value={String(capitalForm.investmentId)} onValueChange={(v) => {
+                const newInvId = Number(v);
+                const inv = investments.find(i => i.id === newInvId);
+                const total = Number(inv?.amount) || 0;
+                const amt = capitalForm.sharePercentage > 0 ? ((total * capitalForm.sharePercentage) / 100).toFixed(2) : "";
+                setCapitalForm(f => ({ ...f, investmentId: newInvId, capitalAmount: amt }));
+              }} disabled={!!capitalEditTarget}>
                 <SelectTrigger data-testid="select-capital-investment"><SelectValue placeholder="Select investment" /></SelectTrigger>
                 <SelectContent>
                   {investments.map(inv => (
@@ -1697,8 +1897,40 @@ export default function InvestmentsPage() {
               )}
             </div>
             <div>
+              <Label>Capital Amount ($) *</Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.01}
+                placeholder="Enter capital amount"
+                value={capitalForm.capitalAmount}
+                onChange={(e) => {
+                  const amt = e.target.value;
+                  const inv = investments.find(i => i.id === capitalForm.investmentId);
+                  const total = Number(inv?.amount) || 0;
+                  const pct = total > 0 ? Math.round((Number(amt) / total) * 10000) / 100 : 0;
+                  setCapitalForm(f => ({ ...f, capitalAmount: amt, sharePercentage: Math.min(100, pct) }));
+                }}
+                data-testid="input-capital-amount"
+              />
+            </div>
+            <div>
               <Label>Share Percentage (%) *</Label>
-              <Input type="number" min={0.01} max={100} step={0.5} value={capitalForm.sharePercentage || ""} onChange={(e) => setCapitalForm(f => ({ ...f, sharePercentage: Number(e.target.value) || 0 }))} data-testid="input-capital-percentage" />
+              <Input
+                type="number"
+                min={0.01}
+                max={100}
+                step={0.5}
+                value={capitalForm.sharePercentage || ""}
+                onChange={(e) => {
+                  const pct = Number(e.target.value) || 0;
+                  const inv = investments.find(i => i.id === capitalForm.investmentId);
+                  const total = Number(inv?.amount) || 0;
+                  const amt = ((total * pct) / 100).toFixed(2);
+                  setCapitalForm(f => ({ ...f, sharePercentage: pct, capitalAmount: amt }));
+                }}
+                data-testid="input-capital-percentage"
+              />
               {capitalForm.investmentId > 0 && capitalForm.sharePercentage > 0 && (() => {
                 const inv = investments.find(i => i.id === capitalForm.investmentId);
                 if (!inv) return null;
@@ -1713,7 +1945,7 @@ export default function InvestmentsPage() {
                 const computedAmount = ((total * normalizedPct) / 100).toFixed(2);
                 return (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Normalized: {normalizedPct}% = <span className="font-medium text-foreground">${fmt(Number(computedAmount))}</span>
+                    After normalization: {normalizedPct}% = <span className="font-medium text-foreground">${fmt(Number(computedAmount))}</span>
                   </p>
                 );
               })()}
@@ -1722,6 +1954,61 @@ export default function InvestmentsPage() {
               {updateMutation.isPending ? "Saving..." : capitalEditTarget ? "Update Capital" : "Add Capital"}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Total Capital Dialog */}
+      <Dialog open={editTotalCapitalOpen} onOpenChange={setEditTotalCapitalOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-blue-500" /> Edit Capital
+            </DialogTitle>
+            <DialogDescription className="sr-only">Edit investment capital amounts</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {editCapitalAmounts.map((item, idx) => (
+              <div key={item.id}>
+                <Label className="text-xs text-muted-foreground">{item.title}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={item.amount}
+                  onChange={(e) => {
+                    setEditCapitalAmounts(prev => prev.map((p, i) => i === idx ? { ...p, amount: e.target.value } : p));
+                  }}
+                  data-testid={`input-edit-capital-${item.id}`}
+                />
+              </div>
+            ))}
+            <div className="pt-2 border-t flex items-center justify-between gap-2">
+              <span className="text-sm font-medium">Total Capital</span>
+              <span className="text-sm font-bold">${fmt(editCapitalAmounts.reduce((s, i) => s + (Number(i.amount) || 0), 0))}</span>
+            </div>
+            <Button
+              className="w-full"
+              disabled={updateMutation.isPending}
+              onClick={() => {
+                let pending = editCapitalAmounts.length;
+                editCapitalAmounts.forEach((item) => {
+                  const inv = investments.find(i => i.id === item.id);
+                  if (!inv) { pending--; return; }
+                  const oldTotal = Number(inv.amount) || 0;
+                  const newTotal = Number(item.amount) || 0;
+                  if (oldTotal === newTotal) { pending--; if (pending === 0) { setEditTotalCapitalOpen(false); toast({ title: "Capital updated" }); } return; }
+                  const currentInvestors = [...((inv as any).investors ?? [])] as { investorId?: number; name: string; sharePercentage: number }[];
+                  const normalized = normalizeInvestors(newTotal, currentInvestors);
+                  updateMutation.mutate({ id: item.id, data: { amount: item.amount, investors: normalized } }, {
+                    onSuccess: () => { pending--; if (pending === 0) { setEditTotalCapitalOpen(false); toast({ title: "Capital updated" }); } },
+                  });
+                });
+              }}
+              data-testid="button-save-total-capital"
+            >
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

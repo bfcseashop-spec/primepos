@@ -179,7 +179,7 @@ export default function LabTestsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
   const [deleteBulkConfirm, setDeleteBulkConfirm] = useState(false);
-  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
 
   const { data: labTests = [], isLoading } = useQuery<LabTestWithPatient[]>({
     queryKey: ["/api/lab-tests"],
@@ -812,7 +812,7 @@ export default function LabTestsPage() {
       )}
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} dateRange={dateRange} />
+        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} monthYear={monthYear} setMonthYear={setMonthYear} dateRange={dateRange} />
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { key: "total", label: t("labTests.totalTests"), gradient: "from-blue-500 to-blue-600", value: filtered.length, icon: FlaskConical, testId: "text-total-tests" },

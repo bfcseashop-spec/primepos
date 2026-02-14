@@ -32,7 +32,8 @@ shared/
 1. **Dashboard** - Overview stats, revenue chart, recent visits
 2. **OPD Management** - Patient registration + visit management
 3. **Billing** - Create bills with services/medicines, payment tracking
-4. **Service Management** - Consultation fees, radiology costs, image upload, category management, View/Edit/Delete actions
+4. **Service Management** - Tabbed interface (Services / Injections), consultation fees, radiology costs, image upload, category management, View/Edit/Delete actions
+   - **Injection Management** - Injection catalog with Name, Price, Remarks, CRUD operations, search, stat cards, card view with avatars
 5. **Lab Test Management** - Laboratory test catalog with test name, category, sample type, price, status, CRUD operations, barcode generation, category filter, search
 6. **Medicine Management** - Enhanced inventory with unit types (Box/Pieces/Liter/Jar/Bottle), complex pricing (box price, qty per box, auto-calculated per-med price), dual selling prices (local/foreigner), stock alerts, CRUD operations, category/status filters, search, Print Label & Barcode actions, List/Grid view toggle, category management
 7. **Expense Management** - Track clinic expenses by category
@@ -66,6 +67,8 @@ shared/
 - **Dark Mode**: All colors include dark variants (e.g., dark:text-blue-400)
 
 ## Recent Changes
+- 2026-02-14: Added Injection Management tab to Service Management page with full CRUD (Name, Price, Remarks), card view, search, stat cards, view/edit/delete dialogs
+- 2026-02-14: Added Injection selector to Create Bill dialog, INJ type badge in bill items, updated BillItem type to support "injection"
 - 2026-02-11: Added shared DateFilterBar component (client/src/components/date-filter.tsx) with useDateFilter hook, isDateInRange utility. Periods: All/Today/Yesterday/This Week/Last Week/This Month/Last Month/Custom date range
 - 2026-02-11: Integrated date filtering across 7 pages: Dashboard (revenue chart, recent visits), Billing/POS (bills table, stats), Appointments (cards, stats), Lab Tests (table, stats), Expenses (table, stats), Bank Transactions (transactions, bills), Investments (table, stats)
 - 2026-02-10: Comprehensive colorful redesign across all 18+ pages - vibrant stat cards, colorful status badges, colored action icons, gradient charts, colorful section headers, distinct payment method colors, and polished empty states

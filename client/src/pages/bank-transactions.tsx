@@ -45,7 +45,7 @@ export default function BankTransactionsPage() {
   const [deleteBillsConfirm, setDeleteBillsConfirm] = useState(false);
   const [deleteTxBulkConfirm, setDeleteTxBulkConfirm] = useState(false);
   const [deleteTxConfirm, setDeleteTxConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
-  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
 
   const { data: transactions = [], isLoading } = useQuery<BankTransaction[]>({
     queryKey: ["/api/bank-transactions"],
@@ -329,7 +329,7 @@ export default function BankTransactionsPage() {
       />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} dateRange={dateRange} />
+        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} monthYear={monthYear} setMonthYear={setMonthYear} dateRange={dateRange} />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="bank-summary-stats">
           <Card data-testid="stat-aba-card">

@@ -23,11 +23,11 @@ import {
   Plus, Search, MoreVertical, Eye, Pencil, Trash2, ImagePlus, X,
   FolderPlus, Activity, CheckCircle2, XCircle, DollarSign, Layers,
   RefreshCw, Grid3X3, List, Stethoscope, Tag, FileText,
-  Download, Upload, FileSpreadsheet, FileDown,
+  Download, Upload, FileSpreadsheet, FileDown, Syringe,
 } from "lucide-react";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
-import type { Service } from "@shared/schema";
+import type { Service, Injection } from "@shared/schema";
 
 const DEFAULT_SERVICE_CATEGORIES = [
   "General", "Emergency", "Preventive", "Cardiology", "Therapy",
@@ -75,9 +75,683 @@ const defaultForm = {
   name: "", category: "", price: "", description: "", imageUrl: "",
 };
 
+const injectionAvatarGradients = [
+  "from-cyan-500 to-teal-400",
+  "from-blue-500 to-indigo-400",
+  "from-emerald-500 to-green-400",
+  "from-violet-500 to-purple-400",
+  "from-pink-500 to-rose-400",
+  "from-amber-500 to-orange-400",
+];
+
+const DEFAULT_INJECTION_CATEGORIES = [
+  "General", "Vaccine", "Antibiotic", "Pain Relief", "Vitamin",
+  "Steroid", "Hormonal", "IV Fluid", "Other"
+];
+
+function getInjectionCategories(): string[] {
+  const stored = localStorage.getItem("injection_categories");
+  if (stored) {
+    try { return JSON.parse(stored); } catch { return DEFAULT_INJECTION_CATEGORIES; }
+  }
+  return DEFAULT_INJECTION_CATEGORIES;
+}
+
+function saveInjectionCategories(cats: string[]) {
+  localStorage.setItem("injection_categories", JSON.stringify(cats));
+}
+
+const injCategoryColors: Record<string, { bg: string; text: string; dot: string }> = {
+  General: { bg: "bg-blue-500/10", text: "text-blue-700 dark:text-blue-300", dot: "bg-blue-500" },
+  Vaccine: { bg: "bg-emerald-500/10", text: "text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500" },
+  Antibiotic: { bg: "bg-amber-500/10", text: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500" },
+  "Pain Relief": { bg: "bg-red-500/10", text: "text-red-700 dark:text-red-300", dot: "bg-red-500" },
+  Vitamin: { bg: "bg-green-500/10", text: "text-green-700 dark:text-green-300", dot: "bg-green-500" },
+  Steroid: { bg: "bg-pink-500/10", text: "text-pink-700 dark:text-pink-300", dot: "bg-pink-500" },
+  Hormonal: { bg: "bg-violet-500/10", text: "text-violet-700 dark:text-violet-300", dot: "bg-violet-500" },
+  "IV Fluid": { bg: "bg-cyan-500/10", text: "text-cyan-700 dark:text-cyan-300", dot: "bg-cyan-500" },
+};
+const defaultInjCatColor = { bg: "bg-indigo-500/10", text: "text-indigo-700 dark:text-indigo-300", dot: "bg-indigo-500" };
+
+const defaultInjForm = { name: "", category: "", price: "", description: "" };
+
+function InjectionManagement() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editInj, setEditInj] = useState<Injection | null>(null);
+  const [viewInj, setViewInj] = useState<Injection | null>(null);
+  const [deleteInj, setDeleteInj] = useState<Injection | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [form, setForm] = useState(defaultInjForm);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const refName = useRef<HTMLInputElement>(null);
+  const refPrice = useRef<HTMLInputElement>(null);
+  const refCategory = useRef<HTMLButtonElement>(null);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [categories, setCategories] = useState<string[]>(getInjectionCategories());
+  const [newCategory, setNewCategory] = useState("");
+  const [injImportDialogOpen, setInjImportDialogOpen] = useState(false);
+  const [injImportFile, setInjImportFile] = useState<File | null>(null);
+  const [injImportResult, setInjImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
+
+  const { data: injections = [], isLoading } = useQuery<Injection[]>({
+    queryKey: ["/api/injections"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/injections", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/injections"] });
+      setDialogOpen(false);
+      setForm(defaultInjForm);
+      toast({ title: "Injection created successfully" });
+    },
+    onError: (err: Error) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/injections/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/injections"] });
+      setEditInj(null);
+      setForm(defaultInjForm);
+      toast({ title: "Injection updated successfully" });
+    },
+    onError: (err: Error) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/injections/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/injections"] });
+      toast({ title: "Injection deleted" });
+      setDeleteInj(null);
+    },
+  });
+
+  const injImportMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/injections/import", { method: "POST", body: formData });
+      if (!res.ok) throw new Error((await res.json()).message || "Import failed");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/injections"] });
+      setInjImportResult(data);
+      toast({ title: `Imported ${data.imported} injection(s)` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Import failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleInjImport = () => {
+    if (injImportFile) injImportMutation.mutate(injImportFile);
+  };
+
+  const handleInjDownloadSample = () => {
+    window.open("/api/injections/sample-template", "_blank");
+  };
+
+  const handleInjExport = () => {
+    window.open("/api/injections/export/xlsx", "_blank");
+  };
+
+  const handleSubmit = () => {
+    const errors: Record<string, string> = {};
+    if (!form.name?.trim()) errors.name = t("common.required");
+    if (!form.category?.trim()) errors.category = t("common.required");
+    if (!form.price || Number(form.price) <= 0) errors.price = t("common.required");
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast({ title: t("common.fillRequired"), variant: "destructive" });
+      const order = ["name", "category", "price"] as const;
+      const firstKey = order.find(k => errors[k]);
+      const refMap = { name: refName, category: refCategory, price: refPrice } as const;
+      if (firstKey) (refMap[firstKey].current as HTMLElement | null)?.focus();
+      return;
+    }
+    const payload = {
+      name: form.name,
+      category: form.category,
+      price: form.price,
+      description: form.description || null,
+      isActive: true,
+    };
+    if (editInj) {
+      updateMutation.mutate({ id: editInj.id, data: payload });
+    } else {
+      createMutation.mutate(payload);
+    }
+  };
+
+  const openEdit = (inj: Injection) => {
+    setFieldErrors({});
+    setForm({
+      name: inj.name,
+      category: inj.category || "",
+      price: inj.price,
+      description: inj.description || "",
+    });
+    setEditInj(inj);
+  };
+
+  const filtered = injections.filter(inj => {
+    const term = searchTerm.toLowerCase();
+    const matchSearch = inj.name.toLowerCase().includes(term) ||
+      (inj.description || "").toLowerCase().includes(term) ||
+      (inj.category || "").toLowerCase().includes(term);
+    const matchCategory = categoryFilter === "all" || inj.category === categoryFilter;
+    return matchSearch && matchCategory;
+  });
+
+  const activeCount = injections.filter(i => i.isActive).length;
+  const totalValue = injections.reduce((sum, i) => sum + parseFloat(i.price || "0"), 0);
+  const uniqueCategories = Array.from(new Set(injections.map(i => i.category).filter(Boolean)));
+  const getInitials = (name: string) => name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
+  const getGradient = (id: number) => injectionAvatarGradients[id % injectionAvatarGradients.length];
+  const getInjCatColor = (cat: string) => injCategoryColors[cat] || defaultInjCatColor;
+
+  const statCards = [
+    { label: "Total Injections", value: injections.length, gradient: "from-cyan-500 to-cyan-600", icon: Syringe },
+    { label: t("common.active"), value: activeCount, gradient: "from-emerald-500 to-emerald-600", icon: CheckCircle2 },
+    { label: t("common.inactive"), value: injections.length - activeCount, gradient: "from-red-500 to-red-600", icon: XCircle },
+    { label: t("services.categories"), value: uniqueCategories.length, gradient: "from-violet-500 to-violet-600", icon: Layers },
+    { label: "Total Value", value: `$${totalValue.toFixed(0)}`, gradient: "from-amber-500 to-amber-600", icon: DollarSign },
+  ];
+
+  const formContent = (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="inj-name">Name *</Label>
+        <Input ref={refName} id="inj-name" value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFieldErrors(prev => ({ ...prev, name: "" })); }} data-testid="input-injection-name" className={fieldErrors.name ? "border-destructive" : ""} />
+        {fieldErrors.name && <p className="text-xs text-destructive mt-1">{fieldErrors.name}</p>}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>{t("common.category")} *</Label>
+          <Select value={form.category} onValueChange={v => { setForm(f => ({ ...f, category: v })); setFieldErrors(prev => ({ ...prev, category: "" })); }}>
+            <SelectTrigger ref={refCategory} data-testid="select-injection-category"><SelectValue placeholder={t("common.category")} /></SelectTrigger>
+            <SelectContent>
+              {categories.map(cat => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {fieldErrors.category && <p className="text-xs text-destructive mt-1">{fieldErrors.category}</p>}
+        </div>
+        <div>
+          <Label htmlFor="inj-price">{t("common.price")} ($) *</Label>
+          <Input ref={refPrice} id="inj-price" type="number" step="0.01" value={form.price} onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setFieldErrors(prev => ({ ...prev, price: "" })); }} data-testid="input-injection-price" className={fieldErrors.price ? "border-destructive" : ""} />
+          {fieldErrors.price && <p className="text-xs text-destructive mt-1">{fieldErrors.price}</p>}
+        </div>
+      </div>
+      <div>
+        <Label htmlFor="inj-remarks">Remarks</Label>
+        <Textarea id="inj-remarks" rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} data-testid="input-injection-remarks" />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4 p-4">
+      <div className="flex items-center justify-end gap-2 flex-wrap">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" data-testid="button-import-injections">
+              <Upload className="h-4 w-4 mr-1" /> Import
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => { setInjImportResult(null); setInjImportFile(null); setInjImportDialogOpen(true); }} data-testid="button-inj-import-file">
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Import from File
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleInjDownloadSample} data-testid="button-inj-download-sample">
+              <FileDown className="h-4 w-4 mr-2" /> Download Sample File
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button variant="outline" onClick={handleInjExport} data-testid="button-export-injections">
+          <Download className="h-4 w-4 mr-1" /> Export
+        </Button>
+        <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" data-testid="button-inj-category-manage">
+              <FolderPlus className="h-4 w-4 mr-1" /> {t("common.category")}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{t("services.manageCategories")}</DialogTitle>
+              <DialogDescription>Add or remove injection categories</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="New category name..."
+                  value={newCategory}
+                  onChange={e => setNewCategory(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && newCategory.trim()) {
+                      if (categories.includes(newCategory.trim())) {
+                        toast({ title: t("common.categoryExists"), variant: "destructive" });
+                        return;
+                      }
+                      const updated = [...categories, newCategory.trim()].sort();
+                      setCategories(updated);
+                      saveInjectionCategories(updated);
+                      setNewCategory("");
+                      toast({ title: t("common.categoryAdded") });
+                    }
+                  }}
+                  data-testid="input-new-inj-category"
+                />
+                <Button
+                  onClick={() => {
+                    if (!newCategory.trim()) return;
+                    if (categories.includes(newCategory.trim())) {
+                      toast({ title: t("common.categoryExists"), variant: "destructive" });
+                      return;
+                    }
+                    const updated = [...categories, newCategory.trim()].sort();
+                    setCategories(updated);
+                    saveInjectionCategories(updated);
+                    setNewCategory("");
+                    toast({ title: t("common.categoryAdded") });
+                  }}
+                  data-testid="button-add-inj-category"
+                >
+                  {t("common.add")}
+                </Button>
+              </div>
+              <div className="max-h-60 overflow-y-auto space-y-1">
+                {categories.map(cat => {
+                  const cc = getInjCatColor(cat);
+                  return (
+                    <div key={cat} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md hover-elevate">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-block h-2 w-2 rounded-full ${cc.dot}`} />
+                        <span className="text-sm">{cat}</span>
+                      </div>
+                      {!DEFAULT_INJECTION_CATEGORIES.includes(cat) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const updated = categories.filter(c => c !== cat);
+                            setCategories(updated);
+                            saveInjectionCategories(updated);
+                            toast({ title: t("common.categoryRemoved") });
+                          }}
+                          data-testid={`button-remove-inj-category-${cat}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setForm(defaultInjForm); setFieldErrors({}); } }}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-new-injection">
+              <Plus className="h-4 w-4 mr-1" /> Add Injection
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Add Injection</DialogTitle>
+              <DialogDescription>Create a new injection item with name, price and remarks.</DialogDescription>
+            </DialogHeader>
+            {formContent}
+            <Button className="w-full" onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-injection">
+              {createMutation.isPending ? t("common.creating") : "Add Injection"}
+            </Button>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {statCards.map((s, i) => (
+          <Card key={i} data-testid={`stat-inj-${i}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br ${s.gradient} shrink-0`}>
+                  <s.icon className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{s.label}</p>
+                  <p className="text-xl font-bold">{s.value}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="w-64">
+                <Input
+                  placeholder="Search injections..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  data-testid="input-search-injections"
+                />
+              </div>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[160px]" data-testid="select-inj-category-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {uniqueCategories.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {t("common.showing")} <span className="font-semibold text-foreground">{filtered.length}</span> {t("common.of")} {injections.length}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-md" />
+                  <div className="space-y-1.5 flex-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+                <Skeleton className="h-3 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
+              <Syringe className="h-8 w-8 text-muted-foreground/50" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">{t("common.noData")}</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Add your first injection to get started</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {filtered.map(inj => {
+            const catColor = getInjCatColor(inj.category);
+            return (<Card key={inj.id} className="overflow-visible hover-elevate" data-testid={`card-injection-${inj.id}`}>
+              <CardContent className="p-0">
+                <div className={`h-1.5 rounded-t-md bg-gradient-to-r ${["from-cyan-500 to-teal-500", "from-blue-500 to-indigo-500", "from-emerald-500 to-green-500", "from-violet-500 to-purple-500"][inj.id % 4]}`} />
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className={`text-xs font-bold bg-gradient-to-br ${getGradient(inj.id)} text-white`}>
+                          {getInitials(inj.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-semibold truncate" data-testid={`text-injection-name-${inj.id}`}>{inj.name}</h4>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] mt-0.5 no-default-hover-elevate no-default-active-elevate ${catColor.bg} ${catColor.text}`}
+                        >
+                          <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${catColor.dot}`} />
+                          {inj.category}
+                        </Badge>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" data-testid={`button-inj-actions-${inj.id}`}>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setViewInj(inj)} className="gap-2" data-testid={`action-view-inj-${inj.id}`}>
+                          <Eye className="h-3.5 w-3.5 text-blue-500" /> View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEdit(inj)} className="gap-2" data-testid={`action-edit-inj-${inj.id}`}>
+                          <Pencil className="h-3.5 w-3.5 text-amber-500" /> {t("common.edit")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setDeleteInj(inj)} className="text-destructive gap-2" data-testid={`action-delete-inj-${inj.id}`}>
+                          <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  {inj.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{inj.description}</p>
+                  )}
+
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/10 shrink-0">
+                        <DollarSign className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
+                      </div>
+                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400" data-testid={`text-injection-price-${inj.id}`}>${inj.price}</span>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${
+                        inj.isActive
+                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+                          : "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20"
+                      }`}
+                    >
+                      <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${inj.isActive ? "bg-emerald-500" : "bg-red-500"}`} />
+                      {inj.isActive ? t("common.active") : t("common.inactive")}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={!!viewInj} onOpenChange={(open) => { if (!open) setViewInj(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle data-testid="text-view-injection-title">Injection Details</DialogTitle>
+            <DialogDescription>View injection information</DialogDescription>
+          </DialogHeader>
+          {viewInj && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-12 w-12">
+                  <AvatarFallback className={`text-sm font-bold bg-gradient-to-br ${getGradient(viewInj.id)} text-white`}>
+                    {getInitials(viewInj.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-semibold">{viewInj.name}</h3>
+                  {(() => { const vc = getInjCatColor(viewInj.category); return (
+                  <Badge variant="outline" className={`text-[10px] mt-1 no-default-hover-elevate no-default-active-elevate ${vc.bg} ${vc.text}`}>
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${vc.dot}`} />
+                    {viewInj.category}
+                  </Badge>
+                  ); })()}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/10 shrink-0">
+                    <DollarSign className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">{t("common.price")}</p>
+                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">${viewInj.price}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-500/10 shrink-0">
+                    <Activity className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">{t("common.status")}</p>
+                    <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${viewInj.isActive ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" : "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20"}`}>
+                      <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${viewInj.isActive ? "bg-emerald-500" : "bg-red-500"}`} />
+                      {viewInj.isActive ? t("common.active") : t("common.inactive")}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              {viewInj.description && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Remarks</p>
+                  </div>
+                  <p className="text-sm bg-muted/50 rounded-md p-2.5">{viewInj.description}</p>
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => { setViewInj(null); openEdit(viewInj); }} data-testid="button-view-to-edit-inj">
+                  <Pencil className="h-4 w-4 mr-1 text-amber-500" /> {t("common.edit")}
+                </Button>
+                <Button variant="outline" onClick={() => setViewInj(null)} data-testid="button-close-view-inj">
+                  {t("common.close")}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editInj} onOpenChange={(open) => { if (!open) { setEditInj(null); setForm(defaultInjForm); setFieldErrors({}); } }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle data-testid="text-edit-injection-title">Edit Injection</DialogTitle>
+            <DialogDescription>Update injection details</DialogDescription>
+          </DialogHeader>
+          {formContent}
+          <Button className="w-full" onClick={handleSubmit} disabled={updateMutation.isPending} data-testid="button-update-injection">
+            {updateMutation.isPending ? t("common.updating") : t("common.update")}
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteInj} onOpenChange={(open) => { if (!open) setDeleteInj(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle data-testid="text-delete-inj-confirm">Delete Injection</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("common.deleteConfirmPrefix")} <span className="font-semibold">{deleteInj?.name}</span>? {t("common.cannotBeUndone")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-inj">{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteInj && deleteMutation.mutate(deleteInj.id)}
+              className="bg-destructive text-destructive-foreground"
+              data-testid="button-confirm-delete-inj"
+            >
+              {deleteMutation.isPending ? t("common.loading") : t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={injImportDialogOpen} onOpenChange={setInjImportDialogOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import Injections</DialogTitle>
+            <DialogDescription>Upload an Excel file with Name and Price columns to import injections.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed rounded-md p-6 text-center">
+              <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground mb-2">Select an Excel file (.xlsx)</p>
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={e => { setInjImportFile(e.target.files?.[0] || null); setInjImportResult(null); }}
+                className="max-w-xs mx-auto"
+                data-testid="input-inj-import-file"
+              />
+              {injImportFile && (
+                <p className="text-sm text-muted-foreground mt-2">{injImportFile.name}</p>
+              )}
+            </div>
+
+            {injImportResult && (
+              <div className="rounded-md border p-3 space-y-2">
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <span className="font-medium">{injImportResult.imported} imported</span>
+                  </div>
+                  {injImportResult.skipped > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <XCircle className="h-4 w-4 text-amber-500" />
+                      <span className="font-medium">{injImportResult.skipped} skipped</span>
+                    </div>
+                  )}
+                </div>
+                {injImportResult.errors.length > 0 && (
+                  <div className="text-xs text-muted-foreground space-y-0.5 max-h-24 overflow-y-auto">
+                    {injImportResult.errors.map((err, i) => (
+                      <p key={i}>{err}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              <Button variant="ghost" size="sm" onClick={handleInjDownloadSample} data-testid="button-inj-download-sample-dialog">
+                <FileDown className="h-4 w-4 mr-1" /> Download Sample File
+              </Button>
+              <Button onClick={handleInjImport} disabled={!injImportFile || injImportMutation.isPending} data-testid="button-submit-inj-import">
+                {injImportMutation.isPending ? "Importing..." : "Import Injections"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export default function ServicesPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<"services" | "injections">("services");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editService, setEditService] = useState<Service | null>(null);
   const [viewService, setViewService] = useState<Service | null>(null);
@@ -704,6 +1378,44 @@ export default function ServicesPage() {
         }
       />
 
+      <div className="border-b px-4">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setActiveTab("services")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "services"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-services"
+          >
+            <div className="flex items-center gap-1.5">
+              <Activity className="h-4 w-4" />
+              Services
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab("injections")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "injections"
+                ? "border-cyan-500 text-cyan-600 dark:text-cyan-400"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-injections"
+          >
+            <div className="flex items-center gap-1.5">
+              <Syringe className="h-4 w-4" />
+              Injections
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {activeTab === "injections" ? (
+        <div className="flex-1 overflow-auto">
+          <InjectionManagement />
+        </div>
+      ) : (
       <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {statCards.map((s, i) => (
@@ -830,6 +1542,7 @@ export default function ServicesPage() {
           </div>
         )}
       </div>
+      )}
 
       <Dialog open={!!viewService} onOpenChange={(open) => { if (!open) setViewService(null); }}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">

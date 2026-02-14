@@ -32,7 +32,7 @@ const CHART_COLORS = [
 export default function Dashboard() {
   const [, navigate] = useLocation();
   const { t } = useTranslation();
-  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
 
   const { data: stats, isLoading } = useQuery<any>({
     queryKey: ["/api/dashboard/stats"],
@@ -103,6 +103,8 @@ export default function Dashboard() {
           setCustomFromDate={setCustomFromDate}
           customToDate={customToDate}
           setCustomToDate={setCustomToDate}
+          monthYear={monthYear}
+          setMonthYear={setMonthYear}
           dateRange={dateRange}
         />
 

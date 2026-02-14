@@ -106,7 +106,7 @@ export default function ExpensesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
   const [deleteBulkConfirm, setDeleteBulkConfirm] = useState(false);
-  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
 
   const allCategories = [...DEFAULT_EXPENSE_CATEGORIES, ...customCategories];
 
@@ -482,7 +482,7 @@ export default function ExpensesPage() {
       />
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} dateRange={dateRange} />
+        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} monthYear={monthYear} setMonthYear={setMonthYear} dateRange={dateRange} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Card data-testid="card-total-expenses">
             <CardContent className="p-4">
