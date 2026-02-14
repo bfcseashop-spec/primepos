@@ -683,21 +683,57 @@ export default function BillingPage() {
               ) : (
 
               <div className="space-y-6">
-                <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
-                  <h3 className="text-sm font-semibold text-foreground">{t("billing.patient")} *</h3>
-                  <SearchableSelect
-                    value={selectedPatient}
-                    onValueChange={setSelectedPatient}
-                    placeholder={t("billing.selectPatient")}
-                    searchPlaceholder="Search patient name or ID..."
-                    emptyText="No patient found."
-                    data-testid="select-bill-patient"
-                    options={patients.map(p => ({
-                      value: String(p.id),
-                      label: `${p.name} (${p.patientId})`,
-                      searchText: `${p.name} ${p.patientId}`,
-                    }))}
-                  />
+                {/* Invoice Date at top right */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+                  <Label className="text-sm font-medium text-muted-foreground sm:order-2">Invoice Date</Label>
+                  <div className="flex items-center gap-2 sm:order-1">
+                    <span className="text-xs text-muted-foreground hidden sm:inline">Auto / Manual</span>
+                    <Input
+                      type="date"
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                      className="w-[160px]"
+                      data-testid="input-payment-date"
+                    />
+                  </div>
+                </div>
+
+                {/* Patient + Doctor/Refer Name in one row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 rounded-xl border bg-card/50 p-4 sm:p-5">
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-foreground">{t("billing.patient")} *</h3>
+                    <SearchableSelect
+                      value={selectedPatient}
+                      onValueChange={setSelectedPatient}
+                      placeholder={t("billing.selectPatient")}
+                      searchPlaceholder="Search patient name or ID..."
+                      emptyText="No patient found."
+                      data-testid="select-bill-patient"
+                      options={patients.map(p => ({
+                        value: String(p.id),
+                        label: `${p.name} (${p.patientId})`,
+                        searchText: `${p.name} ${p.patientId}`,
+                      }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-foreground">Doctor / Refer Name</Label>
+                    <SearchableSelect
+                      value={referenceDoctor}
+                      onValueChange={setReferenceDoctor}
+                      placeholder="Select doctor"
+                      searchPlaceholder="Search doctor..."
+                      emptyText="No doctor found."
+                      data-testid="select-reference-doctor"
+                      options={[
+                        { value: "none", label: "None" },
+                        ...doctorNames.map(name => ({
+                          value: name,
+                          label: name,
+                        })),
+                      ]}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -851,36 +887,6 @@ export default function BillingPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
-                    <Label>{t("dashboard.doctor")} <span className="text-xs text-muted-foreground">(optional)</span></Label>
-                    <SearchableSelect
-                      value={referenceDoctor}
-                      onValueChange={setReferenceDoctor}
-                      placeholder="Select doctor"
-                      searchPlaceholder="Search doctor..."
-                      emptyText="No doctor found."
-                      data-testid="select-reference-doctor"
-                      options={[
-                        { value: "none", label: "None" },
-                        ...doctorNames.map(name => ({
-                          value: name,
-                          label: name,
-                        })),
-                      ]}
-                    />
-                  </div>
-                  <div className="rounded-xl border bg-card/50 p-4 sm:p-5 space-y-4">
-                    <Label>{t("billing.billDate")} <span className="text-xs text-muted-foreground">(optional)</span></Label>
-                    <Input
-                      type="date"
-                      value={paymentDate}
-                      onChange={(e) => setPaymentDate(e.target.value)}
-                      data-testid="input-payment-date"
-                    />
                   </div>
                 </div>
 
