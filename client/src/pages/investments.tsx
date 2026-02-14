@@ -267,15 +267,9 @@ export default function InvestmentsPage() {
     const form = new FormData(e.currentTarget);
     const amountStr = (form.get("amount") as string) || createAmount || "0";
     const total = Number(amountStr) || 0;
-<<<<<<< HEAD
-    const investorsList2 = normalizeInvestors(total, createInvestors);
-    if (investorsList2.length === 0 || !createInvestors.some((i) => i.name.trim())) {
-      toast({ title: "Add at least one investor with a name", variant: "destructive" });
-=======
     const selected = createInvestors.filter((i) => i.investorId != null);
     if (selected.length === 0) {
       toast({ title: "Select at least one investor", variant: "destructive" });
->>>>>>> c38a24e52be22005dc821a1d4d87c6107f788a03
       return;
     }
     const investorsList = normalizeInvestors(total, selected);
@@ -284,9 +278,9 @@ export default function InvestmentsPage() {
       category: form.get("category"),
       amount: amountStr,
       returnAmount: form.get("returnAmount") || "0",
-      investorName: null,
+      investorName: investorsList.length === 0 ? null : null,
       paymentMethod: createPaymentMethod || "cash",
-      investors: investorsList2,
+      investors: investorsList.length > 0 ? investorsList : undefined,
       status: "active",
       startDate: form.get("startDate"),
       endDate: form.get("endDate") || null,
@@ -298,12 +292,8 @@ export default function InvestmentsPage() {
     e.preventDefault();
     if (!editInvestment) return;
     const total = Number(editForm.amount) || 0;
-<<<<<<< HEAD
-    const investorsList2 = normalizeInvestors(total, editForm.investors);
-=======
     const withSelection = editForm.investors.filter((i) => i.investorId != null || i.name.trim() !== "");
     const investorsList = normalizeInvestors(total, withSelection.length > 0 ? withSelection : editForm.investors);
->>>>>>> c38a24e52be22005dc821a1d4d87c6107f788a03
     updateMutation.mutate({
       id: editInvestment.id,
       data: {
@@ -311,9 +301,9 @@ export default function InvestmentsPage() {
         category: editForm.category,
         amount: editForm.amount,
         returnAmount: editForm.returnAmount || "0",
-        investorName: investorsList2.length === 0 ? editForm.investorName || null : null,
+        investorName: investorsList.length === 0 ? editForm.investorName || null : null,
         paymentMethod: editForm.paymentMethod || "cash",
-        investors: investorsList2.length > 0 ? investorsList2 : undefined,
+        investors: investorsList.length > 0 ? investorsList : undefined,
         status: editForm.status || "active",
         startDate: editForm.startDate,
         endDate: editForm.endDate || null,
@@ -622,48 +612,7 @@ export default function InvestmentsPage() {
         description="Track investments, investor shares, contributions, and remaining dues"
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-<<<<<<< HEAD
-            <Button variant="outline" onClick={() => { setInvestorsDialogOpen(true); setEditingInvestor(null); setInvestorForm({ name: "", email: "", phone: "", notes: "" }); }} data-testid="button-manage-investors">
-              <Users className="h-4 w-4 mr-1" /> Manage Investors
-            </Button>
-            <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" data-testid="button-manage-categories">
-                  <Tag className="h-4 w-4 mr-1" /> + {t("common.category")}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>Manage Categories</DialogTitle>
-                  <DialogDescription>Add or remove investment categories</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Input placeholder="New category name..." value={newCategory} onChange={(e) => setNewCategory(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCategory())} data-testid="input-new-category" />
-                    <Button onClick={addCategory} disabled={!newCategory.trim()} data-testid="button-add-category"><Plus className="h-4 w-4" /></Button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
-                    {categories.map(cat => (
-                      <Badge key={cat} variant="secondary" className="gap-1 pr-1" data-testid={`badge-category-${cat}`}>
-                        {cat}
-                        <button type="button" onClick={() => removeCategory(cat)} className="ml-0.5 rounded-full p-0.5 hover-elevate" data-testid={`button-remove-category-${cat}`}>
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <Button variant="outline" onClick={() => openContributionDialog()} data-testid="button-record-contribution">
-              <CreditCard className="h-4 w-4 mr-1" /> Record Contribution
-            </Button>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-new-investment">
-                  <Plus className="h-4 w-4 mr-1" /> {t("investments.addInvestment")}
-=======
-          <Button variant="outline" onClick={() => { setInvestorsDialogOpen(true); setEditingInvestor(null); setInvestorForm({ name: "", email: "", phone: "", notes: "" }); }} data-testid="button-manage-investors">
+<Button variant="outline" onClick={() => { setInvestorsDialogOpen(true); setEditingInvestor(null); setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" }); }} data-testid="button-manage-investors">
             <Users className="h-4 w-4 mr-1" /> Manage Investors
           </Button>
           <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
@@ -896,116 +845,10 @@ export default function InvestmentsPage() {
                 </div>
                 <Button type="submit" className="w-full" disabled={createMutation.isPending} data-testid="button-submit-investment">
                   {createMutation.isPending ? "Recording..." : t("investments.addInvestment")}
->>>>>>> c38a24e52be22005dc821a1d4d87c6107f788a03
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{t("investments.addInvestment")}</DialogTitle>
-                  <DialogDescription className="sr-only">Record a new investment entry</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleCreate} className="space-y-3">
-                  <div>
-                    <Label>Investors / Share % *</Label>
-                    <p className="text-xs text-muted-foreground mb-2">Select investors. Share % auto-normalizes to 100%.</p>
-                    <div className="space-y-2 border rounded-md p-3 bg-muted/30">
-                      {createInvestors.map((inv, idx) => {
-                        const total = Number(createAmount) || 0;
-                        const sum = createInvestors.reduce((s, i) => s + i.sharePercentage, 0);
-                        const scale = sum > 0 ? 100 / sum : 0;
-                        const pct = inv.sharePercentage * scale;
-                        const computedAmount = ((total * pct) / 100).toFixed(2);
-                        return (
-                          <div key={idx} className="flex flex-wrap items-center gap-2">
-                            <Select
-                              value={inv.investorId ? String(inv.investorId) : "__custom__"}
-                              onValueChange={(v) => {
-                                if (v === "__custom__") {
-                                  setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { ...p, investorId: undefined, name: "" } : p));
-                                  return;
-                                }
-                                const invObj = investorsList.find((i) => i.id === Number(v));
-                                if (invObj) setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { investorId: invObj.id, name: invObj.name, sharePercentage: p.sharePercentage } : p));
-                              }}
-                            >
-                              <SelectTrigger className="flex-1 min-w-[140px]" data-testid={`select-investor-${idx}`}>
-                                <SelectValue placeholder="Select investor" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__custom__">Type name below...</SelectItem>
-                                {investorsList.map((i) => (
-                                  <SelectItem key={i.id} value={String(i.id)}>{i.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {!inv.investorId && (
-                              <Input placeholder="Or type name" value={inv.name} onChange={(e) => setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))} className="flex-1 min-w-[100px]" data-testid={`input-investor-name-${idx}`} />
-                            )}
-                            <Input type="number" min={0} max={100} step={0.5} placeholder="%" value={inv.sharePercentage || ""} onChange={(e) => setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { ...p, sharePercentage: Number(e.target.value) || 0 } : p))} className="w-20" data-testid={`input-investor-pct-${idx}`} />
-                            <span className="text-sm text-muted-foreground w-20 shrink-0">= ${computedAmount}</span>
-                            <Button type="button" variant="ghost" size="icon" onClick={() => setCreateInvestors((prev) => prev.filter((_, i) => i !== idx))} disabled={createInvestors.length <= 1} data-testid={`button-remove-investor-${idx}`}>
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        );
-                      })}
-                      <Button type="button" variant="outline" size="sm" onClick={() => setCreateInvestors((prev) => [...prev, { name: "", sharePercentage: 0 }])} data-testid="button-add-investor">
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Add investor
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="amount">{t("common.amount")} ($) *</Label>
-                      <Input id="amount" name="amount" type="number" step="0.01" required value={createAmount} onChange={(e) => setCreateAmount(e.target.value)} data-testid="input-investment-amount" />
-                    </div>
-                    <div>
-                      <Label htmlFor="returnAmount">Expected Return ($)</Label>
-                      <Input id="returnAmount" name="returnAmount" type="number" step="0.01" data-testid="input-investment-return" />
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Pay by</Label>
-                    <Select value={createPaymentMethod} onValueChange={setCreatePaymentMethod}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {PAYMENT_METHODS.map((m) => (<SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="title">Title *</Label>
-                    <Input id="title" name="title" required data-testid="input-investment-title" />
-                  </div>
-                  <div>
-                    <Label>{t("common.category")} *</Label>
-                    <Select name="category" required>
-                      <SelectTrigger data-testid="select-investment-category"><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        {categories.map(cat => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="startDate">{t("common.date")} *</Label>
-                      <Input id="startDate" name="startDate" type="date" required data-testid="input-investment-start" />
-                    </div>
-                    <div>
-                      <Label htmlFor="endDate">Return Date</Label>
-                      <Input id="endDate" name="endDate" type="date" data-testid="input-investment-end" />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="notes">{t("common.notes")}</Label>
-                    <Textarea id="notes" name="notes" rows={2} data-testid="input-investment-notes" />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={createMutation.isPending} data-testid="button-submit-investment">
-                    {createMutation.isPending ? "Recording..." : t("investments.addInvestment")}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+              </form>
+            </DialogContent>
+          </Dialog>
           </div>
         }
       />
@@ -1673,20 +1516,7 @@ export default function InvestmentsPage() {
                   <Label htmlFor="edit-endDate">Return Date</Label>
                   <Input id="edit-endDate" type="date" value={editForm.endDate} onChange={e => setEditForm((f: any) => ({ ...f, endDate: e.target.value }))} />
                 </div>
-<<<<<<< HEAD
               </div>
-              <div>
-                <Label htmlFor="edit-notes">Notes</Label>
-                <Textarea id="edit-notes" rows={2} value={editForm.notes} onChange={e => setEditForm((f: any) => ({ ...f, notes: e.target.value }))} />
-              </div>
-              <Button type="submit" className="w-full" disabled={updateMutation.isPending} data-testid="button-update-investment">
-                {updateMutation.isPending ? "Updating..." : "Update Investment"}
-              </Button>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
-=======
                 <div>
                   <Label>{t("investments.investorName")}</Label>
                   <p className="text-xs text-muted-foreground mb-2">Select investors. Share % comes from Manage Investors. Amounts calculated from total.</p>
@@ -1807,7 +1637,6 @@ export default function InvestmentsPage() {
             )}
           </DialogContent>
         </Dialog>
->>>>>>> c38a24e52be22005dc821a1d4d87c6107f788a03
 
       {/* Confirm Dialogs */}
       <ConfirmDialog open={deleteConfirm.open} onOpenChange={(open) => setDeleteConfirm({ open })} title="Delete Investment?" description="This action cannot be undone." onConfirm={handleConfirmDelete} />
