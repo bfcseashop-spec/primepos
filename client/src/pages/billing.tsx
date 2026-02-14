@@ -75,7 +75,7 @@ export default function BillingPage() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [referenceDoctor, setReferenceDoctor] = useState("");
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
-  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
 
   const { data: bills = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/bills"],
@@ -1039,7 +1039,7 @@ export default function BillingPage() {
         </div>
 
         {/* Date Filter Bar */}
-        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} dateRange={dateRange} />
+        <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} monthYear={monthYear} setMonthYear={setMonthYear} dateRange={dateRange} />
 
         {/* Bills Table */}
         <Card>
