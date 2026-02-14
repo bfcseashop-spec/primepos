@@ -326,6 +326,17 @@ export default function MedicinesPage() {
     setEditMed(med);
   };
 
+  const applyImageUrl = (url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    const resolved = trimmed.startsWith("http") || trimmed.startsWith("data:") || trimmed.startsWith("/")
+      ? trimmed
+      : trimmed.startsWith("//")
+        ? "https:" + trimmed
+        : "https://" + trimmed;
+    setForm(f => ({ ...f, imageUrl: resolved }));
+  };
+
   const filtered = medicines.filter(m => {
     const matchesSearch = searchTerm === "" ||
       m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -611,58 +622,100 @@ export default function MedicinesPage() {
           <ImagePlus className="h-4 w-4" />
           Medicine Image <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
         </div>
-        <div className="flex items-center gap-3">
-          {form.imageUrl ? (
-            <div className="relative group">
+        {form.imageUrl ? (
+          <div className="space-y-2">
+            <div className="relative group inline-block">
               <img
-                src={form.imageUrl}
+                src={getMedicineImageSrc(form.imageUrl) || form.imageUrl}
                 alt="Medicine"
-                className="w-20 h-20 object-cover rounded-md border"
+                className="w-24 h-24 object-cover rounded-md border"
                 data-testid="img-medicine-preview"
+                onError={() => setForm(f => ({ ...f, imageUrl: "" }))}
               />
               <Button
                 type="button"
                 variant="destructive"
                 size="icon"
                 className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ visibility: form.imageUrl ? "visible" : "hidden" }}
                 onClick={() => setForm(f => ({ ...f, imageUrl: "" }))}
                 data-testid="button-remove-image"
               >
                 <X className="h-3 w-3" />
               </Button>
             </div>
-          ) : (
-            <label
-              className="flex flex-col items-center justify-center w-20 h-20 rounded-md border-2 border-dashed border-muted-foreground/30 cursor-pointer hover-elevate"
-              data-testid="label-upload-image"
-            >
-              <ImagePlus className="h-5 w-5 text-muted-foreground" />
-              <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                data-testid="input-medicine-image"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  if (file.size > 2 * 1024 * 1024) {
-                    toast({ title: "Image too large", description: "Maximum size is 2MB", variant: "destructive" });
-                    return;
-                  }
-                  const reader = new FileReader();
-                  reader.onload = (ev) => {
-                    setForm(f => ({ ...f, imageUrl: ev.target?.result as string }));
-                  };
-                  reader.readAsDataURL(file);
+            <p className="text-xs text-muted-foreground">Replace image below (upload or paste URL)</p>
+          </div>
+        ) : null}
+        <div className="flex flex-col sm:flex-row gap-4 sm:items-start">
+          <label
+            className="flex flex-col items-center justify-center w-full sm:w-36 h-24 rounded-md border-2 border-dashed border-muted-foreground/30 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+            data-testid="label-upload-image"
+          >
+            <ImagePlus className="h-6 w-6 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground mt-1">Upload</span>
+            <span className="text-[10px] text-muted-foreground">Max 2MB (JPG, PNG)</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              data-testid="input-medicine-image"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 2 * 1024 * 1024) {
+                  toast({ title: "Image too large", description: "Maximum size is 2MB", variant: "destructive" });
+                  e.target.value = "";
+                  return;
+                }
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                  const result = ev.target?.result as string;
+                  if (result) setForm(f => ({ ...f, imageUrl: result }));
+                };
+                reader.onerror = () => {
+                  toast({ title: "Failed to read image", variant: "destructive" });
+                  e.target.value = "";
+                };
+                reader.readAsDataURL(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <div className="flex-1 min-w-0 space-y-1">
+            <Label htmlFor="medicine-image-url" className="text-xs text-muted-foreground">Or use image URL</Label>
+            <div className="flex gap-2">
+              <Input
+                id="medicine-image-url"
+                type="url"
+                placeholder="https://example.com/medicine.jpg"
+                onBlur={(e) => {
+                  const url = e.target.value?.trim();
+                  if (url) applyImageUrl(url);
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const url = (e.target as HTMLInputElement).value?.trim();
+                    if (url) applyImageUrl(url);
+                  }
+                }}
+                className="text-sm"
+                data-testid="input-medicine-image-url"
               />
-            </label>
-          )}
-          <div className="text-xs text-muted-foreground space-y-0.5">
-            <p>Upload a photo of the medicine</p>
-            <p>Max size: 2MB (JPG, PNG)</p>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const input = document.getElementById("medicine-image-url") as HTMLInputElement;
+                  const url = input?.value?.trim();
+                  if (url) applyImageUrl(url);
+                }}
+                data-testid="button-apply-image-url"
+              >
+                Use URL
+              </Button>
+            </div>
           </div>
         </div>
       </div>
