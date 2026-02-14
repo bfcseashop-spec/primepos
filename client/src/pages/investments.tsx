@@ -1126,13 +1126,7 @@ export default function InvestmentsPage() {
               <Select value={contributionForm.category} onValueChange={(v) => setContributionForm(f => ({ ...f, category: v }))}>
                 <SelectTrigger data-testid="select-contribution-category"><SelectValue placeholder="Select category" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Deposit">Deposit</SelectItem>
-                  <SelectItem value="Advance">Advance</SelectItem>
-                  <SelectItem value="Monthly Payment">Monthly Payment</SelectItem>
-                  <SelectItem value="Equipment">Equipment</SelectItem>
-                  <SelectItem value="Renovation">Renovation</SelectItem>
-                  <SelectItem value="Operational">Operational</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  {categories.map(cat => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
@@ -1194,13 +1188,7 @@ export default function InvestmentsPage() {
                 <Select value={(editContribution as any)._editCategory || ""} onValueChange={(v) => setEditContribution({ ...editContribution, _editCategory: v } as any)}>
                   <SelectTrigger data-testid="select-edit-contribution-category"><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Deposit">Deposit</SelectItem>
-                    <SelectItem value="Advance">Advance</SelectItem>
-                    <SelectItem value="Monthly Payment">Monthly Payment</SelectItem>
-                    <SelectItem value="Equipment">Equipment</SelectItem>
-                    <SelectItem value="Renovation">Renovation</SelectItem>
-                    <SelectItem value="Operational">Operational</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    {categories.map(cat => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>
