@@ -19,7 +19,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
-import type { Patient, Service, Medicine, BillItem, User as UserType, ClinicSettings } from "@shared/schema";
+import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings } from "@shared/schema";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "\u20AC", GBP: "\u00A3", JPY: "\u00A5", KHR: "\u17DB",
@@ -95,6 +95,10 @@ export default function BillingPage() {
 
   const { data: medicines = [] } = useQuery<Medicine[]>({
     queryKey: ["/api/medicines"],
+  });
+
+  const { data: injectionsList = [] } = useQuery<Injection[]>({
+    queryKey: ["/api/injections"],
   });
 
   const { data: users = [] } = useQuery<UserType[]>({
@@ -373,6 +377,18 @@ export default function BillingPage() {
       quantity: 1,
       unitPrice: Number(service.price),
       total: Number(service.price),
+    }]);
+  };
+
+  const addInjectionItem = (injectionId: string) => {
+    const injection = injectionsList.find(inj => inj.id === Number(injectionId));
+    if (!injection) return;
+    setBillItems(prev => [...prev, {
+      name: injection.name,
+      type: "injection",
+      quantity: 1,
+      unitPrice: Number(injection.price),
+      total: Number(injection.price),
     }]);
   };
 
@@ -769,6 +785,23 @@ export default function BillingPage() {
                           searchText: s.name,
                         }))}
                       />
+                      <div className="flex items-center gap-2 pt-1">
+                        <Pill className="h-4 w-4 text-cyan-500" />
+                        <span className="text-sm font-semibold">Injection</span>
+                      </div>
+                      <SearchableSelect
+                        onValueChange={addInjectionItem}
+                        placeholder="Select Injection"
+                        searchPlaceholder="Search injection..."
+                        emptyText="No injection found."
+                        data-testid="select-add-injection"
+                        resetAfterSelect
+                        options={injectionsList.filter(inj => inj.isActive).map(inj => ({
+                          value: String(inj.id),
+                          label: `${inj.name} - $${inj.price}`,
+                          searchText: inj.name,
+                        }))}
+                      />
                     </CardContent>
                   </Card>
                   <Card className="border-dashed">
@@ -843,7 +876,7 @@ export default function BillingPage() {
                         <div key={i} className="grid grid-cols-[1fr,80px,70px,85px,40px] gap-2 px-4 py-2 items-center border-t text-sm">
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
-                              {item.type === "service" ? "SVC" : "MED"}
+                              {item.type === "service" ? "SVC" : item.type === "injection" ? "INJ" : "MED"}
                             </Badge>
                             <span className="truncate">{item.name}</span>
                           </div>

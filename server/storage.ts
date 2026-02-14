@@ -1,12 +1,13 @@
 import { eq, desc, sql, and, gte, lte, count, sum, inArray, ilike } from "drizzle-orm";
 import { db } from "./db";
 import {
-  users, roles, patients, services, medicines, opdVisits, bills,
+  users, roles, patients, services, injections, medicines, opdVisits, bills,
   expenses, bankTransactions, investors, investments, integrations, clinicSettings, labTests, appointments,
   doctors, salaries, activityLogs,
   salaryProfiles, salaryLoans, loanInstallments, payrollRuns, payslips,
   type InsertUser, type User, type InsertRole, type Role,
   type InsertPatient, type Patient, type InsertService, type Service,
+  type InsertInjection, type Injection,
   type InsertMedicine, type Medicine,
   stockAdjustments, type InsertStockAdjustment, type StockAdjustment,
   type InsertOpdVisit, type OpdVisit,
@@ -54,6 +55,12 @@ export interface IStorage {
   updateService(id: number, data: Partial<InsertService>): Promise<Service | undefined>;
   deleteService(id: number): Promise<void>;
   bulkDeleteServices(ids: number[]): Promise<void>;
+
+  getInjections(): Promise<Injection[]>;
+  getInjection(id: number): Promise<Injection | undefined>;
+  createInjection(injection: InsertInjection): Promise<Injection>;
+  updateInjection(id: number, data: Partial<InsertInjection>): Promise<Injection | undefined>;
+  deleteInjection(id: number): Promise<void>;
 
   getMedicines(): Promise<Medicine[]>;
   getMedicine(id: number): Promise<Medicine | undefined>;
@@ -289,6 +296,29 @@ export class DatabaseStorage implements IStorage {
 
   async bulkDeleteServices(ids: number[]): Promise<void> {
     await db.delete(services).where(inArray(services.id, ids));
+  }
+
+  async getInjections(): Promise<Injection[]> {
+    return db.select().from(injections).orderBy(injections.name);
+  }
+
+  async getInjection(id: number): Promise<Injection | undefined> {
+    const [injection] = await db.select().from(injections).where(eq(injections.id, id));
+    return injection;
+  }
+
+  async createInjection(injection: InsertInjection): Promise<Injection> {
+    const [created] = await db.insert(injections).values(injection as typeof injections.$inferInsert).returning();
+    return created;
+  }
+
+  async updateInjection(id: number, data: Partial<InsertInjection>): Promise<Injection | undefined> {
+    const [updated] = await db.update(injections).set(data).where(eq(injections.id, id)).returning();
+    return updated;
+  }
+
+  async deleteInjection(id: number): Promise<void> {
+    await db.delete(injections).where(eq(injections.id, id));
   }
 
   async getMedicines(): Promise<Medicine[]> {

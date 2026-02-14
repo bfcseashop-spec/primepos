@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import {
   insertPatientSchema, insertOpdVisitSchema, insertBillSchema,
-  insertServiceSchema, insertMedicineSchema, insertExpenseSchema,
+  insertServiceSchema, insertInjectionSchema, insertMedicineSchema, insertExpenseSchema,
   insertBankTransactionSchema, insertInvestorSchema, insertInvestmentSchema, insertContributionSchema,
   insertUserSchema, insertRoleSchema, insertIntegrationSchema,
   insertClinicSettingsSchema, insertLabTestSchema, insertAppointmentSchema,
@@ -918,6 +918,52 @@ export async function registerRoutes(
         } catch (err: any) { skipped++; errors.push(`Row ${i + 2}: ${err.message}`); }
       }
       res.json({ imported, skipped, total: rows.length, errors: errors.slice(0, 10) });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/injections", async (_req, res) => {
+    try {
+      const result = await storage.getInjections();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/injections", async (req, res) => {
+    try {
+      const data = validateBody(insertInjectionSchema, req.body);
+      const injection = await storage.createInjection(data);
+      res.status(201).json(injection);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/injections/:id", async (req, res) => {
+    try {
+      const updateSchema = z.object({
+        isActive: z.boolean().optional(),
+        name: z.string().optional(),
+        category: z.string().optional(),
+        price: z.string().optional(),
+        description: z.string().optional().nullable(),
+      });
+      const data = validateBody(updateSchema, req.body);
+      const updated = await storage.updateInjection(Number(req.params.id), data);
+      if (!updated) return res.status(404).json({ message: "Not found" });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/injections/:id", async (req, res) => {
+    try {
+      await storage.deleteInjection(Number(req.params.id));
+      res.json({ message: "Deleted" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
