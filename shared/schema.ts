@@ -213,6 +213,7 @@ export const investors = pgTable("investors", {
   email: text("email"),
   phone: text("phone"),
   notes: text("notes"),
+  sharePercentage: numeric("share_percentage", { precision: 5, scale: 2 }).default("100"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

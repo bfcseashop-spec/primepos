@@ -73,12 +73,12 @@ export default function InvestmentsPage() {
   const [newCategory, setNewCategory] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number; ids?: number[] }>({ open: false });
-  const [createInvestors, setCreateInvestors] = useState<{ investorId?: number; name: string; sharePercentage: number }[]>([{ name: "", sharePercentage: 100 }]);
+  const [createInvestors, setCreateInvestors] = useState<{ investorId?: number; name: string; sharePercentage: number }[]>([{ investorId: undefined, name: "", sharePercentage: 0 }]);
   const [createAmount, setCreateAmount] = useState("");
   const [createPaymentMethod, setCreatePaymentMethod] = useState("cash");
   const [investorsDialogOpen, setInvestorsDialogOpen] = useState(false);
   const [editingInvestor, setEditingInvestor] = useState<Investor | null>(null);
-  const [investorForm, setInvestorForm] = useState({ name: "", email: "", phone: "", notes: "" });
+  const [investorForm, setInvestorForm] = useState({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" });
   const [deleteInvestorConfirm, setDeleteInvestorConfirm] = useState<number | null>(null);
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, dateRange } = useDateFilter();
 
@@ -90,7 +90,7 @@ export default function InvestmentsPage() {
 
   useEffect(() => {
     if (dialogOpen) {
-      setCreateInvestors([{ name: "", sharePercentage: 100 }]);
+      setCreateInvestors([{ investorId: undefined, name: "", sharePercentage: 0 }]);
       setCreateAmount("");
       setCreatePaymentMethod("cash");
     }
@@ -229,11 +229,12 @@ export default function InvestmentsPage() {
     const form = new FormData(e.currentTarget);
     const amountStr = (form.get("amount") as string) || createAmount || "0";
     const total = Number(amountStr) || 0;
-    const investorsList = normalizeInvestors(total, createInvestors);
-    if (investorsList.length === 0 || !createInvestors.some((i) => i.name.trim())) {
-      toast({ title: "Add at least one investor with a name", variant: "destructive" });
+    const selected = createInvestors.filter((i) => i.investorId != null);
+    if (selected.length === 0) {
+      toast({ title: "Select at least one investor", variant: "destructive" });
       return;
     }
+    const investorsList = normalizeInvestors(total, selected);
     createMutation.mutate({
       title: form.get("title"),
       category: form.get("category"),
@@ -253,7 +254,8 @@ export default function InvestmentsPage() {
     e.preventDefault();
     if (!editInvestment) return;
     const total = Number(editForm.amount) || 0;
-    const investorsList = normalizeInvestors(total, editForm.investors);
+    const withSelection = editForm.investors.filter((i) => i.investorId != null || i.name.trim() !== "");
+    const investorsList = normalizeInvestors(total, withSelection.length > 0 ? withSelection : editForm.investors);
     updateMutation.mutate({
       id: editInvestment.id,
       data: {
@@ -279,9 +281,10 @@ export default function InvestmentsPage() {
     const investorsForm = list.length > 0
       ? list.map((i) => {
           const match = investorsList.find((m) => m.name === i.name);
-          return { investorId: match?.id, name: i.name, sharePercentage: i.sharePercentage };
+          const pct = match ? (Number((match as Investor & { sharePercentage?: string }).sharePercentage) || 100) : i.sharePercentage;
+          return { investorId: match?.id, name: i.name, sharePercentage: pct };
         })
-      : [{ name: inv.investorName || "", sharePercentage: 100 }];
+      : [{ investorId: undefined, name: "", sharePercentage: 0 }];
     setEditForm({
       title: inv.title,
       category: inv.category,
@@ -484,10 +487,14 @@ export default function InvestmentsPage() {
                     <Input placeholder="Name *" value={investorForm.name} onChange={(e) => setInvestorForm((f) => ({ ...f, name: e.target.value }))} className="min-w-[120px]" />
                     <Input placeholder="Email" value={investorForm.email} onChange={(e) => setInvestorForm((f) => ({ ...f, email: e.target.value }))} className="min-w-[120px]" />
                     <Input placeholder="Phone" value={investorForm.phone} onChange={(e) => setInvestorForm((f) => ({ ...f, phone: e.target.value }))} className="min-w-[100px]" />
-                    <Button type="button" onClick={() => { if (editingInvestor) { updateInvestorMutation.mutate({ id: editingInvestor.id, data: investorForm }); setInvestorForm({ name: "", email: "", phone: "", notes: "" }); setEditingInvestor(null); } else { createInvestorMutation.mutate(investorForm); setInvestorForm({ name: "", email: "", phone: "", notes: "" }); } }} disabled={!investorForm.name.trim()} data-testid="button-save-investor">
+                    <div className="flex items-center gap-1.5 min-w-[100px]">
+                      <Input type="number" min={0} max={100} step={0.5} placeholder="Share %" value={investorForm.sharePercentage} onChange={(e) => setInvestorForm((f) => ({ ...f, sharePercentage: e.target.value }))} className="w-20" />
+                      <span className="text-xs text-muted-foreground">%</span>
+                    </div>
+                    <Button type="button" onClick={() => { if (editingInvestor) { updateInvestorMutation.mutate({ id: editingInvestor.id, data: { ...investorForm, sharePercentage: investorForm.sharePercentage || "100" } }); setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" }); setEditingInvestor(null); } else { createInvestorMutation.mutate({ ...investorForm, sharePercentage: investorForm.sharePercentage || "100" }); setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" }); } }} disabled={!investorForm.name.trim()} data-testid="button-save-investor">
                       {editingInvestor ? "Update" : "Add"}
                     </Button>
-                    {editingInvestor && <Button type="button" variant="ghost" onClick={() => { setEditingInvestor(null); setInvestorForm({ name: "", email: "", phone: "", notes: "" }); }}>Cancel</Button>}
+                    {editingInvestor && <Button type="button" variant="ghost" onClick={() => { setEditingInvestor(null); setInvestorForm({ name: "", email: "", phone: "", notes: "", sharePercentage: "100" }); }}>Cancel</Button>}
                   </div>
                   <Input placeholder="Notes" value={investorForm.notes} onChange={(e) => setInvestorForm((f) => ({ ...f, notes: e.target.value }))} className="mt-2" />
                 </div>
@@ -498,10 +505,11 @@ export default function InvestmentsPage() {
                       <div key={inv.id} className="flex items-center justify-between gap-2 p-2">
                         <div>
                           <span className="font-medium">{inv.name}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{(inv as Investor & { sharePercentage?: string }).sharePercentage ?? "100"}%</span>
                           {(inv.email || inv.phone) && <span className="text-xs text-muted-foreground ml-2">{inv.email || inv.phone}</span>}
                         </div>
                         <div className="flex gap-1">
-                          <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingInvestor(inv); setInvestorForm({ name: inv.name, email: inv.email || "", phone: inv.phone || "", notes: inv.notes || "" }); }}>Edit</Button>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingInvestor(inv); setInvestorForm({ name: inv.name, email: inv.email || "", phone: inv.phone || "", notes: inv.notes || "", sharePercentage: (inv as Investor & { sharePercentage?: string }).sharePercentage ?? "100" }); }}>Edit</Button>
                           <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteInvestorConfirm(inv.id)}>Delete</Button>
                         </div>
                       </div>
@@ -524,60 +532,44 @@ export default function InvestmentsPage() {
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-3">
                 <div>
-                  <Label>{t("investments.investorName")} / Share % *</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Select investors first (or type name). Share % auto-normalize to 100%. Amounts calculated from total below.</p>
+                  <Label>{t("investments.investorName")} *</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Select investors from the list. Share % is set in Manage Investors. Amounts calculated from total below.</p>
                   <div className="space-y-2 border rounded-md p-3 bg-muted/30">
                     {createInvestors.map((inv, idx) => {
                       const total = Number(createAmount) || 0;
-                      const sum = createInvestors.reduce((s, i) => s + i.sharePercentage, 0);
+                      const selectedInvestors = createInvestors.filter((i) => i.investorId != null);
+                      const sum = selectedInvestors.reduce((s, i) => s + i.sharePercentage, 0);
                       const scale = sum > 0 ? 100 / sum : 0;
-                      const pct = inv.sharePercentage * scale;
+                      const pct = inv.investorId ? inv.sharePercentage * scale : 0;
                       const computedAmount = ((total * pct) / 100).toFixed(2);
+                      const selectedIds = createInvestors.map((i) => i.investorId).filter(Boolean) as number[];
                       return (
                         <div key={idx} className="flex flex-wrap items-center gap-2">
                           <Select
-                            value={inv.investorId ? String(inv.investorId) : "__custom__"}
+                            value={inv.investorId ? String(inv.investorId) : ""}
                             onValueChange={(v) => {
-                              if (v === "__custom__") {
-                                setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { ...p, investorId: undefined, name: "" } : p));
-                                return;
-                              }
                               const num = Number(v);
                               const invObj = investorsList.find((i) => i.id === num);
-                              if (invObj) setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { investorId: invObj.id, name: invObj.name, sharePercentage: p.sharePercentage } : p));
+                              if (invObj) {
+                                const pctVal = Number((invObj as Investor & { sharePercentage?: string }).sharePercentage) || 100;
+                                setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { investorId: invObj.id, name: invObj.name, sharePercentage: pctVal } : p));
+                              }
                             }}
                           >
-                            <SelectTrigger className="flex-1 min-w-[140px]" data-testid={`select-investor-${idx}`}>
+                            <SelectTrigger className="flex-1 min-w-[160px]" data-testid={`select-investor-${idx}`}>
                               <SelectValue placeholder="Select investor" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="__custom__">Type name below...</SelectItem>
                               {investorsList.map((i) => (
-                                <SelectItem key={i.id} value={String(i.id)}>{i.name}</SelectItem>
+                                <SelectItem key={i.id} value={String(i.id)} disabled={selectedIds.includes(i.id) && createInvestors[idx].investorId !== i.id}>
+                                  {i.name} ({(i as Investor & { sharePercentage?: string }).sharePercentage ?? "100"}%)
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                          {!inv.investorId && (
-                            <Input
-                              placeholder="Or type name"
-                              value={inv.name}
-                              onChange={(e) => setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))}
-                              className="flex-1 min-w-[100px]"
-                              data-testid={`input-investor-name-${idx}`}
-                            />
-                          )}
-                          <Input
-                            type="number"
-                            min={0}
-                            max={100}
-                            step={0.5}
-                            placeholder="%"
-                            value={inv.sharePercentage || ""}
-                            onChange={(e) => setCreateInvestors((prev) => prev.map((p, i) => i === idx ? { ...p, sharePercentage: Number(e.target.value) || 0 } : p))}
-                            className="w-20"
-                            data-testid={`input-investor-pct-${idx}`}
-                          />
-                          <span className="text-sm text-muted-foreground w-20 shrink-0">= ${computedAmount}</span>
+                          {inv.investorId ? (
+                            <span className="text-sm text-muted-foreground shrink-0">= ${computedAmount}</span>
+                          ) : null}
                           <Button
                             type="button"
                             variant="ghost"
@@ -596,11 +588,15 @@ export default function InvestmentsPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setCreateInvestors((prev) => [...prev, { name: "", sharePercentage: 0 }])}
+                      onClick={() => setCreateInvestors((prev) => [...prev, { investorId: undefined, name: "", sharePercentage: 0 }])}
+                      disabled={investorsList.length === 0}
                       data-testid="button-add-investor"
                     >
                       <Plus className="h-3.5 w-3.5 mr-1" /> Add investor
                     </Button>
+                    {investorsList.length === 0 && (
+                      <p className="text-xs text-muted-foreground">Add investors in Manage Investors first.</p>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -900,34 +896,69 @@ export default function InvestmentsPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label>{t("investments.investorName")} / Share %</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Share % auto-normalize to 100%. Amounts calculated from total.</p>
+                  <Label>{t("investments.investorName")}</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Select investors. Share % comes from Manage Investors. Amounts calculated from total.</p>
                   <div className="space-y-2 border rounded-md p-3 bg-muted/30">
                     {editForm.investors.map((inv, idx) => {
                       const total = Number(editForm.amount) || 0;
-                      const sum = editForm.investors.reduce((s, i) => s + i.sharePercentage, 0);
-                      const scale = sum > 0 ? 100 / sum : 0;
+                      const selectedSum = editForm.investors.filter((i) => i.investorId != null || i.name.trim()).reduce((s, i) => s + i.sharePercentage, 0);
+                      const scale = selectedSum > 0 ? 100 / selectedSum : 0;
                       const pct = inv.sharePercentage * scale;
                       const computedAmount = ((total * pct) / 100).toFixed(2);
+                      const selectedIds = editForm.investors.map((i) => i.investorId).filter(Boolean) as number[];
+                      const isLegacy = !inv.investorId && inv.name.trim() !== "";
                       return (
                         <div key={idx} className="flex flex-wrap items-center gap-2">
-                          <Input
-                            placeholder="Investor name"
-                            value={inv.name}
-                            onChange={(e) => setEditForm((f) => ({ ...f, investors: f.investors.map((p, i) => i === idx ? { ...p, name: e.target.value } : p) }))}
-                            className="flex-1 min-w-[120px]"
-                          />
-                          <Input
-                            type="number"
-                            min={0}
-                            max={100}
-                            step={0.5}
-                            placeholder="%"
-                            value={inv.sharePercentage || ""}
-                            onChange={(e) => setEditForm((f) => ({ ...f, investors: f.investors.map((p, i) => i === idx ? { ...p, sharePercentage: Number(e.target.value) || 0 } : p) }))}
-                            className="w-20"
-                          />
-                          <span className="text-sm text-muted-foreground w-20 shrink-0">= ${computedAmount}</span>
+                          {inv.investorId != null ? (
+                            <Select
+                              value={String(inv.investorId)}
+                              onValueChange={(v) => {
+                                const num = Number(v);
+                                const invObj = investorsList.find((i) => i.id === num);
+                                if (invObj) {
+                                  const pctVal = Number((invObj as Investor & { sharePercentage?: string }).sharePercentage) || 100;
+                                  setEditForm((f) => ({ ...f, investors: f.investors.map((p, i) => i === idx ? { investorId: invObj.id, name: invObj.name, sharePercentage: pctVal } : p) }));
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="flex-1 min-w-[160px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {investorsList.map((i) => (
+                                  <SelectItem key={i.id} value={String(i.id)} disabled={selectedIds.includes(i.id) && editForm.investors[idx].investorId !== i.id}>
+                                    {i.name} ({(i as Investor & { sharePercentage?: string }).sharePercentage ?? "100"}%)
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : isLegacy ? (
+                            <span className="text-sm font-medium min-w-[160px]">{inv.name} ({(inv.sharePercentage)}%)</span>
+                          ) : (
+                            <Select
+                              value=""
+                              onValueChange={(v) => {
+                                const num = Number(v);
+                                const invObj = investorsList.find((i) => i.id === num);
+                                if (invObj) {
+                                  const pctVal = Number((invObj as Investor & { sharePercentage?: string }).sharePercentage) || 100;
+                                  setEditForm((f) => ({ ...f, investors: f.investors.map((p, i) => i === idx ? { investorId: invObj.id, name: invObj.name, sharePercentage: pctVal } : p) }));
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="flex-1 min-w-[160px]">
+                                <SelectValue placeholder="Select investor" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {investorsList.map((i) => (
+                                  <SelectItem key={i.id} value={String(i.id)} disabled={selectedIds.includes(i.id)}>
+                                    {i.name} ({(i as Investor & { sharePercentage?: string }).sharePercentage ?? "100"}%)
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                          <span className="text-sm text-muted-foreground shrink-0">= ${computedAmount}</span>
                           <Button
                             type="button"
                             variant="ghost"
@@ -945,7 +976,8 @@ export default function InvestmentsPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setEditForm((f) => ({ ...f, investors: [...f.investors, { name: "", sharePercentage: 0 }] }))}
+                      onClick={() => setEditForm((f) => ({ ...f, investors: [...f.investors, { investorId: undefined, name: "", sharePercentage: 0 }] }))}
+                      disabled={investorsList.length === 0}
                     >
                       <Plus className="h-3.5 w-3.5 mr-1" /> Add investor
                     </Button>

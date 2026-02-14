@@ -1270,7 +1270,7 @@ export async function registerRoutes(
   app.put("/api/investors/:id", async (req, res) => {
     try {
       const id = Number(req.params.id);
-      const data = validateBody(z.object({ name: z.string().optional(), email: z.string().nullable().optional(), phone: z.string().nullable().optional(), notes: z.string().nullable().optional() }), req.body);
+      const data = validateBody(z.object({ name: z.string().optional(), email: z.string().nullable().optional(), phone: z.string().nullable().optional(), notes: z.string().nullable().optional(), sharePercentage: z.string().nullable().optional() }), req.body);
       const inv = await storage.updateInvestor(id, data);
       if (!inv) return res.status(404).json({ message: "Investor not found" });
       res.json(inv);
