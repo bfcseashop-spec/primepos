@@ -23,11 +23,11 @@ import {
   Plus, Search, MoreVertical, Eye, Pencil, Trash2, ImagePlus, X,
   FolderPlus, Activity, CheckCircle2, XCircle, DollarSign, Layers,
   RefreshCw, Grid3X3, List, Stethoscope, Tag, FileText,
-  Download, Upload, FileSpreadsheet, FileDown,
+  Download, Upload, FileSpreadsheet, FileDown, Syringe,
 } from "lucide-react";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
-import type { Service } from "@shared/schema";
+import type { Service, Injection } from "@shared/schema";
 
 const DEFAULT_SERVICE_CATEGORIES = [
   "General", "Emergency", "Preventive", "Cardiology", "Therapy",
@@ -75,9 +75,415 @@ const defaultForm = {
   name: "", category: "", price: "", description: "", imageUrl: "",
 };
 
+const injectionAvatarGradients = [
+  "from-cyan-500 to-teal-400",
+  "from-blue-500 to-indigo-400",
+  "from-emerald-500 to-green-400",
+  "from-violet-500 to-purple-400",
+  "from-pink-500 to-rose-400",
+  "from-amber-500 to-orange-400",
+];
+
+const defaultInjForm = { name: "", price: "", description: "" };
+
+function InjectionManagement() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editInj, setEditInj] = useState<Injection | null>(null);
+  const [viewInj, setViewInj] = useState<Injection | null>(null);
+  const [deleteInj, setDeleteInj] = useState<Injection | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [form, setForm] = useState(defaultInjForm);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const refName = useRef<HTMLInputElement>(null);
+  const refPrice = useRef<HTMLInputElement>(null);
+
+  const { data: injections = [], isLoading } = useQuery<Injection[]>({
+    queryKey: ["/api/injections"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/injections", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/injections"] });
+      setDialogOpen(false);
+      setForm(defaultInjForm);
+      toast({ title: "Injection created successfully" });
+    },
+    onError: (err: Error) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/injections/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/injections"] });
+      setEditInj(null);
+      setForm(defaultInjForm);
+      toast({ title: "Injection updated successfully" });
+    },
+    onError: (err: Error) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/injections/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/injections"] });
+      toast({ title: "Injection deleted" });
+      setDeleteInj(null);
+    },
+  });
+
+  const handleSubmit = () => {
+    const errors: Record<string, string> = {};
+    if (!form.name?.trim()) errors.name = t("common.required");
+    if (!form.price || Number(form.price) <= 0) errors.price = t("common.required");
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast({ title: t("common.fillRequired"), variant: "destructive" });
+      if (errors.name) refName.current?.focus();
+      else if (errors.price) refPrice.current?.focus();
+      return;
+    }
+    const payload = {
+      name: form.name,
+      category: "Injection",
+      price: form.price,
+      description: form.description || null,
+      isActive: true,
+    };
+    if (editInj) {
+      updateMutation.mutate({ id: editInj.id, data: payload });
+    } else {
+      createMutation.mutate(payload);
+    }
+  };
+
+  const openEdit = (inj: Injection) => {
+    setFieldErrors({});
+    setForm({
+      name: inj.name,
+      price: inj.price,
+      description: inj.description || "",
+    });
+    setEditInj(inj);
+  };
+
+  const filtered = injections.filter(inj => {
+    const term = searchTerm.toLowerCase();
+    return inj.name.toLowerCase().includes(term) ||
+      (inj.description || "").toLowerCase().includes(term);
+  });
+
+  const activeCount = injections.filter(i => i.isActive).length;
+  const totalValue = injections.reduce((sum, i) => sum + parseFloat(i.price || "0"), 0);
+  const getInitials = (name: string) => name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
+  const getGradient = (id: number) => injectionAvatarGradients[id % injectionAvatarGradients.length];
+
+  const statCards = [
+    { label: "Total Injections", value: injections.length, gradient: "from-cyan-500 to-cyan-600", icon: Syringe },
+    { label: t("common.active"), value: activeCount, gradient: "from-emerald-500 to-emerald-600", icon: CheckCircle2 },
+    { label: t("common.inactive"), value: injections.length - activeCount, gradient: "from-red-500 to-red-600", icon: XCircle },
+    { label: "Total Value", value: `$${totalValue.toFixed(0)}`, gradient: "from-amber-500 to-amber-600", icon: DollarSign },
+  ];
+
+  const formContent = (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="inj-name">Name *</Label>
+        <Input ref={refName} id="inj-name" value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFieldErrors(prev => ({ ...prev, name: "" })); }} data-testid="input-injection-name" className={fieldErrors.name ? "border-destructive" : ""} />
+        {fieldErrors.name && <p className="text-xs text-destructive mt-1">{fieldErrors.name}</p>}
+      </div>
+      <div>
+        <Label htmlFor="inj-price">{t("common.price")} ($) *</Label>
+        <Input ref={refPrice} id="inj-price" type="number" step="0.01" value={form.price} onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setFieldErrors(prev => ({ ...prev, price: "" })); }} data-testid="input-injection-price" className={fieldErrors.price ? "border-destructive" : ""} />
+        {fieldErrors.price && <p className="text-xs text-destructive mt-1">{fieldErrors.price}</p>}
+      </div>
+      <div>
+        <Label htmlFor="inj-remarks">Remarks</Label>
+        <Textarea id="inj-remarks" rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} data-testid="input-injection-remarks" />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4 p-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div />
+        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setForm(defaultInjForm); setFieldErrors({}); } }}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-new-injection">
+              <Plus className="h-4 w-4 mr-1" /> Add Injection
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Add Injection</DialogTitle>
+              <DialogDescription>Create a new injection item with name, price and remarks.</DialogDescription>
+            </DialogHeader>
+            {formContent}
+            <Button className="w-full" onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-injection">
+              {createMutation.isPending ? t("common.creating") : "Add Injection"}
+            </Button>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {statCards.map((s, i) => (
+          <Card key={i} data-testid={`stat-inj-${i}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br ${s.gradient} shrink-0`}>
+                  <s.icon className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{s.label}</p>
+                  <p className="text-xl font-bold">{s.value}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="w-64">
+              <Input
+                placeholder="Search injections..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                data-testid="input-search-injections"
+              />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {t("common.showing")} <span className="font-semibold text-foreground">{filtered.length}</span> {t("common.of")} {injections.length}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-md" />
+                  <div className="space-y-1.5 flex-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+                <Skeleton className="h-3 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
+              <Syringe className="h-8 w-8 text-muted-foreground/50" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">{t("common.noData")}</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Add your first injection to get started</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {filtered.map(inj => (
+            <Card key={inj.id} className="overflow-visible hover-elevate" data-testid={`card-injection-${inj.id}`}>
+              <CardContent className="p-0">
+                <div className={`h-1.5 rounded-t-md bg-gradient-to-r ${["from-cyan-500 to-teal-500", "from-blue-500 to-indigo-500", "from-emerald-500 to-green-500", "from-violet-500 to-purple-500"][inj.id % 4]}`} />
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className={`text-xs font-bold bg-gradient-to-br ${getGradient(inj.id)} text-white`}>
+                          {getInitials(inj.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-semibold truncate" data-testid={`text-injection-name-${inj.id}`}>{inj.name}</h4>
+                        <Badge variant="outline" className="text-[10px] mt-0.5 no-default-hover-elevate no-default-active-elevate bg-cyan-500/10 text-cyan-700 dark:text-cyan-300">
+                          <span className="inline-block h-1.5 w-1.5 rounded-full mr-1 bg-cyan-500" />
+                          Injection
+                        </Badge>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" data-testid={`button-inj-actions-${inj.id}`}>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setViewInj(inj)} className="gap-2" data-testid={`action-view-inj-${inj.id}`}>
+                          <Eye className="h-3.5 w-3.5 text-blue-500" /> View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEdit(inj)} className="gap-2" data-testid={`action-edit-inj-${inj.id}`}>
+                          <Pencil className="h-3.5 w-3.5 text-amber-500" /> {t("common.edit")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setDeleteInj(inj)} className="text-destructive gap-2" data-testid={`action-delete-inj-${inj.id}`}>
+                          <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  {inj.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{inj.description}</p>
+                  )}
+
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/10 shrink-0">
+                        <DollarSign className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
+                      </div>
+                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400" data-testid={`text-injection-price-${inj.id}`}>${inj.price}</span>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${
+                        inj.isActive
+                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+                          : "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20"
+                      }`}
+                    >
+                      <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${inj.isActive ? "bg-emerald-500" : "bg-red-500"}`} />
+                      {inj.isActive ? t("common.active") : t("common.inactive")}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={!!viewInj} onOpenChange={(open) => { if (!open) setViewInj(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle data-testid="text-view-injection-title">Injection Details</DialogTitle>
+            <DialogDescription>View injection information</DialogDescription>
+          </DialogHeader>
+          {viewInj && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-12 w-12">
+                  <AvatarFallback className={`text-sm font-bold bg-gradient-to-br ${getGradient(viewInj.id)} text-white`}>
+                    {getInitials(viewInj.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-semibold">{viewInj.name}</h3>
+                  <Badge variant="outline" className="text-[10px] mt-1 no-default-hover-elevate no-default-active-elevate bg-cyan-500/10 text-cyan-700 dark:text-cyan-300">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full mr-1 bg-cyan-500" />
+                    Injection
+                  </Badge>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/10 shrink-0">
+                    <DollarSign className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">{t("common.price")}</p>
+                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">${viewInj.price}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-500/10 shrink-0">
+                    <Activity className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">{t("common.status")}</p>
+                    <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${viewInj.isActive ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" : "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20"}`}>
+                      <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${viewInj.isActive ? "bg-emerald-500" : "bg-red-500"}`} />
+                      {viewInj.isActive ? t("common.active") : t("common.inactive")}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              {viewInj.description && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Remarks</p>
+                  </div>
+                  <p className="text-sm bg-muted/50 rounded-md p-2.5">{viewInj.description}</p>
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => { setViewInj(null); openEdit(viewInj); }} data-testid="button-view-to-edit-inj">
+                  <Pencil className="h-4 w-4 mr-1 text-amber-500" /> {t("common.edit")}
+                </Button>
+                <Button variant="outline" onClick={() => setViewInj(null)} data-testid="button-close-view-inj">
+                  {t("common.close")}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editInj} onOpenChange={(open) => { if (!open) { setEditInj(null); setForm(defaultInjForm); setFieldErrors({}); } }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle data-testid="text-edit-injection-title">Edit Injection</DialogTitle>
+            <DialogDescription>Update injection details</DialogDescription>
+          </DialogHeader>
+          {formContent}
+          <Button className="w-full" onClick={handleSubmit} disabled={updateMutation.isPending} data-testid="button-update-injection">
+            {updateMutation.isPending ? t("common.updating") : t("common.update")}
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteInj} onOpenChange={(open) => { if (!open) setDeleteInj(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle data-testid="text-delete-inj-confirm">Delete Injection</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("common.deleteConfirmPrefix")} <span className="font-semibold">{deleteInj?.name}</span>? {t("common.cannotBeUndone")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-inj">{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteInj && deleteMutation.mutate(deleteInj.id)}
+              className="bg-destructive text-destructive-foreground"
+              data-testid="button-confirm-delete-inj"
+            >
+              {deleteMutation.isPending ? t("common.loading") : t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
 export default function ServicesPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<"services" | "injections">("services");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editService, setEditService] = useState<Service | null>(null);
   const [viewService, setViewService] = useState<Service | null>(null);
@@ -704,6 +1110,44 @@ export default function ServicesPage() {
         }
       />
 
+      <div className="border-b px-4">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setActiveTab("services")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "services"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-services"
+          >
+            <div className="flex items-center gap-1.5">
+              <Activity className="h-4 w-4" />
+              Services
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab("injections")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "injections"
+                ? "border-cyan-500 text-cyan-600 dark:text-cyan-400"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-injections"
+          >
+            <div className="flex items-center gap-1.5">
+              <Syringe className="h-4 w-4" />
+              Injections
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {activeTab === "injections" ? (
+        <div className="flex-1 overflow-auto">
+          <InjectionManagement />
+        </div>
+      ) : (
       <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {statCards.map((s, i) => (
@@ -830,6 +1274,7 @@ export default function ServicesPage() {
           </div>
         )}
       </div>
+      )}
 
       <Dialog open={!!viewService} onOpenChange={(open) => { if (!open) setViewService(null); }}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
