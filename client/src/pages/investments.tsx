@@ -391,11 +391,6 @@ export default function InvestmentsPage() {
     if (!inv) return;
     const total = Number(inv.amount) || 0;
     let currentInvestors = [...((inv as any).investors ?? [])] as { investorId?: number; name: string; sharePercentage: number }[];
-    if (currentInvestors.length <= 1) {
-      toast({ title: "Cannot remove the last investor", variant: "destructive" });
-      setDeleteCapitalConfirm(null);
-      return;
-    }
     currentInvestors.splice(investorIdx, 1);
     const normalized = normalizeInvestors(total, currentInvestors);
     updateMutation.mutate({
