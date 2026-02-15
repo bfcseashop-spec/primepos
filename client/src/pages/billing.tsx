@@ -375,14 +375,14 @@ export default function BillingPage() {
           <table style="width:100%;margin-bottom:${isCompact ? "12px" : "16px"};font-size:${fSm}px;">
             <tr>
               <td style="width:50%;vertical-align:top;padding:${padSm} ${pad};background:#f8fafc;border:1px solid ${border};border-right:none;">
-                <div class="label" style="margin-bottom:4px;">Bill To / ឈ្មោះអ្នកជំងឺ</div>
+                <div class="label" style="margin-bottom:4px;">Patient / ឈ្មោះអ្នកជំងឺ</div>
                 <div style="font-weight:600;color:${accent};margin-bottom:2px;">${patient?.name || "-"}</div>
                 ${patient?.patientId ? `<div style="color:${muted};">ID: ${patient.patientId}</div>` : ""}
                 ${patient?.gender ? `<div style="color:${muted};">${patient.gender}${patient?.age != null ? ` | Age: ${patient.age}` : ""}</div>` : ""}
               </td>
               <td style="width:50%;vertical-align:top;padding:${padSm} ${pad};background:#f8fafc;border:1px solid ${border};">
-                <div class="label" style="margin-bottom:4px;">Clinic Details</div>
-                ${bill.referenceDoctor ? `<div style="color:${accent};margin-bottom:2px;">Doctor: <strong>${bill.referenceDoctor}</strong></div>` : ""}
+                <div class="label" style="margin-bottom:4px;">Doctor</div>
+                <div style="font-weight:600;color:${accent};margin-bottom:2px;">${bill.referenceDoctor || "-"}</div>
                 <div style="color:${muted};">Status: <strong style="color:${statusColor};">${statusLabel}</strong></div>
                 <div style="color:${muted};">${clinicNameDisplay}</div>
               </td>
@@ -1410,7 +1410,7 @@ export default function BillingPage() {
                   <div className="rounded-lg border overflow-hidden">
                     <div className="grid grid-cols-2 divide-x">
                       <div className="p-3.5 bg-muted/30">
-                        <p className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground mb-1.5">Bill To</p>
+                        <p className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground mb-1.5">Patient</p>
                         <p className="text-sm font-semibold">{viewBill.patientName || patient?.name || "-"}</p>
                         {patient?.patientId && <p className="text-[11px] text-muted-foreground mt-0.5">ID: {patient.patientId}</p>}
                         <div className="flex gap-3 mt-1 flex-wrap">
@@ -1419,12 +1419,10 @@ export default function BillingPage() {
                         </div>
                       </div>
                       <div className="p-3.5 bg-muted/30">
-                        <p className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground mb-1.5">Clinic Info</p>
-                        {viewBill.referenceDoctor && (
-                          <p className="text-[11px]"><span className="text-muted-foreground">Doctor:</span> <span className="font-medium">{viewBill.referenceDoctor}</span></p>
-                        )}
-                        <p className="text-[11px]"><span className="text-muted-foreground">Status:</span> <span className="font-medium">{isPaid ? "Paid in Full" : "Payment Pending"}</span></p>
-                        {settings?.clinicName && <p className="text-[11px] text-muted-foreground mt-1">{settings.clinicName}</p>}
+                        <p className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground mb-1.5">Doctor</p>
+                        <p className="text-sm font-semibold">{viewBill.referenceDoctor || "-"}</p>
+                        <p className="text-[11px] mt-1"><span className="text-muted-foreground">Status:</span> <span className="font-medium">{isPaid ? "Paid in Full" : "Payment Pending"}</span></p>
+                        {settings?.clinicName && <p className="text-[11px] text-muted-foreground mt-0.5">{settings.clinicName}</p>}
                       </div>
                     </div>
                   </div>
