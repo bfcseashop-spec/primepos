@@ -540,13 +540,13 @@ export default function MedicinesPage() {
     )},
     { header: t("medicines.stockCount"), accessor: (row: Medicine) => {
       const current = row.stockCount ?? 0;
-      const total = Number((row as Medicine & { totalStock?: number }).totalStock) || current;
+      const total = Number(row.totalStock) ?? current;
       const isLow = current < (row.stockAlert || 10) && current > 0;
       const isOut = current === 0;
       const isInStock = !isLow && !isOut;
       return (
         <div className="flex items-center gap-1.5">
-          <span className={`text-sm font-semibold ${isOut ? "text-red-600 dark:text-red-400" : isLow ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>{total === current ? current : `${current}/${total}`}</span>
+          <span className={`text-sm font-semibold ${isOut ? "text-red-600 dark:text-red-400" : isLow ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`} title={`Available: ${current} · Total: ${total}`}>{current} / {total}</span>
           {isOut && (
             <Badge variant="outline" className="text-[10px] no-default-hover-elevate no-default-active-elevate bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
               <PackageX className="h-3 w-3 mr-1" /> Out
@@ -1144,16 +1144,12 @@ export default function MedicinesPage() {
               </div>
 
               <div className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
-                <div className="flex items-center gap-2">
-                  <Package className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Stock:</span>
-                  <span className={`font-bold ${(viewMed.stockCount ?? 0) < (viewMed.stockAlert || 10) ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
-                    {((): string => {
-                      const cur = viewMed.stockCount ?? 0;
-                      const tot = Number((viewMed as Medicine & { totalStock?: number }).totalStock) || cur;
-                      return tot === cur ? String(cur) : `${cur} / ${tot}`;
-                    })()}
-                  </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-muted-foreground">Available:</span>
+                  <span className={`font-bold ${(viewMed.stockCount ?? 0) < (viewMed.stockAlert || 10) ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>{viewMed.stockCount ?? 0}</span>
+                  <span className="text-muted-foreground">Total:</span>
+                  <span className="font-bold">{viewMed.totalStock ?? viewMed.stockCount ?? 0}</span>
                 </div>
                 {viewMed.stockCount < (viewMed.stockAlert || 10) && (
                   <Badge variant="outline" className="text-[11px] no-default-hover-elevate no-default-active-elevate bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800">
