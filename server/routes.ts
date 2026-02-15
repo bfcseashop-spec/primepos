@@ -6,6 +6,7 @@ import {
   insertServiceSchema, insertInjectionSchema, insertMedicineSchema, insertExpenseSchema,
   insertBankTransactionSchema, insertInvestorSchema, insertInvestmentSchema, insertContributionSchema,
   insertPackageSchema,
+  insertMedicinePurchaseSchema,
   insertUserSchema, insertRoleSchema, insertIntegrationSchema,
   insertClinicSettingsSchema, insertLabTestSchema, insertAppointmentSchema,
   insertDoctorSchema, insertSalarySchema,
@@ -2878,6 +2879,49 @@ export async function registerRoutes(
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }
+  });
+
+  // Medicine Purchases
+  app.get("/api/medicine-purchases", async (_req, res) => {
+    try {
+      const result = await storage.getMedicinePurchases();
+      res.json(result);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/medicine-purchases/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const purchase = await storage.getMedicinePurchase(id);
+      if (!purchase) return res.status(404).json({ message: "Purchase not found" });
+      res.json(purchase);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/medicine-purchases", async (req, res) => {
+    try {
+      const parsed = insertMedicinePurchaseSchema.parse(req.body);
+      const purchase = await storage.createMedicinePurchase(parsed);
+      res.status(201).json(purchase);
+    } catch (e: any) { res.status(400).json({ message: e.message }); }
+  });
+
+  app.put("/api/medicine-purchases/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const data = req.body;
+      const purchase = await storage.updateMedicinePurchase(id, data);
+      if (!purchase) return res.status(404).json({ message: "Purchase not found" });
+      res.json(purchase);
+    } catch (e: any) { res.status(400).json({ message: e.message }); }
+  });
+
+  app.delete("/api/medicine-purchases/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      await storage.deleteMedicinePurchase(id);
+      res.json({ message: "Deleted" });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   // Unmatched /api routes -> 404 JSON (avoid SPA fallback)

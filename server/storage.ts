@@ -29,6 +29,7 @@ import {
   type InsertPayslip, type Payslip,
   type InsertActivityLog, type ActivityLog,
   packages, type InsertPackage, type Package,
+  medicinePurchases, type InsertMedicinePurchase, type MedicinePurchase,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -78,6 +79,12 @@ export interface IStorage {
   createPackage(pkg: InsertPackage): Promise<Package>;
   updatePackage(id: number, data: Partial<InsertPackage>): Promise<Package | undefined>;
   deletePackage(id: number): Promise<void>;
+
+  getMedicinePurchases(): Promise<MedicinePurchase[]>;
+  getMedicinePurchase(id: number): Promise<MedicinePurchase | undefined>;
+  createMedicinePurchase(purchase: InsertMedicinePurchase): Promise<MedicinePurchase>;
+  updateMedicinePurchase(id: number, data: Partial<InsertMedicinePurchase>): Promise<MedicinePurchase | undefined>;
+  deleteMedicinePurchase(id: number): Promise<void>;
 
   getOpdVisits(): Promise<any[]>;
   getOpdVisit(id: number): Promise<OpdVisit | undefined>;
@@ -1008,6 +1015,29 @@ export class DatabaseStorage implements IStorage {
 
   async clearActivityLogs(): Promise<void> {
     await db.delete(activityLogs);
+  }
+
+  async getMedicinePurchases(): Promise<MedicinePurchase[]> {
+    return db.select().from(medicinePurchases).orderBy(desc(medicinePurchases.createdAt));
+  }
+
+  async getMedicinePurchase(id: number): Promise<MedicinePurchase | undefined> {
+    const [purchase] = await db.select().from(medicinePurchases).where(eq(medicinePurchases.id, id));
+    return purchase;
+  }
+
+  async createMedicinePurchase(purchase: InsertMedicinePurchase): Promise<MedicinePurchase> {
+    const [created] = await db.insert(medicinePurchases).values(purchase as typeof medicinePurchases.$inferInsert).returning();
+    return created;
+  }
+
+  async updateMedicinePurchase(id: number, data: Partial<InsertMedicinePurchase>): Promise<MedicinePurchase | undefined> {
+    const [updated] = await db.update(medicinePurchases).set(data).where(eq(medicinePurchases.id, id)).returning();
+    return updated;
+  }
+
+  async deleteMedicinePurchase(id: number): Promise<void> {
+    await db.delete(medicinePurchases).where(eq(medicinePurchases.id, id));
   }
 }
 
