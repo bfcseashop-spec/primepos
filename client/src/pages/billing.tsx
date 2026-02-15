@@ -19,7 +19,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag, Package, RotateCcw } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
-import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings, Package } from "@shared/schema";
+import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings, Package, Doctor } from "@shared/schema";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "\u20AC", GBP: "\u00A3", JPY: "\u00A5", KHR: "\u17DB",
@@ -105,13 +105,20 @@ export default function BillingPage() {
     queryKey: ["/api/packages"],
   });
 
-  const { data: users = [] } = useQuery<UserType[]>({
-    queryKey: ["/api/users"],
+  const { data: doctorsList = [] } = useQuery<Doctor[]>({
+    queryKey: ["/api/doctors"],
   });
 
-  const doctorNames = users
-    .filter((u) => u.fullName?.toLowerCase().startsWith("dr"))
-    .map((u) => u.fullName);
+  const doctorOptions = [
+    { value: "none", label: "None" },
+    ...doctorsList
+      .filter((d) => d.status === "active")
+      .map((d) => ({
+        value: d.name,
+        label: d.specialization ? `${d.name} (${d.specialization})` : d.name,
+        searchText: [d.name, d.specialization].filter(Boolean).join(" "),
+      })),
+  ];
 
   const [billAction, setBillAction] = useState<"create" | "print" | "payment">("create");
   const [showPreview, setShowPreview] = useState(false);
@@ -827,13 +834,7 @@ export default function BillingPage() {
                       searchPlaceholder="Search doctor..."
                       emptyText="No doctor found."
                       data-testid="select-reference-doctor"
-                      options={[
-                        { value: "none", label: "None" },
-                        ...doctorNames.map(name => ({
-                          value: name,
-                          label: name,
-                        })),
-                      ]}
+                      options={doctorOptions}
                     />
                   </div>
                 </div>
@@ -1483,10 +1484,7 @@ export default function BillingPage() {
                     searchPlaceholder="Search doctor..."
                     emptyText="No doctor found."
                     data-testid="edit-bill-doctor"
-                    options={[
-                      { value: "none", label: "None" },
-                      ...doctorNames.filter(Boolean).map(d => ({ value: d, label: d, searchText: d })),
-                    ]}
+                    options={doctorOptions}
                   />
                 </div>
                 <Button

@@ -119,8 +119,9 @@ export function SearchableSelect({
       {open && typeof document !== "undefined" && createPortal(
         <div
           ref={dropdownRef}
-          className="fixed z-[9999] rounded-md border bg-popover text-popover-foreground shadow-md"
+          className="fixed z-[99999] pointer-events-auto rounded-md border bg-popover text-popover-foreground shadow-md"
           style={{ top: position.top, left: position.left, width: Math.max(position.width, 200), minWidth: 200 }}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <div className="flex items-center border-b px-3">
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
