@@ -142,9 +142,9 @@ export default function MedicinesPage() {
     enabled: !!stockHistoryMed?.id,
   });
 
-  const totalPurchasePrice = form.purchasePrice;
+  const totalPurchasePrice = form.purchasePrice * form.totalPcs;
   const salesPricePerPiece = form.totalPcs > 0 ? form.salesPrice / form.totalPcs : 0;
-  const perMedPrice = form.totalPcs > 0 ? form.purchasePrice / form.totalPcs : 0;
+  const perMedPrice = form.purchasePrice;
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -291,9 +291,9 @@ export default function MedicinesPage() {
       expiryDate: form.expiryDate || null,
       unit: form.unit,
       unitCount: 1,
-      boxPrice: String(form.purchasePrice),
+      boxPrice: String(form.purchasePrice * form.totalPcs),
       qtyPerBox: form.totalPcs,
-      perMedPrice: String(perMedPrice.toFixed(4)),
+      perMedPrice: String(form.purchasePrice.toFixed(4)),
       totalPurchasePrice: String(totalPurchasePrice.toFixed(2)),
       sellingPriceLocal: String(salesPricePerPiece.toFixed(2)),
       sellingPriceForeigner: String(salesPricePerPiece.toFixed(2)),
@@ -327,7 +327,7 @@ export default function MedicinesPage() {
       expiryDate: med.expiryDate || "",
       unit: med.unit || "Box",
       totalPcs,
-      purchasePrice: Number(med.boxPrice) || 0,
+      purchasePrice: Number(med.perMedPrice) || (totalPcs > 0 ? (Number(med.boxPrice) || 0) / totalPcs : 0),
       salesPrice,
       stockAvailable: med.stockCount || 0,
       stockAlert: med.stockAlert || 10,
@@ -506,12 +506,23 @@ export default function MedicinesPage() {
         <span className="inline-flex px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-[11px] font-mono font-medium text-blue-700 dark:text-blue-300">{totalPcs}</span>
       );
     }},
-    { header: "Purchase Price", accessor: (row: Medicine) => (
-      <span className="text-sm font-medium text-violet-600 dark:text-violet-400">${Number(row.boxPrice || 0).toFixed(2)}</span>
-    )},
-    { header: "Total Purchase Price", accessor: (row: Medicine) => (
-      <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">${Number(row.totalPurchasePrice || 0).toFixed(2)}</span>
-    )},
+    { header: "Purchase Price (per pc)", accessor: (row: Medicine) => {
+      const boxPrice = Number(row.boxPrice || 0);
+      const qtyPerBox = Number(row.qtyPerBox || 1);
+      const pricePerPiece = qtyPerBox > 0 ? boxPrice / qtyPerBox : 0;
+      return (
+        <span className="text-sm font-medium text-violet-600 dark:text-violet-400">${pricePerPiece.toFixed(2)}</span>
+      );
+    }},
+    { header: "Total Purchase Price", accessor: (row: Medicine) => {
+      const boxPrice = Number(row.boxPrice || 0);
+      const totalPcs = (row.unitCount || 1) * (row.qtyPerBox || 1);
+      const pricePerPiece = (row.qtyPerBox || 1) > 0 ? boxPrice / (row.qtyPerBox || 1) : 0;
+      const total = pricePerPiece * totalPcs;
+      return (
+        <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">${total.toFixed(2)}</span>
+      );
+    }},
     { header: "Sales Price", accessor: (row: Medicine) => {
       const perPiece = Number(row.sellingPriceLocal ?? row.sellingPrice ?? 0);
       const qtyPerBox = Number(row.qtyPerBox || 1);
@@ -741,7 +752,7 @@ export default function MedicinesPage() {
             {fieldErrors.totalPcs && <p className="text-xs text-destructive mt-1">{fieldErrors.totalPcs}</p>}
           </div>
           <div>
-            <Label htmlFor="purchasePrice">Purchase Price ($) *</Label>
+            <Label htmlFor="purchasePrice">Purchase Price per Piece ($) *</Label>
             <Input ref={refPurchasePrice} id="purchasePrice" type="number" step="0.01" min={0} value={form.purchasePrice || ""} onChange={e => { setForm(f => ({ ...f, purchasePrice: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, purchasePrice: "" })); }} data-testid="input-medicine-purchase-price" className={fieldErrors.purchasePrice ? "border-destructive" : ""} />
             {fieldErrors.purchasePrice && <p className="text-xs text-destructive mt-1">{fieldErrors.purchasePrice}</p>}
           </div>
@@ -760,17 +771,11 @@ export default function MedicinesPage() {
           <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
             <Calculator className="h-3 w-3" /> Auto Calculation
           </div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Total Purchase Price:</span>
+              <span className="text-muted-foreground">Total Purchase Price (Total Pcs x Purchase Price):</span>
               <span className="font-bold text-violet-600 dark:text-violet-400" data-testid="calc-total-purchase">
                 ${totalPurchasePrice.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Price per Piece:</span>
-              <span className="font-bold text-orange-600 dark:text-orange-400" data-testid="calc-per-med-price">
-                ${perMedPrice.toFixed(4)}
               </span>
             </div>
           </div>
