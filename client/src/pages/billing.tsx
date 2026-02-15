@@ -19,7 +19,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag, Package, RotateCcw } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
-import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings, Package, Doctor } from "@shared/schema";
+import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings, Package as PackageType, Doctor } from "@shared/schema";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "\u20AC", GBP: "\u00A3", JPY: "\u00A5", KHR: "\u17DB",
@@ -101,7 +101,7 @@ export default function BillingPage() {
     queryKey: ["/api/injections"],
   });
 
-  const { data: packagesList = [] } = useQuery<Package[]>({
+  const { data: packagesList = [] } = useQuery<PackageType[]>({
     queryKey: ["/api/packages"],
   });
 
