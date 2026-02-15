@@ -116,10 +116,13 @@ export function SearchableSelect({
         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
 
-      {open && typeof document !== "undefined" && createPortal(
+      {open && typeof document !== "undefined" && (() => {
+        // Portal into the dialog content when inside a dialog so the focus trap includes the dropdown (search + scroll work)
+        const portalTarget = (containerRef.current?.closest("[role=\"dialog\"]") as HTMLElement) ?? document.body;
+        return createPortal(
         <div
           ref={dropdownRef}
-          className="fixed z-[99999] pointer-events-auto rounded-md border bg-popover text-popover-foreground shadow-md"
+          className="fixed z-[99999] rounded-md border bg-popover text-popover-foreground shadow-md"
           style={{ top: position.top, left: position.left, width: Math.max(position.width, 200), minWidth: 200 }}
           onMouseDown={(e) => e.stopPropagation()}
         >
@@ -131,11 +134,12 @@ export function SearchableSelect({
               placeholder={searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onMouseDown={(e) => e.stopPropagation()}
               className="flex h-10 w-full bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
               data-testid={testId ? `${testId}-search` : undefined}
             />
           </div>
-          <div className="max-h-[200px] overflow-y-auto p-1">
+          <div className="max-h-[200px] overflow-y-auto overflow-x-hidden overscroll-contain p-1" style={{ touchAction: "pan-y" }}>
             {filtered.length === 0 ? (
               <div className="py-4 text-center text-sm text-muted-foreground">{emptyText}</div>
             ) : (
@@ -158,8 +162,9 @@ export function SearchableSelect({
             )}
           </div>
         </div>,
-        document.body
-      )}
+        portalTarget
+      );
+      })()}
     </div>
   );
 }
