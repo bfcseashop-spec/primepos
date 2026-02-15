@@ -143,6 +143,7 @@ export default function MedicinesPage() {
   });
 
   const totalPurchasePrice = form.purchasePrice * form.totalPcs;
+  const totalSalesPrice = form.salesPrice * form.totalPcs;
   const salesPricePerPiece = form.totalPcs > 0 ? form.salesPrice / form.totalPcs : 0;
   const perMedPrice = form.purchasePrice;
 
@@ -765,11 +766,17 @@ export default function MedicinesPage() {
           <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
             <Calculator className="h-3 w-3" /> Auto Calculation
           </div>
-          <div className="text-sm">
+          <div className="text-sm space-y-1.5">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total Purchase Price (Total Pcs x Purchase Price):</span>
               <span className="font-bold text-violet-600 dark:text-violet-400" data-testid="calc-total-purchase">
                 ${totalPurchasePrice.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total Sales Price (Total Pcs x Sales Per Pieces):</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400" data-testid="calc-total-sales">
+                ${totalSalesPrice.toFixed(2)}
               </span>
             </div>
           </div>
