@@ -500,34 +500,19 @@ export default function MedicinesPage() {
       </Badge>
     )},
     { header: "Unit Type", accessor: (row: Medicine) => getUnitBadge(row.unit || "Box") },
-    { header: "Unit Count", accessor: (row: Medicine) => (
-      <span className="inline-flex px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] font-mono font-medium">{row.unitCount || 1}</span>
-    )},
-    { header: "Qty", accessor: (row: Medicine) => (
-      <span className="inline-flex px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-[11px] font-mono font-medium text-blue-700 dark:text-blue-300">{row.qtyPerBox || 1}</span>
-    )},
-    { header: "Purchase Unit Price", accessor: (row: Medicine) => (
+    { header: "Total Pcs", accessor: (row: Medicine) => {
+      const totalPcs = (row.unitCount || 1) * (row.qtyPerBox || 1);
+      return (
+        <span className="inline-flex px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-[11px] font-mono font-medium text-blue-700 dark:text-blue-300">{totalPcs}</span>
+      );
+    }},
+    { header: "Purchase Price", accessor: (row: Medicine) => (
       <span className="text-sm font-medium text-violet-600 dark:text-violet-400">${Number(row.boxPrice || 0).toFixed(2)}</span>
     )},
-    { header: "Per Piece Price", accessor: (row: Medicine) => {
-      const boxPrice = Number(row.boxPrice || 0);
-      const qtyPerBox = Number(row.qtyPerBox || 1);
-      const perPiece = qtyPerBox > 0 ? boxPrice / qtyPerBox : 0;
-      return (
-        <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">${perPiece.toFixed(2)}</span>
-      );
-    }},
-    { header: "Total Purchase", accessor: (row: Medicine) => {
-      const boxPrice = Number(row.boxPrice || 0);
-      const qtyPerBox = Number(row.qtyPerBox || 1);
-      const stockCount = Number(row.stockCount || 0);
-      const perPiece = qtyPerBox > 0 ? boxPrice / qtyPerBox : 0;
-      const total = perPiece * stockCount;
-      return (
-        <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">${total.toFixed(2)}</span>
-      );
-    }},
-    { header: "Sales Unit Price", accessor: (row: Medicine) => {
+    { header: "Total Purchase Price", accessor: (row: Medicine) => (
+      <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">${Number(row.totalPurchasePrice || 0).toFixed(2)}</span>
+    )},
+    { header: "Sales Price", accessor: (row: Medicine) => {
       const perPiece = Number(row.sellingPriceLocal ?? row.sellingPrice ?? 0);
       const qtyPerBox = Number(row.qtyPerBox || 1);
       const perUnit = perPiece * qtyPerBox;
@@ -535,10 +520,7 @@ export default function MedicinesPage() {
         <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${perUnit.toFixed(2)}</span>
       );
     }},
-    { header: "Sales Value/pc", accessor: (row: Medicine) => (
-      <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${Number(row.sellingPriceLocal || 0).toFixed(2)}</span>
-    )},
-    { header: t("medicines.stockCount"), accessor: (row: Medicine) => {
+    { header: "Stock Available", accessor: (row: Medicine) => {
       const current = row.stockCount ?? 0;
       const totalRaw = Number(row.totalStock) ?? 0;
       const total = totalRaw > 0 ? totalRaw : current;
