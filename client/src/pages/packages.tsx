@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Pencil, Trash2, Package, X } from "lucide-react";
@@ -260,34 +261,49 @@ export default function PackagesPage() {
                     </SelectContent>
                   </Select>
                   {newItemType === "service" && (
-                    <Select value={newItemRefId} onValueChange={setNewItemRefId}>
-                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Select service" /></SelectTrigger>
-                      <SelectContent>
-                        {services.filter(s => s.isActive).map(s => (
-                          <SelectItem key={s.id} value={String(s.id)}>{s.name} – ${s.price}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={newItemRefId}
+                      onValueChange={setNewItemRefId}
+                      placeholder="Select service"
+                      searchPlaceholder="Search service..."
+                      emptyText="No service found."
+                      className="w-[200px]"
+                      options={services.filter(s => s.isActive).map(s => ({
+                        value: String(s.id),
+                        label: `${s.name} – $${s.price}`,
+                        searchText: s.name,
+                      }))}
+                    />
                   )}
                   {newItemType === "injection" && (
-                    <Select value={newItemRefId} onValueChange={setNewItemRefId}>
-                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Select injection" /></SelectTrigger>
-                      <SelectContent>
-                        {injections.filter(i => i.isActive).map(i => (
-                          <SelectItem key={i.id} value={String(i.id)}>{i.name} – ${i.price}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={newItemRefId}
+                      onValueChange={setNewItemRefId}
+                      placeholder="Select injection"
+                      searchPlaceholder="Search injection..."
+                      emptyText="No injection found."
+                      className="w-[200px]"
+                      options={injections.filter(i => i.isActive).map(i => ({
+                        value: String(i.id),
+                        label: `${i.name} – $${i.price}`,
+                        searchText: i.name,
+                      }))}
+                    />
                   )}
                   {newItemType === "medicine" && (
-                    <Select value={newItemRefId} onValueChange={setNewItemRefId}>
-                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Select medicine" /></SelectTrigger>
-                      <SelectContent>
-                        {medicines.filter(m => m.isActive).map(m => (
-                          <SelectItem key={m.id} value={String(m.id)}>{m.name} – ${m.sellingPriceLocal || m.sellingPrice}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={newItemRefId}
+                      onValueChange={setNewItemRefId}
+                      placeholder="Select medicine"
+                      searchPlaceholder="Search medicine..."
+                      emptyText="No medicine found."
+                      className="w-[200px]"
+                      options={medicines.filter(m => m.isActive).map(m => ({
+                        value: String(m.id),
+                        label: `${m.name} – $${m.sellingPriceLocal || m.sellingPrice}`,
+                        searchText: m.name,
+                      }))}
+                    />
                   )}
                   {newItemType === "custom" && (
                     <>

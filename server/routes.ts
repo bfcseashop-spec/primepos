@@ -1001,8 +1001,10 @@ export async function registerRoutes(
             sellingPriceLocal: (parseFloat(row["Selling Price (Local)"] || row["sellingPriceLocal"] || "0") || 0).toString(),
             sellingPriceForeigner: (parseFloat(row["Selling Price (Foreigner)"] || row["sellingPriceForeigner"] || "0") || 0).toString(),
             stockCount: parseInt(row["Stock Count"] || row["stockCount"] || "0") || 0,
+            totalStock: parseInt(row["Stock Count"] || row["stockCount"] || "0") || 0,
             stockAlert: parseInt(row["Stock Alert"] || row["stockAlert"] || "10") || 10,
-            quantity: 0, unitPrice: "0", sellingPrice: "0", isActive: true,
+            quantity: parseInt(row["Stock Count"] || row["stockCount"] || "0") || 0,
+            unitPrice: "0", sellingPrice: "0", isActive: true,
           });
           imported++;
         } catch (err: any) { skipped++; errors.push(`Row ${i + 2}: ${err.message}`); }
@@ -1243,8 +1245,10 @@ export async function registerRoutes(
 
   app.post("/api/medicines", async (req, res) => {
     try {
-      const data = validateBody(insertMedicineSchema, req.body);
-      const medicine = await storage.createMedicine(data);
+      const data = validateBody(insertMedicineSchema, req.body) as Record<string, unknown>;
+      const stockCount = Number(data.stockCount) ?? 0;
+      if (data.totalStock == null) data.totalStock = stockCount;
+      const medicine = await storage.createMedicine(data as Parameters<typeof storage.createMedicine>[0]);
       res.status(201).json(medicine);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -1300,10 +1304,20 @@ export async function registerRoutes(
       const { reason, adjustmentType, ...updateData } = data;
       if (data.stockCount !== undefined && typeof data.stockCount === "number") {
         updateData.quantity = data.stockCount;
+        const prevStock = existing.stockCount ?? 0;
+        const newStock = data.stockCount;
+        const prevTotal = Number((existing as any).totalStock) ?? prevStock;
+        if (adjustmentType === "add") {
+          updateData.totalStock = prevTotal + (newStock - prevStock);
+        } else if (adjustmentType === "set") {
+          updateData.totalStock = newStock;
+        } else {
+          updateData.totalStock = prevTotal;
+        }
         await storage.createStockAdjustment({
           medicineId: id,
-          previousStock: existing.stockCount ?? 0,
-          newStock: data.stockCount,
+          previousStock: prevStock,
+          newStock,
           adjustmentType: adjustmentType ?? "set",
           reason: reason ?? null,
         });

@@ -1476,13 +1476,18 @@ export default function BillingPage() {
                 </div>
                 <div>
                   <Label>{t("dashboard.doctor")}</Label>
-                  <Select value={editDoctor || "none"} onValueChange={(v) => setEditDoctor(v === "none" ? "" : v)}>
-                    <SelectTrigger data-testid="edit-bill-doctor"><SelectValue placeholder="None" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {doctorNames.map(d => d && <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={editDoctor || "none"}
+                    onValueChange={(v) => setEditDoctor(v === "none" ? "" : v)}
+                    placeholder="None"
+                    searchPlaceholder="Search doctor..."
+                    emptyText="No doctor found."
+                    data-testid="edit-bill-doctor"
+                    options={[
+                      { value: "none", label: "None" },
+                      ...doctorNames.filter(Boolean).map(d => ({ value: d, label: d, searchText: d })),
+                    ]}
+                  />
                 </div>
                 <Button
                   className="w-full"
