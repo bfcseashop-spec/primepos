@@ -311,97 +311,144 @@ export default function BillingPage() {
     const subtotalVal = (Number(bill.subtotal) || 0).toFixed(2);
     const discountVal = (Number(bill.discount) || 0).toFixed(2);
 
+    const statusLabel = bill.status === "paid" ? "PAID" : "PENDING";
+    const statusColor = bill.status === "paid" ? "#059669" : "#d97706";
+    const accentBar = "linear-gradient(90deg, #2563eb, #6366f1, #8b5cf6)";
+
     printWindow.document.write(`
       <html><head><title>Invoice ${billNoShort}</title>
       <meta charset="UTF-8">
       <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: ${bodyPad}; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.5; }
         .invoice-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
-        @media print { body { padding: 16px; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+        .label { font-size: ${fSm - 1}px; text-transform: uppercase; letter-spacing: 0.08em; color: ${muted}; font-weight: 600; margin-bottom: 3px; }
+        table { border-collapse: collapse; }
+        @media print { body { padding: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
       </style></head><body>
 
-        <div style="margin-bottom:16px;">
-          <table style="width:100%;">
-            <tr>
-              <td style="vertical-align:top;">
-                ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "32px" : "42px"};margin-bottom:6px;display:block;" />` : ""}
-                <div style="font-size:${fLg}px;font-weight:700;color:${accent};letter-spacing:0.02em;">${clinicNameDisplay}</div>
-                <div style="margin-top:6px;font-size:${fSm}px;color:${muted};line-height:1.5;">
-                  ${vatTin ? `<div>លេខអត្តសញ្ញាណកម្ម អតប (VATTIN): ${vatTin}</div>` : ""}
-                  ${clinicAddress ? `<div>អាស័យដ្ឋាន៖ ${clinicAddress}</div><div>Address: ${clinicAddress}</div>` : ""}
-                  ${clinicPhone ? `<div>ទូរស័ព្ធ៖ ${clinicPhone} &nbsp;|&nbsp; Tel: ${clinicPhone}</div>` : ""}
-                  <div>Email: ${clinicEmailDisplay || "-"}</div>
-                </div>
-              </td>
-            </tr>
-          </table>
-        </div>
+        <div style="height:${isCompact ? "4px" : "6px"};background:${accentBar};"></div>
 
-        <div style="border-bottom:2px solid ${accent};padding-bottom:10px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;">
-          <span style="font-size:${fBase + 1}px;font-weight:700;color:${accent};">វិក័យប័ត្រ / INVOICE</span>
-          <div style="text-align:right;">
-            ${billNoBarcode ? `<div class="invoice-barcode" style="font-size:${barcodeSize}px;margin-bottom:2px;">${billNoBarcode}</div>` : ""}
-            <span style="font-size:${fSm}px;color:${muted};">វិក័យប័ត្រលេខ / Invoice N°:</span> <strong style="font-size:${fSm}px;color:${accent};">${billNoShort}</strong>
+        <div style="padding:${bodyPad};">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:${isCompact ? "14px" : "18px"};flex-wrap:wrap;">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "28px" : "36px"};" />` : ""}
+                <div style="font-size:${fLg + 1}px;font-weight:700;color:${accent};letter-spacing:-0.01em;">${clinicNameDisplay}</div>
+              </div>
+              <div style="font-size:${fSm}px;color:${muted};line-height:1.6;">
+                ${vatTin ? `<div>VAT/TIN: ${vatTin}</div>` : ""}
+                ${clinicAddress ? `<div>${clinicAddress}</div>` : ""}
+                <div>${[clinicPhone, clinicEmailDisplay].filter(Boolean).join(" | ")}</div>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;background:${statusColor}15;margin-bottom:4px;">
+                <span style="width:6px;height:6px;border-radius:50%;background:${statusColor};display:inline-block;"></span>
+                <span style="font-size:${fSm}px;font-weight:700;color:${statusColor};letter-spacing:0.05em;">${statusLabel}</span>
+              </div>
+              <div style="font-size:${isCompact ? "18px" : "22px"};font-weight:800;color:${accent};letter-spacing:-0.02em;">${pSym}${totalDue.toFixed(2)}</div>
+              ${(() => { const { secondaryStr } = getCurrencyParts(totalDue, settings); return secondaryStr ? `<div style="font-size:${fSm}px;color:${muted};">${secondaryStr}</div>` : ""; })()}
+            </div>
           </div>
-        </div>
 
-        <table style="width:100%;margin-bottom:14px;font-size:${fSm}px;">
-          <tr>
-            <td style="width:50%;vertical-align:top;padding:8px 12px;background:#f8fafc;border-radius:6px;border:1px solid ${border};">
-              <div style="font-weight:600;color:${accent};margin-bottom:6px;">ឈ្មោះអ្នកជំងឺ / Patient Name</div>
-              <div style="color:${accent};margin-bottom:4px;">${patient?.name || "-"}</div>
-              ${patient?.patientId ? `<div style="color:${muted};margin-bottom:2px;">លេខអ្នកជំងឺ / Patient's ID: <span style="color:${accent};">${patient.patientId}</span></div>` : ""}
-              ${bill.referenceDoctor ? `<div style="color:${muted};margin-top:4px;">Reference / គ្រូពេទ្យ: <span style="color:${accent};">${bill.referenceDoctor}</span></div>` : ""}
-            </td>
-            <td style="width:50%;vertical-align:top;padding:8px 12px;padding-left:14px;">
-              ${patient?.gender ? `<div style="margin-bottom:4px;"><span style="color:${muted};">ភេទ / Sex:</span> <span style="color:${accent};font-weight:500;">${patient.gender}</span></div>` : ""}
-              ${patient?.age != null ? `<div style="margin-bottom:4px;"><span style="color:${muted};">អាយុ / Age:</span> <span style="color:${accent};">${patient.age} y</span></div>` : ""}
-            </td>
-          </tr>
-        </table>
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding-bottom:${isCompact ? "10px" : "14px"};margin-bottom:${isCompact ? "12px" : "16px"};border-bottom:2px solid ${accent};flex-wrap:wrap;">
+            <div style="display:flex;gap:${isCompact ? "16px" : "24px"};flex-wrap:wrap;">
+              <div>
+                <div class="label">Invoice No.</div>
+                <div style="font-family:monospace;font-weight:600;font-size:${fBase}px;">${billNoShort}</div>
+              </div>
+              <div>
+                <div class="label">Date</div>
+                <div style="font-weight:500;font-size:${fBase}px;">${formattedDate}</div>
+              </div>
+              <div>
+                <div class="label">Payment</div>
+                <div style="font-weight:500;font-size:${fBase}px;">${getPaymentLabel(bill.paymentMethod)}</div>
+              </div>
+            </div>
+            ${billNoBarcode ? `<div style="text-align:right;"><div class="invoice-barcode" style="font-size:${barcodeSize}px;">${billNoBarcode}</div><div style="font-size:${fSm - 1}px;color:${muted};letter-spacing:0.1em;">${billNoShort}</div></div>` : ""}
+          </div>
 
-        <table style="width:100%;border-collapse:collapse;margin-bottom:14px;border:1px solid ${border};border-radius:6px;overflow:hidden;">
-          <thead>
-            <tr style="background:${accent};color:white;">
-              <th style="padding:${pad};text-align:center;font-size:${fSm}px;font-weight:600;width:36px;">ល.រ<br><span style="font-weight:500;opacity:0.95;">No</span></th>
-              <th style="padding:${pad};text-align:left;font-size:${fSm}px;font-weight:600;">ប្រភេទសេវាកម្ម / Service Type</th>
-              <th style="padding:${pad};text-align:center;font-size:${fSm}px;font-weight:600;width:44px;">បរិមាណ /<br>Qty</th>
-              <th style="padding:${pad};text-align:right;font-size:${fSm}px;font-weight:600;width:70px;">តម្លៃ /<br>Price</th>
-              <th style="padding:${pad};text-align:right;font-size:${fSm}px;font-weight:600;width:76px;background:rgba(254,249,195,0.35);-webkit-print-color-adjust:exact;print-color-adjust:exact;">សរុប / Total</th>
-            </tr>
-          </thead>
-          <tbody>${itemRows}</tbody>
-        </table>
-
-        <div style="display:flex;justify-content:flex-end;margin-bottom:18px;">
-          <table style="width:100%;max-width:280px;font-size:${fSm}px;border:1px solid ${border};border-radius:6px;overflow:hidden;">
-            <tr><td style="padding:${padSm};color:${muted};">សរុបរួម / Total</td><td style="padding:${padSm};text-align:right;color:${accent};">${currencyCode} ${subtotalVal}</td></tr>
-            <tr><td style="padding:${padSm};color:${muted};">ចុះតំលៃ / Discount</td><td style="padding:${padSm};text-align:right;color:${accent};">${currencyCode} ${discountVal}</td></tr>
-            <tr style="background:${totalHighlight};-webkit-print-color-adjust:exact;print-color-adjust:exact;"><td style="padding:${pad};font-weight:700;color:${accent};">សរុបត្រូវបង់ / Total Due</td><td style="padding:${pad};text-align:right;font-weight:700;color:${accent};">${currencyCode} ${totalDue.toFixed(2)}</td></tr>
-            <tr><td style="padding:${padSm};color:${muted};">ចំនួនបង់រួច / Amount PAID</td><td style="padding:${padSm};text-align:right;font-weight:600;color:${accent};background:${totalHighlight};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${currencyCode} ${paidAmt.toFixed(2)}</td></tr>
-            <tr><td style="padding:${padSm};color:${muted};">ចំនួនជំពាក់ / Amount OWE</td><td style="padding:${padSm};text-align:right;font-weight:600;color:${accent};background:${totalHighlight};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${currencyCode} ${amountOwed.toFixed(2)}</td></tr>
-          </table>
-        </div>
-
-        <div style="border-top:1px solid ${border};padding-top:14px;margin-top:4px;">
-          <table style="width:100%;font-size:${fSm}px;">
+          <table style="width:100%;margin-bottom:${isCompact ? "12px" : "16px"};font-size:${fSm}px;">
             <tr>
-              <td style="width:33%;vertical-align:top;padding-right:12px;">
-                <div style="font-weight:600;color:${accent};margin-bottom:6px;">អតិថិជន / Customer</div>
-                <div style="border-bottom:1px solid ${accent};height:28px;"></div>
+              <td style="width:50%;vertical-align:top;padding:${padSm} ${pad};background:#f8fafc;border:1px solid ${border};border-right:none;">
+                <div class="label" style="margin-bottom:4px;">Bill To / ឈ្មោះអ្នកជំងឺ</div>
+                <div style="font-weight:600;color:${accent};margin-bottom:2px;">${patient?.name || "-"}</div>
+                ${patient?.patientId ? `<div style="color:${muted};">ID: ${patient.patientId}</div>` : ""}
+                ${patient?.gender ? `<div style="color:${muted};">${patient.gender}${patient?.age != null ? ` | Age: ${patient.age}` : ""}</div>` : ""}
               </td>
-              <td style="width:34%;text-align:center;vertical-align:top;padding:0 8px;border-left:1px solid ${border};border-right:1px solid ${border};">
-                <div style="color:${muted};margin-bottom:4px;">Date</div>
-                <div style="font-weight:500;color:${accent};">${formattedDate}</div>
-              </td>
-              <td style="width:33%;text-align:right;vertical-align:top;padding-left:12px;">
-                <div style="font-weight:600;color:${accent};margin-bottom:6px;">អ្នកគិតលុយ | Cashier</div>
-                <div style="border-bottom:1px solid ${accent};height:28px;margin-left:auto;"></div>
+              <td style="width:50%;vertical-align:top;padding:${padSm} ${pad};background:#f8fafc;border:1px solid ${border};">
+                <div class="label" style="margin-bottom:4px;">Clinic Details</div>
+                ${bill.referenceDoctor ? `<div style="color:${accent};margin-bottom:2px;">Doctor: <strong>${bill.referenceDoctor}</strong></div>` : ""}
+                <div style="color:${muted};">Status: <strong style="color:${statusColor};">${statusLabel}</strong></div>
+                <div style="color:${muted};">${clinicNameDisplay}</div>
               </td>
             </tr>
           </table>
+
+          <table style="width:100%;margin-bottom:${isCompact ? "12px" : "16px"};">
+            <thead>
+              <tr style="border-bottom:2px solid ${accent}20;">
+                <th style="padding:${pad};text-align:left;font-size:${fSm - 1}px;text-transform:uppercase;letter-spacing:0.08em;color:${muted};font-weight:600;width:30px;">#</th>
+                <th style="padding:${pad};text-align:left;font-size:${fSm - 1}px;text-transform:uppercase;letter-spacing:0.08em;color:${muted};font-weight:600;">Item Description</th>
+                <th style="padding:${pad};text-align:center;font-size:${fSm - 1}px;text-transform:uppercase;letter-spacing:0.08em;color:${muted};font-weight:600;width:40px;">Qty</th>
+                <th style="padding:${pad};text-align:right;font-size:${fSm - 1}px;text-transform:uppercase;letter-spacing:0.08em;color:${muted};font-weight:600;width:68px;">Price</th>
+                <th style="padding:${pad};text-align:right;font-size:${fSm - 1}px;text-transform:uppercase;letter-spacing:0.08em;color:${muted};font-weight:600;width:76px;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${printItems.map((item: any, idx: number) => `
+                <tr style="border-bottom:1px solid ${border};">
+                  <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${idx + 1}</td>
+                  <td style="padding:${padSm};font-size:${fSm}px;font-weight:500;color:${accent};">${item.name}</td>
+                  <td style="padding:${padSm};text-align:center;font-size:${fSm}px;color:${accent};">${item.quantity}</td>
+                  <td style="padding:${padSm};text-align:right;font-size:${fSm}px;color:${muted};">${pSym}${Number(item.unitPrice).toFixed(2)}</td>
+                  <td style="padding:${padSm};text-align:right;font-size:${fSm}px;font-weight:600;color:${accent};">${pSym}${Number(item.total).toFixed(2)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+
+          <div style="display:flex;justify-content:flex-end;margin-bottom:${isCompact ? "14px" : "18px"};">
+            <div style="width:${isCompact ? "200px" : "260px"};font-size:${fSm}px;">
+              <div style="display:flex;justify-content:space-between;padding:${padSm} 0;"><span style="color:${muted};">Subtotal</span><span>${pSym}${subtotalVal}</span></div>
+              ${Number(discountVal) > 0 ? `<div style="display:flex;justify-content:space-between;padding:${padSm} 0;"><span style="color:${muted};">Discount</span><span style="color:#ef4444;">-${pSym}${discountVal}</span></div>` : ""}
+              <div style="border-top:2px solid ${accent}20;margin-top:4px;padding-top:6px;">
+                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="font-weight:700;font-size:${fBase + 1}px;">Total Due</span><span style="font-weight:700;font-size:${fBase + 1}px;">${pSym}${totalDue.toFixed(2)}</span></div>
+                ${(() => { const { secondaryStr } = getCurrencyParts(totalDue, settings); return secondaryStr ? `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="color:${muted};font-size:${fSm}px;">Converted</span><span style="color:${muted};font-size:${fSm}px;">${secondaryStr}</span></div>` : ""; })()}
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:3px 0;margin-top:4px;"><span style="color:${muted};">Amount Paid</span><span style="font-weight:600;color:#059669;">${pSym}${paidAmt.toFixed(2)}</span></div>
+              ${amountOwed > 0 ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:${muted};">Balance Due</span><span style="font-weight:600;color:#ef4444;">${pSym}${amountOwed.toFixed(2)}</span></div>` : ""}
+            </div>
+          </div>
+
+          <div style="border-top:1px solid ${border};padding-top:${isCompact ? "12px" : "16px"};margin-top:4px;">
+            <table style="width:100%;font-size:${fSm}px;">
+              <tr>
+                <td style="width:33%;vertical-align:top;text-align:center;">
+                  <div style="border-bottom:1px solid ${accent};height:${isCompact ? "22px" : "28px"};margin:0 12px;"></div>
+                  <div style="color:${muted};margin-top:4px;font-weight:500;">Customer Signature</div>
+                </td>
+                <td style="width:34%;text-align:center;vertical-align:bottom;">
+                  <div style="color:${muted};font-size:${fSm - 1}px;">Date</div>
+                  <div style="font-weight:600;color:${accent};margin-top:2px;">${formattedDate}</div>
+                </td>
+                <td style="width:33%;vertical-align:top;text-align:center;">
+                  <div style="border-bottom:1px solid ${accent};height:${isCompact ? "22px" : "28px"};margin:0 12px;"></div>
+                  <div style="color:${muted};margin-top:4px;font-weight:500;">Authorized Signature</div>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="text-align:center;margin-top:${isCompact ? "10px" : "14px"};padding-top:8px;">
+            <div style="font-size:${fSm}px;font-weight:500;color:${accent};">Thank you for your visit!</div>
+            ${clinicEmailDisplay ? `<div style="font-size:${fSm - 1}px;color:${muted};margin-top:2px;">${clinicEmailDisplay}</div>` : ""}
+          </div>
+
         </div>
 
         <script>window.onload = function() { window.print(); }</script>
@@ -1279,8 +1326,8 @@ export default function BillingPage() {
 
       {/* View Invoice Dialog */}
       <Dialog open={!!viewBill} onOpenChange={(open) => { if (!open) setViewBill(null); }}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-4xl sm:max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+          <DialogHeader className="sr-only">
             <DialogTitle>{t("billing.invoice")} - {viewBill?.billNo}</DialogTitle>
             <DialogDescription>{t("billing.subtitle")}</DialogDescription>
           </DialogHeader>
@@ -1290,116 +1337,203 @@ export default function BillingPage() {
             const vSubtotal = Number(viewBill.subtotal) || 0;
             const vDiscount = Number(viewBill.discount) || 0;
             const vTotal = Number(viewBill.total) || 0;
+            const vPaid = Number(viewBill.paidAmount) || 0;
+            const vOwed = Math.max(0, vTotal - vPaid);
             const dateStr = viewBill.paymentDate || (viewBill.createdAt ? new Date(viewBill.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]);
+            const pSym = CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$";
+            const isPaid = viewBill.status === "paid";
             return (
-              <div className="space-y-4">
-                <div className="border rounded-md p-5 bg-white dark:bg-card">
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div>
-                      {settings?.logo && <img src={settings.logo} alt="Logo" className="h-10 mb-1.5 object-contain" />}
-                      <h2 className="text-base font-bold text-blue-700 dark:text-blue-400">{settings?.clinicName || ""}</h2>
-                      {settings?.address && <p className="text-[10px] text-muted-foreground">{settings.address}</p>}
-                      {settings?.phone && <p className="text-[10px] text-muted-foreground">{settings.phone}</p>}
-                      {settings?.email && <p className="text-[10px] text-muted-foreground">{settings.email}</p>}
-                    </div>
-                    <div className="text-right">
-                      <h3 className="text-xl font-extrabold tracking-wide">{t("billing.invoice")}</h3>
-                      <p className="text-xs text-muted-foreground mt-1">Invoice #: <span className="font-semibold text-foreground">{viewBill.billNo}</span></p>
-                      <p className="text-xs text-muted-foreground">{t("common.date")}: {new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
-                      {(viewBill.billNo || "").replace(/[^A-Za-z0-9\-]/g, "") && (
-                        <div className="mt-1.5" style={{ fontFamily: "'Libre Barcode 128', monospace", fontSize: 36, letterSpacing: 2, lineHeight: 1, color: "var(--foreground)" }}>
-                          {(viewBill.billNo || "").replace(/[^A-Za-z0-9\-]/g, "")}
+              <div>
+                <div className="bg-card border-b">
+                  <div className="h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-violet-500 rounded-t-lg" />
+                  <div className="px-6 pt-5 pb-4">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                          {settings?.logo && <img src={settings.logo} alt="Logo" className="h-9 object-contain" />}
+                          <div>
+                            <h2 className="text-lg font-bold tracking-tight">{settings?.clinicName || "Clinic"}</h2>
+                            {settings?.companyTaxId && <p className="text-[10px] text-muted-foreground">VAT/TIN: {settings.companyTaxId}</p>}
+                          </div>
                         </div>
-                      )}
-                      <p className="text-[10px] text-muted-foreground mt-0.5 tracking-wide">{viewBill.billNo}</p>
-                      <Badge className={`mt-1.5 ${viewBill.status === "paid" ? "bg-emerald-600 border-emerald-700" : "bg-amber-500 border-amber-600"} text-white`}>
-                        {viewBill.status === "paid" ? t("billing.paid") : t("billing.pending")}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-0 rounded-md border bg-muted/30 mb-4">
-                    <div className="p-3">
-                      <p className="text-[10px] uppercase text-blue-600 dark:text-blue-400 font-semibold tracking-wide mb-1">{t("billing.patient")}</p>
-                      <p className="text-sm font-semibold">{viewBill.patientName || patient?.name || "-"}</p>
-                      {patient?.patientId && <p className="text-[11px] text-muted-foreground">ID: {patient.patientId}</p>}
-                      {patient?.gender && <p className="text-[11px] text-muted-foreground">Gender: {patient.gender}</p>}
-                    </div>
-                    <div className="p-3 border-l">
-                      <p className="text-[10px] uppercase text-amber-600 dark:text-amber-400 font-semibold tracking-wide mb-1">Details</p>
-                      {viewBill.referenceDoctor && <p className="text-[11px]"><span className="text-muted-foreground">Ref Doctor:</span> <span className="font-medium">{viewBill.referenceDoctor}</span></p>}
-                      <p className="text-[11px]"><span className="text-muted-foreground">Payment:</span> <span className="font-medium">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
-                    </div>
-                  </div>
-
-                  <div className="mb-4 rounded-md overflow-hidden border">
-                    <div className="grid grid-cols-[36px,1fr,70px,46px,80px] bg-gradient-to-r from-blue-600 to-violet-600 text-white text-[11px] font-semibold">
-                      <span className="p-2 text-center">#</span>
-                      <span className="p-2">{t("common.description")}</span>
-                      <span className="p-2 text-right">{t("common.price")}</span>
-                      <span className="p-2 text-center">{t("common.quantity")}</span>
-                      <span className="p-2 text-right">{t("common.total")}</span>
-                    </div>
-                    {items.map((item: any, i: number) => (
-                      <div key={i} className="grid grid-cols-[36px,1fr,70px,46px,80px] text-sm border-b last:border-b-0">
-                        <span className="p-2 text-center text-muted-foreground text-xs">{i + 1}</span>
-                        <span className="p-2">{item.name}</span>
-                        <span className="p-2 text-right text-muted-foreground">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{Number(item.unitPrice).toFixed(2)}</span>
-                        <span className="p-2 text-center">{item.quantity}</span>
-                        <span className="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">{(CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$")}{Number(item.total).toFixed(2)}</span>
+                        <div className="text-[11px] text-muted-foreground leading-relaxed pl-0.5">
+                          {settings?.address && <p>{settings.address}</p>}
+                          <div className="flex items-center gap-3 flex-wrap">
+                            {settings?.phone && <span>{settings.phone}</span>}
+                            {settings?.email && <span>{settings.email}</span>}
+                          </div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-
-                  <div className="flex justify-end mb-4">
-                    <div className="w-64 space-y-1 text-sm">
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">{t("common.subtotal")}</span>
-                        <span className="text-right text-emerald-600 dark:text-emerald-400">{formatDualCurrency(vSubtotal, settings)}</span>
+                      <div className="text-right space-y-1 shrink-0">
+                        <div className="inline-flex items-center gap-2">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${isPaid ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/15 text-amber-700 dark:text-amber-400"}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${isPaid ? "bg-emerald-500" : "bg-amber-500"}`} />
+                            {isPaid ? "Paid" : "Pending"}
+                          </span>
+                        </div>
+                        <p className="text-2xl font-extrabold tracking-tight tabular-nums">{pSym}{vTotal.toFixed(2)}</p>
+                        {(() => {
+                          const { secondaryStr } = getCurrencyParts(vTotal, settings);
+                          return secondaryStr ? <p className="text-xs text-muted-foreground tabular-nums">{secondaryStr}</p> : null;
+                        })()}
                       </div>
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">{t("billing.discount")}</span>
-                        <span className="text-right text-red-500">-{formatDualCurrency(vDiscount, settings)}</span>
-                      </div>
-                      <Separator />
-                      {(() => {
-                        const { primaryStr, secondaryStr } = getCurrencyParts(vTotal, settings);
-                        return (
-                          <>
-                            <div className="flex justify-between gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-base pt-0.5">
-                              <span>{t("billing.grandTotal")}</span>
-                              <span className="text-right">{primaryStr}</span>
-                            </div>
-                            {secondaryStr && (
-                              <div className="flex justify-between gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-base">
-                                <span>{t("billing.grandTotal")}</span>
-                                <span className="text-right">{secondaryStr}</span>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
                     </div>
-                  </div>
-
-                  <div className="rounded-md bg-violet-500/10 border border-violet-500/20 p-3 mb-4">
-                    <p className="text-[10px] uppercase text-violet-700 dark:text-violet-400 font-semibold tracking-wide mb-1">{t("billing.paymentMethod")}</p>
-                    <p className="text-xs text-muted-foreground">Payment for the above medical services at {settings?.clinicName || ""}.</p>
-                    <p className="text-[11px] text-muted-foreground mt-1">{t("billing.paid")}: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatDualCurrency(Number(viewBill.paidAmount), settings)}</span> via <span className="font-semibold text-foreground">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
-                  </div>
-
-                  <Separator className="mb-3" />
-                  <div className="text-center space-y-0.5">
-                    <p className="text-sm font-semibold">Thank you for choosing {settings?.clinicName || "us"}!</p>
-                    <p className="text-xs text-muted-foreground">For questions, contact {settings?.email || "your clinic"}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <Button onClick={() => { printReceipt(viewBill, "compact"); }} variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white" data-testid="button-view-print-compact">
+                <div className="px-6 py-4 space-y-5">
+                  <div className="flex items-start justify-between gap-6 flex-wrap">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-3 text-sm flex-1">
+                      <div>
+                        <p className="text-[10px] uppercase text-muted-foreground font-medium tracking-wider mb-0.5">Invoice No.</p>
+                        <p className="font-mono font-semibold text-sm">{viewBill.billNo}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase text-muted-foreground font-medium tracking-wider mb-0.5">Date</p>
+                        <p className="font-medium text-sm">{new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase text-muted-foreground font-medium tracking-wider mb-0.5">Payment</p>
+                        <p className="font-medium text-sm">{getPaymentLabel(viewBill.paymentMethod)}</p>
+                      </div>
+                    </div>
+                    {(viewBill.billNo || "").replace(/[^A-Za-z0-9\-]/g, "") && (
+                      <div className="text-right shrink-0">
+                        <div style={{ fontFamily: "'Libre Barcode 128', monospace", fontSize: 40, letterSpacing: 2, lineHeight: 1, color: "var(--foreground)" }}>
+                          {(viewBill.billNo || "").replace(/[^A-Za-z0-9\-]/g, "")}
+                        </div>
+                        <p className="text-[9px] text-muted-foreground tracking-widest mt-0.5">{viewBill.billNo}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border overflow-hidden">
+                    <div className="grid grid-cols-2 divide-x">
+                      <div className="p-3.5 bg-muted/30">
+                        <p className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground mb-1.5">Bill To</p>
+                        <p className="text-sm font-semibold">{viewBill.patientName || patient?.name || "-"}</p>
+                        {patient?.patientId && <p className="text-[11px] text-muted-foreground mt-0.5">ID: {patient.patientId}</p>}
+                        <div className="flex gap-3 mt-1 flex-wrap">
+                          {patient?.gender && <span className="text-[11px] text-muted-foreground">{patient.gender}</span>}
+                          {patient?.age != null && <span className="text-[11px] text-muted-foreground">Age: {patient.age}</span>}
+                        </div>
+                      </div>
+                      <div className="p-3.5 bg-muted/30">
+                        <p className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground mb-1.5">Clinic Info</p>
+                        {viewBill.referenceDoctor && (
+                          <p className="text-[11px]"><span className="text-muted-foreground">Doctor:</span> <span className="font-medium">{viewBill.referenceDoctor}</span></p>
+                        )}
+                        <p className="text-[11px]"><span className="text-muted-foreground">Status:</span> <span className="font-medium">{isPaid ? "Paid in Full" : "Payment Pending"}</span></p>
+                        {settings?.clinicName && <p className="text-[11px] text-muted-foreground mt-1">{settings.clinicName}</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b-2 border-foreground/15">
+                          <th className="text-left py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground w-9">#</th>
+                          <th className="text-left py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Item Description</th>
+                          <th className="text-center py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground w-14">Qty</th>
+                          <th className="text-right py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground w-20">Price</th>
+                          <th className="text-right py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground w-24">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((item: any, i: number) => (
+                          <tr key={i} className="border-b border-border/50 last:border-b-0">
+                            <td className="py-2.5 px-2 text-xs text-muted-foreground tabular-nums">{i + 1}</td>
+                            <td className="py-2.5 px-2">
+                              <span className="font-medium">{item.name}</span>
+                              {item.type && (
+                                <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-wide ${
+                                  item.type === "medicine" ? "bg-teal-500/10 text-teal-700 dark:text-teal-400" :
+                                  item.type === "injection" ? "bg-violet-500/10 text-violet-700 dark:text-violet-400" :
+                                  item.type === "service" ? "bg-sky-500/10 text-sky-700 dark:text-sky-400" :
+                                  "bg-muted text-muted-foreground"
+                                }`}>{item.type === "medicine" ? "Med" : item.type === "injection" ? "Inj" : item.type === "service" ? "Svc" : item.type}</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-2 text-center tabular-nums">{item.quantity}</td>
+                            <td className="py-2.5 px-2 text-right text-muted-foreground tabular-nums">{pSym}{Number(item.unitPrice).toFixed(2)}</td>
+                            <td className="py-2.5 px-2 text-right font-semibold tabular-nums">{pSym}{Number(item.total).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <div className="w-72">
+                      <div className="space-y-1.5 text-sm">
+                        <div className="flex justify-between gap-4 px-1">
+                          <span className="text-muted-foreground">Subtotal</span>
+                          <span className="tabular-nums">{pSym}{vSubtotal.toFixed(2)}</span>
+                        </div>
+                        {vDiscount > 0 && (
+                          <div className="flex justify-between gap-4 px-1">
+                            <span className="text-muted-foreground">Discount</span>
+                            <span className="text-red-500 tabular-nums">-{pSym}{vDiscount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="border-t-2 border-foreground/15 pt-2 mt-2">
+                          <div className="flex justify-between gap-4 px-1">
+                            <span className="font-bold text-base">Total Due</span>
+                            <span className="font-bold text-base tabular-nums">{pSym}{vTotal.toFixed(2)}</span>
+                          </div>
+                          {(() => {
+                            const { secondaryStr } = getCurrencyParts(vTotal, settings);
+                            return secondaryStr ? (
+                              <div className="flex justify-between gap-4 px-1 mt-0.5">
+                                <span className="text-xs text-muted-foreground">Converted</span>
+                                <span className="text-xs text-muted-foreground tabular-nums">{secondaryStr}</span>
+                              </div>
+                            ) : null;
+                          })()}
+                        </div>
+                        <div className="flex justify-between gap-4 px-1 pt-1">
+                          <span className="text-muted-foreground">Amount Paid</span>
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{pSym}{vPaid.toFixed(2)}</span>
+                        </div>
+                        {vOwed > 0 && (
+                          <div className="flex justify-between gap-4 px-1">
+                            <span className="text-muted-foreground">Balance Due</span>
+                            <span className="font-semibold text-red-500 tabular-nums">{pSym}{vOwed.toFixed(2)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4 mt-2">
+                    <div className="grid grid-cols-3 gap-4 text-center text-[11px]">
+                      <div>
+                        <div className="border-b border-foreground/20 pb-6 mb-1.5 mx-4" />
+                        <p className="text-muted-foreground font-medium">Customer Signature</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Date</p>
+                        <p className="font-semibold text-sm">{new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
+                      </div>
+                      <div>
+                        <div className="border-b border-foreground/20 pb-6 mb-1.5 mx-4" />
+                        <p className="text-muted-foreground font-medium">Authorized Signature</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-center pt-2 pb-1 space-y-0.5">
+                    <p className="text-xs font-medium">Thank you for your visit!</p>
+                    {settings?.email && <p className="text-[10px] text-muted-foreground">{settings.email}</p>}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 px-6 pb-5">
+                  <Button onClick={() => { printReceipt(viewBill, "compact"); }} variant="outline" data-testid="button-view-print-compact">
                     <Printer className="h-4 w-4 mr-1.5" /> Print (Compact)
                   </Button>
-                  <Button onClick={() => { printReceipt(viewBill, "full"); }} className="bg-blue-600 hover:bg-blue-600 text-white border-blue-700" data-testid="button-view-print-full">
+                  <Button onClick={() => { printReceipt(viewBill, "full"); }} data-testid="button-view-print-full">
                     <Printer className="h-4 w-4 mr-1.5" /> Print (Full size)
                   </Button>
                 </div>
