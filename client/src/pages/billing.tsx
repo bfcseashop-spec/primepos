@@ -602,32 +602,58 @@ export default function BillingPage() {
   const paidCount = dateFilteredBills.filter((b: any) => b.status === "paid").length;
   const pendingCount = dateFilteredBills.filter((b: any) => b.status !== "paid").length;
 
+  const getBillBreakdown = (row: any) => {
+    const items = Array.isArray(row.items) ? row.items : [];
+    const standalone = items.filter((i: any) => i?.packageId == null && i?.packageName == null);
+    const pkgItems = items.filter((i: any) => i?.packageId != null || i?.packageName != null);
+    const medQty = standalone.filter((i: any) => i?.type === "medicine").reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0);
+    const svcTotal = standalone.filter((i: any) => i?.type === "service").reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
+    const injTotal = standalone.filter((i: any) => i?.type === "injection").reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
+    const pkgTotal = pkgItems.reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
+    return { medQty, svcTotal, injTotal, pkgTotal };
+  };
+
   const billColumns = [
     { header: t("billing.billNo"), accessor: (row: any) => (
       <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">{row.billNo}</span>
     )},
+    { header: t("common.date"), accessor: (row: any) => {
+      const d = row.paymentDate || (row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-");
+      return <span className="text-xs text-muted-foreground whitespace-nowrap">{d}</span>;
+    }},
     { header: t("billing.patient"), accessor: (row: any) => (
       <span className="font-medium text-sm">{row.patientName}</span>
     )},
-    { header: t("common.quantity"), accessor: (row: any) => {
-      const items = Array.isArray(row.items) ? row.items : [];
-      return <Badge variant="secondary" className="text-[11px]">{items.length} items</Badge>;
+    { header: "Qty (Med)", accessor: (row: any) => {
+      const { medQty } = getBillBreakdown(row);
+      return medQty > 0
+        ? <Badge variant="secondary" className="text-[11px]">{medQty} pcs</Badge>
+        : <span className="text-xs text-muted-foreground">-</span>;
+    }},
+    { header: "Services", accessor: (row: any) => {
+      const { svcTotal } = getBillBreakdown(row);
+      return svcTotal > 0
+        ? <span className="text-xs font-medium text-sky-600 dark:text-sky-400">{formatDualCurrency(svcTotal, settings)}</span>
+        : <span className="text-xs text-muted-foreground">-</span>;
+    }},
+    { header: "Injection", accessor: (row: any) => {
+      const { injTotal } = getBillBreakdown(row);
+      return injTotal > 0
+        ? <span className="text-xs font-medium text-violet-600 dark:text-violet-400">{formatDualCurrency(injTotal, settings)}</span>
+        : <span className="text-xs text-muted-foreground">-</span>;
+    }},
+    { header: "Packages", accessor: (row: any) => {
+      const { pkgTotal } = getBillBreakdown(row);
+      return pkgTotal > 0
+        ? <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{formatDualCurrency(pkgTotal, settings)}</span>
+        : <span className="text-xs text-muted-foreground">-</span>;
     }},
     { header: t("common.total"), accessor: (row: any) => <span className="font-semibold text-sm text-emerald-600 dark:text-emerald-400">{formatDualCurrency(Number(row.total), settings)}</span> },
     { header: t("billing.paid"), accessor: (row: any) => (
       <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">{formatDualCurrency(Number(row.paidAmount), settings)}</span>
     )},
     { header: t("billing.paymentMethod"), accessor: (row: any) => getPaymentBadge(row.paymentMethod) },
-    { header: t("dashboard.doctor"), accessor: (row: any) => (
-      row.referenceDoctor
-        ? <span className="text-xs font-medium">{row.referenceDoctor}</span>
-        : <span className="text-xs text-muted-foreground">-</span>
-    )},
     { header: t("common.status"), accessor: (row: any) => getStatusBadge(row.status) },
-    { header: t("common.date"), accessor: (row: any) => {
-      const d = row.paymentDate || (row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-");
-      return <span className="text-xs text-muted-foreground">{d}</span>;
-    }},
     { header: t("common.actions"), accessor: (row: any) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
