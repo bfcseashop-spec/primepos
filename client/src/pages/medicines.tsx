@@ -500,14 +500,7 @@ export default function MedicinesPage() {
         {row.category || "-"}
       </Badge>
     )},
-    { header: "Unit Type", accessor: (row: Medicine) => getUnitBadge(row.unit || "Box") },
-    { header: "Total Pcs", accessor: (row: Medicine) => {
-      const totalPcs = (row.unitCount || 1) * (row.qtyPerBox || 1);
-      return (
-        <span className="inline-flex px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-[11px] font-mono font-medium text-blue-700 dark:text-blue-300">{totalPcs}</span>
-      );
-    }},
-    { header: "Purchase Each Price", accessor: (row: Medicine) => {
+    { header: "Purchase Price (Per Pcs)", accessor: (row: Medicine) => {
       const boxPrice = Number(row.boxPrice || 0);
       const qtyPerBox = Number(row.qtyPerBox || 1);
       const pricePerPiece = qtyPerBox > 0 ? boxPrice / qtyPerBox : 0;
@@ -515,59 +508,59 @@ export default function MedicinesPage() {
         <span className="text-sm font-medium text-violet-600 dark:text-violet-400">${pricePerPiece.toFixed(2)}</span>
       );
     }},
-    { header: "Total Purchase Price", accessor: (row: Medicine) => {
-      const boxPrice = Number(row.boxPrice || 0);
-      const totalPcs = (row.unitCount || 1) * (row.qtyPerBox || 1);
-      const pricePerPiece = (row.qtyPerBox || 1) > 0 ? boxPrice / (row.qtyPerBox || 1) : 0;
-      const total = pricePerPiece * totalPcs;
-      return (
-        <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">${total.toFixed(2)}</span>
-      );
-    }},
-    { header: "Sales Each Price", accessor: (row: Medicine) => {
+    { header: "Selling Price (Per Pcs)", accessor: (row: Medicine) => {
       const perPiece = Number(row.sellingPriceLocal ?? row.sellingPrice ?? 0);
       return (
         <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">${perPiece.toFixed(2)}</span>
       );
     }},
-    { header: "Total Sales Price", accessor: (row: Medicine) => {
-      const perPiece = Number(row.sellingPriceLocal ?? row.sellingPrice ?? 0);
-      const totalPcs = (row.unitCount || 1) * (row.qtyPerBox || 1);
-      const total = perPiece * totalPcs;
+    { header: "Quantity (Total Pcs)", accessor: (row: Medicine) => {
+      const totalRaw = Number(row.totalStock) ?? 0;
+      const purchaseQty = (row.unitCount ?? 0) * (row.qtyPerBox ?? 1);
+      const totalPcs = totalRaw > 0 ? totalRaw : Math.max(row.stockCount ?? 0, purchaseQty);
       return (
-        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${total.toFixed(2)}</span>
+        <span className="inline-flex px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-[11px] font-mono font-medium text-blue-700 dark:text-blue-300">{totalPcs}</span>
       );
     }},
-    { header: "Stock Available pcs", accessor: (row: Medicine) => {
+    { header: "Unit", accessor: (row: Medicine) => getUnitBadge(row.unit || "Box") },
+    { header: "Sold Out", accessor: (row: Medicine) => {
       const current = row.stockCount ?? 0;
       const totalRaw = Number(row.totalStock) ?? 0;
       const purchaseQty = (row.unitCount ?? 0) * (row.qtyPerBox ?? 1);
       const total = totalRaw > 0 ? totalRaw : Math.max(current, purchaseQty);
-      const isLow = current < (row.stockAlert || 10) && current > 0;
-      const isOut = current === 0;
-      const isInStock = !isLow && !isOut;
+      const sold = Math.max(0, total - current);
       return (
-        <div className="flex items-center gap-1.5">
-          <span className={`text-sm font-semibold ${isOut ? "text-red-600 dark:text-red-400" : isLow ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`} title={`Available: ${current} · Total: ${total}`}>{current} / {total}</span>
-          {isOut && (
-            <Badge variant="outline" className="text-[10px] no-default-hover-elevate no-default-active-elevate bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
-              <PackageX className="h-3 w-3 mr-1" /> Out
-            </Badge>
-          )}
-          {isLow && (
-            <Badge variant="outline" className="text-[10px] no-default-hover-elevate no-default-active-elevate bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20">
-              <AlertTriangle className="h-3 w-3 mr-1 animate-pulse" /> Low
-            </Badge>
-          )}
-          {isInStock && (
-            <Badge variant="outline" className="text-[10px] no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">
-              <CheckCircle2 className="h-3 w-3" />
-            </Badge>
-          )}
-        </div>
+        <span className="text-xs text-muted-foreground">
+          {sold} sold · {current} left
+        </span>
       );
     }},
-    { header: "Expiry Date", accessor: (row: Medicine) => getExpiryBadge(row.expiryDate) },
+    { header: "Available", accessor: (row: Medicine) => (
+      <span className="text-sm font-semibold text-foreground">{row.stockCount ?? 0}</span>
+    )},
+    { header: "Stock Short", accessor: (row: Medicine) => {
+      const current = row.stockCount ?? 0;
+      const alert = row.stockAlert ?? 10;
+      if (current >= alert || current === 0) return <span className="text-xs text-muted-foreground">-</span>;
+      return (
+        <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Short by {alert - current}</span>
+      );
+    }},
+    { header: "Status", accessor: (row: Medicine) => {
+      const current = row.stockCount ?? 0;
+      const isLow = current < (row.stockAlert || 10) && current > 0;
+      const isOut = current === 0;
+      if (isOut) return (
+        <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">Out of Stock</Badge>
+      );
+      if (isLow) return (
+        <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20">Low Stock</Badge>
+      );
+      return (
+        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">In stock</Badge>
+      );
+    }},
+    { header: "Expiry Date (Optional)", accessor: (row: Medicine) => getExpiryBadge(row.expiryDate) },
     { header: "Actions", accessor: (row: Medicine) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -815,7 +808,7 @@ export default function MedicinesPage() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label htmlFor="expiryDate">Expiry Date</Label>
+            <Label htmlFor="expiryDate">Expiry Date <span className="text-muted-foreground font-normal">(Optional)</span></Label>
             <Input id="expiryDate" type="date" value={form.expiryDate} onChange={e => setForm(f => ({ ...f, expiryDate: e.target.value }))} data-testid="input-medicine-expiry" />
           </div>
           <div>
