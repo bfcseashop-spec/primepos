@@ -324,81 +324,88 @@ export default function BillingPage() {
 
         <div style="padding:${bodyPad};">
 
-          <div style="text-align:center;margin-bottom:${isCompact ? "14px" : "20px"};">
-            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "36px" : "50px"};margin:0 auto 6px;" />` : ""}
-            <div style="font-size:${isCompact ? "14px" : "18px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.04em;">${clinicNameDisplay}</div>
-            <div style="font-size:${fSm}px;color:${muted};line-height:1.6;margin-top:2px;">
+          <!-- HEADER -->
+          <div style="text-align:center;margin-bottom:${isCompact ? "16px" : "24px"};padding-bottom:${isCompact ? "12px" : "16px"};border-bottom:2px solid ${border};">
+            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "40px" : "56px"};margin:0 auto 8px;display:block;" />` : ""}
+            <div style="font-size:${isCompact ? "16px" : "22px"};font-weight:900;color:${teal};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">${clinicNameDisplay}</div>
+            <div style="font-size:${isCompact ? "9px" : "11px"};color:${muted};line-height:1.7;">
               ${clinicAddress ? `<div>${clinicAddress}</div>` : ""}
               <div>${[clinicPhone, clinicEmailDisplay].filter(Boolean).join(", ")}</div>
             </div>
           </div>
 
-          <div style="margin-bottom:${isCompact ? "10px" : "14px"};">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
-              <div style="font-size:${fSm}px;line-height:1.8;">
-                <div><span style="color:${teal};font-weight:700;text-transform:uppercase;">Invoice No #:</span> <span style="font-weight:600;">${billNoShort}</span></div>
-                <div><span style="color:${teal};font-weight:700;text-transform:uppercase;">Date:</span> <span style="font-weight:500;">${formattedDate}</span></div>
-                <div>Paid By: <span style="font-weight:500;">${getPaymentLabel(bill.paymentMethod)}</span></div>
-              </div>
-              ${billNoBarcode ? `<div style="text-align:right;"><span style="color:${teal};font-weight:600;font-size:${fSm}px;">invoice code:</span><div class="invoice-barcode" style="font-size:${barcodeSize}px;">${billNoBarcode}</div></div>` : ""}
+          <!-- INVOICE META + BARCODE -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:${isCompact ? "12px" : "18px"};">
+            <div style="font-size:${isCompact ? "10px" : "12px"};line-height:2;">
+              <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${isCompact ? "9px" : "11px"};">Invoice No #:</span> <span style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${billNoShort}</span></div>
+              <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${isCompact ? "9px" : "11px"};">Date:</span> <span style="font-weight:600;">${formattedDate}</span></div>
+              <div style="color:${muted};">Paid By: <span style="font-weight:600;color:${accent};">${getPaymentLabel(bill.paymentMethod)}</span></div>
+            </div>
+            ${billNoBarcode ? `<div style="text-align:right;"><div style="color:${teal};font-weight:700;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">invoice code:</div><div class="invoice-barcode" style="font-size:${barcodeSize}px;">${billNoBarcode}</div></div>` : ""}
+          </div>
+
+          <!-- PATIENT + DOCTOR -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:${isCompact ? "16px" : "22px"};gap:16px;flex-wrap:wrap;">
+            <div style="line-height:1.8;">
+              <div style="font-size:${isCompact ? "13px" : "16px"};font-weight:800;color:${teal};margin-bottom:3px;">Patient :</div>
+              <div style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};margin-bottom:1px;">${patient?.name || "-"}</div>
+              ${patient?.patientId ? `<div style="font-size:${isCompact ? "9px" : "11px"};color:${muted};">ID : ${patient.patientId}</div>` : ""}
+              ${patient?.gender ? `<div style="font-size:${isCompact ? "9px" : "11px"};color:${muted};">Gender: ${patient.gender}${patient?.age != null ? `, Age: ${patient.age}` : ""}</div>` : ""}
+            </div>
+            <div style="line-height:1.8;text-align:right;">
+              <div style="font-size:${isCompact ? "13px" : "16px"};font-weight:800;color:${teal};margin-bottom:3px;">Dr. Name :</div>
+              <div style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${bill.referenceDoctor || "-"}</div>
             </div>
           </div>
 
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:${isCompact ? "14px" : "20px"};gap:12px;flex-wrap:wrap;">
-            <div style="font-size:${fSm}px;line-height:1.7;">
-              <div style="font-size:${isCompact ? "12px" : "14px"};font-weight:700;color:${teal};margin-bottom:2px;">Patient :</div>
-              <div style="font-weight:600;font-size:${fBase}px;">${patient?.name || "-"}</div>
-              ${patient?.patientId ? `<div>ID : ${patient.patientId}</div>` : ""}
-              ${patient?.gender ? `<div>Gender: ${patient.gender}${patient?.age != null ? `, Age: ${patient.age}` : ""}</div>` : ""}
-            </div>
-            <div style="font-size:${fSm}px;line-height:1.7;text-align:right;">
-              <div style="font-size:${isCompact ? "12px" : "14px"};font-weight:700;color:${teal};margin-bottom:2px;">Dr. Name :</div>
-              <div style="font-weight:600;font-size:${fBase}px;">${bill.referenceDoctor || "-"}</div>
-            </div>
-          </div>
-
-          <table style="width:100%;margin-bottom:${isCompact ? "12px" : "16px"};">
+          <!-- ITEMS TABLE -->
+          <table style="width:100%;margin-bottom:${isCompact ? "14px" : "20px"};">
             <thead>
               <tr style="background:${teal};-webkit-print-color-adjust:exact;print-color-adjust:exact;">
-                <th style="padding:${pad};text-align:center;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:600;width:${isCompact ? "36px" : "50px"};border-radius:${isCompact ? "4px" : "6px"} 0 0 0;">Item</th>
-                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:600;">Description</th>
-                <th style="padding:${pad};text-align:right;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:600;width:${isCompact ? "55px" : "70px"};">Price</th>
-                <th style="padding:${pad};text-align:center;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:600;width:${isCompact ? "36px" : "50px"};">Qty</th>
-                <th style="padding:${pad};text-align:right;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:600;width:${isCompact ? "60px" : "80px"};border-radius:0 ${isCompact ? "4px" : "6px"} 0 0;">Total</th>
+                <th style="padding:${isCompact ? "6px 8px" : "10px 12px"};text-align:center;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;width:${isCompact ? "36px" : "54px"};border-radius:${isCompact ? "4px" : "6px"} 0 0 0;">Item</th>
+                <th style="padding:${isCompact ? "6px 8px" : "10px 12px"};text-align:left;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;">Description</th>
+                <th style="padding:${isCompact ? "6px 8px" : "10px 12px"};text-align:right;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;width:${isCompact ? "55px" : "80px"};">Price</th>
+                <th style="padding:${isCompact ? "6px 8px" : "10px 12px"};text-align:center;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;width:${isCompact ? "36px" : "54px"};">Qty</th>
+                <th style="padding:${isCompact ? "6px 8px" : "10px 12px"};text-align:right;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;width:${isCompact ? "60px" : "90px"};border-radius:0 ${isCompact ? "4px" : "6px"} 0 0;">Total</th>
               </tr>
             </thead>
             <tbody>
               ${printItems.map((item: any, idx: number) => `
                 <tr style="border-bottom:1px solid ${border};">
-                  <td style="padding:${padSm};text-align:center;font-size:${fSm}px;font-weight:600;color:${accent};">${String(idx + 1).padStart(2, "0")}</td>
-                  <td style="padding:${padSm};font-size:${fSm}px;color:${accent};">${item.name}</td>
-                  <td style="padding:${padSm};text-align:right;font-size:${fSm}px;color:${muted};">${pSym}${Number(item.unitPrice).toFixed(2)}</td>
-                  <td style="padding:${padSm};text-align:center;font-size:${fSm}px;color:${accent};">${item.quantity}</td>
-                  <td style="padding:${padSm};text-align:right;font-size:${fSm}px;font-weight:600;color:${accent};">${pSym}${Number(item.total).toFixed(2)}</td>
+                  <td style="padding:${isCompact ? "5px 8px" : "8px 12px"};text-align:center;font-size:${isCompact ? "9px" : "11px"};font-weight:700;color:${accent};">${String(idx + 1).padStart(2, "0")}</td>
+                  <td style="padding:${isCompact ? "5px 8px" : "8px 12px"};font-size:${isCompact ? "9px" : "11px"};color:${accent};">${item.name}</td>
+                  <td style="padding:${isCompact ? "5px 8px" : "8px 12px"};text-align:right;font-size:${isCompact ? "9px" : "11px"};color:${muted};">${pSym}${Number(item.unitPrice).toFixed(2)}</td>
+                  <td style="padding:${isCompact ? "5px 8px" : "8px 12px"};text-align:center;font-size:${isCompact ? "9px" : "11px"};color:${accent};">${item.quantity}</td>
+                  <td style="padding:${isCompact ? "5px 8px" : "8px 12px"};text-align:right;font-size:${isCompact ? "9px" : "11px"};font-weight:700;color:${accent};">${pSym}${Number(item.total).toFixed(2)}</td>
                 </tr>
               `).join("")}
             </tbody>
           </table>
 
-          <div style="display:flex;justify-content:flex-end;margin-bottom:${isCompact ? "14px" : "20px"};">
-            <div style="width:${isCompact ? "220px" : "300px"};font-size:${fSm + 1}px;">
-              <div style="display:flex;justify-content:space-between;padding:4px 0;">
+          <!-- TOTALS -->
+          <div style="display:flex;justify-content:flex-end;margin-bottom:${isCompact ? "16px" : "24px"};">
+            <div style="width:${isCompact ? "210px" : "300px"};">
+              <div style="display:flex;justify-content:space-between;padding:${isCompact ? "4px" : "5px"} 0;font-size:${isCompact ? "10px" : "12px"};">
                 <span style="font-weight:600;">Subtotal:</span>
-                <span>${pSym}${subtotalVal}${hasSecondary ? ` / ${secSym}${toSec(Number(subtotalVal))}` : ""}</span>
+                <span style="font-weight:500;">${pSym}${subtotalVal}${hasSecondary ? ` / ${secSym}${toSec(Number(subtotalVal))}` : ""}</span>
               </div>
-              ${Number(discountVal) > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="font-weight:600;">Discount:</span><span>-${pSym}${discountVal}${hasSecondary ? ` / ${secSym}${toSec(Number(discountVal))}` : ""}</span></div>` : ""}
-              <div style="border-top:3px solid ${accent};margin-top:6px;padding-top:8px;">
-                <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="font-weight:700;color:${teal};font-size:${fBase + 2}px;">Grand Total:</span><span style="font-weight:700;font-size:${fBase + 2}px;">${pSym}${totalDue.toFixed(2)}</span></div>
-                ${hasSecondary ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="font-weight:700;color:${teal};font-size:${fBase + 2}px;">Grand Total:</span><span style="font-weight:700;font-size:${fBase + 2}px;">${secSym}${toSec(totalDue)}</span></div>` : ""}
+              ${Number(discountVal) > 0 ? `<div style="display:flex;justify-content:space-between;padding:${isCompact ? "4px" : "5px"} 0;font-size:${isCompact ? "10px" : "12px"};"><span style="font-weight:600;">Discount:</span><span style="font-weight:500;">-${pSym}${discountVal}${hasSecondary ? ` / ${secSym}${toSec(Number(discountVal))}` : ""}</span></div>` : ""}
+              <div style="border-top:3px solid ${accent};margin-top:8px;padding-top:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;">
+                  <span style="font-weight:800;color:${teal};font-size:${isCompact ? "12px" : "16px"};">Grand Total:</span>
+                  <span style="font-weight:900;font-size:${isCompact ? "14px" : "20px"};letter-spacing:-0.02em;">${pSym}${totalDue.toFixed(2)}</span>
+                </div>
+                ${hasSecondary ? `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;"><span style="font-weight:800;color:${teal};font-size:${isCompact ? "12px" : "16px"};">Grand Total:</span><span style="font-weight:900;font-size:${isCompact ? "14px" : "20px"};letter-spacing:-0.02em;">${secSym}${toSec(totalDue)}</span></div>` : ""}
               </div>
-              <div style="display:flex;justify-content:space-between;padding:3px 0;margin-top:4px;"><span style="color:${muted};">Amount Paid</span><span style="font-weight:600;color:#059669;">${pSym}${paidAmt.toFixed(2)}</span></div>
-              ${amountOwed > 0 ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:${muted};">Balance Due</span><span style="font-weight:600;color:#ef4444;">${pSym}${amountOwed.toFixed(2)}</span></div>` : ""}
+              <div style="display:flex;justify-content:space-between;padding:4px 0;margin-top:6px;font-size:${isCompact ? "9px" : "11px"};"><span style="color:${muted};">Amount Paid</span><span style="font-weight:700;color:#059669;">${pSym}${paidAmt.toFixed(2)}</span></div>
+              ${amountOwed > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:${isCompact ? "9px" : "11px"};"><span style="color:${muted};">Balance Due</span><span style="font-weight:700;color:#ef4444;">${pSym}${amountOwed.toFixed(2)}</span></div>` : ""}
             </div>
           </div>
 
-          <div style="text-align:center;margin-top:${isCompact ? "18px" : "28px"};padding-top:12px;">
-            <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;letter-spacing:0.06em;">Thank you for choosing ${clinicNameDisplay}!</div>
-            ${clinicEmailDisplay ? `<div style="font-size:${fSm}px;color:${muted};margin-top:4px;text-transform:uppercase;">For questions, contact ${clinicEmailDisplay}</div>` : ""}
+          <!-- FOOTER -->
+          <div style="text-align:center;margin-top:${isCompact ? "16px" : "24px"};padding-top:${isCompact ? "12px" : "16px"};border-top:2px solid ${border};">
+            <div style="font-size:${isCompact ? "9px" : "12px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.06em;line-height:1.5;">Thank you for choosing ${clinicNameDisplay}!</div>
+            ${clinicEmailDisplay ? `<div style="font-size:${isCompact ? "8px" : "10px"};color:${muted};margin-top:4px;text-transform:uppercase;font-weight:500;">For questions, contact ${clinicEmailDisplay}</div>` : ""}
           </div>
 
         </div>
@@ -1297,70 +1304,65 @@ export default function BillingPage() {
             return (
               <div>
                 <div className="bg-card border-b">
-                  <div className="px-6 pt-5 pb-4 text-center">
-                    <div className="flex items-center justify-center gap-3 mb-1">
-                      {settings?.logo && <img src={settings.logo} alt="Logo" className="h-10 object-contain" />}
-                    </div>
-                    <h2 className="text-lg font-extrabold tracking-wide uppercase text-teal-600 dark:text-teal-400">{settings?.clinicName || "Clinic"}</h2>
-                    <div className="text-[11px] text-muted-foreground leading-relaxed mt-1">
+                  <div className="px-6 pt-6 pb-4 text-center border-b">
+                    {settings?.logo && <img src={settings.logo} alt="Logo" className="h-12 object-contain mx-auto mb-2" />}
+                    <h2 className="text-xl font-black tracking-wider uppercase text-teal-600 dark:text-teal-400">{settings?.clinicName || "Clinic"}</h2>
+                    <div className="text-[11px] text-muted-foreground leading-relaxed mt-1.5">
                       {settings?.address && <p>{settings.address}</p>}
                       <p>{[settings?.phone, settings?.email].filter(Boolean).join(", ")}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="px-6 py-4 space-y-5">
+                <div className="px-6 py-5 space-y-5">
                   <div className="flex items-start justify-between gap-6 flex-wrap">
-                    <div className="text-sm space-y-1">
-                      <p><span className="text-teal-600 dark:text-teal-400 font-bold uppercase text-xs">Invoice No #:</span> <span className="font-semibold font-mono">{viewBill.billNo}</span></p>
-                      <p><span className="text-teal-600 dark:text-teal-400 font-bold uppercase text-xs">Date:</span> <span className="font-medium">{new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span></p>
-                      <p>Paid By: <span className="font-medium">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
+                    <div className="space-y-1.5">
+                      <p className="text-sm"><span className="text-teal-600 dark:text-teal-400 font-bold uppercase text-[11px] tracking-wide">Invoice No #:</span> <span className="font-bold font-mono text-sm">{viewBill.billNo}</span></p>
+                      <p className="text-sm"><span className="text-teal-600 dark:text-teal-400 font-bold uppercase text-[11px] tracking-wide">Date:</span> <span className="font-semibold">{new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span></p>
+                      <p className="text-sm text-muted-foreground">Paid By: <span className="font-semibold text-foreground">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
                     </div>
                     {(viewBill.billNo || "").replace(/[^A-Za-z0-9\-]/g, "") && (
                       <div className="text-right shrink-0">
-                        <span className="text-teal-600 dark:text-teal-400 font-semibold text-xs">invoice code:</span>
-                        <div style={{ fontFamily: "'Libre Barcode 128', monospace", fontSize: 40, letterSpacing: 2, lineHeight: 1, color: "var(--foreground)" }}>
+                        <p className="text-teal-600 dark:text-teal-400 font-bold text-[10px] uppercase tracking-wider mb-0.5">invoice code:</p>
+                        <div style={{ fontFamily: "'Libre Barcode 128', monospace", fontSize: 42, letterSpacing: 2, lineHeight: 1, color: "var(--foreground)" }}>
                           {(viewBill.billNo || "").replace(/[^A-Za-z0-9\-]/g, "")}
                         </div>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex items-start justify-between gap-6 flex-wrap">
-                    <div className="text-sm">
-                      <p className="text-sm font-bold text-teal-600 dark:text-teal-400 mb-1">Patient :</p>
-                      <p className="font-semibold">{viewBill.patientName || patient?.name || "-"}</p>
-                      {patient?.patientId && <p className="text-muted-foreground text-[11px]">ID : {patient.patientId}</p>}
-                      <div className="flex gap-2 text-[11px] text-muted-foreground mt-0.5 flex-wrap">
-                        {patient?.gender && <span>Gender: {patient.gender}</span>}
-                        {patient?.age != null && <span>, Age: {patient.age}</span>}
-                      </div>
+                  <div className="flex items-start justify-between gap-8 flex-wrap">
+                    <div>
+                      <p className="text-base font-extrabold text-teal-600 dark:text-teal-400 mb-1.5">Patient :</p>
+                      <p className="font-bold text-sm">{viewBill.patientName || patient?.name || "-"}</p>
+                      {patient?.patientId && <p className="text-muted-foreground text-xs mt-0.5">ID : {patient.patientId}</p>}
+                      {patient?.gender && <p className="text-muted-foreground text-xs mt-0.5">Gender: {patient.gender}{patient?.age != null ? `, Age: ${patient.age}` : ""}</p>}
                     </div>
-                    <div className="text-sm text-right">
-                      <p className="text-sm font-bold text-teal-600 dark:text-teal-400 mb-1">Dr. Name :</p>
-                      <p className="font-semibold">{viewBill.referenceDoctor || "-"}</p>
+                    <div className="text-right">
+                      <p className="text-base font-extrabold text-teal-600 dark:text-teal-400 mb-1.5">Dr. Name :</p>
+                      <p className="font-bold text-sm">{viewBill.referenceDoctor || "-"}</p>
                     </div>
                   </div>
 
-                  <div>
+                  <div className="rounded-md overflow-hidden border">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-teal-600 dark:bg-teal-700 text-white">
-                          <th className="text-center py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold w-12 rounded-tl-md">Item</th>
-                          <th className="text-left py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold">Description</th>
-                          <th className="text-right py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold w-20">Price</th>
-                          <th className="text-center py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold w-14">Qty</th>
-                          <th className="text-right py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold w-24 rounded-tr-md">Total</th>
+                          <th className="text-center py-3 px-3 text-[10px] uppercase tracking-widest font-bold w-14">Item</th>
+                          <th className="text-left py-3 px-3 text-[10px] uppercase tracking-widest font-bold">Description</th>
+                          <th className="text-right py-3 px-3 text-[10px] uppercase tracking-widest font-bold w-20">Price</th>
+                          <th className="text-center py-3 px-3 text-[10px] uppercase tracking-widest font-bold w-14">Qty</th>
+                          <th className="text-right py-3 px-3 text-[10px] uppercase tracking-widest font-bold w-24">Total</th>
                         </tr>
                       </thead>
                       <tbody>
                         {items.map((item: any, i: number) => (
-                          <tr key={i} className="border-b border-border/50 last:border-b-0">
-                            <td className="py-2.5 px-2 text-center font-semibold tabular-nums">{String(i + 1).padStart(2, "0")}</td>
-                            <td className="py-2.5 px-2">{item.name}</td>
-                            <td className="py-2.5 px-2 text-right text-muted-foreground tabular-nums">{pSym}{Number(item.unitPrice).toFixed(2)}</td>
-                            <td className="py-2.5 px-2 text-center tabular-nums">{item.quantity}</td>
-                            <td className="py-2.5 px-2 text-right font-semibold tabular-nums">{pSym}{Number(item.total).toFixed(2)}</td>
+                          <tr key={i} className="border-b border-border/40 last:border-b-0">
+                            <td className="py-3 px-3 text-center font-bold tabular-nums text-xs">{String(i + 1).padStart(2, "0")}</td>
+                            <td className="py-3 px-3 text-sm">{item.name}</td>
+                            <td className="py-3 px-3 text-right text-muted-foreground tabular-nums">{pSym}{Number(item.unitPrice).toFixed(2)}</td>
+                            <td className="py-3 px-3 text-center tabular-nums">{item.quantity}</td>
+                            <td className="py-3 px-3 text-right font-bold tabular-nums">{pSym}{Number(item.total).toFixed(2)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1375,37 +1377,37 @@ export default function BillingPage() {
                     return (
                       <div className="flex justify-end">
                         <div className="w-80">
-                          <div className="space-y-1 text-sm">
+                          <div className="space-y-1.5 text-sm">
                             <div className="flex justify-between gap-4 px-1 py-1">
                               <span className="font-semibold">Subtotal:</span>
-                              <span className="tabular-nums">{pSym}{vSubtotal.toFixed(2)}{vHasSec ? ` / ${vSecSym}${vToSec(vSubtotal)}` : ""}</span>
+                              <span className="tabular-nums font-medium">{pSym}{vSubtotal.toFixed(2)}{vHasSec ? ` / ${vSecSym}${vToSec(vSubtotal)}` : ""}</span>
                             </div>
                             {vDiscount > 0 && (
                               <div className="flex justify-between gap-4 px-1 py-1">
                                 <span className="font-semibold">Discount:</span>
-                                <span className="tabular-nums">-{pSym}{vDiscount.toFixed(2)}{vHasSec ? ` / ${vSecSym}${vToSec(vDiscount)}` : ""}</span>
+                                <span className="tabular-nums font-medium">-{pSym}{vDiscount.toFixed(2)}{vHasSec ? ` / ${vSecSym}${vToSec(vDiscount)}` : ""}</span>
                               </div>
                             )}
-                            <div className="border-t-[3px] border-foreground pt-2 mt-2">
-                              <div className="flex justify-between gap-4 px-1 py-0.5">
-                                <span className="font-bold text-teal-600 dark:text-teal-400 text-base">Grand Total:</span>
-                                <span className="font-bold text-base tabular-nums">{pSym}{vTotal.toFixed(2)}</span>
+                            <div className="border-t-[3px] border-foreground pt-3 mt-3">
+                              <div className="flex justify-between items-baseline gap-4 px-1 py-0.5">
+                                <span className="font-extrabold text-teal-600 dark:text-teal-400 text-base">Grand Total:</span>
+                                <span className="font-black text-xl tabular-nums tracking-tight">{pSym}{vTotal.toFixed(2)}</span>
                               </div>
                               {vHasSec && (
-                                <div className="flex justify-between gap-4 px-1 py-0.5">
-                                  <span className="font-bold text-teal-600 dark:text-teal-400 text-base">Grand Total:</span>
-                                  <span className="font-bold text-base tabular-nums">{vSecSym}{vToSec(vTotal)}</span>
+                                <div className="flex justify-between items-baseline gap-4 px-1 py-0.5">
+                                  <span className="font-extrabold text-teal-600 dark:text-teal-400 text-base">Grand Total:</span>
+                                  <span className="font-black text-xl tabular-nums tracking-tight">{vSecSym}{vToSec(vTotal)}</span>
                                 </div>
                               )}
                             </div>
                             <div className="flex justify-between gap-4 px-1 pt-2">
                               <span className="text-muted-foreground">Amount Paid</span>
-                              <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{pSym}{vPaid.toFixed(2)}</span>
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{pSym}{vPaid.toFixed(2)}</span>
                             </div>
                             {vOwed > 0 && (
                               <div className="flex justify-between gap-4 px-1">
                                 <span className="text-muted-foreground">Balance Due</span>
-                                <span className="font-semibold text-red-500 tabular-nums">{pSym}{vOwed.toFixed(2)}</span>
+                                <span className="font-bold text-red-500 tabular-nums">{pSym}{vOwed.toFixed(2)}</span>
                               </div>
                             )}
                           </div>
@@ -1414,9 +1416,9 @@ export default function BillingPage() {
                     );
                   })()}
 
-                  <div className="text-center pt-6 pb-1 space-y-1">
-                    <p className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">Thank you for choosing {settings?.clinicName || "our clinic"}!</p>
-                    {settings?.email && <p className="text-[10px] text-muted-foreground uppercase">For questions, contact {settings.email}</p>}
+                  <div className="text-center pt-6 pb-2 space-y-1.5 border-t">
+                    <p className="text-xs font-extrabold text-teal-600 dark:text-teal-400 uppercase tracking-wider leading-relaxed">Thank you for choosing {settings?.clinicName || "our clinic"}!</p>
+                    {settings?.email && <p className="text-[10px] text-muted-foreground uppercase font-medium">For questions, contact {settings.email}</p>}
                   </div>
                 </div>
 
