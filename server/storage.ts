@@ -366,10 +366,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteMedicine(id: number): Promise<void> {
+    await db.delete(stockAdjustments).where(eq(stockAdjustments.medicineId, id));
     await db.delete(medicines).where(eq(medicines.id, id));
   }
 
   async bulkDeleteMedicines(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+    await db.delete(stockAdjustments).where(inArray(stockAdjustments.medicineId, ids));
     await db.delete(medicines).where(inArray(medicines.id, ids));
   }
 
