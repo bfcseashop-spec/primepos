@@ -144,7 +144,6 @@ export default function MedicinesPage() {
 
   const totalPurchasePrice = form.purchasePrice * form.totalPcs;
   const totalSalesPrice = form.salesPrice * form.totalPcs;
-  const salesPricePerPiece = form.totalPcs > 0 ? form.salesPrice / form.totalPcs : 0;
   const perMedPrice = form.purchasePrice;
 
   const createMutation = useMutation({
@@ -296,15 +295,15 @@ export default function MedicinesPage() {
       qtyPerBox: form.totalPcs,
       perMedPrice: String(form.purchasePrice.toFixed(4)),
       totalPurchasePrice: String(totalPurchasePrice.toFixed(2)),
-      sellingPriceLocal: String(salesPricePerPiece.toFixed(2)),
-      sellingPriceForeigner: String(salesPricePerPiece.toFixed(2)),
+      sellingPriceLocal: String(form.salesPrice.toFixed(2)),
+      sellingPriceForeigner: String(form.salesPrice.toFixed(2)),
       stockCount: form.stockAvailable,
       totalStock: form.stockAvailable,
       stockAlert: form.stockAlert,
       imageUrl: form.imageUrl || null,
       quantity: form.stockAvailable,
       unitPrice: String(perMedPrice.toFixed(2)),
-      sellingPrice: String(salesPricePerPiece.toFixed(2)),
+      sellingPrice: String(form.salesPrice.toFixed(2)),
       isActive: true,
     };
 
