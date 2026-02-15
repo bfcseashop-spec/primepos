@@ -541,7 +541,8 @@ export default function MedicinesPage() {
     { header: t("medicines.stockCount"), accessor: (row: Medicine) => {
       const current = row.stockCount ?? 0;
       const totalRaw = Number(row.totalStock) ?? 0;
-      const total = totalRaw > 0 ? totalRaw : current;
+      const purchaseQty = (row.unitCount ?? 0) * (row.qtyPerBox ?? 1);
+      const total = totalRaw > 0 ? totalRaw : Math.max(current, purchaseQty);
       const isLow = current < (row.stockAlert || 10) && current > 0;
       const isOut = current === 0;
       const isInStock = !isLow && !isOut;
@@ -1150,7 +1151,12 @@ export default function MedicinesPage() {
                   <span className="text-muted-foreground">Available:</span>
                   <span className={`font-bold ${(viewMed.stockCount ?? 0) < (viewMed.stockAlert || 10) ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>{viewMed.stockCount ?? 0}</span>
                   <span className="text-muted-foreground">Total:</span>
-                  <span className="font-bold">{(viewMed.totalStock != null && viewMed.totalStock > 0) ? viewMed.totalStock : (viewMed.stockCount ?? 0)}</span>
+                  <span className="font-bold">{(() => {
+                    const cur = viewMed.stockCount ?? 0;
+                    const totRaw = Number(viewMed.totalStock) ?? 0;
+                    const purchaseQty = (viewMed.unitCount ?? 0) * (viewMed.qtyPerBox ?? 1);
+                    return totRaw > 0 ? totRaw : Math.max(cur, purchaseQty);
+                  })()}</span>
                 </div>
                 {viewMed.stockCount < (viewMed.stockAlert || 10) && (
                   <Badge variant="outline" className="text-[11px] no-default-hover-elevate no-default-active-elevate bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800">
