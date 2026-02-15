@@ -22,6 +22,8 @@ interface SearchableSelectProps {
   className?: string;
   "data-testid"?: string;
   resetAfterSelect?: boolean;
+  /** When true, dropdown opens above the trigger (e.g. to avoid modal footer) */
+  openAbove?: boolean;
 }
 
 export function SearchableSelect({
@@ -34,6 +36,7 @@ export function SearchableSelect({
   className,
   "data-testid": testId,
   resetAfterSelect = false,
+  openAbove = false,
 }: SearchableSelectProps) {
   const instanceId = useId();
   const [open, setOpen] = useState(false);
@@ -74,14 +77,14 @@ export function SearchableSelect({
     if (dialog) {
       const dialogRect = dialog.getBoundingClientRect();
       setPosition({
-        top: rect.bottom - dialogRect.top + 4,
+        top: openAbove ? rect.top - dialogRect.top - 4 : rect.bottom - dialogRect.top + 4,
         left: rect.left - dialogRect.left,
         width: rect.width,
         inDialog: true,
       });
     } else {
       setPosition({
-        top: rect.bottom + 4,
+        top: openAbove ? rect.top - 4 : rect.bottom + 4,
         left: rect.left,
         width: rect.width,
         inDialog: false,
@@ -98,7 +101,7 @@ export function SearchableSelect({
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [open]);
+  }, [open, openAbove]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -171,6 +174,7 @@ export function SearchableSelect({
           left: position.left,
           width: Math.max(position.width, 200),
           minWidth: 200,
+          ...(openAbove && { transform: "translateY(-100%)" }),
           // Ensure dropdown paints above dialog footer/buttons (same stacking context when portaled into dialog)
           zIndex: isInDialog ? 2147483647 : 99999,
         };

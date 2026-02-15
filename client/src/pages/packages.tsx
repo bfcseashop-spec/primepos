@@ -268,6 +268,7 @@ export default function PackagesPage() {
                       searchPlaceholder="Search service..."
                       emptyText="No service found."
                       className="w-[200px]"
+                      openAbove
                       options={services.filter(s => s.isActive).map(s => ({
                         value: String(s.id),
                         label: `${s.name} – $${s.price}`,
@@ -283,6 +284,7 @@ export default function PackagesPage() {
                       searchPlaceholder="Search injection..."
                       emptyText="No injection found."
                       className="w-[200px]"
+                      openAbove
                       options={injections.filter(i => i.isActive).map(i => ({
                         value: String(i.id),
                         label: `${i.name} – $${i.price}`,
@@ -298,6 +300,7 @@ export default function PackagesPage() {
                       searchPlaceholder="Search medicine..."
                       emptyText="No medicine found."
                       className="w-[200px]"
+                      openAbove
                       options={medicines.filter(m => m.isActive).map(m => ({
                         value: String(m.id),
                         label: `${m.name} – $${m.sellingPriceLocal || m.sellingPrice}`,
