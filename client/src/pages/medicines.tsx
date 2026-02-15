@@ -45,8 +45,8 @@ const UNIT_TYPES = [
 const defaultForm = {
   name: "", category: "", manufacturer: "",
   batchNo: "", expiryDate: "", unit: "Box",
-  unitCount: 1, boxPrice: 0, qtyPerBox: 1,
-  sellingPrice: 0,
+  totalPcs: 1, purchasePrice: 0, salesPrice: 0,
+  stockAvailable: 0,
   stockAlert: 10, imageUrl: "",
 };
 
@@ -61,10 +61,10 @@ export default function MedicinesPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const refName = useRef<HTMLInputElement>(null);
   const refUnit = useRef<HTMLButtonElement>(null);
-  const refUnitCount = useRef<HTMLInputElement>(null);
-  const refBoxPrice = useRef<HTMLInputElement>(null);
-  const refQtyPerBox = useRef<HTMLInputElement>(null);
-  const refSellingPrice = useRef<HTMLInputElement>(null);
+  const refTotalPcs = useRef<HTMLInputElement>(null);
+  const refPurchasePrice = useRef<HTMLInputElement>(null);
+  const refSalesPrice = useRef<HTMLInputElement>(null);
+  const refStockAvailable = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -142,11 +142,9 @@ export default function MedicinesPage() {
     enabled: !!stockHistoryMed?.id,
   });
 
-  const perMedPrice = form.qtyPerBox > 0 ? form.boxPrice / form.qtyPerBox : 0;
-  const totalPurchasePrice = form.unitCount * form.boxPrice;
-  const sellingPricePerUnit = Number(form.sellingPrice) >= 0 ? Number(form.sellingPrice) : 0;
-  const sellingPricePerPiece = form.qtyPerBox > 0 ? sellingPricePerUnit / form.qtyPerBox : 0;
-  const formTotalSalesValue = sellingPricePerUnit * form.unitCount;
+  const totalPurchasePrice = form.purchasePrice;
+  const salesPricePerPiece = form.totalPcs > 0 ? form.salesPrice / form.totalPcs : 0;
+  const perMedPrice = form.totalPcs > 0 ? form.purchasePrice / form.totalPcs : 0;
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -271,16 +269,15 @@ export default function MedicinesPage() {
     const errors: Record<string, string> = {};
     if (!form.name?.trim()) errors.name = t("common.required");
     if (!form.unit?.trim()) errors.unit = t("common.required");
-    if (form.unitCount == null || form.unitCount < 1) errors.unitCount = t("common.required");
-    if (form.boxPrice == null || Number(form.boxPrice) < 0) errors.boxPrice = t("common.required");
-    if (form.qtyPerBox == null || form.qtyPerBox < 1) errors.qtyPerBox = t("common.required");
-    if (form.sellingPrice == null || Number(form.sellingPrice) < 0) errors.sellingPrice = t("common.required");
+    if (form.totalPcs == null || form.totalPcs < 1) errors.totalPcs = t("common.required");
+    if (form.purchasePrice == null || Number(form.purchasePrice) < 0) errors.purchasePrice = t("common.required");
+    if (form.salesPrice == null || Number(form.salesPrice) < 0) errors.salesPrice = t("common.required");
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       toast({ title: t("common.fillRequired"), variant: "destructive" });
-      const order = ["name", "unit", "unitCount", "boxPrice", "qtyPerBox", "sellingPrice"] as const;
+      const order = ["name", "unit", "totalPcs", "purchasePrice", "salesPrice"] as const;
       const firstKey = order.find(k => errors[k]);
-      const refMap = { name: refName, unit: refUnit, unitCount: refUnitCount, boxPrice: refBoxPrice, qtyPerBox: refQtyPerBox, sellingPrice: refSellingPrice } as const;
+      const refMap = { name: refName, unit: refUnit, totalPcs: refTotalPcs, purchasePrice: refPurchasePrice, salesPrice: refSalesPrice } as const;
       if (firstKey) (refMap[firstKey].current as HTMLElement | null)?.focus();
       return;
     }
@@ -293,20 +290,20 @@ export default function MedicinesPage() {
       batchNo: form.batchNo || null,
       expiryDate: form.expiryDate || null,
       unit: form.unit,
-      unitCount: form.unitCount,
-      boxPrice: String(form.boxPrice),
-      qtyPerBox: form.qtyPerBox,
+      unitCount: 1,
+      boxPrice: String(form.purchasePrice),
+      qtyPerBox: form.totalPcs,
       perMedPrice: String(perMedPrice.toFixed(4)),
       totalPurchasePrice: String(totalPurchasePrice.toFixed(2)),
-      sellingPriceLocal: String(sellingPricePerPiece.toFixed(2)),
-      sellingPriceForeigner: String(sellingPricePerPiece.toFixed(2)),
-      stockCount: form.unitCount * form.qtyPerBox,
-      totalStock: form.unitCount * form.qtyPerBox,
+      sellingPriceLocal: String(salesPricePerPiece.toFixed(2)),
+      sellingPriceForeigner: String(salesPricePerPiece.toFixed(2)),
+      stockCount: form.stockAvailable,
+      totalStock: form.stockAvailable,
       stockAlert: form.stockAlert,
       imageUrl: form.imageUrl || null,
-      quantity: form.unitCount * form.qtyPerBox,
+      quantity: form.stockAvailable,
       unitPrice: String(perMedPrice.toFixed(2)),
-      sellingPrice: String(sellingPricePerPiece.toFixed(2)),
+      sellingPrice: String(salesPricePerPiece.toFixed(2)),
       isActive: true,
     };
 
@@ -319,6 +316,9 @@ export default function MedicinesPage() {
 
   const openEdit = (med: Medicine) => {
     setFieldErrors({});
+    const perPiece = Number(med.sellingPriceLocal ?? med.sellingPrice ?? med.sellingPriceForeigner) || 0;
+    const totalPcs = (med.unitCount || 1) * (med.qtyPerBox || 1);
+    const salesPrice = perPiece * totalPcs;
     setForm({
       name: med.name,
       category: med.category || "",
@@ -326,10 +326,10 @@ export default function MedicinesPage() {
       batchNo: med.batchNo || "",
       expiryDate: med.expiryDate || "",
       unit: med.unit || "Box",
-      unitCount: med.unitCount || 1,
-      boxPrice: Number(med.boxPrice) || 0,
-      qtyPerBox: med.qtyPerBox || 1,
-      sellingPrice: (Number(med.sellingPriceLocal ?? med.sellingPrice ?? med.sellingPriceForeigner) || 0) * (med.qtyPerBox || 1),
+      totalPcs,
+      purchasePrice: Number(med.boxPrice) || 0,
+      salesPrice,
+      stockAvailable: med.stockCount || 0,
       stockAlert: med.stockAlert || 10,
       imageUrl: med.imageUrl || "",
     });
@@ -587,43 +587,6 @@ export default function MedicinesPage() {
   const formContent = (
     <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-teal-700 dark:text-teal-400">
-          <Pill className="h-4 w-4" />
-          {t("medicines.medicineName")}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <Label htmlFor="name">{t("medicines.medicineName")} *</Label>
-            <Input ref={refName} id="name" value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFieldErrors(prev => ({ ...prev, name: "" })); }} data-testid="input-medicine-name" className={fieldErrors.name ? "border-destructive" : ""} />
-            {fieldErrors.name && <p className="text-xs text-destructive mt-1">{fieldErrors.name}</p>}
-          </div>
-          <div>
-            <Label>{t("common.category")}</Label>
-            <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-              <SelectTrigger data-testid="select-medicine-category"><SelectValue placeholder={t("common.category")} /></SelectTrigger>
-              <SelectContent>
-                {allCategories.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="manufacturer">{t("medicines.manufacturer")}</Label>
-            <Input id="manufacturer" value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))} data-testid="input-medicine-manufacturer" />
-          </div>
-          <div>
-            <Label htmlFor="batchNo">{t("medicines.batchNo")}</Label>
-            <Input id="batchNo" value={form.batchNo} onChange={e => setForm(f => ({ ...f, batchNo: e.target.value }))} placeholder="Optional" data-testid="input-medicine-batch" />
-          </div>
-          <div>
-            <Label htmlFor="expiryDate">{t("medicines.expiryDate")}</Label>
-            <Input id="expiryDate" type="date" value={form.expiryDate} onChange={e => setForm(f => ({ ...f, expiryDate: e.target.value }))} data-testid="input-medicine-expiry" />
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-purple-700 dark:text-purple-400">
           <ImagePlus className="h-4 w-4" />
           Medicine Image <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
@@ -649,7 +612,6 @@ export default function MedicinesPage() {
                 <X className="h-3 w-3" />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Replace image below (upload or paste URL)</p>
           </div>
         ) : null}
         <div className="flex flex-col sm:flex-row gap-4 sm:items-start">
@@ -729,11 +691,27 @@ export default function MedicinesPage() {
       <Separator />
 
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-400">
-          <Calculator className="h-4 w-4" />
-          {t("medicines.purchaseValue")}
+        <div className="flex items-center gap-2 text-sm font-semibold text-teal-700 dark:text-teal-400">
+          <Pill className="h-4 w-4" />
+          Medicine Details
         </div>
         <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <Label htmlFor="name">Medicine Name *</Label>
+            <Input ref={refName} id="name" value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFieldErrors(prev => ({ ...prev, name: "" })); }} data-testid="input-medicine-name" className={fieldErrors.name ? "border-destructive" : ""} />
+            {fieldErrors.name && <p className="text-xs text-destructive mt-1">{fieldErrors.name}</p>}
+          </div>
+          <div>
+            <Label>{t("common.category")}</Label>
+            <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
+              <SelectTrigger data-testid="select-medicine-category"><SelectValue placeholder={t("common.category")} /></SelectTrigger>
+              <SelectContent>
+                {allCategories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label>Unit Type *</Label>
             <Select value={form.unit} onValueChange={v => { setForm(f => ({ ...f, unit: v })); setFieldErrors(prev => ({ ...prev, unit: "" })); }}>
@@ -746,20 +724,35 @@ export default function MedicinesPage() {
             </Select>
             {fieldErrors.unit && <p className="text-xs text-destructive mt-1">{fieldErrors.unit}</p>}
           </div>
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-400">
+          <Calculator className="h-4 w-4" />
+          Pricing & Stock
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label htmlFor="unitCount">Unit Count ({form.unit}) *</Label>
-            <Input ref={refUnitCount} id="unitCount" type="number" min={1} value={form.unitCount} onChange={e => { setForm(f => ({ ...f, unitCount: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, unitCount: "" })); }} data-testid="input-medicine-unit-count" className={fieldErrors.unitCount ? "border-destructive" : ""} />
-            {fieldErrors.unitCount && <p className="text-xs text-destructive mt-1">{fieldErrors.unitCount}</p>}
+            <Label htmlFor="totalPcs">Total Pcs *</Label>
+            <Input ref={refTotalPcs} id="totalPcs" type="number" min={1} value={form.totalPcs} onChange={e => { setForm(f => ({ ...f, totalPcs: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, totalPcs: "" })); }} data-testid="input-medicine-total-pcs" className={fieldErrors.totalPcs ? "border-destructive" : ""} />
+            {fieldErrors.totalPcs && <p className="text-xs text-destructive mt-1">{fieldErrors.totalPcs}</p>}
           </div>
           <div>
-            <Label htmlFor="boxPrice">{form.unit} Price ($) *</Label>
-            <Input ref={refBoxPrice} id="boxPrice" type="number" step="0.01" min={0} value={form.boxPrice || ""} onChange={e => { setForm(f => ({ ...f, boxPrice: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, boxPrice: "" })); }} data-testid="input-medicine-box-price" className={fieldErrors.boxPrice ? "border-destructive" : ""} />
-            {fieldErrors.boxPrice && <p className="text-xs text-destructive mt-1">{fieldErrors.boxPrice}</p>}
+            <Label htmlFor="purchasePrice">Purchase Price ($) *</Label>
+            <Input ref={refPurchasePrice} id="purchasePrice" type="number" step="0.01" min={0} value={form.purchasePrice || ""} onChange={e => { setForm(f => ({ ...f, purchasePrice: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, purchasePrice: "" })); }} data-testid="input-medicine-purchase-price" className={fieldErrors.purchasePrice ? "border-destructive" : ""} />
+            {fieldErrors.purchasePrice && <p className="text-xs text-destructive mt-1">{fieldErrors.purchasePrice}</p>}
           </div>
           <div>
-            <Label htmlFor="qtyPerBox">Qty per {form.unit} *</Label>
-            <Input ref={refQtyPerBox} id="qtyPerBox" type="number" min={1} value={form.qtyPerBox} onChange={e => { setForm(f => ({ ...f, qtyPerBox: Number(e.target.value) || 1 })); setFieldErrors(prev => ({ ...prev, qtyPerBox: "" })); }} data-testid="input-medicine-qty-per-box" className={fieldErrors.qtyPerBox ? "border-destructive" : ""} />
-            {fieldErrors.qtyPerBox && <p className="text-xs text-destructive mt-1">{fieldErrors.qtyPerBox}</p>}
+            <Label htmlFor="salesPrice">Sales Price ($) *</Label>
+            <Input ref={refSalesPrice} id="salesPrice" type="number" step="0.01" min={0} value={form.salesPrice || ""} onChange={e => { setForm(f => ({ ...f, salesPrice: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, salesPrice: "" })); }} data-testid="input-medicine-sales-price" className={fieldErrors.salesPrice ? "border-destructive" : ""} />
+            {fieldErrors.salesPrice && <p className="text-xs text-destructive mt-1">{fieldErrors.salesPrice}</p>}
+          </div>
+          <div>
+            <Label htmlFor="stockAvailable">Stock Available</Label>
+            <Input ref={refStockAvailable} id="stockAvailable" type="number" min={0} value={form.stockAvailable} onChange={e => setForm(f => ({ ...f, stockAvailable: Number(e.target.value) || 0 }))} data-testid="input-medicine-stock-available" />
           </div>
         </div>
 
@@ -769,61 +762,18 @@ export default function MedicinesPage() {
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Per Med Price:</span>
+              <span className="text-muted-foreground">Total Purchase Price:</span>
+              <span className="font-bold text-violet-600 dark:text-violet-400" data-testid="calc-total-purchase">
+                ${totalPurchasePrice.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Price per Piece:</span>
               <span className="font-bold text-orange-600 dark:text-orange-400" data-testid="calc-per-med-price">
                 ${perMedPrice.toFixed(4)}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Total Purchase:</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400" data-testid="calc-total-purchase">
-                ${totalPurchasePrice.toFixed(2)}
-              </span>
-            </div>
           </div>
-          <p className="text-[10px] text-muted-foreground italic">
-            Formula: {form.unit} Price (${form.boxPrice}) / Qty per {form.unit} ({form.qtyPerBox}) = ${perMedPrice.toFixed(4)} per piece
-          </p>
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-green-700 dark:text-green-400">
-          <DollarSign className="h-4 w-4" />
-          {t("medicines.salesValue")}
-        </div>
-        <div>
-          <Label htmlFor="sellingPrice">Selling Price ($) per {form.unit} *</Label>
-          <Input ref={refSellingPrice} id="sellingPrice" type="number" step="0.01" min={0} value={form.sellingPrice || ""} onChange={e => { setForm(f => ({ ...f, sellingPrice: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, sellingPrice: "" })); }} data-testid="input-medicine-selling-price" className={fieldErrors.sellingPrice ? "border-destructive" : ""} />
-          {fieldErrors.sellingPrice && <p className="text-xs text-destructive mt-1">{fieldErrors.sellingPrice}</p>}
-        </div>
-
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-md p-3 space-y-2 border border-green-200 dark:border-green-800">
-          <div className="flex items-center gap-2 text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide">
-            <Calculator className="h-3 w-3" /> Auto Calculation
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Selling price per piece:</span>
-              <span className="font-bold text-green-600 dark:text-green-400" data-testid="calc-selling-per-piece">
-                ${sellingPricePerPiece.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Total Sales Value:</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400" data-testid="calc-total-sales">
-                ${formTotalSalesValue.toFixed(2)}
-              </span>
-            </div>
-          </div>
-          <p className="text-[10px] text-muted-foreground italic">
-            Formula: {form.unit} Selling Price (${sellingPricePerUnit.toFixed(2)}) / Qty per {form.unit} ({form.qtyPerBox}) = ${sellingPricePerPiece.toFixed(2)} per piece
-          </p>
-          <p className="text-[10px] text-muted-foreground italic">
-            Total: {form.unit} Selling Price (${sellingPricePerUnit.toFixed(2)}) × Unit Count ({form.unitCount}) = ${formTotalSalesValue.toFixed(2)}
-          </p>
         </div>
       </div>
 
@@ -831,12 +781,26 @@ export default function MedicinesPage() {
 
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-400">
-          <ShieldAlert className="h-4 w-4" />
-          Stock Alert
+          <Tag className="h-4 w-4" />
+          Additional Info
         </div>
-        <div>
-          <Label htmlFor="stockAlert">Alert when stock below</Label>
-          <Input id="stockAlert" type="number" min={1} value={form.stockAlert} onChange={e => setForm(f => ({ ...f, stockAlert: Number(e.target.value) || 10 }))} data-testid="input-medicine-stock-alert" />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="expiryDate">Expiry Date</Label>
+            <Input id="expiryDate" type="date" value={form.expiryDate} onChange={e => setForm(f => ({ ...f, expiryDate: e.target.value }))} data-testid="input-medicine-expiry" />
+          </div>
+          <div>
+            <Label htmlFor="manufacturer">{t("medicines.manufacturer")}</Label>
+            <Input id="manufacturer" value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))} data-testid="input-medicine-manufacturer" />
+          </div>
+          <div>
+            <Label htmlFor="batchNo">{t("medicines.batchNo")}</Label>
+            <Input id="batchNo" value={form.batchNo} onChange={e => setForm(f => ({ ...f, batchNo: e.target.value }))} placeholder="Optional" data-testid="input-medicine-batch" />
+          </div>
+          <div>
+            <Label htmlFor="stockAlert">Stock Alert</Label>
+            <Input id="stockAlert" type="number" min={1} value={form.stockAlert} onChange={e => setForm(f => ({ ...f, stockAlert: Number(e.target.value) || 10 }))} data-testid="input-medicine-stock-alert" />
+          </div>
         </div>
       </div>
     </div>
