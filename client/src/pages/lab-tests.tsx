@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/searchable-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
@@ -527,15 +528,22 @@ export default function LabTestsPage() {
         </div>
         <div>
           <Label>{t("billing.patient")}</Label>
-          <Select value={form.patientId} onValueChange={v => setForm(f => ({ ...f, patientId: v === "none" ? "" : v }))}>
-            <SelectTrigger data-testid="select-patient"><SelectValue placeholder={t("billing.selectPatient")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">{t("common.noPatient")}</SelectItem>
-              {patients.map(p => (
-                <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.patientId})</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={form.patientId || "none"}
+            onValueChange={v => setForm(f => ({ ...f, patientId: v === "none" ? "" : v }))}
+            placeholder={t("billing.selectPatient")}
+            searchPlaceholder="Search patient name or ID..."
+            emptyText="No patient found."
+            data-testid="select-patient"
+            options={[
+              { value: "none", label: t("common.noPatient") || "No patient" },
+              ...patients.map(p => ({
+                value: String(p.id),
+                label: `${p.name} (${p.patientId})`,
+                searchText: `${p.name} ${p.patientId}`,
+              })),
+            ]}
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>

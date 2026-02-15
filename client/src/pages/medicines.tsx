@@ -301,6 +301,7 @@ export default function MedicinesPage() {
       sellingPriceLocal: String(sellingPricePerPiece.toFixed(2)),
       sellingPriceForeigner: String(sellingPricePerPiece.toFixed(2)),
       stockCount: form.unitCount * form.qtyPerBox,
+      totalStock: form.unitCount * form.qtyPerBox,
       stockAlert: form.stockAlert,
       imageUrl: form.imageUrl || null,
       quantity: form.unitCount * form.qtyPerBox,
@@ -538,12 +539,14 @@ export default function MedicinesPage() {
       <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${Number(row.sellingPriceLocal || 0).toFixed(2)}</span>
     )},
     { header: t("medicines.stockCount"), accessor: (row: Medicine) => {
-      const isLow = row.stockCount < (row.stockAlert || 10) && row.stockCount > 0;
-      const isOut = row.stockCount === 0;
+      const current = row.stockCount ?? 0;
+      const total = Number((row as Medicine & { totalStock?: number }).totalStock) || current;
+      const isLow = current < (row.stockAlert || 10) && current > 0;
+      const isOut = current === 0;
       const isInStock = !isLow && !isOut;
       return (
         <div className="flex items-center gap-1.5">
-          <span className={`text-sm font-semibold ${isOut ? "text-red-600 dark:text-red-400" : isLow ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>{row.stockCount}</span>
+          <span className={`text-sm font-semibold ${isOut ? "text-red-600 dark:text-red-400" : isLow ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>{total === current ? current : `${current}/${total}`}</span>
           {isOut && (
             <Badge variant="outline" className="text-[10px] no-default-hover-elevate no-default-active-elevate bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
               <PackageX className="h-3 w-3 mr-1" /> Out
@@ -964,7 +967,7 @@ export default function MedicinesPage() {
                 <Package className="h-5 w-5 text-cyan-500" />
                 Adjust stock — {adjustStockMed.name}
               </DialogTitle>
-              <DialogDescription>Update inventory count. Current stock: <strong>{adjustStockMed.stockCount}</strong> pieces.</DialogDescription>
+              <DialogDescription>Update inventory count. Current stock: <strong>{(() => { const c = adjustStockMed.stockCount ?? 0; const t = Number((adjustStockMed as Medicine & { totalStock?: number }).totalStock) || c; return t === c ? c : `${c} / ${t}`; })()}</strong> pieces.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div>
@@ -1143,8 +1146,14 @@ export default function MedicinesPage() {
               <div className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
                 <div className="flex items-center gap-2">
                   <Package className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Stock Count:</span>
-                  <span className={`font-bold ${viewMed.stockCount < (viewMed.stockAlert || 10) ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>{viewMed.stockCount}</span>
+                  <span className="text-muted-foreground">Stock:</span>
+                  <span className={`font-bold ${(viewMed.stockCount ?? 0) < (viewMed.stockAlert || 10) ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+                    {((): string => {
+                      const cur = viewMed.stockCount ?? 0;
+                      const tot = Number((viewMed as Medicine & { totalStock?: number }).totalStock) || cur;
+                      return tot === cur ? String(cur) : `${cur} / ${tot}`;
+                    })()}
+                  </span>
                 </div>
                 {viewMed.stockCount < (viewMed.stockAlert || 10) && (
                   <Badge variant="outline" className="text-[11px] no-default-hover-elevate no-default-active-elevate bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800">
@@ -1418,7 +1427,7 @@ export default function MedicinesPage() {
                           <div className="flex items-center gap-1.5">
                             <Package className="h-3 w-3 text-muted-foreground" />
                             <span className={`text-xs font-semibold ${med.stockCount === 0 ? "text-red-600 dark:text-red-400" : isLow ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                              {med.stockCount} in stock
+                              {(() => { const c = med.stockCount ?? 0; const t = Number((med as Medicine & { totalStock?: number }).totalStock) || c; return t === c ? `${c} in stock` : `${c}/${t} in stock`; })()}
                             </span>
                             {med.stockCount === 0 && (
                               <Badge variant="outline" className="text-[9px] no-default-hover-elevate no-default-active-elevate bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
