@@ -354,16 +354,39 @@ export async function registerRoutes(
       const XLSX = await import("xlsx");
       const sampleRows = [
         {
-          Name: "Paracetamol 500mg", "Generic Name": "Acetaminophen", Category: "Tablet",
-          Manufacturer: "PharmaCo", "Batch No": "B-2026-001", "Expiry Date": "2027-12-31",
-          Unit: "Box", "Unit Count": 10, "Box Price": "5.00", "Qty Per Box": 10,
-          "Selling Price (Local)": "0.80", "Selling Price (Foreigner)": "1.00", "Stock Alert": 20,
+          "Image URL": "", "Medicine Name": "Paracetamol 500mg", Category: "Tablet",
+          "Unit Type": "Box", "Total Pcs": 100, "Purchase Price": "10.00",
+          "Total Purchase Price": "100.00", "Sales Price": "30.00",
+          "Stock Available": 1000, "Expiry Date": "2027-12-31",
+          Manufacturer: "PharmaCo", "Batch No": "B-2026-001", "Stock Alert": 20,
         },
         {
-          Name: "Amoxicillin 250mg", "Generic Name": "Amoxicillin", Category: "Capsule",
-          Manufacturer: "MedLab", "Batch No": "B-2026-002", "Expiry Date": "2027-06-30",
-          Unit: "Box", "Unit Count": 5, "Box Price": "8.00", "Qty Per Box": 10,
-          "Selling Price (Local)": "1.20", "Selling Price (Foreigner)": "1.50", "Stock Alert": 15,
+          "Image URL": "", "Medicine Name": "Amoxicillin 500mg", Category: "Capsule",
+          "Unit Type": "Box", "Total Pcs": 50, "Purchase Price": "25.00",
+          "Total Purchase Price": "250.00", "Sales Price": "60.00",
+          "Stock Available": 500, "Expiry Date": "2027-06-15",
+          Manufacturer: "MedLab", "Batch No": "B-2026-002", "Stock Alert": 15,
+        },
+        {
+          "Image URL": "", "Medicine Name": "Cough Syrup", Category: "Syrup",
+          "Unit Type": "Bottle", "Total Pcs": 1, "Purchase Price": "6.00",
+          "Total Purchase Price": "900.00", "Sales Price": "4.50",
+          "Stock Available": 150, "Expiry Date": "2026-08-25",
+          Manufacturer: "HealthCare", "Batch No": "B-2026-003", "Stock Alert": 10,
+        },
+        {
+          "Image URL": "", "Medicine Name": "Omeprazole 20mg", Category: "Capsule",
+          "Unit Type": "Box", "Total Pcs": 30, "Purchase Price": "24.00",
+          "Total Purchase Price": "240.00", "Sales Price": "45.00",
+          "Stock Available": 300, "Expiry Date": "2027-03-20",
+          Manufacturer: "GastroPharm", "Batch No": "B-2026-004", "Stock Alert": 10,
+        },
+        {
+          "Image URL": "", "Medicine Name": "Ciprofloxacin 250mg", Category: "Tablet",
+          "Unit Type": "Box", "Total Pcs": 20, "Purchase Price": "12.00",
+          "Total Purchase Price": "4.80", "Sales Price": "28.00",
+          "Stock Available": 8, "Expiry Date": "2026-09-10",
+          Manufacturer: "AntiBioLab", "Batch No": "B-2026-005", "Stock Alert": 10,
         },
       ];
       const wb = XLSX.utils.book_new();
@@ -919,25 +942,27 @@ export async function registerRoutes(
     try {
       const XLSX = await import("xlsx");
       const medicines = await storage.getMedicines();
-      const rows = medicines.map(m => ({
-        Name: m.name,
-        "Generic Name": m.genericName || "",
-        Category: m.category || "",
-        Manufacturer: m.manufacturer || "",
-        "Batch No": m.batchNo || "",
-        "Expiry Date": m.expiryDate || "",
-        Unit: m.unit,
-        "Unit Count": m.unitCount,
-        "Box Price": m.boxPrice,
-        "Qty Per Box": m.qtyPerBox,
-        "Per Med Price": m.perMedPrice,
-        "Total Purchase Price": m.totalPurchasePrice,
-        "Selling Price (Local)": m.sellingPriceLocal,
-        "Selling Price (Foreigner)": m.sellingPriceForeigner,
-        "Stock Count": m.stockCount,
-        "Stock Alert": m.stockAlert,
-        Active: m.isActive ? "Yes" : "No",
-      }));
+      const rows = medicines.map(m => {
+        const perPiece = Number(m.sellingPriceLocal ?? m.sellingPrice ?? 0);
+        const qtyPerBox = Number(m.qtyPerBox || 1);
+        const salesPrice = perPiece * qtyPerBox;
+        const totalPcs = (m.unitCount || 1) * (m.qtyPerBox || 1);
+        return {
+          "Image URL": m.imageUrl || "",
+          "Medicine Name": m.name,
+          Category: m.category || "",
+          "Unit Type": m.unit,
+          "Total Pcs": totalPcs,
+          "Purchase Price": m.boxPrice,
+          "Total Purchase Price": m.totalPurchasePrice,
+          "Sales Price": salesPrice.toFixed(2),
+          "Stock Available": m.stockCount,
+          "Expiry Date": m.expiryDate || "",
+          Manufacturer: m.manufacturer || "",
+          "Batch No": m.batchNo || "",
+          "Stock Alert": m.stockAlert,
+        };
+      });
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(rows);
       XLSX.utils.book_append_sheet(wb, ws, "Medicines");
@@ -978,13 +1003,17 @@ export async function registerRoutes(
       const errors: string[] = [];
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        const name = row["Name"] || row["name"];
+        const name = row["Medicine Name"] || row["Name"] || row["name"];
         if (!name) { skipped++; errors.push(`Row ${i + 2}: Missing medicine name`); continue; }
         try {
-          const boxPrice = parseFloat(row["Box Price"] || row["boxPrice"] || "0") || 0;
-          const qtyPerBox = parseInt(row["Qty Per Box"] || row["qtyPerBox"] || "1") || 1;
-          const perMedPrice = qtyPerBox > 0 ? boxPrice / qtyPerBox : 0;
+          const purchasePrice = parseFloat(row["Purchase Price"] || row["Box Price"] || row["boxPrice"] || "0") || 0;
+          const totalPcs = parseInt(row["Total Pcs"] || row["Qty Per Box"] || row["qtyPerBox"] || "1") || 1;
+          const perMedPrice = totalPcs > 0 ? purchasePrice / totalPcs : 0;
           const unitCount = parseInt(row["Unit Count"] || row["unitCount"] || "1") || 1;
+          const totalPurchasePrice = parseFloat(row["Total Purchase Price"] || row["totalPurchasePrice"] || "0") || (unitCount * purchasePrice);
+          const salesPrice = parseFloat(row["Sales Price"] || row["Selling Price (Local)"] || row["sellingPriceLocal"] || "0") || 0;
+          const stockAvailable = parseInt(row["Stock Available"] || row["Stock Count"] || row["stockCount"] || "0") || 0;
+          const sellingPricePerPiece = totalPcs > 0 ? salesPrice / totalPcs : 0;
           await storage.createMedicine({
             name,
             genericName: row["Generic Name"] || row["genericName"] || null,
@@ -992,19 +1021,20 @@ export async function registerRoutes(
             manufacturer: row["Manufacturer"] || row["manufacturer"] || null,
             batchNo: row["Batch No"] || row["batchNo"] || null,
             expiryDate: row["Expiry Date"] || row["expiryDate"] || null,
-            unit: row["Unit"] || row["unit"] || "Box",
+            unit: row["Unit Type"] || row["Unit"] || row["unit"] || "Box",
             unitCount,
-            boxPrice: boxPrice.toString(),
-            qtyPerBox,
+            boxPrice: purchasePrice.toString(),
+            qtyPerBox: totalPcs,
             perMedPrice: perMedPrice.toFixed(4),
-            totalPurchasePrice: (unitCount * boxPrice).toFixed(2),
-            sellingPriceLocal: (parseFloat(row["Selling Price (Local)"] || row["sellingPriceLocal"] || "0") || 0).toString(),
-            sellingPriceForeigner: (parseFloat(row["Selling Price (Foreigner)"] || row["sellingPriceForeigner"] || "0") || 0).toString(),
-            stockCount: parseInt(row["Stock Count"] || row["stockCount"] || "0") || 0,
-            totalStock: parseInt(row["Stock Count"] || row["stockCount"] || "0") || 0,
+            totalPurchasePrice: totalPurchasePrice.toFixed(2),
+            sellingPriceLocal: sellingPricePerPiece.toFixed(2),
+            sellingPriceForeigner: (parseFloat(row["Selling Price (Foreigner)"] || row["sellingPriceForeigner"] || "0") || sellingPricePerPiece).toFixed(2),
+            stockCount: stockAvailable,
+            totalStock: stockAvailable,
             stockAlert: parseInt(row["Stock Alert"] || row["stockAlert"] || "10") || 10,
-            quantity: parseInt(row["Stock Count"] || row["stockCount"] || "0") || 0,
+            quantity: stockAvailable,
             unitPrice: "0", sellingPrice: "0", isActive: true,
+            imageUrl: row["Image URL"] || row["imageUrl"] || null,
           });
           imported++;
         } catch (err: any) { skipped++; errors.push(`Row ${i + 2}: ${err.message}`); }
