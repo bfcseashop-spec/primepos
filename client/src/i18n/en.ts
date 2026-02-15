@@ -99,6 +99,7 @@ export const en = {
     packages: "Packages",
     labTests: "Lab Tests",
     medicines: "Medicines",
+    medicinePurchases: "Medicine Purchases",
     doctorManagement: "Doctor Management",
     expenses: "Expenses",
     bankTransactions: "Bank Transactions",

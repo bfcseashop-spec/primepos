@@ -66,6 +66,7 @@ export const zh = {
     packages: "套餐",
     labTests: "实验室检测",
     medicines: "药品管理",
+    medicinePurchases: "药品采购记录",
     doctorManagement: "医生管理",
     expenses: "费用管理",
     bankTransactions: "银行交易",

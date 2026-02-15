@@ -67,6 +67,7 @@ shared/
 - **Dark Mode**: All colors include dark variants (e.g., dark:text-blue-400)
 
 ## Recent Changes
+- 2026-02-15: Added Medicine Purchase Record module (/medicine-purchases) with full CRUD, purchase tracking (purchaseNo, medicine, supplier, quantity, unit type, pricing, batch, expiry, payment method, status), stats cards, date filtering, search, status/payment filters, view/edit/delete dialogs, auto-calculated total price, medicine selector with custom entry
 - 2026-02-14: Added Injection Management tab to Service Management page with full CRUD (Name, Price, Remarks), card view, search, stat cards, view/edit/delete dialogs
 - 2026-02-14: Added Injection selector to Create Bill dialog, INJ type badge in bill items, updated BillItem type to support "injection"
 - 2026-02-11: Added shared DateFilterBar component (client/src/components/date-filter.tsx) with useDateFilter hook, isDateInRange utility. Periods: All/Today/Yesterday/This Week/Last Week/This Month/Last Month/Custom date range

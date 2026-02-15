@@ -66,6 +66,7 @@ export const km = {
     packages: "កញ្ចប់",
     labTests: "តេស្តមន្ទីរពិសោធន៍",
     medicines: "ឱសថ",
+    medicinePurchases: "កំណត់ត្រាទិញឱសថ",
     doctorManagement: "គ្រប់គ្រងវេជ្ជបណ្ឌិត",
     expenses: "ចំណាយ",
     bankTransactions: "ប្រតិបត្តិការធនាគារ",

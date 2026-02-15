@@ -30,6 +30,7 @@ import AppointmentsPage from "@/pages/appointments";
 import DoctorManagementPage from "@/pages/doctor-management";
 import SalaryPage from "@/pages/salary";
 import AuthenticationPage from "@/pages/authentication";
+import MedicinePurchasesPage from "@/pages/medicine-purchases";
 import SignInPage from "@/pages/sign-in";
 
 function Router() {
@@ -53,6 +54,7 @@ function Router() {
       <Route path="/doctors" component={DoctorManagementPage} />
       <Route path="/salary" component={SalaryPage} />
       <Route path="/authentication" component={AuthenticationPage} />
+      <Route path="/medicine-purchases" component={MedicinePurchasesPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route component={NotFound} />
     </Switch>
