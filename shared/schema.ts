@@ -542,6 +542,29 @@ export const insertPackageSchema = createInsertSchema(packages).omit({ id: true,
 export type InsertPackage = z.infer<typeof insertPackageSchema>;
 export type Package = typeof packages.$inferSelect;
 
+export const medicinePurchases = pgTable("medicine_purchases", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  purchaseNo: text("purchase_no").notNull(),
+  medicineId: integer("medicine_id").references(() => medicines.id),
+  medicineName: text("medicine_name").notNull(),
+  supplier: text("supplier"),
+  quantity: integer("quantity").notNull().default(0),
+  unitType: text("unit_type").notNull().default("Pcs"),
+  purchasePrice: numeric("purchase_price", { precision: 10, scale: 2 }).notNull().default("0"),
+  totalPrice: numeric("total_price", { precision: 10, scale: 2 }).notNull().default("0"),
+  batchNo: text("batch_no"),
+  expiryDate: date("expiry_date"),
+  paymentMethod: text("payment_method").notNull().default("cash"),
+  status: text("status").notNull().default("completed"),
+  notes: text("notes"),
+  purchaseDate: date("purchase_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMedicinePurchaseSchema = createInsertSchema(medicinePurchases).omit({ id: true, createdAt: true } as any);
+export type InsertMedicinePurchase = z.infer<typeof insertMedicinePurchaseSchema>;
+export type MedicinePurchase = typeof medicinePurchases.$inferSelect;
+
 export const permissionModules = [
   "dashboard", "opd", "billing", "services", "medicines",
   "expenses", "bank", "investments", "staff", "integrations", "settings", "reports"
