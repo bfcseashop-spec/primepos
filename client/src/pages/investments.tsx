@@ -1192,24 +1192,17 @@ export default function InvestmentsPage() {
                           </td>
                           <td className="p-2.5 text-muted-foreground max-w-[200px] truncate">{c.note || "-"}</td>
                           <td className="text-right p-2.5">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" aria-label="Actions" data-testid={`button-contribution-actions-${c.id}`}>
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setViewContribution(c)} className="gap-2">
-                                  <Eye className="h-4 w-4 text-blue-500" /> View
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editImages: c.images || [], _editNote: c.note || "" } as any)} className="gap-2">
-                                  <Pencil className="h-4 w-4 text-amber-500" /> Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setDeleteContributionConfirm(c.id)} className="text-destructive gap-2">
-                                  <Trash2 className="h-4 w-4" /> Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title="View" aria-label="View" data-testid={`button-contribution-view-${c.id}`} onClick={() => setViewContribution(c)}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title="Edit" aria-label="Edit" data-testid={`button-contribution-edit-${c.id}`} onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editImages: c.images || [], _editNote: c.note || "" } as any)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10" title="Delete" aria-label="Delete" data-testid={`button-contribution-delete-${c.id}`} onClick={() => setDeleteContributionConfirm(c.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );
