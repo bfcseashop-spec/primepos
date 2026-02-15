@@ -523,7 +523,7 @@ export default function MedicinesPage() {
         <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">${total.toFixed(2)}</span>
       );
     }},
-    { header: "Sales Price", accessor: (row: Medicine) => {
+    { header: "Sales Per Pieces", accessor: (row: Medicine) => {
       const perPiece = Number(row.sellingPriceLocal ?? row.sellingPrice ?? 0);
       const qtyPerBox = Number(row.qtyPerBox || 1);
       const perUnit = perPiece * qtyPerBox;
@@ -757,7 +757,7 @@ export default function MedicinesPage() {
             {fieldErrors.purchasePrice && <p className="text-xs text-destructive mt-1">{fieldErrors.purchasePrice}</p>}
           </div>
           <div>
-            <Label htmlFor="salesPrice">Sales Price ($) *</Label>
+            <Label htmlFor="salesPrice">Sales Per Pieces ($) *</Label>
             <Input ref={refSalesPrice} id="salesPrice" type="number" step="0.01" min={0} value={form.salesPrice || ""} onChange={e => { setForm(f => ({ ...f, salesPrice: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, salesPrice: "" })); }} data-testid="input-medicine-sales-price" className={fieldErrors.salesPrice ? "border-destructive" : ""} />
             {fieldErrors.salesPrice && <p className="text-xs text-destructive mt-1">{fieldErrors.salesPrice}</p>}
           </div>
