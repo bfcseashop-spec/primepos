@@ -354,38 +354,38 @@ export async function registerRoutes(
       const XLSX = await import("xlsx");
       const sampleRows = [
         {
-          "Image URL": "", "Medicine Name": "Paracetamol 500mg", Category: "Tablet",
-          "Unit Type": "Box", "Total Pcs": 100, "Purchase Price": "10.00",
-          "Total Purchase Price": "100.00", "Sales Price": "30.00",
-          "Stock Available": 1000, "Expiry Date": "2027-12-31",
+          "Medicine Name": "Paracetamol 500mg", Category: "Tablet",
+          "Unit Type": "Box", "Total Pcs": 100, "Purchase Price (per pc)": "1.00",
+          "Total Purchase Price": "100.00", "Sales Per Pieces": "1.50",
+          "Total Sales Price": "150.00", "Stock Available pcs": 1000, "Expiry Date": "2027-12-31",
           Manufacturer: "PharmaCo", "Batch No": "B-2026-001", "Stock Alert": 20,
         },
         {
-          "Image URL": "", "Medicine Name": "Amoxicillin 500mg", Category: "Capsule",
-          "Unit Type": "Box", "Total Pcs": 50, "Purchase Price": "25.00",
-          "Total Purchase Price": "250.00", "Sales Price": "60.00",
-          "Stock Available": 500, "Expiry Date": "2027-06-15",
+          "Medicine Name": "Amoxicillin 500mg", Category: "Capsule",
+          "Unit Type": "Box", "Total Pcs": 50, "Purchase Price (per pc)": "5.00",
+          "Total Purchase Price": "250.00", "Sales Per Pieces": "8.00",
+          "Total Sales Price": "400.00", "Stock Available pcs": 500, "Expiry Date": "2027-06-15",
           Manufacturer: "MedLab", "Batch No": "B-2026-002", "Stock Alert": 15,
         },
         {
-          "Image URL": "", "Medicine Name": "Cough Syrup", Category: "Syrup",
-          "Unit Type": "Bottle", "Total Pcs": 1, "Purchase Price": "6.00",
-          "Total Purchase Price": "900.00", "Sales Price": "4.50",
-          "Stock Available": 150, "Expiry Date": "2026-08-25",
+          "Medicine Name": "Cough Syrup", Category: "Syrup",
+          "Unit Type": "Bottle", "Total Pcs": 1, "Purchase Price (per pc)": "6.00",
+          "Total Purchase Price": "6.00", "Sales Per Pieces": "9.00",
+          "Total Sales Price": "9.00", "Stock Available pcs": 150, "Expiry Date": "2026-08-25",
           Manufacturer: "HealthCare", "Batch No": "B-2026-003", "Stock Alert": 10,
         },
         {
-          "Image URL": "", "Medicine Name": "Omeprazole 20mg", Category: "Capsule",
-          "Unit Type": "Box", "Total Pcs": 30, "Purchase Price": "24.00",
-          "Total Purchase Price": "240.00", "Sales Price": "45.00",
-          "Stock Available": 300, "Expiry Date": "2027-03-20",
+          "Medicine Name": "Omeprazole 20mg", Category: "Capsule",
+          "Unit Type": "Box", "Total Pcs": 30, "Purchase Price (per pc)": "8.00",
+          "Total Purchase Price": "240.00", "Sales Per Pieces": "12.00",
+          "Total Sales Price": "360.00", "Stock Available pcs": 300, "Expiry Date": "2027-03-20",
           Manufacturer: "GastroPharm", "Batch No": "B-2026-004", "Stock Alert": 10,
         },
         {
-          "Image URL": "", "Medicine Name": "Ciprofloxacin 250mg", Category: "Tablet",
-          "Unit Type": "Box", "Total Pcs": 20, "Purchase Price": "12.00",
-          "Total Purchase Price": "4.80", "Sales Price": "28.00",
-          "Stock Available": 8, "Expiry Date": "2026-09-10",
+          "Medicine Name": "Ciprofloxacin 250mg", Category: "Tablet",
+          "Unit Type": "Box", "Total Pcs": 20, "Purchase Price (per pc)": "12.00",
+          "Total Purchase Price": "240.00", "Sales Per Pieces": "18.00",
+          "Total Sales Price": "360.00", "Stock Available pcs": 8, "Expiry Date": "2026-09-10",
           Manufacturer: "AntiBioLab", "Batch No": "B-2026-005", "Stock Alert": 10,
         },
       ];
@@ -944,19 +944,20 @@ export async function registerRoutes(
       const medicines = await storage.getMedicines();
       const rows = medicines.map(m => {
         const perPiece = Number(m.sellingPriceLocal ?? m.sellingPrice ?? 0);
-        const qtyPerBox = Number(m.qtyPerBox || 1);
-        const salesPrice = perPiece * qtyPerBox;
         const totalPcs = (m.unitCount || 1) * (m.qtyPerBox || 1);
+        const purchasePricePerPc = Number(m.perMedPrice) || (totalPcs > 0 ? Number(m.boxPrice || 0) / totalPcs : 0);
+        const totalPurchasePrice = purchasePricePerPc * totalPcs;
+        const totalSalesPrice = perPiece * totalPcs;
         return {
-          "Image URL": m.imageUrl || "",
           "Medicine Name": m.name,
           Category: m.category || "",
           "Unit Type": m.unit,
           "Total Pcs": totalPcs,
-          "Purchase Price": m.boxPrice,
-          "Total Purchase Price": m.totalPurchasePrice,
-          "Sales Price": salesPrice.toFixed(2),
-          "Stock Available": m.stockCount,
+          "Purchase Price (per pc)": purchasePricePerPc.toFixed(2),
+          "Total Purchase Price": totalPurchasePrice.toFixed(2),
+          "Sales Per Pieces": perPiece.toFixed(2),
+          "Total Sales Price": totalSalesPrice.toFixed(2),
+          "Stock Available pcs": m.stockCount,
           "Expiry Date": m.expiryDate || "",
           Manufacturer: m.manufacturer || "",
           "Batch No": m.batchNo || "",
@@ -1006,14 +1007,13 @@ export async function registerRoutes(
         const name = row["Medicine Name"] || row["Name"] || row["name"];
         if (!name) { skipped++; errors.push(`Row ${i + 2}: Missing medicine name`); continue; }
         try {
-          const purchasePrice = parseFloat(row["Purchase Price"] || row["Box Price"] || row["boxPrice"] || "0") || 0;
           const totalPcs = parseInt(row["Total Pcs"] || row["Qty Per Box"] || row["qtyPerBox"] || "1") || 1;
-          const perMedPrice = totalPcs > 0 ? purchasePrice / totalPcs : 0;
           const unitCount = parseInt(row["Unit Count"] || row["unitCount"] || "1") || 1;
-          const totalPurchasePrice = parseFloat(row["Total Purchase Price"] || row["totalPurchasePrice"] || "0") || (unitCount * purchasePrice);
-          const salesPrice = parseFloat(row["Sales Price"] || row["Selling Price (Local)"] || row["sellingPriceLocal"] || "0") || 0;
-          const stockAvailable = parseInt(row["Stock Available"] || row["Stock Count"] || row["stockCount"] || "0") || 0;
-          const sellingPricePerPiece = totalPcs > 0 ? salesPrice / totalPcs : 0;
+          const purchasePricePerPc = parseFloat(row["Purchase Price (per pc)"] || row["Purchase Price"] || row["Box Price"] || row["boxPrice"] || "0") || 0;
+          const totalPurchasePrice = parseFloat(row["Total Purchase Price"] || row["totalPurchasePrice"] || "0") || (purchasePricePerPc * totalPcs);
+          const boxPrice = purchasePricePerPc * totalPcs;
+          const salesPerPieces = parseFloat(row["Sales Per Pieces"] || row["Sales Price"] || row["Selling Price (Local)"] || row["sellingPriceLocal"] || "0") || 0;
+          const stockAvailable = parseInt(row["Stock Available pcs"] || row["Stock Available"] || row["Stock Count"] || row["stockCount"] || "0") || 0;
           await storage.createMedicine({
             name,
             genericName: row["Generic Name"] || row["genericName"] || null,
@@ -1023,12 +1023,12 @@ export async function registerRoutes(
             expiryDate: row["Expiry Date"] || row["expiryDate"] || null,
             unit: row["Unit Type"] || row["Unit"] || row["unit"] || "Box",
             unitCount,
-            boxPrice: purchasePrice.toString(),
+            boxPrice: boxPrice.toString(),
             qtyPerBox: totalPcs,
-            perMedPrice: perMedPrice.toFixed(4),
+            perMedPrice: purchasePricePerPc.toFixed(4),
             totalPurchasePrice: totalPurchasePrice.toFixed(2),
-            sellingPriceLocal: sellingPricePerPiece.toFixed(2),
-            sellingPriceForeigner: (parseFloat(row["Selling Price (Foreigner)"] || row["sellingPriceForeigner"] || "0") || sellingPricePerPiece).toFixed(2),
+            sellingPriceLocal: salesPerPieces.toFixed(2),
+            sellingPriceForeigner: (parseFloat(row["Selling Price (Foreigner)"] || row["sellingPriceForeigner"] || "0") || salesPerPieces).toFixed(2),
             stockCount: stockAvailable,
             totalStock: stockAvailable,
             stockAlert: parseInt(row["Stock Alert"] || row["stockAlert"] || "10") || 10,

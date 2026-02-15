@@ -756,7 +756,7 @@ export default function MedicinesPage() {
             {fieldErrors.salesPrice && <p className="text-xs text-destructive mt-1">{fieldErrors.salesPrice}</p>}
           </div>
           <div>
-            <Label htmlFor="stockAvailable">Stock Available</Label>
+            <Label htmlFor="stockAvailable">Stock Available pcs</Label>
             <Input ref={refStockAvailable} id="stockAvailable" type="number" min={0} value={form.stockAvailable} onChange={e => setForm(f => ({ ...f, stockAvailable: Number(e.target.value) || 0 }))} data-testid="input-medicine-stock-available" />
           </div>
         </div>
