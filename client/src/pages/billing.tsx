@@ -284,20 +284,11 @@ export default function BillingPage() {
     const fLg = isCompact ? 13 : 15;
     const maxW = isCompact ? "340px" : "720px";
     const bodyPad = isCompact ? "12px 14px" : "20px 24px";
+    const teal = "#0d9488";
+    const tealBg = "#0d948815";
     const accent = "#0f172a";
     const muted = "#475569";
     const border = "#e2e8f0";
-    const totalHighlight = "#fef9c3";
-
-    const itemRows = printItems.map((item: any, idx: number) => `
-      <tr>
-        <td style="padding:${padSm};border-bottom:1px solid ${border};text-align:center;font-size:${fSm}px;color:${accent};">${idx + 1}</td>
-        <td style="padding:${padSm};border-bottom:1px solid ${border};font-size:${fSm}px;color:${accent};">${item.name}</td>
-        <td style="padding:${padSm};border-bottom:1px solid ${border};text-align:center;font-size:${fSm}px;color:${accent};">${item.quantity}</td>
-        <td style="padding:${padSm};border-bottom:1px solid ${border};text-align:right;font-size:${fSm}px;color:${accent};">${pSym}${Number(item.unitPrice).toFixed(2)}</td>
-        <td style="padding:${padSm};border-bottom:1px solid ${border};text-align:right;font-size:${fSm}px;font-weight:600;color:${accent};background:${totalHighlight};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${pSym}${Number(item.total).toFixed(2)}</td>
-      </tr>
-    `).join("");
 
     const billNoShort = (bill.billNo || "").replace(/\s/g, "");
     const billNoBarcode = billNoShort.replace(/[^A-Za-z0-9\-]/g, "") || billNoShort;
@@ -313,7 +304,11 @@ export default function BillingPage() {
 
     const statusLabel = bill.status === "paid" ? "PAID" : "PENDING";
     const statusColor = bill.status === "paid" ? "#059669" : "#d97706";
-    const accentBar = "linear-gradient(90deg, #2563eb, #6366f1, #8b5cf6)";
+
+    const secSym = settings?.secondaryCurrency ? (CURRENCY_SYMBOLS[settings.secondaryCurrency] || settings.secondaryCurrency) : "";
+    const exRate = Number(settings?.exchangeRate) || 1;
+    const hasSecondary = !!(settings?.secondaryCurrency && settings.secondaryCurrency !== settings.currency && exRate !== 1);
+    const toSec = (v: number) => (v * exRate).toFixed(hasSecondary && exRate > 100 ? 0 : 2);
 
     printWindow.document.write(`
       <html><head><title>Invoice ${billNoShort}</title>
@@ -323,130 +318,87 @@ export default function BillingPage() {
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.5; }
         .invoice-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
-        .label { font-size: ${fSm - 1}px; text-transform: uppercase; letter-spacing: 0.08em; color: ${muted}; font-weight: 600; margin-bottom: 3px; }
         table { border-collapse: collapse; }
         @media print { body { padding: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
       </style></head><body>
 
-        <div style="height:${isCompact ? "4px" : "6px"};background:${accentBar};"></div>
-
         <div style="padding:${bodyPad};">
 
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:${isCompact ? "14px" : "18px"};flex-wrap:wrap;">
-            <div>
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "28px" : "36px"};" />` : ""}
-                <div style="font-size:${fLg + 1}px;font-weight:700;color:${accent};letter-spacing:-0.01em;">${clinicNameDisplay}</div>
-              </div>
-              <div style="font-size:${fSm}px;color:${muted};line-height:1.6;">
-                ${vatTin ? `<div>VAT/TIN: ${vatTin}</div>` : ""}
-                ${clinicAddress ? `<div>${clinicAddress}</div>` : ""}
-                <div>${[clinicPhone, clinicEmailDisplay].filter(Boolean).join(" | ")}</div>
-              </div>
-            </div>
-            <div style="text-align:right;">
-              <div style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;background:${statusColor}15;margin-bottom:4px;">
-                <span style="width:6px;height:6px;border-radius:50%;background:${statusColor};display:inline-block;"></span>
-                <span style="font-size:${fSm}px;font-weight:700;color:${statusColor};letter-spacing:0.05em;">${statusLabel}</span>
-              </div>
-              <div style="font-size:${isCompact ? "18px" : "22px"};font-weight:800;color:${accent};letter-spacing:-0.02em;">${pSym}${totalDue.toFixed(2)}</div>
-              ${(() => { const { secondaryStr } = getCurrencyParts(totalDue, settings); return secondaryStr ? `<div style="font-size:${fSm}px;color:${muted};">${secondaryStr}</div>` : ""; })()}
+          <div style="text-align:center;margin-bottom:${isCompact ? "14px" : "20px"};">
+            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "36px" : "50px"};margin:0 auto 6px;" />` : ""}
+            <div style="font-size:${isCompact ? "14px" : "18px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.04em;">${clinicNameDisplay}</div>
+            <div style="font-size:${fSm}px;color:${muted};line-height:1.6;margin-top:2px;">
+              ${clinicAddress ? `<div>${clinicAddress}</div>` : ""}
+              <div>${[clinicPhone, clinicEmailDisplay].filter(Boolean).join(", ")}</div>
             </div>
           </div>
 
-          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding-bottom:${isCompact ? "10px" : "14px"};margin-bottom:${isCompact ? "12px" : "16px"};border-bottom:2px solid ${accent};flex-wrap:wrap;">
-            <div style="display:flex;gap:${isCompact ? "16px" : "24px"};flex-wrap:wrap;">
-              <div>
-                <div class="label">Invoice No.</div>
-                <div style="font-family:monospace;font-weight:600;font-size:${fBase}px;">${billNoShort}</div>
+          <div style="margin-bottom:${isCompact ? "10px" : "14px"};">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+              <div style="font-size:${fSm}px;line-height:1.8;">
+                <div><span style="color:${teal};font-weight:700;text-transform:uppercase;">Invoice No #:</span> <span style="font-weight:600;">${billNoShort}</span></div>
+                <div><span style="color:${teal};font-weight:700;text-transform:uppercase;">Date:</span> <span style="font-weight:500;">${formattedDate}</span></div>
+                <div>Paid By: <span style="font-weight:500;">${getPaymentLabel(bill.paymentMethod)}</span></div>
               </div>
-              <div>
-                <div class="label">Date</div>
-                <div style="font-weight:500;font-size:${fBase}px;">${formattedDate}</div>
-              </div>
-              <div>
-                <div class="label">Payment</div>
-                <div style="font-weight:500;font-size:${fBase}px;">${getPaymentLabel(bill.paymentMethod)}</div>
-              </div>
+              ${billNoBarcode ? `<div style="text-align:right;"><span style="color:${teal};font-weight:600;font-size:${fSm}px;">invoice code:</span><div class="invoice-barcode" style="font-size:${barcodeSize}px;">${billNoBarcode}</div></div>` : ""}
             </div>
-            ${billNoBarcode ? `<div style="text-align:right;"><div class="invoice-barcode" style="font-size:${barcodeSize}px;">${billNoBarcode}</div><div style="font-size:${fSm - 1}px;color:${muted};letter-spacing:0.1em;">${billNoShort}</div></div>` : ""}
           </div>
 
-          <table style="width:100%;margin-bottom:${isCompact ? "12px" : "16px"};font-size:${fSm}px;">
-            <tr>
-              <td style="width:50%;vertical-align:top;padding:${padSm} ${pad};background:#f8fafc;border:1px solid ${border};border-right:none;">
-                <div class="label" style="margin-bottom:4px;">Patient / ឈ្មោះអ្នកជំងឺ</div>
-                <div style="font-weight:600;color:${accent};margin-bottom:2px;">${patient?.name || "-"}</div>
-                ${patient?.patientId ? `<div style="color:${muted};">ID: ${patient.patientId}</div>` : ""}
-                ${patient?.gender ? `<div style="color:${muted};">${patient.gender}${patient?.age != null ? ` | Age: ${patient.age}` : ""}</div>` : ""}
-              </td>
-              <td style="width:50%;vertical-align:top;padding:${padSm} ${pad};background:#f8fafc;border:1px solid ${border};">
-                <div class="label" style="margin-bottom:4px;">Doctor</div>
-                <div style="font-weight:600;color:${accent};margin-bottom:2px;">${bill.referenceDoctor || "-"}</div>
-                <div style="color:${muted};">Status: <strong style="color:${statusColor};">${statusLabel}</strong></div>
-                <div style="color:${muted};">${clinicNameDisplay}</div>
-              </td>
-            </tr>
-          </table>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:${isCompact ? "14px" : "20px"};gap:12px;flex-wrap:wrap;">
+            <div style="font-size:${fSm}px;line-height:1.7;">
+              <div style="font-size:${isCompact ? "12px" : "14px"};font-weight:700;color:${teal};margin-bottom:2px;">Patient :</div>
+              <div style="font-weight:600;font-size:${fBase}px;">${patient?.name || "-"}</div>
+              ${patient?.patientId ? `<div>ID : ${patient.patientId}</div>` : ""}
+              ${patient?.gender ? `<div>Gender: ${patient.gender}${patient?.age != null ? `, Age: ${patient.age}` : ""}</div>` : ""}
+            </div>
+            <div style="font-size:${fSm}px;line-height:1.7;text-align:right;">
+              <div style="font-size:${isCompact ? "12px" : "14px"};font-weight:700;color:${teal};margin-bottom:2px;">Dr. Name :</div>
+              <div style="font-weight:600;font-size:${fBase}px;">${bill.referenceDoctor || "-"}</div>
+            </div>
+          </div>
 
           <table style="width:100%;margin-bottom:${isCompact ? "12px" : "16px"};">
             <thead>
-              <tr style="border-bottom:2px solid ${accent}20;">
-                <th style="padding:${pad};text-align:left;font-size:${fSm - 1}px;text-transform:uppercase;letter-spacing:0.08em;color:${muted};font-weight:600;width:30px;">#</th>
-                <th style="padding:${pad};text-align:left;font-size:${fSm - 1}px;text-transform:uppercase;letter-spacing:0.08em;color:${muted};font-weight:600;">Item Description</th>
-                <th style="padding:${pad};text-align:center;font-size:${fSm - 1}px;text-transform:uppercase;letter-spacing:0.08em;color:${muted};font-weight:600;width:40px;">Qty</th>
-                <th style="padding:${pad};text-align:right;font-size:${fSm - 1}px;text-transform:uppercase;letter-spacing:0.08em;color:${muted};font-weight:600;width:68px;">Price</th>
-                <th style="padding:${pad};text-align:right;font-size:${fSm - 1}px;text-transform:uppercase;letter-spacing:0.08em;color:${muted};font-weight:600;width:76px;">Amount</th>
+              <tr style="background:${teal};-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+                <th style="padding:${pad};text-align:center;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:600;width:${isCompact ? "36px" : "50px"};border-radius:${isCompact ? "4px" : "6px"} 0 0 0;">Item</th>
+                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:600;">Description</th>
+                <th style="padding:${pad};text-align:right;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:600;width:${isCompact ? "55px" : "70px"};">Price</th>
+                <th style="padding:${pad};text-align:center;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:600;width:${isCompact ? "36px" : "50px"};">Qty</th>
+                <th style="padding:${pad};text-align:right;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:600;width:${isCompact ? "60px" : "80px"};border-radius:0 ${isCompact ? "4px" : "6px"} 0 0;">Total</th>
               </tr>
             </thead>
             <tbody>
               ${printItems.map((item: any, idx: number) => `
                 <tr style="border-bottom:1px solid ${border};">
-                  <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${idx + 1}</td>
-                  <td style="padding:${padSm};font-size:${fSm}px;font-weight:500;color:${accent};">${item.name}</td>
-                  <td style="padding:${padSm};text-align:center;font-size:${fSm}px;color:${accent};">${item.quantity}</td>
+                  <td style="padding:${padSm};text-align:center;font-size:${fSm}px;font-weight:600;color:${accent};">${String(idx + 1).padStart(2, "0")}</td>
+                  <td style="padding:${padSm};font-size:${fSm}px;color:${accent};">${item.name}</td>
                   <td style="padding:${padSm};text-align:right;font-size:${fSm}px;color:${muted};">${pSym}${Number(item.unitPrice).toFixed(2)}</td>
+                  <td style="padding:${padSm};text-align:center;font-size:${fSm}px;color:${accent};">${item.quantity}</td>
                   <td style="padding:${padSm};text-align:right;font-size:${fSm}px;font-weight:600;color:${accent};">${pSym}${Number(item.total).toFixed(2)}</td>
                 </tr>
               `).join("")}
             </tbody>
           </table>
 
-          <div style="display:flex;justify-content:flex-end;margin-bottom:${isCompact ? "14px" : "18px"};">
-            <div style="width:${isCompact ? "200px" : "260px"};font-size:${fSm}px;">
-              <div style="display:flex;justify-content:space-between;padding:${padSm} 0;"><span style="color:${muted};">Subtotal</span><span>${pSym}${subtotalVal}</span></div>
-              ${Number(discountVal) > 0 ? `<div style="display:flex;justify-content:space-between;padding:${padSm} 0;"><span style="color:${muted};">Discount</span><span style="color:#ef4444;">-${pSym}${discountVal}</span></div>` : ""}
-              <div style="border-top:2px solid ${accent}20;margin-top:4px;padding-top:6px;">
-                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="font-weight:700;font-size:${fBase + 1}px;">Total Due</span><span style="font-weight:700;font-size:${fBase + 1}px;">${pSym}${totalDue.toFixed(2)}</span></div>
-                ${(() => { const { secondaryStr } = getCurrencyParts(totalDue, settings); return secondaryStr ? `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="color:${muted};font-size:${fSm}px;">Converted</span><span style="color:${muted};font-size:${fSm}px;">${secondaryStr}</span></div>` : ""; })()}
+          <div style="display:flex;justify-content:flex-end;margin-bottom:${isCompact ? "14px" : "20px"};">
+            <div style="width:${isCompact ? "220px" : "300px"};font-size:${fSm + 1}px;">
+              <div style="display:flex;justify-content:space-between;padding:4px 0;">
+                <span style="font-weight:600;">Subtotal:</span>
+                <span>${pSym}${subtotalVal}${hasSecondary ? ` / ${secSym}${toSec(Number(subtotalVal))}` : ""}</span>
+              </div>
+              ${Number(discountVal) > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="font-weight:600;">Discount:</span><span>-${pSym}${discountVal}${hasSecondary ? ` / ${secSym}${toSec(Number(discountVal))}` : ""}</span></div>` : ""}
+              <div style="border-top:3px solid ${accent};margin-top:6px;padding-top:8px;">
+                <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="font-weight:700;color:${teal};font-size:${fBase + 2}px;">Grand Total:</span><span style="font-weight:700;font-size:${fBase + 2}px;">${pSym}${totalDue.toFixed(2)}</span></div>
+                ${hasSecondary ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="font-weight:700;color:${teal};font-size:${fBase + 2}px;">Grand Total:</span><span style="font-weight:700;font-size:${fBase + 2}px;">${secSym}${toSec(totalDue)}</span></div>` : ""}
               </div>
               <div style="display:flex;justify-content:space-between;padding:3px 0;margin-top:4px;"><span style="color:${muted};">Amount Paid</span><span style="font-weight:600;color:#059669;">${pSym}${paidAmt.toFixed(2)}</span></div>
               ${amountOwed > 0 ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:${muted};">Balance Due</span><span style="font-weight:600;color:#ef4444;">${pSym}${amountOwed.toFixed(2)}</span></div>` : ""}
             </div>
           </div>
 
-          <div style="border-top:1px solid ${border};padding-top:${isCompact ? "12px" : "16px"};margin-top:4px;">
-            <table style="width:100%;font-size:${fSm}px;">
-              <tr>
-                <td style="width:33%;vertical-align:top;text-align:center;">
-                  <div style="border-bottom:1px solid ${accent};height:${isCompact ? "22px" : "28px"};margin:0 12px;"></div>
-                  <div style="color:${muted};margin-top:4px;font-weight:500;">Customer Signature</div>
-                </td>
-                <td style="width:34%;text-align:center;vertical-align:bottom;">
-                  <div style="color:${muted};font-size:${fSm - 1}px;">Date</div>
-                  <div style="font-weight:600;color:${accent};margin-top:2px;">${formattedDate}</div>
-                </td>
-                <td style="width:33%;vertical-align:top;text-align:center;">
-                  <div style="border-bottom:1px solid ${accent};height:${isCompact ? "22px" : "28px"};margin:0 12px;"></div>
-                  <div style="color:${muted};margin-top:4px;font-weight:500;">Authorized Signature</div>
-                </td>
-              </tr>
-            </table>
-          </div>
-
-          <div style="text-align:center;margin-top:${isCompact ? "10px" : "14px"};padding-top:8px;">
-            <div style="font-size:${fSm}px;font-weight:500;color:${accent};">Thank you for your visit!</div>
-            ${clinicEmailDisplay ? `<div style="font-size:${fSm - 1}px;color:${muted};margin-top:2px;">${clinicEmailDisplay}</div>` : ""}
+          <div style="text-align:center;margin-top:${isCompact ? "18px" : "28px"};padding-top:12px;">
+            <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;letter-spacing:0.06em;">Thank you for choosing ${clinicNameDisplay}!</div>
+            ${clinicEmailDisplay ? `<div style="font-size:${fSm}px;color:${muted};margin-top:4px;text-transform:uppercase;">For questions, contact ${clinicEmailDisplay}</div>` : ""}
           </div>
 
         </div>
@@ -1345,116 +1297,69 @@ export default function BillingPage() {
             return (
               <div>
                 <div className="bg-card border-b">
-                  <div className="h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-violet-500 rounded-t-lg" />
-                  <div className="px-6 pt-5 pb-4">
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-3">
-                          {settings?.logo && <img src={settings.logo} alt="Logo" className="h-9 object-contain" />}
-                          <div>
-                            <h2 className="text-lg font-bold tracking-tight">{settings?.clinicName || "Clinic"}</h2>
-                            {settings?.companyTaxId && <p className="text-[10px] text-muted-foreground">VAT/TIN: {settings.companyTaxId}</p>}
-                          </div>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground leading-relaxed pl-0.5">
-                          {settings?.address && <p>{settings.address}</p>}
-                          <div className="flex items-center gap-3 flex-wrap">
-                            {settings?.phone && <span>{settings.phone}</span>}
-                            {settings?.email && <span>{settings.email}</span>}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right space-y-1 shrink-0">
-                        <div className="inline-flex items-center gap-2">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${isPaid ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/15 text-amber-700 dark:text-amber-400"}`}>
-                            <span className={`h-1.5 w-1.5 rounded-full ${isPaid ? "bg-emerald-500" : "bg-amber-500"}`} />
-                            {isPaid ? "Paid" : "Pending"}
-                          </span>
-                        </div>
-                        <p className="text-2xl font-extrabold tracking-tight tabular-nums">{pSym}{vTotal.toFixed(2)}</p>
-                        {(() => {
-                          const { secondaryStr } = getCurrencyParts(vTotal, settings);
-                          return secondaryStr ? <p className="text-xs text-muted-foreground tabular-nums">{secondaryStr}</p> : null;
-                        })()}
-                      </div>
+                  <div className="px-6 pt-5 pb-4 text-center">
+                    <div className="flex items-center justify-center gap-3 mb-1">
+                      {settings?.logo && <img src={settings.logo} alt="Logo" className="h-10 object-contain" />}
+                    </div>
+                    <h2 className="text-lg font-extrabold tracking-wide uppercase text-teal-600 dark:text-teal-400">{settings?.clinicName || "Clinic"}</h2>
+                    <div className="text-[11px] text-muted-foreground leading-relaxed mt-1">
+                      {settings?.address && <p>{settings.address}</p>}
+                      <p>{[settings?.phone, settings?.email].filter(Boolean).join(", ")}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="px-6 py-4 space-y-5">
                   <div className="flex items-start justify-between gap-6 flex-wrap">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-3 text-sm flex-1">
-                      <div>
-                        <p className="text-[10px] uppercase text-muted-foreground font-medium tracking-wider mb-0.5">Invoice No.</p>
-                        <p className="font-mono font-semibold text-sm">{viewBill.billNo}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase text-muted-foreground font-medium tracking-wider mb-0.5">Date</p>
-                        <p className="font-medium text-sm">{new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase text-muted-foreground font-medium tracking-wider mb-0.5">Payment</p>
-                        <p className="font-medium text-sm">{getPaymentLabel(viewBill.paymentMethod)}</p>
-                      </div>
+                    <div className="text-sm space-y-1">
+                      <p><span className="text-teal-600 dark:text-teal-400 font-bold uppercase text-xs">Invoice No #:</span> <span className="font-semibold font-mono">{viewBill.billNo}</span></p>
+                      <p><span className="text-teal-600 dark:text-teal-400 font-bold uppercase text-xs">Date:</span> <span className="font-medium">{new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span></p>
+                      <p>Paid By: <span className="font-medium">{getPaymentLabel(viewBill.paymentMethod)}</span></p>
                     </div>
                     {(viewBill.billNo || "").replace(/[^A-Za-z0-9\-]/g, "") && (
                       <div className="text-right shrink-0">
+                        <span className="text-teal-600 dark:text-teal-400 font-semibold text-xs">invoice code:</span>
                         <div style={{ fontFamily: "'Libre Barcode 128', monospace", fontSize: 40, letterSpacing: 2, lineHeight: 1, color: "var(--foreground)" }}>
                           {(viewBill.billNo || "").replace(/[^A-Za-z0-9\-]/g, "")}
                         </div>
-                        <p className="text-[9px] text-muted-foreground tracking-widest mt-0.5">{viewBill.billNo}</p>
                       </div>
                     )}
                   </div>
 
-                  <div className="rounded-lg border overflow-hidden">
-                    <div className="grid grid-cols-2 divide-x">
-                      <div className="p-3.5 bg-muted/30">
-                        <p className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground mb-1.5">Patient</p>
-                        <p className="text-sm font-semibold">{viewBill.patientName || patient?.name || "-"}</p>
-                        {patient?.patientId && <p className="text-[11px] text-muted-foreground mt-0.5">ID: {patient.patientId}</p>}
-                        <div className="flex gap-3 mt-1 flex-wrap">
-                          {patient?.gender && <span className="text-[11px] text-muted-foreground">{patient.gender}</span>}
-                          {patient?.age != null && <span className="text-[11px] text-muted-foreground">Age: {patient.age}</span>}
-                        </div>
+                  <div className="flex items-start justify-between gap-6 flex-wrap">
+                    <div className="text-sm">
+                      <p className="text-sm font-bold text-teal-600 dark:text-teal-400 mb-1">Patient :</p>
+                      <p className="font-semibold">{viewBill.patientName || patient?.name || "-"}</p>
+                      {patient?.patientId && <p className="text-muted-foreground text-[11px]">ID : {patient.patientId}</p>}
+                      <div className="flex gap-2 text-[11px] text-muted-foreground mt-0.5 flex-wrap">
+                        {patient?.gender && <span>Gender: {patient.gender}</span>}
+                        {patient?.age != null && <span>, Age: {patient.age}</span>}
                       </div>
-                      <div className="p-3.5 bg-muted/30">
-                        <p className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground mb-1.5">Doctor</p>
-                        <p className="text-sm font-semibold">{viewBill.referenceDoctor || "-"}</p>
-                        <p className="text-[11px] mt-1"><span className="text-muted-foreground">Status:</span> <span className="font-medium">{isPaid ? "Paid in Full" : "Payment Pending"}</span></p>
-                        {settings?.clinicName && <p className="text-[11px] text-muted-foreground mt-0.5">{settings.clinicName}</p>}
-                      </div>
+                    </div>
+                    <div className="text-sm text-right">
+                      <p className="text-sm font-bold text-teal-600 dark:text-teal-400 mb-1">Dr. Name :</p>
+                      <p className="font-semibold">{viewBill.referenceDoctor || "-"}</p>
                     </div>
                   </div>
 
                   <div>
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b-2 border-foreground/15">
-                          <th className="text-left py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground w-9">#</th>
-                          <th className="text-left py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Item Description</th>
-                          <th className="text-center py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground w-14">Qty</th>
-                          <th className="text-right py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground w-20">Price</th>
-                          <th className="text-right py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground w-24">Amount</th>
+                        <tr className="bg-teal-600 dark:bg-teal-700 text-white">
+                          <th className="text-center py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold w-12 rounded-tl-md">Item</th>
+                          <th className="text-left py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold">Description</th>
+                          <th className="text-right py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold w-20">Price</th>
+                          <th className="text-center py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold w-14">Qty</th>
+                          <th className="text-right py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold w-24 rounded-tr-md">Total</th>
                         </tr>
                       </thead>
                       <tbody>
                         {items.map((item: any, i: number) => (
                           <tr key={i} className="border-b border-border/50 last:border-b-0">
-                            <td className="py-2.5 px-2 text-xs text-muted-foreground tabular-nums">{i + 1}</td>
-                            <td className="py-2.5 px-2">
-                              <span className="font-medium">{item.name}</span>
-                              {item.type && (
-                                <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-wide ${
-                                  item.type === "medicine" ? "bg-teal-500/10 text-teal-700 dark:text-teal-400" :
-                                  item.type === "injection" ? "bg-violet-500/10 text-violet-700 dark:text-violet-400" :
-                                  item.type === "service" ? "bg-sky-500/10 text-sky-700 dark:text-sky-400" :
-                                  "bg-muted text-muted-foreground"
-                                }`}>{item.type === "medicine" ? "Med" : item.type === "injection" ? "Inj" : item.type === "service" ? "Svc" : item.type}</span>
-                              )}
-                            </td>
-                            <td className="py-2.5 px-2 text-center tabular-nums">{item.quantity}</td>
+                            <td className="py-2.5 px-2 text-center font-semibold tabular-nums">{String(i + 1).padStart(2, "0")}</td>
+                            <td className="py-2.5 px-2">{item.name}</td>
                             <td className="py-2.5 px-2 text-right text-muted-foreground tabular-nums">{pSym}{Number(item.unitPrice).toFixed(2)}</td>
+                            <td className="py-2.5 px-2 text-center tabular-nums">{item.quantity}</td>
                             <td className="py-2.5 px-2 text-right font-semibold tabular-nums">{pSym}{Number(item.total).toFixed(2)}</td>
                           </tr>
                         ))}
@@ -1462,68 +1367,56 @@ export default function BillingPage() {
                     </table>
                   </div>
 
-                  <div className="flex justify-end">
-                    <div className="w-72">
-                      <div className="space-y-1.5 text-sm">
-                        <div className="flex justify-between gap-4 px-1">
-                          <span className="text-muted-foreground">Subtotal</span>
-                          <span className="tabular-nums">{pSym}{vSubtotal.toFixed(2)}</span>
-                        </div>
-                        {vDiscount > 0 && (
-                          <div className="flex justify-between gap-4 px-1">
-                            <span className="text-muted-foreground">Discount</span>
-                            <span className="text-red-500 tabular-nums">-{pSym}{vDiscount.toFixed(2)}</span>
-                          </div>
-                        )}
-                        <div className="border-t-2 border-foreground/15 pt-2 mt-2">
-                          <div className="flex justify-between gap-4 px-1">
-                            <span className="font-bold text-base">Total Due</span>
-                            <span className="font-bold text-base tabular-nums">{pSym}{vTotal.toFixed(2)}</span>
-                          </div>
-                          {(() => {
-                            const { secondaryStr } = getCurrencyParts(vTotal, settings);
-                            return secondaryStr ? (
-                              <div className="flex justify-between gap-4 px-1 mt-0.5">
-                                <span className="text-xs text-muted-foreground">Converted</span>
-                                <span className="text-xs text-muted-foreground tabular-nums">{secondaryStr}</span>
+                  {(() => {
+                    const vSecSym = settings?.secondaryCurrency ? (CURRENCY_SYMBOLS[settings.secondaryCurrency] || settings.secondaryCurrency) : "";
+                    const vExRate = Number(settings?.exchangeRate) || 1;
+                    const vHasSec = !!(settings?.secondaryCurrency && settings.secondaryCurrency !== settings.currency && vExRate !== 1);
+                    const vToSec = (v: number) => (v * vExRate).toFixed(vHasSec && vExRate > 100 ? 0 : 2);
+                    return (
+                      <div className="flex justify-end">
+                        <div className="w-80">
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between gap-4 px-1 py-1">
+                              <span className="font-semibold">Subtotal:</span>
+                              <span className="tabular-nums">{pSym}{vSubtotal.toFixed(2)}{vHasSec ? ` / ${vSecSym}${vToSec(vSubtotal)}` : ""}</span>
+                            </div>
+                            {vDiscount > 0 && (
+                              <div className="flex justify-between gap-4 px-1 py-1">
+                                <span className="font-semibold">Discount:</span>
+                                <span className="tabular-nums">-{pSym}{vDiscount.toFixed(2)}{vHasSec ? ` / ${vSecSym}${vToSec(vDiscount)}` : ""}</span>
                               </div>
-                            ) : null;
-                          })()}
-                        </div>
-                        <div className="flex justify-between gap-4 px-1 pt-1">
-                          <span className="text-muted-foreground">Amount Paid</span>
-                          <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{pSym}{vPaid.toFixed(2)}</span>
-                        </div>
-                        {vOwed > 0 && (
-                          <div className="flex justify-between gap-4 px-1">
-                            <span className="text-muted-foreground">Balance Due</span>
-                            <span className="font-semibold text-red-500 tabular-nums">{pSym}{vOwed.toFixed(2)}</span>
+                            )}
+                            <div className="border-t-[3px] border-foreground pt-2 mt-2">
+                              <div className="flex justify-between gap-4 px-1 py-0.5">
+                                <span className="font-bold text-teal-600 dark:text-teal-400 text-base">Grand Total:</span>
+                                <span className="font-bold text-base tabular-nums">{pSym}{vTotal.toFixed(2)}</span>
+                              </div>
+                              {vHasSec && (
+                                <div className="flex justify-between gap-4 px-1 py-0.5">
+                                  <span className="font-bold text-teal-600 dark:text-teal-400 text-base">Grand Total:</span>
+                                  <span className="font-bold text-base tabular-nums">{vSecSym}{vToSec(vTotal)}</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex justify-between gap-4 px-1 pt-2">
+                              <span className="text-muted-foreground">Amount Paid</span>
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{pSym}{vPaid.toFixed(2)}</span>
+                            </div>
+                            {vOwed > 0 && (
+                              <div className="flex justify-between gap-4 px-1">
+                                <span className="text-muted-foreground">Balance Due</span>
+                                <span className="font-semibold text-red-500 tabular-nums">{pSym}{vOwed.toFixed(2)}</span>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
-                  <div className="border-t pt-4 mt-2">
-                    <div className="grid grid-cols-3 gap-4 text-center text-[11px]">
-                      <div>
-                        <div className="border-b border-foreground/20 pb-6 mb-1.5 mx-4" />
-                        <p className="text-muted-foreground font-medium">Customer Signature</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground mb-1">Date</p>
-                        <p className="font-semibold text-sm">{new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
-                      </div>
-                      <div>
-                        <div className="border-b border-foreground/20 pb-6 mb-1.5 mx-4" />
-                        <p className="text-muted-foreground font-medium">Authorized Signature</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-center pt-2 pb-1 space-y-0.5">
-                    <p className="text-xs font-medium">Thank you for your visit!</p>
-                    {settings?.email && <p className="text-[10px] text-muted-foreground">{settings.email}</p>}
+                  <div className="text-center pt-6 pb-1 space-y-1">
+                    <p className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">Thank you for choosing {settings?.clinicName || "our clinic"}!</p>
+                    {settings?.email && <p className="text-[10px] text-muted-foreground uppercase">For questions, contact {settings.email}</p>}
                   </div>
                 </div>
 
