@@ -751,7 +751,7 @@ export default function MedicinesPage() {
             {fieldErrors.purchasePrice && <p className="text-xs text-destructive mt-1">{fieldErrors.purchasePrice}</p>}
           </div>
           <div>
-            <Label htmlFor="salesPrice">Sales Per Pieces ($) *</Label>
+            <Label htmlFor="salesPrice">Sales Per Pieces *</Label>
             <Input ref={refSalesPrice} id="salesPrice" type="number" step="0.01" min={0} value={form.salesPrice || ""} onChange={e => { setForm(f => ({ ...f, salesPrice: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, salesPrice: "" })); }} data-testid="input-medicine-sales-price" className={fieldErrors.salesPrice ? "border-destructive" : ""} />
             {fieldErrors.salesPrice && <p className="text-xs text-destructive mt-1">{fieldErrors.salesPrice}</p>}
           </div>
