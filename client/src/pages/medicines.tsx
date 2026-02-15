@@ -513,10 +513,16 @@ export default function MedicinesPage() {
     }},
     { header: "Sales Per Pieces", accessor: (row: Medicine) => {
       const perPiece = Number(row.sellingPriceLocal ?? row.sellingPrice ?? 0);
-      const qtyPerBox = Number(row.qtyPerBox || 1);
-      const perUnit = perPiece * qtyPerBox;
       return (
-        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${perUnit.toFixed(2)}</span>
+        <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">${perPiece.toFixed(2)}</span>
+      );
+    }},
+    { header: "Total Sales Price", accessor: (row: Medicine) => {
+      const perPiece = Number(row.sellingPriceLocal ?? row.sellingPrice ?? 0);
+      const totalPcs = (row.unitCount || 1) * (row.qtyPerBox || 1);
+      const total = perPiece * totalPcs;
+      return (
+        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${total.toFixed(2)}</span>
       );
     }},
     { header: "Stock Available pcs", accessor: (row: Medicine) => {
