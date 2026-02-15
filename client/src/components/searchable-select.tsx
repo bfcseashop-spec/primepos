@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+
+const SEARCHABLE_SELECT_OPEN_EVENT = "searchable-select-open";
 
 interface SearchableSelectOption {
   value: string;
@@ -33,6 +35,7 @@ export function SearchableSelect({
   "data-testid": testId,
   resetAfterSelect = false,
 }: SearchableSelectProps) {
+  const instanceId = useId();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
@@ -95,6 +98,32 @@ export function SearchableSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
+  // When inside a dialog, only one dropdown should be open so the correct one is on top and receives input/scroll
+  useEffect(() => {
+    if (!open) return;
+    const dialog = containerRef.current?.closest("[role=\"dialog\"]");
+    if (!dialog) return;
+    const handler = (e: CustomEvent<{ instanceId: string }>) => {
+      if (e.detail?.instanceId !== instanceId) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    window.addEventListener(SEARCHABLE_SELECT_OPEN_EVENT, handler as EventListener);
+    return () => window.removeEventListener(SEARCHABLE_SELECT_OPEN_EVENT, handler as EventListener);
+  }, [open, instanceId]);
+
+  const handleTriggerClick = () => {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      const dialog = containerRef.current?.closest("[role=\"dialog\"]");
+      if (dialog) {
+        window.dispatchEvent(new CustomEvent(SEARCHABLE_SELECT_OPEN_EVENT, { detail: { instanceId } }));
+      }
+    }
+  };
+
   return (
     <div ref={containerRef} className="relative">
       <Button
@@ -102,7 +131,7 @@ export function SearchableSelect({
         variant="outline"
         role="combobox"
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
+        onClick={handleTriggerClick}
         className={cn(
           "w-full justify-between font-normal",
           !value && "text-muted-foreground",
