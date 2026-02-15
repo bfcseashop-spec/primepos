@@ -735,51 +735,56 @@ export default function MedicinesPage() {
 
       <Separator />
 
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-400">
-          <Calculator className="h-4 w-4" />
-          Pricing & Stock
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="totalPcs">Total Pcs *</Label>
+          <Input ref={refTotalPcs} id="totalPcs" type="number" min={1} value={form.totalPcs} onChange={e => { setForm(f => ({ ...f, totalPcs: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, totalPcs: "" })); }} data-testid="input-medicine-total-pcs" className={fieldErrors.totalPcs ? "border-destructive" : ""} />
+          {fieldErrors.totalPcs && <p className="text-xs text-destructive mt-1">{fieldErrors.totalPcs}</p>}
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label htmlFor="totalPcs">Total Pcs *</Label>
-            <Input ref={refTotalPcs} id="totalPcs" type="number" min={1} value={form.totalPcs} onChange={e => { setForm(f => ({ ...f, totalPcs: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, totalPcs: "" })); }} data-testid="input-medicine-total-pcs" className={fieldErrors.totalPcs ? "border-destructive" : ""} />
-            {fieldErrors.totalPcs && <p className="text-xs text-destructive mt-1">{fieldErrors.totalPcs}</p>}
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-violet-700 dark:text-violet-400">
+            <Calculator className="h-4 w-4" />
+            Purchase
           </div>
-          <div>
-            <Label htmlFor="purchasePrice">Purchase Price per Piece ($) *</Label>
-            <Input ref={refPurchasePrice} id="purchasePrice" type="number" step="0.01" min={0} value={form.purchasePrice || ""} onChange={e => { setForm(f => ({ ...f, purchasePrice: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, purchasePrice: "" })); }} data-testid="input-medicine-purchase-price" className={fieldErrors.purchasePrice ? "border-destructive" : ""} />
-            {fieldErrors.purchasePrice && <p className="text-xs text-destructive mt-1">{fieldErrors.purchasePrice}</p>}
-          </div>
-          <div>
-            <Label htmlFor="salesPrice">Sales Per Pieces *</Label>
-            <Input ref={refSalesPrice} id="salesPrice" type="number" step="0.01" min={0} value={form.salesPrice || ""} onChange={e => { setForm(f => ({ ...f, salesPrice: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, salesPrice: "" })); }} data-testid="input-medicine-sales-price" className={fieldErrors.salesPrice ? "border-destructive" : ""} />
-            {fieldErrors.salesPrice && <p className="text-xs text-destructive mt-1">{fieldErrors.salesPrice}</p>}
-          </div>
-          <div>
-            <Label htmlFor="stockAvailable">Stock Available pcs</Label>
-            <Input ref={refStockAvailable} id="stockAvailable" type="number" min={0} value={form.stockAvailable} onChange={e => setForm(f => ({ ...f, stockAvailable: Number(e.target.value) || 0 }))} data-testid="input-medicine-stock-available" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="purchasePrice">Total Purchase Price *</Label>
+              <Input ref={refPurchasePrice} id="purchasePrice" type="number" step="0.01" min={0} value={totalPurchasePrice || ""} onChange={e => { const total = Number(e.target.value) || 0; const perPc = form.totalPcs > 0 ? total / form.totalPcs : 0; setForm(f => ({ ...f, purchasePrice: perPc })); setFieldErrors(prev => ({ ...prev, purchasePrice: "" })); }} data-testid="input-medicine-purchase-price" className={fieldErrors.purchasePrice ? "border-destructive" : ""} />
+              {fieldErrors.purchasePrice && <p className="text-xs text-destructive mt-1">{fieldErrors.purchasePrice}</p>}
+            </div>
+            <div className="bg-violet-50 dark:bg-violet-950/30 rounded-md p-3 flex flex-col justify-center border border-violet-200 dark:border-violet-800">
+              <span className="text-xs text-muted-foreground">Purchase Each Price (Auto)</span>
+              <span className="text-lg font-bold text-violet-600 dark:text-violet-400" data-testid="calc-purchase-each">
+                ${form.purchasePrice.toFixed(2)}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-md p-3 space-y-2 border border-blue-200 dark:border-blue-800">
-          <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
-            <Calculator className="h-3 w-3" /> Auto Calculation
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+            <Calculator className="h-4 w-4" />
+            Sales
           </div>
-          <div className="text-sm space-y-1.5">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Total Purchase Price (Total Pcs x Purchase Price):</span>
-              <span className="font-bold text-violet-600 dark:text-violet-400" data-testid="calc-total-purchase">
-                ${totalPurchasePrice.toFixed(2)}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="salesPrice">Total Sales Price *</Label>
+              <Input ref={refSalesPrice} id="salesPrice" type="number" step="0.01" min={0} value={totalSalesPrice || ""} onChange={e => { const total = Number(e.target.value) || 0; const perPc = form.totalPcs > 0 ? total / form.totalPcs : 0; setForm(f => ({ ...f, salesPrice: perPc })); setFieldErrors(prev => ({ ...prev, salesPrice: "" })); }} data-testid="input-medicine-sales-price" className={fieldErrors.salesPrice ? "border-destructive" : ""} />
+              {fieldErrors.salesPrice && <p className="text-xs text-destructive mt-1">{fieldErrors.salesPrice}</p>}
+            </div>
+            <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-md p-3 flex flex-col justify-center border border-emerald-200 dark:border-emerald-800">
+              <span className="text-xs text-muted-foreground">Sales Each Price (Auto)</span>
+              <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400" data-testid="calc-sales-each">
+                ${form.salesPrice.toFixed(2)}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Total Sales Price (Total Pcs x Sales Per Pieces):</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400" data-testid="calc-total-sales">
-                ${totalSalesPrice.toFixed(2)}
-              </span>
-            </div>
           </div>
+        </div>
+
+        <div>
+          <Label htmlFor="stockAvailable">Stock Available pcs</Label>
+          <Input ref={refStockAvailable} id="stockAvailable" type="number" min={0} value={form.stockAvailable} onChange={e => setForm(f => ({ ...f, stockAvailable: Number(e.target.value) || 0 }))} data-testid="input-medicine-stock-available" />
         </div>
       </div>
 
