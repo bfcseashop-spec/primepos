@@ -225,7 +225,7 @@ export default function PackagesPage() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto !top-4 !translate-y-0 sm:rounded-lg data-[state=open]:slide-in-from-top-4 data-[state=closed]:slide-out-to-top-4">
           <DialogHeader>
             <DialogTitle>{editPkg ? "Edit Package" : "Add Package"}</DialogTitle>
             <DialogDescription>Build a package from services, medicines, injections, or custom line items.</DialogDescription>
