@@ -270,20 +270,25 @@ export default function BillingPage() {
     const pSym = CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$";
     const currencyCode = settings?.currency || "USD";
     const isCompact = layout === "compact";
-    const pad = "4px 6px";
-    const fBase = 9;
-    const fSm = 8;
-    const fLg = 11;
-    const maxW = isCompact ? "320px" : "640px";
-    const bodyPad = "10px 12px";
+    const pad = isCompact ? "6px 8px" : "8px 10px";
+    const padSm = isCompact ? "4px 6px" : "6px 8px";
+    const fBase = isCompact ? 10 : 11;
+    const fSm = isCompact ? 9 : 10;
+    const fLg = isCompact ? 13 : 15;
+    const maxW = isCompact ? "340px" : "720px";
+    const bodyPad = isCompact ? "12px 14px" : "20px 24px";
+    const accent = "#0f172a";
+    const muted = "#475569";
+    const border = "#e2e8f0";
+    const totalHighlight = "#fef9c3";
 
     const itemRows = printItems.map((item: any, idx: number) => `
       <tr>
-        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;text-align:center;font-size:${fSm}px;">${idx + 1}</td>
-        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;font-size:${fSm}px;">${item.name}</td>
-        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;text-align:center;font-size:${fSm}px;">${item.quantity}</td>
-        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;text-align:right;font-size:${fSm}px;">${pSym}${Number(item.unitPrice).toFixed(2)}</td>
-        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;text-align:right;font-size:${fSm}px;">${pSym}${Number(item.total).toFixed(2)}</td>
+        <td style="padding:${padSm};border-bottom:1px solid ${border};text-align:center;font-size:${fSm}px;color:${accent};">${idx + 1}</td>
+        <td style="padding:${padSm};border-bottom:1px solid ${border};font-size:${fSm}px;color:${accent};">${item.name}</td>
+        <td style="padding:${padSm};border-bottom:1px solid ${border};text-align:center;font-size:${fSm}px;color:${accent};">${item.quantity}</td>
+        <td style="padding:${padSm};border-bottom:1px solid ${border};text-align:right;font-size:${fSm}px;color:${accent};">${pSym}${Number(item.unitPrice).toFixed(2)}</td>
+        <td style="padding:${padSm};border-bottom:1px solid ${border};text-align:right;font-size:${fSm}px;font-weight:600;color:${accent};background:${totalHighlight};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${pSym}${Number(item.total).toFixed(2)}</td>
       </tr>
     `).join("");
 
@@ -292,10 +297,12 @@ export default function BillingPage() {
     const logoHref = settings?.logo
       ? (settings.logo.startsWith("http") ? settings.logo : `${typeof window !== "undefined" ? window.location.origin : ""}${settings.logo.startsWith("/") ? settings.logo : "/" + settings.logo}`)
       : "";
-    const barcodeSize = 28;
+    const barcodeSize = isCompact ? 30 : 36;
     const totalDue = Number(bill.total) || 0;
     const paidAmt = Number(bill.paidAmount) || 0;
     const amountOwed = Math.max(0, totalDue - paidAmt);
+    const subtotalVal = (Number(bill.subtotal) || 0).toFixed(2);
+    const discountVal = (Number(bill.discount) || 0).toFixed(2);
 
     printWindow.document.write(`
       <html><head><title>Invoice ${billNoShort}</title>
@@ -303,74 +310,92 @@ export default function BillingPage() {
       <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937; padding: ${bodyPad}; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .invoice-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: #1f2937; }
-        @media print { body { padding: 8px; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: ${bodyPad}; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .invoice-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
+        @media print { body { padding: 16px; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
       </style></head><body>
 
-        <table style="width:100%;margin-bottom:6px;">
+        <div style="margin-bottom:16px;">
+          <table style="width:100%;">
+            <tr>
+              <td style="vertical-align:top;">
+                ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "32px" : "42px"};margin-bottom:6px;display:block;" />` : ""}
+                <div style="font-size:${fLg}px;font-weight:700;color:${accent};letter-spacing:0.02em;">${clinicNameDisplay}</div>
+                <div style="margin-top:6px;font-size:${fSm}px;color:${muted};line-height:1.5;">
+                  ${vatTin ? `<div>លេខអត្តសញ្ញាណកម្ម អតប (VATTIN): ${vatTin}</div>` : ""}
+                  ${clinicAddress ? `<div>អាស័យដ្ឋាន៖ ${clinicAddress}</div><div>Address: ${clinicAddress}</div>` : ""}
+                  ${clinicPhone ? `<div>ទូរស័ព្ធ៖ ${clinicPhone} &nbsp;|&nbsp; Tel: ${clinicPhone}</div>` : ""}
+                  <div>Email: ${clinicEmailDisplay || "-"}</div>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="border-bottom:2px solid ${accent};padding-bottom:10px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;">
+          <span style="font-size:${fBase + 1}px;font-weight:700;color:${accent};">វិក័យប័ត្រ / INVOICE</span>
+          <div style="text-align:right;">
+            ${billNoBarcode ? `<div class="invoice-barcode" style="font-size:${barcodeSize}px;margin-bottom:2px;">${billNoBarcode}</div>` : ""}
+            <span style="font-size:${fSm}px;color:${muted};">វិក័យប័ត្រលេខ / Invoice N°:</span> <strong style="font-size:${fSm}px;color:${accent};">${billNoShort}</strong>
+          </div>
+        </div>
+
+        <table style="width:100%;margin-bottom:14px;font-size:${fSm}px;">
           <tr>
-            <td style="vertical-align:top;">
-              ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:28px;margin-bottom:2px;display:block;" />` : ""}
-              <div style="font-size:${fLg}px;font-weight:700;color:#111;">${clinicNameDisplay}</div>
-              ${vatTin ? `<div style="font-size:${fSm}px;color:#555;margin-top:1px;">លេខអត្តសញ្ញាណកម្ម អតប (VATTIN): ${vatTin}</div>` : ""}
-              ${clinicAddress ? `<div style="font-size:${fSm}px;color:#555;">អាស័យដ្ឋាន៖ ${clinicAddress}</div><div style="font-size:${fSm}px;color:#555;">Address: ${clinicAddress}</div>` : ""}
-              ${clinicPhone ? `<div style="font-size:${fSm}px;color:#555;">ទូរស័ព្ធ៖ ${clinicPhone} | Tel: ${clinicPhone}</div>` : ""}
-              <div style="font-size:${fSm}px;color:#555;">Email: ${clinicEmailDisplay || "-"}</div>
+            <td style="width:50%;vertical-align:top;padding:8px 12px;background:#f8fafc;border-radius:6px;border:1px solid ${border};">
+              <div style="font-weight:600;color:${accent};margin-bottom:6px;">ឈ្មោះអ្នកជំងឺ / Patient Name</div>
+              <div style="color:${accent};margin-bottom:4px;">${patient?.name || "-"}</div>
+              ${patient?.patientId ? `<div style="color:${muted};margin-bottom:2px;">លេខអ្នកជំងឺ / Patient's ID: <span style="color:${accent};">${patient.patientId}</span></div>` : ""}
+              ${bill.referenceDoctor ? `<div style="color:${muted};margin-top:4px;">Reference / គ្រូពេទ្យ: <span style="color:${accent};">${bill.referenceDoctor}</span></div>` : ""}
+            </td>
+            <td style="width:50%;vertical-align:top;padding:8px 12px;padding-left:14px;">
+              ${patient?.gender ? `<div style="margin-bottom:4px;"><span style="color:${muted};">ភេទ / Sex:</span> <span style="color:${accent};font-weight:500;">${patient.gender}</span></div>` : ""}
+              ${patient?.age != null ? `<div style="margin-bottom:4px;"><span style="color:${muted};">អាយុ / Age:</span> <span style="color:${accent};">${patient.age} y</span></div>` : ""}
             </td>
           </tr>
         </table>
 
-        <div style="border-bottom:1px solid #333;padding-bottom:4px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:flex-end;">
-          <span style="font-size:${fBase}px;font-weight:700;">វិក័យប័ត្រ / INVOICE</span>
-          <span style="font-size:${fSm}px;">វិក័យប័ត្រលេខ / Invoice N°: <strong>${billNoShort}</strong></span>
-        </div>
-        ${billNoBarcode ? `<div class="invoice-barcode" style="font-size:${barcodeSize}px;text-align:center;margin-bottom:4px;">${billNoBarcode}</div>` : ""}
-
-        <table style="width:100%;margin-bottom:6px;font-size:${fSm}px;">
-          <tr><td style="padding:2px 0;"><span style="color:#555;">ឈ្មោះអ្នកជំងឺ / Patient Name:</span> ${patient?.name || "-"}</td></tr>
-          ${patient?.patientId ? `<tr><td style="padding:2px 0;"><span style="color:#555;">លេខអ្នកជំងឺ / Patient's ID:</span> ${patient.patientId}</td></tr>` : ""}
-          ${patient?.gender ? `<tr><td style="padding:2px 0;"><span style="color:#555;">ភេទ/Sex:</span> ${patient.gender}</td></tr>` : ""}
-          ${patient?.age != null ? `<tr><td style="padding:2px 0;"><span style="color:#555;">អាយុ / Age:</span> ${patient.age} y</td></tr>` : ""}
-          ${bill.referenceDoctor ? `<tr><td style="padding:2px 0;"><span style="color:#555;">Reference / គ្រូពេទ្យ:</span> ${bill.referenceDoctor}</td></tr>` : ""}
-        </table>
-
-        <table style="width:100%;border-collapse:collapse;margin-bottom:6px;">
+        <table style="width:100%;border-collapse:collapse;margin-bottom:14px;border:1px solid ${border};border-radius:6px;overflow:hidden;">
           <thead>
-            <tr style="background:#1e3a5f;color:white;">
-              <th style="padding:${pad};text-align:center;font-size:${fSm}px;width:22px;">ល.រ<br>No</th>
-              <th style="padding:${pad};text-align:left;font-size:${fSm}px;">ប្រភេទសេវាកម្ម / Service Type</th>
-              <th style="padding:${pad};text-align:center;font-size:${fSm}px;width:36px;">បរិមាណ<br>Qty</th>
-              <th style="padding:${pad};text-align:right;font-size:${fSm}px;width:52px;">តំលៃ<br>Price</th>
-              <th style="padding:${pad};text-align:right;font-size:${fSm}px;width:56px;">សរុប<br>Total</th>
+            <tr style="background:${accent};color:white;">
+              <th style="padding:${pad};text-align:center;font-size:${fSm}px;font-weight:600;width:36px;">ល.រ<br><span style="font-weight:500;opacity:0.95;">No</span></th>
+              <th style="padding:${pad};text-align:left;font-size:${fSm}px;font-weight:600;">ប្រភេទសេវាកម្ម / Service Type</th>
+              <th style="padding:${pad};text-align:center;font-size:${fSm}px;font-weight:600;width:44px;">បរិមាណ /<br>Qty</th>
+              <th style="padding:${pad};text-align:right;font-size:${fSm}px;font-weight:600;width:70px;">តម្លៃ /<br>Price</th>
+              <th style="padding:${pad};text-align:right;font-size:${fSm}px;font-weight:600;width:76px;background:rgba(254,249,195,0.35);-webkit-print-color-adjust:exact;print-color-adjust:exact;">សរុប / Total</th>
             </tr>
           </thead>
           <tbody>${itemRows}</tbody>
         </table>
 
-        <table style="width:100%;margin-bottom:8px;font-size:${fSm}px;">
-          <tr><td style="padding:2px 4px;">សរុបរួម / Total:</td><td style="text-align:right;padding:2px 4px;">${currencyCode} ${(Number(bill.subtotal) || 0).toFixed(2)}</td></tr>
-          <tr><td style="padding:2px 4px;">ចុះតំលៃ / Discount:</td><td style="text-align:right;padding:2px 4px;">${currencyCode} ${(Number(bill.discount) || 0).toFixed(2)}</td></tr>
-          <tr><td style="padding:2px 4px;font-weight:700;">សរុបត្រូវបង់ / Total Due:</td><td style="text-align:right;padding:2px 4px;font-weight:700;">${currencyCode} ${totalDue.toFixed(2)}</td></tr>
-          <tr><td style="padding:2px 4px;">ចំនួនបង់រួច / Amount PAID:</td><td style="text-align:right;padding:2px 4px;">${currencyCode} ${paidAmt.toFixed(2)}</td></tr>
-          <tr><td style="padding:2px 4px;">ចំនួនជំពាក់ / Amount OWE:</td><td style="text-align:right;padding:2px 4px;">${currencyCode} ${amountOwed.toFixed(2)}</td></tr>
-        </table>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:18px;">
+          <table style="width:100%;max-width:280px;font-size:${fSm}px;border:1px solid ${border};border-radius:6px;overflow:hidden;">
+            <tr><td style="padding:${padSm};color:${muted};">សរុបរួម / Total</td><td style="padding:${padSm};text-align:right;color:${accent};">${currencyCode} ${subtotalVal}</td></tr>
+            <tr><td style="padding:${padSm};color:${muted};">ចុះតំលៃ / Discount</td><td style="padding:${padSm};text-align:right;color:${accent};">${currencyCode} ${discountVal}</td></tr>
+            <tr style="background:${totalHighlight};-webkit-print-color-adjust:exact;print-color-adjust:exact;"><td style="padding:${pad};font-weight:700;color:${accent};">សរុបត្រូវបង់ / Total Due</td><td style="padding:${pad};text-align:right;font-weight:700;color:${accent};">${currencyCode} ${totalDue.toFixed(2)}</td></tr>
+            <tr><td style="padding:${padSm};color:${muted};">ចំនួនបង់រួច / Amount PAID</td><td style="padding:${padSm};text-align:right;font-weight:600;color:${accent};background:${totalHighlight};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${currencyCode} ${paidAmt.toFixed(2)}</td></tr>
+            <tr><td style="padding:${padSm};color:${muted};">ចំនួនជំពាក់ / Amount OWE</td><td style="padding:${padSm};text-align:right;font-weight:600;color:${accent};background:${totalHighlight};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${currencyCode} ${amountOwed.toFixed(2)}</td></tr>
+          </table>
+        </div>
 
-        <table style="width:100%;margin-top:10px;border-top:1px solid #ccc;padding-top:6px;font-size:${fSm}px;">
-          <tr>
-            <td style="width:33%;vertical-align:top;">
-              <div>អតិថិជន / Customer</div>
-              <div style="border-bottom:1px solid #333;height:20px;margin-top:2px;"></div>
-            </td>
-            <td style="width:34%;text-align:center;vertical-align:top;">
-              <div style="color:#555;">${formattedDate}</div>
-            </td>
-            <td style="width:33%;text-align:right;vertical-align:top;">
-              <div>អ្នកគិតលុយ | Cashier</div>
-              <div style="border-bottom:1px solid #333;height:20px;margin-top:2px;margin-left:auto;"></div>
-            </td>
-          </tr>
-        </table>
+        <div style="border-top:1px solid ${border};padding-top:14px;margin-top:4px;">
+          <table style="width:100%;font-size:${fSm}px;">
+            <tr>
+              <td style="width:33%;vertical-align:top;padding-right:12px;">
+                <div style="font-weight:600;color:${accent};margin-bottom:6px;">អតិថិជន / Customer</div>
+                <div style="border-bottom:1px solid ${accent};height:28px;"></div>
+              </td>
+              <td style="width:34%;text-align:center;vertical-align:top;padding:0 8px;border-left:1px solid ${border};border-right:1px solid ${border};">
+                <div style="color:${muted};margin-bottom:4px;">Date</div>
+                <div style="font-weight:500;color:${accent};">${formattedDate}</div>
+              </td>
+              <td style="width:33%;text-align:right;vertical-align:top;padding-left:12px;">
+                <div style="font-weight:600;color:${accent};margin-bottom:6px;">អ្នកគិតលុយ | Cashier</div>
+                <div style="border-bottom:1px solid ${accent};height:28px;margin-left:auto;"></div>
+              </td>
+            </tr>
+          </table>
+        </div>
 
         <script>window.onload = function() { window.print(); }</script>
       </body></html>
