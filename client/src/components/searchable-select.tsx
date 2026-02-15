@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,8 +35,10 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selectedLabel = options.find((o) => o.value === value)?.label;
 
@@ -60,12 +63,31 @@ export function SearchableSelect({
     }
   }, [open]);
 
+  const updatePosition = () => {
+    const el = containerRef.current;
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      setPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [open]);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setSearch("");
-      }
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
+      setSearch("");
     };
     if (open) {
       document.addEventListener("mousedown", handleClickOutside);
@@ -94,8 +116,12 @@ export function SearchableSelect({
         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
 
-      {open && (
-        <div className="absolute z-[9999] mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md">
+      {open && typeof document !== "undefined" && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed z-[9999] rounded-md border bg-popover text-popover-foreground shadow-md"
+          style={{ top: position.top, left: position.left, width: Math.max(position.width, 200), minWidth: 200 }}
+        >
           <div className="flex items-center border-b px-3">
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
             <input
@@ -130,7 +156,8 @@ export function SearchableSelect({
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
