@@ -28,6 +28,7 @@ import {
   type InsertPayrollRun, type PayrollRun,
   type InsertPayslip, type Payslip,
   type InsertActivityLog, type ActivityLog,
+  packages, type InsertPackage, type Package,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -71,6 +72,12 @@ export interface IStorage {
   bulkDeleteMedicines(ids: number[]): Promise<void>;
   createStockAdjustment(adjustment: InsertStockAdjustment): Promise<StockAdjustment>;
   getStockAdjustmentsByMedicineId(medicineId: number): Promise<StockAdjustment[]>;
+
+  getPackages(): Promise<Package[]>;
+  getPackage(id: number): Promise<Package | undefined>;
+  createPackage(pkg: InsertPackage): Promise<Package>;
+  updatePackage(id: number, data: Partial<InsertPackage>): Promise<Package | undefined>;
+  deletePackage(id: number): Promise<void>;
 
   getOpdVisits(): Promise<any[]>;
   getOpdVisit(id: number): Promise<OpdVisit | undefined>;
@@ -373,6 +380,29 @@ export class DatabaseStorage implements IStorage {
 
   async getStockAdjustmentsByMedicineId(medicineId: number): Promise<StockAdjustment[]> {
     return db.select().from(stockAdjustments).where(eq(stockAdjustments.medicineId, medicineId)).orderBy(desc(stockAdjustments.createdAt));
+  }
+
+  async getPackages(): Promise<Package[]> {
+    return db.select().from(packages).orderBy(packages.name);
+  }
+
+  async getPackage(id: number): Promise<Package | undefined> {
+    const [pkg] = await db.select().from(packages).where(eq(packages.id, id));
+    return pkg;
+  }
+
+  async createPackage(pkg: InsertPackage): Promise<Package> {
+    const [created] = await db.insert(packages).values(pkg as typeof packages.$inferInsert).returning();
+    return created;
+  }
+
+  async updatePackage(id: number, data: Partial<InsertPackage>): Promise<Package | undefined> {
+    const [updated] = await db.update(packages).set(data).where(eq(packages.id, id)).returning();
+    return updated;
+  }
+
+  async deletePackage(id: number): Promise<void> {
+    await db.delete(packages).where(eq(packages.id, id));
   }
 
   async getOpdVisits(): Promise<any[]> {

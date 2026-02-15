@@ -226,8 +226,10 @@ export default function InvestmentsPage() {
       const res = await apiRequest("POST", "/api/contributions", data);
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/contributions"] });
       setContributionDialogOpen(false);
       setContributionForm({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", images: [], note: "" });
       toast({ title: "Contribution recorded" });
@@ -238,11 +240,17 @@ export default function InvestmentsPage() {
   const updateContributionMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
       const res = await apiRequest("PUT", `/api/contributions/${id}`, data);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error((err as { message?: string }).message || "Update failed");
+      }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+    onSuccess: async () => {
       setEditContribution(null);
+      await queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/contributions"] });
       toast({ title: "Contribution updated" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -250,8 +258,11 @@ export default function InvestmentsPage() {
 
   const deleteContributionMutation = useMutation({
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/contributions/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+    onSuccess: async () => {
+      setDeleteContributionConfirm(null);
+      await queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/contributions"] });
       toast({ title: "Contribution deleted" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -331,15 +342,22 @@ export default function InvestmentsPage() {
     const inv = investments.find(i => i.id === investmentId);
     if (!inv) return;
     const invInvestors = ((inv as any).investors ?? []) as InvestmentInvestor[];
-    const investor = invInvestors[investorIdx];
-    if (!investor) return;
     const total = Number(inv.amount) || 0;
-    const amt = ((total * investor.sharePercentage) / 100).toFixed(2);
+    let name: string;
+    let sharePct: number;
+    if (investorIdx >= 0 && invInvestors[investorIdx]) {
+      name = invInvestors[investorIdx].name;
+      sharePct = invInvestors[investorIdx].sharePercentage;
+    } else {
+      name = inv.investorName || "";
+      sharePct = 100;
+    }
+    const amt = ((total * sharePct) / 100).toFixed(2);
     setCapitalEditTarget({ investmentId, investorIdx });
     setCapitalForm({
       investmentId,
-      investorName: investor.name,
-      sharePercentage: investor.sharePercentage,
+      investorName: name,
+      sharePercentage: sharePct,
       capitalAmount: amt,
     });
     setCapitalDialogOpen(true);
@@ -357,11 +375,16 @@ export default function InvestmentsPage() {
     let currentInvestors = [...((inv as any).investors ?? [])] as { investorId?: number; name: string; sharePercentage: number }[];
 
     if (capitalEditTarget) {
-      currentInvestors[capitalEditTarget.investorIdx] = {
-        ...currentInvestors[capitalEditTarget.investorIdx],
-        name: capitalForm.investorName.trim(),
-        sharePercentage: capitalForm.sharePercentage,
-      };
+      const idx = capitalEditTarget.investorIdx;
+      if (idx >= 0 && currentInvestors[idx]) {
+        currentInvestors[idx] = {
+          ...currentInvestors[idx],
+          name: capitalForm.investorName.trim(),
+          sharePercentage: capitalForm.sharePercentage,
+        };
+      } else {
+        currentInvestors = [{ name: capitalForm.investorName.trim(), sharePercentage: capitalForm.sharePercentage }];
+      }
     } else {
       const match = investorsList.find(i => i.name === capitalForm.investorName.trim());
       currentInvestors.push({
@@ -391,16 +414,15 @@ export default function InvestmentsPage() {
     if (!inv) return;
     const total = Number(inv.amount) || 0;
     let currentInvestors = [...((inv as any).investors ?? [])] as { investorId?: number; name: string; sharePercentage: number }[];
-    if (currentInvestors.length <= 1) {
-      toast({ title: "Cannot remove the last investor", variant: "destructive" });
-      setDeleteCapitalConfirm(null);
-      return;
+    if (investorIdx >= 0) {
+      currentInvestors.splice(investorIdx, 1);
+    } else {
+      currentInvestors = [];
     }
-    currentInvestors.splice(investorIdx, 1);
     const normalized = normalizeInvestors(total, currentInvestors);
     updateMutation.mutate({
       id: investmentId,
-      data: { investors: normalized },
+      data: { investors: normalized, investorName: normalized.length > 0 ? undefined : null },
     }, {
       onSuccess: () => {
         setDeleteCapitalConfirm(null);
@@ -574,16 +596,19 @@ export default function InvestmentsPage() {
   const handleEditContributionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editContribution) return;
+    const raw = editContribution as Contribution & { _editName?: string; _editAmount?: string; _editDate?: string; _editCategory?: string; _editPaymentSlip?: string | null; _editImages?: string[] | null; _editNote?: string | null };
+    const category = raw._editCategory ?? raw.category ?? null;
+    const note = raw._editNote ?? raw.note ?? null;
     updateContributionMutation.mutate({
       id: editContribution.id,
       data: {
-        investorName: (editContribution as any)._editName ?? editContribution.investorName,
-        amount: (editContribution as any)._editAmount ?? String(editContribution.amount),
-        date: (editContribution as any)._editDate ?? editContribution.date,
-        category: (editContribution as any)._editCategory ?? editContribution.category,
-        paymentSlip: (editContribution as any)._editPaymentSlip ?? editContribution.paymentSlip,
-        images: (editContribution as any)._editImages ?? editContribution.images,
-        note: (editContribution as any)._editNote ?? editContribution.note,
+        investorName: (raw._editName ?? raw.investorName).trim() || raw.investorName,
+        amount: String(raw._editAmount ?? raw.amount ?? 0),
+        date: raw._editDate ?? raw.date,
+        category: category === "" ? null : category,
+        paymentSlip: raw._editPaymentSlip ?? raw.paymentSlip ?? null,
+        images: raw._editImages ?? raw.images ?? null,
+        note: note === "" ? null : note,
       },
     });
   };
@@ -986,8 +1011,11 @@ export default function InvestmentsPage() {
         {investorCardData.length > 0 && (
           <div>
             <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Capital & Share</h3>
-              <Button variant="outline" size="sm" onClick={() => openCapitalDialog()} data-testid="button-add-capital">
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Capital & Share</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Investor shares per investment — create, edit, or remove below</p>
+              </div>
+              <Button variant="default" size="sm" onClick={() => openCapitalDialog()} data-testid="button-add-capital">
                 <Plus className="h-3.5 w-3.5 mr-1" /> Add Capital
               </Button>
             </div>
@@ -1013,7 +1041,7 @@ export default function InvestmentsPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {due > 0 ? (
                           <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 text-xs">Due</Badge>
                         ) : overpaid > 0 ? (
@@ -1021,23 +1049,12 @@ export default function InvestmentsPage() {
                         ) : (
                           <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 text-xs">Fully Paid</Badge>
                         )}
-                        {row.investorIdx >= 0 && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" data-testid={`button-capital-actions-${row.name}-${row.investmentId}`}>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openCapitalEdit(row.investmentId, row.investorIdx)} className="gap-2">
-                                <Pencil className="h-4 w-4 text-amber-500" /> Edit Capital
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setDeleteCapitalConfirm({ investmentId: row.investmentId, investorIdx: row.investorIdx, investorName: row.name })} className="text-red-600 gap-2">
-                                <Trash2 className="h-4 w-4" /> Remove
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
+                        <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title="Edit capital share" aria-label="Edit" data-testid={`button-capital-edit-${row.name}-${row.investmentId}`} onClick={() => openCapitalEdit(row.investmentId, row.investorIdx)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10" title="Remove capital share" aria-label="Remove" data-testid={`button-capital-delete-${row.name}-${row.investmentId}`} onClick={() => setDeleteCapitalConfirm({ investmentId: row.investmentId, investorIdx: row.investorIdx, investorName: row.name })}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
 
@@ -1183,24 +1200,17 @@ export default function InvestmentsPage() {
                           </td>
                           <td className="p-2.5 text-muted-foreground max-w-[200px] truncate">{c.note || "-"}</td>
                           <td className="text-right p-2.5">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" data-testid={`button-contribution-actions-${c.id}`}>
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setViewContribution(c)} className="gap-2">
-                                  <Eye className="h-4 w-4 text-blue-500" /> View
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editImages: c.images || [], _editNote: c.note || "" } as any)} className="gap-2">
-                                  <Pencil className="h-4 w-4 text-amber-500" /> Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setDeleteContributionConfirm(c.id)} className="text-red-600 gap-2">
-                                  <Trash2 className="h-4 w-4" /> Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title="View" aria-label="View" data-testid={`button-contribution-view-${c.id}`} onClick={() => setViewContribution(c)}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title="Edit" aria-label="Edit" data-testid={`button-contribution-edit-${c.id}`} onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editImages: c.images || [], _editNote: c.note || "" } as any)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10" title="Delete" aria-label="Delete" data-testid={`button-contribution-delete-${c.id}`} onClick={() => setDeleteContributionConfirm(c.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );

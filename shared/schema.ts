@@ -515,7 +515,31 @@ export type BillItem = {
   unitPrice: number;
   total: number;
   medicineId?: number;
+  packageId?: number;
+  packageName?: string;
 };
+
+/** Item inside a package: service, medicine, injection, or custom (name + price only). */
+export type PackageItem = {
+  type: "service" | "medicine" | "injection" | "custom";
+  refId?: number;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+};
+
+export const packages = pgTable("packages", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name: text("name").notNull(),
+  description: text("description"),
+  items: jsonb("items").$type<PackageItem[]>().notNull().default([]),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPackageSchema = createInsertSchema(packages).omit({ id: true, createdAt: true } as any);
+export type InsertPackage = z.infer<typeof insertPackageSchema>;
+export type Package = typeof packages.$inferSelect;
 
 export const permissionModules = [
   "dashboard", "opd", "billing", "services", "medicines",

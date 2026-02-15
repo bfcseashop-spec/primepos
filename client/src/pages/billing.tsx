@@ -16,10 +16,10 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag } from "lucide-react";
+import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag, Package, RotateCcw } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
-import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings } from "@shared/schema";
+import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings, Package } from "@shared/schema";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "\u20AC", GBP: "\u00A3", JPY: "\u00A5", KHR: "\u17DB",
@@ -101,6 +101,10 @@ export default function BillingPage() {
     queryKey: ["/api/injections"],
   });
 
+  const { data: packagesList = [] } = useQuery<Package[]>({
+    queryKey: ["/api/packages"],
+  });
+
   const { data: users = [] } = useQuery<UserType[]>({
     queryKey: ["/api/users"],
   });
@@ -116,6 +120,8 @@ export default function BillingPage() {
   const [medicineQty, setMedicineQty] = useState(1);
   const [medicineBarcodeScan, setMedicineBarcodeScan] = useState("");
   const [deleteBillConfirm, setDeleteBillConfirm] = useState<{ open: boolean; billId?: number }>({ open: false });
+  const [returnBill, setReturnBill] = useState<any>(null);
+  const [returnQuantities, setReturnQuantities] = useState<Record<number, number>>({});
 
   const getPaymentLabel = (method: string) => {
     const found = PAYMENT_METHODS.find(p => p.value === method);
@@ -208,147 +214,187 @@ export default function BillingPage() {
     },
   });
 
+  const returnMedicineMutation = useMutation({
+    mutationFn: async ({ billId, returns }: { billId: number; returns: { itemIndex: number; quantity: number }[] }) => {
+      const res = await apiRequest("POST", `/api/bills/${billId}/return`, { returns });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+      setReturnBill(null);
+      setReturnQuantities({});
+      toast({ title: "Medicine return processed. Stock and bill updated." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
   type PrintLayout = "compact" | "full";
-  const printReceipt = (bill: any, layout: PrintLayout = "full") => {
+  const printReceipt = (bill: any, layout: PrintLayout = "compact") => {
     const patient = patients.find(p => p.id === Number(selectedPatient || bill.patientId));
-    const items = bill.items || billItems;
+    const rawItems = Array.isArray(bill.items) ? bill.items : [];
+    const medicineItems = rawItems.filter((i: any) => i?.type === "medicine");
+    const medicationTotal = medicineItems.reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
+    const packageItems = rawItems.filter((i: any) => i?.packageId != null && i?.packageName);
+    const packageGroups = new Map<number, { name: string; total: number }>();
+    for (const i of packageItems) {
+      const id = Number(i.packageId);
+      const name = i.packageName || "Package";
+      const total = Number(i.total) || 0;
+      const cur = packageGroups.get(id);
+      if (cur) cur.total += total;
+      else packageGroups.set(id, { name, total });
+    }
+    const standaloneItems = rawItems.filter((i: any) => i?.type !== "medicine" && (i?.packageId == null && i?.packageName == null));
+    const printItems: { name: string; quantity: number; unitPrice: number; total: number }[] = [
+      ...standaloneItems.map((i: any) => ({ name: i.name, quantity: Number(i.quantity) || 1, unitPrice: Number(i.unitPrice) || 0, total: Number(i.total) || 0 })),
+      ...[...packageGroups.values()].map((g) => ({ name: g.name, quantity: 1, unitPrice: g.total, total: g.total })),
+      ...(medicationTotal > 0 ? [{ name: "Medication", quantity: 1, unitPrice: medicationTotal, total: medicationTotal }] : []),
+    ];
+
     const printWindow = window.open("", "_blank", layout === "compact" ? "width=400,height=600" : "width=800,height=900");
     if (!printWindow) return;
     const clinicName = settings?.clinicName || "";
     const clinicEmail = settings?.email || "";
     const clinicNameDisplay = clinicName || "My Clinic";
-    const clinicEmailDisplay = clinicEmail || "your clinic";
+    const clinicEmailDisplay = clinicEmail || "";
     const clinicPhone = settings?.phone || "";
     const clinicAddress = settings?.address || "";
-    const statusLabel = bill.status === "paid" ? "Paid" : "Pending";
-    const statusColor = bill.status === "paid" ? "#16a34a" : "#f59e0b";
+    const vatTin = settings?.companyTaxId || "";
     const dateStr = bill.paymentDate || new Date().toISOString().split("T")[0];
-    const formattedDate = new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const formattedDate = new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
     const pSym = CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$";
+    const currencyCode = settings?.currency || "USD";
     const isCompact = layout === "compact";
-    const pad = isCompact ? "4px 6px" : "8px 10px";
-    const fBase = isCompact ? 10 : 13;
-    const fSm = isCompact ? 9 : 11;
-    const fLg = isCompact ? 12 : 18;
-    const maxW = isCompact ? "380px" : "800px";
-    const bodyPad = isCompact ? "12px" : "30px";
-    const itemRows = (Array.isArray(items) ? items : []).map((item: any, idx: number) => `
+    const pad = isCompact ? "6px 8px" : "8px 10px";
+    const padSm = isCompact ? "4px 6px" : "6px 8px";
+    const fBase = isCompact ? 10 : 11;
+    const fSm = isCompact ? 9 : 10;
+    const fLg = isCompact ? 13 : 15;
+    const maxW = isCompact ? "340px" : "720px";
+    const bodyPad = isCompact ? "12px 14px" : "20px 24px";
+    const accent = "#0f172a";
+    const muted = "#475569";
+    const border = "#e2e8f0";
+    const totalHighlight = "#fef9c3";
+
+    const itemRows = printItems.map((item: any, idx: number) => `
       <tr>
-        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;text-align:center;color:#6b7280;font-size:${fSm}px;">${idx + 1}</td>
-        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;font-size:${fSm}px;">${item.name}</td>
-        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;text-align:right;font-size:${fSm}px;">${pSym}${Number(item.unitPrice).toFixed(2)}</td>
-        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;text-align:center;font-size:${fSm}px;">${item.quantity}</td>
-        <td style="padding:${pad};border-bottom:1px solid #e5e7eb;text-align:right;font-size:${fSm}px;">${pSym}${Number(item.total).toFixed(2)}</td>
+        <td style="padding:${padSm};border-bottom:1px solid ${border};text-align:center;font-size:${fSm}px;color:${accent};">${idx + 1}</td>
+        <td style="padding:${padSm};border-bottom:1px solid ${border};font-size:${fSm}px;color:${accent};">${item.name}</td>
+        <td style="padding:${padSm};border-bottom:1px solid ${border};text-align:center;font-size:${fSm}px;color:${accent};">${item.quantity}</td>
+        <td style="padding:${padSm};border-bottom:1px solid ${border};text-align:right;font-size:${fSm}px;color:${accent};">${pSym}${Number(item.unitPrice).toFixed(2)}</td>
+        <td style="padding:${padSm};border-bottom:1px solid ${border};text-align:right;font-size:${fSm}px;font-weight:600;color:${accent};background:${totalHighlight};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${pSym}${Number(item.total).toFixed(2)}</td>
       </tr>
     `).join("");
 
-    const billNoBarcode = (bill.billNo || "").replace(/[^A-Za-z0-9\-]/g, "");
+    const billNoShort = (bill.billNo || "").replace(/\s/g, "");
+    const billNoBarcode = billNoShort.replace(/[^A-Za-z0-9\-]/g, "") || billNoShort;
     const logoHref = settings?.logo
       ? (settings.logo.startsWith("http") ? settings.logo : `${typeof window !== "undefined" ? window.location.origin : ""}${settings.logo.startsWith("/") ? settings.logo : "/" + settings.logo}`)
       : "";
-    const barcodeSize = isCompact ? 32 : 48;
+    const barcodeSize = isCompact ? 30 : 36;
+    const totalDue = Number(bill.total) || 0;
+    const paidAmt = Number(bill.paidAmount) || 0;
+    const amountOwed = Math.max(0, totalDue - paidAmt);
+    const subtotalVal = (Number(bill.subtotal) || 0).toFixed(2);
+    const discountVal = (Number(bill.discount) || 0).toFixed(2);
+
     printWindow.document.write(`
-      <html><head><title>Invoice - ${bill.billNo}</title>
+      <html><head><title>Invoice ${billNoShort}</title>
+      <meta charset="UTF-8">
       <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937; padding: ${bodyPad}; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .invoice-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 2px; line-height: 1; color: #1f2937; }
-        @media print {
-          body { padding: ${isCompact ? "8px" : "15px"}; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          table, tr, td, th, div, span { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: ${bodyPad}; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .invoice-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
+        @media print { body { padding: 16px; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
       </style></head><body>
 
-        <table style="width:100%;margin-bottom:${isCompact ? "8px" : "20px"};">
+        <div style="margin-bottom:16px;">
+          <table style="width:100%;">
+            <tr>
+              <td style="vertical-align:top;">
+                ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "32px" : "42px"};margin-bottom:6px;display:block;" />` : ""}
+                <div style="font-size:${fLg}px;font-weight:700;color:${accent};letter-spacing:0.02em;">${clinicNameDisplay}</div>
+                <div style="margin-top:6px;font-size:${fSm}px;color:${muted};line-height:1.5;">
+                  ${vatTin ? `<div>លេខអត្តសញ្ញាណកម្ម អតប (VATTIN): ${vatTin}</div>` : ""}
+                  ${clinicAddress ? `<div>អាស័យដ្ឋាន៖ ${clinicAddress}</div><div>Address: ${clinicAddress}</div>` : ""}
+                  ${clinicPhone ? `<div>ទូរស័ព្ធ៖ ${clinicPhone} &nbsp;|&nbsp; Tel: ${clinicPhone}</div>` : ""}
+                  <div>Email: ${clinicEmailDisplay || "-"}</div>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="border-bottom:2px solid ${accent};padding-bottom:10px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;">
+          <span style="font-size:${fBase + 1}px;font-weight:700;color:${accent};">វិក័យប័ត្រ / INVOICE</span>
+          <div style="text-align:right;">
+            ${billNoBarcode ? `<div class="invoice-barcode" style="font-size:${barcodeSize}px;margin-bottom:2px;">${billNoBarcode}</div>` : ""}
+            <span style="font-size:${fSm}px;color:${muted};">វិក័យប័ត្រលេខ / Invoice N°:</span> <strong style="font-size:${fSm}px;color:${accent};">${billNoShort}</strong>
+          </div>
+        </div>
+
+        <table style="width:100%;margin-bottom:14px;font-size:${fSm}px;">
           <tr>
-            <td style="width:50%;vertical-align:middle;">
-              ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "32px" : "50px"};margin-bottom:2px;display:block;" />` : ""}
-              <div style="font-size:${fLg}px;font-weight:700;color:#0f766e;">${clinicNameDisplay}</div>
-              ${clinicAddress ? `<div style="font-size:${fSm}px;color:#6b7280;margin-top:1px;">${clinicAddress}</div>` : ""}
-              ${clinicPhone ? `<div style="font-size:${fSm}px;color:#6b7280;">${clinicPhone}</div>` : ""}
-              <div style="font-size:${fSm}px;color:#6b7280;">${clinicEmailDisplay}</div>
+            <td style="width:50%;vertical-align:top;padding:8px 12px;background:#f8fafc;border-radius:6px;border:1px solid ${border};">
+              <div style="font-weight:600;color:${accent};margin-bottom:6px;">ឈ្មោះអ្នកជំងឺ / Patient Name</div>
+              <div style="color:${accent};margin-bottom:4px;">${patient?.name || "-"}</div>
+              ${patient?.patientId ? `<div style="color:${muted};margin-bottom:2px;">លេខអ្នកជំងឺ / Patient's ID: <span style="color:${accent};">${patient.patientId}</span></div>` : ""}
+              ${bill.referenceDoctor ? `<div style="color:${muted};margin-top:4px;">Reference / គ្រូពេទ្យ: <span style="color:${accent};">${bill.referenceDoctor}</span></div>` : ""}
             </td>
-            <td style="width:50%;text-align:right;vertical-align:top;">
-              <div style="font-size:${isCompact ? 16 : 24}px;font-weight:800;color:#1f2937;letter-spacing:1px;">INVOICE</div>
-              <div style="font-size:${fSm}px;color:#6b7280;margin-top:2px;">Invoice #: <strong>${bill.billNo}</strong></div>
-              <div style="font-size:${fSm}px;color:#6b7280;">Date: ${formattedDate}</div>
-              ${billNoBarcode ? `<div class="invoice-barcode" style="margin-top:4px;font-size:${barcodeSize}px;">${billNoBarcode}</div><div style="font-size:${isCompact ? 8 : 10}px;color:#9ca3af;margin-top:1px;letter-spacing:1px;">${bill.billNo}</div>` : ""}
-              <div style="margin-top:4px;">
-                <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:${fSm}px;font-weight:600;color:white;background:${statusColor};">${statusLabel}</span>
-              </div>
+            <td style="width:50%;vertical-align:top;padding:8px 12px;padding-left:14px;">
+              ${patient?.gender ? `<div style="margin-bottom:4px;"><span style="color:${muted};">ភេទ / Sex:</span> <span style="color:${accent};font-weight:500;">${patient.gender}</span></div>` : ""}
+              ${patient?.age != null ? `<div style="margin-bottom:4px;"><span style="color:${muted};">អាយុ / Age:</span> <span style="color:${accent};">${patient.age} y</span></div>` : ""}
             </td>
           </tr>
         </table>
 
-        <table style="width:100%;margin-bottom:${isCompact ? "6px" : "18px"};background:#f9fafb;border-radius:4px;border:1px solid #e5e7eb;">
-          <tr>
-            <td style="padding:${isCompact ? "6px 8px" : "12px 14px"};width:50%;vertical-align:top;">
-              <div style="font-size:${isCompact ? 8 : 10}px;text-transform:uppercase;color:#9ca3af;font-weight:600;letter-spacing:0.5px;margin-bottom:2px;">Patient</div>
-              <div style="font-size:${fBase}px;font-weight:600;">${patient?.name || "N/A"}</div>
-              ${patient?.patientId ? `<div style="font-size:${fSm}px;color:#6b7280;">ID: ${patient.patientId}</div>` : ""}
-              ${patient?.gender ? `<div style="font-size:${fSm}px;color:#6b7280;">Gender: ${patient.gender}</div>` : ""}
-            </td>
-            <td style="padding:${isCompact ? "6px 8px" : "12px 14px"};width:50%;vertical-align:top;border-left:1px solid #e5e7eb;">
-              <div style="font-size:${isCompact ? 8 : 10}px;text-transform:uppercase;color:#9ca3af;font-weight:600;letter-spacing:0.5px;margin-bottom:2px;">Details</div>
-              ${bill.referenceDoctor ? `<div style="font-size:${fSm}px;"><span style="color:#6b7280;">Ref Doctor:</span> <strong>${bill.referenceDoctor}</strong></div>` : ""}
-              <div style="font-size:${fSm}px;"><span style="color:#6b7280;">Payment:</span> <strong>${getPaymentLabel(bill.paymentMethod)}</strong></div>
-            </td>
-          </tr>
-        </table>
-
-        <table style="width:100%;border-collapse:collapse;margin-bottom:${isCompact ? "8px" : "14px"};">
+        <table style="width:100%;border-collapse:collapse;margin-bottom:14px;border:1px solid ${border};border-radius:6px;overflow:hidden;">
           <thead>
-            <tr style="background:#0f766e;color:white;">
-              <th style="padding:${pad};text-align:center;font-size:${fSm}px;font-weight:600;width:28px;">#</th>
-              <th style="padding:${pad};text-align:left;font-size:${fSm}px;font-weight:600;">Description</th>
-              <th style="padding:${pad};text-align:right;font-size:${fSm}px;font-weight:600;width:${isCompact ? 52 : 80}px;">Price</th>
-              <th style="padding:${pad};text-align:center;font-size:${fSm}px;font-weight:600;width:${isCompact ? 32 : 50}px;">Qty</th>
-              <th style="padding:${pad};text-align:right;font-size:${fSm}px;font-weight:600;width:${isCompact ? 58 : 90}px;">Total</th>
+            <tr style="background:${accent};color:white;">
+              <th style="padding:${pad};text-align:center;font-size:${fSm}px;font-weight:600;width:36px;">ល.រ<br><span style="font-weight:500;opacity:0.95;">No</span></th>
+              <th style="padding:${pad};text-align:left;font-size:${fSm}px;font-weight:600;">ប្រភេទសេវាកម្ម / Service Type</th>
+              <th style="padding:${pad};text-align:center;font-size:${fSm}px;font-weight:600;width:44px;">បរិមាណ /<br>Qty</th>
+              <th style="padding:${pad};text-align:right;font-size:${fSm}px;font-weight:600;width:70px;">តម្លៃ /<br>Price</th>
+              <th style="padding:${pad};text-align:right;font-size:${fSm}px;font-weight:600;width:76px;background:rgba(254,249,195,0.35);-webkit-print-color-adjust:exact;print-color-adjust:exact;">សរុប / Total</th>
             </tr>
           </thead>
           <tbody>${itemRows}</tbody>
         </table>
 
-        <table style="width:100%;margin-bottom:${isCompact ? "8px" : "20px"};">
-          <tr>
-            <td style="width:60%;"></td>
-            <td style="width:40%;">
-              <table style="width:100%;border-collapse:collapse;">
-                <tr>
-                  <td style="padding:${pad};font-size:${fSm}px;color:#6b7280;">Subtotal</td>
-                  <td style="padding:${pad};text-align:right;font-size:${fSm}px;">${dualCurrencyHTML(Number(bill.subtotal), settings)}</td>
-                </tr>
-                <tr>
-                  <td style="padding:${pad};font-size:${fSm}px;color:#6b7280;">Discount</td>
-                  <td style="padding:${pad};text-align:right;font-size:${fSm}px;color:#ef4444;">-${dualCurrencyHTML(Number(bill.discount), settings)}</td>
-                </tr>
-                <tr style="border-top:2px solid #0f766e;">
-                  <td style="padding:${pad};font-size:${isCompact ? 11 : 14}px;font-weight:700;color:#0f766e;">Grand Total</td>
-                  <td style="padding:${pad};text-align:right;font-size:${isCompact ? 11 : 14}px;font-weight:700;color:#0f766e;">${getCurrencyParts(Number(bill.total), settings).primaryStr}</td>
-                </tr>
-                ${getCurrencyParts(Number(bill.total), settings).secondaryStr ? `
-                <tr>
-                  <td style="padding:${pad};font-size:${isCompact ? 11 : 14}px;font-weight:700;color:#0f766e;">Grand Total</td>
-                  <td style="padding:${pad};text-align:right;font-size:${isCompact ? 11 : 14}px;font-weight:700;color:#0f766e;">${getCurrencyParts(Number(bill.total), settings).secondaryStr}</td>
-                </tr>
-                ` : ""}
-              </table>
-            </td>
-          </tr>
-        </table>
-
-        <div style="background:#f0fdfa;border:1px solid #ccfbf1;border-radius:4px;padding:${isCompact ? "6px 8px" : "12px 14px"};margin-bottom:${isCompact ? "8px" : "20px"};">
-          <div style="font-size:${fSm}px;font-weight:600;color:#0f766e;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;">Payment Information</div>
-          <div style="font-size:${fSm}px;color:#374151;">Payment for the above medical services at ${clinicNameDisplay}.</div>
-          <div style="font-size:${fSm}px;color:#6b7280;margin-top:2px;">Amount Paid: <strong>${dualCurrencyHTML(Number(bill.paidAmount), settings)}</strong> via <strong>${getPaymentLabel(bill.paymentMethod)}</strong></div>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:18px;">
+          <table style="width:100%;max-width:280px;font-size:${fSm}px;border:1px solid ${border};border-radius:6px;overflow:hidden;">
+            <tr><td style="padding:${padSm};color:${muted};">សរុបរួម / Total</td><td style="padding:${padSm};text-align:right;color:${accent};">${currencyCode} ${subtotalVal}</td></tr>
+            <tr><td style="padding:${padSm};color:${muted};">ចុះតំលៃ / Discount</td><td style="padding:${padSm};text-align:right;color:${accent};">${currencyCode} ${discountVal}</td></tr>
+            <tr style="background:${totalHighlight};-webkit-print-color-adjust:exact;print-color-adjust:exact;"><td style="padding:${pad};font-weight:700;color:${accent};">សរុបត្រូវបង់ / Total Due</td><td style="padding:${pad};text-align:right;font-weight:700;color:${accent};">${currencyCode} ${totalDue.toFixed(2)}</td></tr>
+            <tr><td style="padding:${padSm};color:${muted};">ចំនួនបង់រួច / Amount PAID</td><td style="padding:${padSm};text-align:right;font-weight:600;color:${accent};background:${totalHighlight};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${currencyCode} ${paidAmt.toFixed(2)}</td></tr>
+            <tr><td style="padding:${padSm};color:${muted};">ចំនួនជំពាក់ / Amount OWE</td><td style="padding:${padSm};text-align:right;font-weight:600;color:${accent};background:${totalHighlight};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${currencyCode} ${amountOwed.toFixed(2)}</td></tr>
+          </table>
         </div>
 
-        <div style="text-align:center;padding-top:${isCompact ? "8px" : "16px"};border-top:1px solid #e5e7eb;">
-          <div style="font-size:${fBase}px;font-weight:600;color:#1f2937;margin-bottom:2px;">Thank you for choosing ${clinicNameDisplay}!</div>
-          <div style="font-size:${fSm}px;color:#6b7280;">For questions, contact ${clinicEmailDisplay}</div>
+        <div style="border-top:1px solid ${border};padding-top:14px;margin-top:4px;">
+          <table style="width:100%;font-size:${fSm}px;">
+            <tr>
+              <td style="width:33%;vertical-align:top;padding-right:12px;">
+                <div style="font-weight:600;color:${accent};margin-bottom:6px;">អតិថិជន / Customer</div>
+                <div style="border-bottom:1px solid ${accent};height:28px;"></div>
+              </td>
+              <td style="width:34%;text-align:center;vertical-align:top;padding:0 8px;border-left:1px solid ${border};border-right:1px solid ${border};">
+                <div style="color:${muted};margin-bottom:4px;">Date</div>
+                <div style="font-weight:500;color:${accent};">${formattedDate}</div>
+              </td>
+              <td style="width:33%;text-align:right;vertical-align:top;padding-left:12px;">
+                <div style="font-weight:600;color:${accent};margin-bottom:6px;">អ្នកគិតលុយ | Cashier</div>
+                <div style="border-bottom:1px solid ${accent};height:28px;margin-left:auto;"></div>
+              </td>
+            </tr>
+          </table>
         </div>
 
         <script>window.onload = function() { window.print(); }</script>
@@ -390,6 +436,27 @@ export default function BillingPage() {
       unitPrice: Number(injection.price),
       total: Number(injection.price),
     }]);
+  };
+
+  const addPackageToBill = (packageId: string) => {
+    const pkg = packagesList.find(p => p.id === Number(packageId));
+    if (!pkg || !Array.isArray(pkg.items)) return;
+    const newItems: BillItem[] = pkg.items.map((item) => {
+      const qty = Number(item.quantity) || 1;
+      const unitPrice = Number(item.unitPrice) || 0;
+      const billType = item.type === "custom" ? "service" : item.type as "service" | "medicine" | "injection";
+      return {
+        name: item.name,
+        type: billType,
+        quantity: qty,
+        unitPrice,
+        total: qty * unitPrice,
+        ...(billType === "medicine" && item.refId != null ? { medicineId: item.refId } : {}),
+        packageId: pkg.id,
+        packageName: pkg.name,
+      };
+    });
+    setBillItems(prev => [...prev, ...newItems]);
   };
 
   /** Selling price per piece (use for bills). Prefer local; fallback to foreigner or legacy sellingPrice. */
@@ -468,8 +535,11 @@ export default function BillingPage() {
       toast({ title: "Please select a patient and add items", variant: "destructive" });
       return;
     }
-    createBillMutation.mutate({
-      billNo: `BILL-${Date.now()}`,
+    const prefix = (settings?.invoicePrefix || "INV").replace(/\s/g, "").slice(0, 4) || "INV";
+      const nextNum = (bills?.length ?? 0) + 1;
+      const shortBillNo = `${prefix}${String(nextNum).padStart(5, "0")}`;
+      createBillMutation.mutate({
+      billNo: shortBillNo,
       patientId: Number(selectedPatient),
       items: billItems,
       subtotal: subtotal.toFixed(2),
@@ -543,6 +613,11 @@ export default function BillingPage() {
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditBill(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
             <Pencil className="h-4 w-4 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
           </DropdownMenuItem>
+          {row.status === "paid" && (row.items || []).some((i: any) => i?.type === "medicine") && (
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setReturnBill(row); setReturnQuantities({}); }} data-testid={`action-return-${row.id}`} className="gap-2">
+              <RotateCcw className="h-4 w-4 text-teal-500 dark:text-teal-400" /> {t("billing.returnMedicine")}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDeleteBillConfirm({ open: true, billId: row.id }); }} className="text-red-600 dark:text-red-400 gap-2" data-testid={`action-delete-${row.id}`}>
             <Trash2 className="h-4 w-4" /> {t("common.delete")}
           </DropdownMenuItem>
@@ -585,7 +660,7 @@ export default function BillingPage() {
                       </div>
                       <div className="text-right">
                         <h3 className="text-xl font-extrabold tracking-wide">{t("billing.invoice")}</h3>
-                        <p className="text-xs text-muted-foreground mt-1">Invoice #: <span className="font-semibold text-foreground">{settings?.invoicePrefix || "INV"}-{String(bills.length + 1).padStart(4, "0")}</span></p>
+                        <p className="text-xs text-muted-foreground mt-1">Invoice N°: <span className="font-semibold text-foreground">{(settings?.invoicePrefix || "INV").replace(/\s/g, "").slice(0, 4) || "INV"}{String((bills?.length || 0) + 1).padStart(5, "0")}</span></p>
                         <p className="text-xs text-muted-foreground">Date: {new Date(paymentDate || new Date()).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
                         <Badge className="mt-1.5 bg-amber-500 text-white border-amber-600">{t("billing.pending")}</Badge>
                       </div>
@@ -706,7 +781,7 @@ export default function BillingPage() {
                   <div className="flex items-center gap-2">
                     <Hash className="h-4 w-4 text-blue-500" />
                     <span className="text-sm font-medium text-muted-foreground">Invoice</span>
-                    <Badge variant="outline" className="font-mono text-xs">{settings?.invoicePrefix || "INV"}-{String((bills?.length || 0) + 1).padStart(4, "0")}</Badge>
+                    <Badge variant="outline" className="font-mono text-xs">{(settings?.invoicePrefix || "INV").replace(/\s/g, "").slice(0, 4) || "INV"}{String((bills?.length || 0) + 1).padStart(5, "0")}</Badge>
                   </div>
                   <div className="flex items-center gap-2">
                     <CalendarDays className="h-4 w-4 text-muted-foreground" />
@@ -801,6 +876,26 @@ export default function BillingPage() {
                           label: `${inj.name} - $${inj.price}`,
                           searchText: inj.name,
                         }))}
+                      />
+                      <div className="flex items-center gap-2 pt-1">
+                        <Package className="h-4 w-4 text-fuchsia-500" />
+                        <span className="text-sm font-semibold">Packages</span>
+                      </div>
+                      <SearchableSelect
+                        onValueChange={addPackageToBill}
+                        placeholder="Select Package"
+                        searchPlaceholder="Search package..."
+                        emptyText="No package found."
+                        data-testid="select-add-package"
+                        resetAfterSelect
+                        options={packagesList.filter(p => p.isActive).map(p => {
+                          const total = (p.items || []).reduce((sum, it) => sum + (Number(it.quantity) || 1) * (Number(it.unitPrice) || 0), 0);
+                          return {
+                            value: String(p.id),
+                            label: `${p.name} - $${total.toFixed(2)} (${(p.items || []).length} items)`,
+                            searchText: p.name,
+                          };
+                        })}
                       />
                     </CardContent>
                   </Card>
@@ -1125,7 +1220,7 @@ export default function BillingPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <DataTable columns={billColumns} data={filteredBills} isLoading={isLoading} emptyMessage={t("common.noData")} />
+            <DataTable columns={billColumns} data={filteredBills} isLoading={isLoading} emptyMessage={t("common.noData")} onRowClick={(row) => setViewBill(row)} />
           </CardContent>
         </Card>
       </div>
@@ -1262,6 +1357,72 @@ export default function BillingPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Return medicine dialog */}
+      <Dialog open={!!returnBill} onOpenChange={(open) => { if (!open) { setReturnBill(null); setReturnQuantities({}); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("billing.returnMedicineTitle")}</DialogTitle>
+            <DialogDescription>{t("billing.returnMedicineDesc")}</DialogDescription>
+          </DialogHeader>
+          {returnBill && (() => {
+            const items: any[] = Array.isArray(returnBill.items) ? returnBill.items : [];
+            const medicineRows = items
+              .map((item: any, index: number) => ({ item, index }))
+              .filter(({ item }: { item: any }) => item?.type === "medicine" && item.medicineId != null);
+            const hasAnyReturn = medicineRows.some(({ index }: { index: number }) => (returnQuantities[index] ?? 0) > 0);
+            return (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  {returnBill.billNo} · {patients.find(p => p.id === Number(returnBill.patientId))?.name ?? "-"}
+                </p>
+                <div className="space-y-3">
+                  {medicineRows.map(({ item, index }: { item: any; index: number }) => {
+                    const sold = typeof item.quantity === "number" ? item.quantity : Number(item.quantity) || 0;
+                    const ret = Math.min(sold, Math.max(0, returnQuantities[index] ?? 0));
+                    return (
+                      <div key={index} className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate">{item.name}</p>
+                          <p className="text-xs text-muted-foreground">Sold: {sold} · {formatDualCurrency(Number(item.unitPrice || 0) * ret, settings)} refund</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Label htmlFor={`return-qty-${index}`} className="text-xs whitespace-nowrap">{t("billing.returnQty")}</Label>
+                          <Input
+                            id={`return-qty-${index}`}
+                            type="number"
+                            min={0}
+                            max={sold}
+                            className="w-20 h-9 text-center"
+                            value={returnQuantities[index] ?? 0}
+                            onChange={(e) => setReturnQuantities(prev => ({ ...prev, [index]: Math.max(0, Math.min(sold, Math.floor(Number(e.target.value) || 0))) }))}
+                            data-testid={`input-return-qty-${index}`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => { setReturnBill(null); setReturnQuantities({}); }}>{t("common.cancel")}</Button>
+                  <Button
+                    disabled={!hasAnyReturn || returnMedicineMutation.isPending}
+                    onClick={() => {
+                      const returns = medicineRows
+                        .filter(({ index }: { index: number }) => (returnQuantities[index] ?? 0) > 0)
+                        .map(({ index }: { index: number }) => ({ itemIndex: index, quantity: returnQuantities[index] ?? 0 }));
+                      if (returns.length > 0) returnMedicineMutation.mutate({ billId: returnBill.id, returns });
+                    }}
+                    data-testid="button-process-return"
+                  >
+                    {returnMedicineMutation.isPending ? t("common.updating") + "..." : t("billing.processReturn")}
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
       <ConfirmDialog
         open={deleteBillConfirm.open}
         onOpenChange={(open) => setDeleteBillConfirm((c) => ({ ...c, open }))}
@@ -1315,13 +1476,18 @@ export default function BillingPage() {
                 </div>
                 <div>
                   <Label>{t("dashboard.doctor")}</Label>
-                  <Select value={editDoctor || "none"} onValueChange={(v) => setEditDoctor(v === "none" ? "" : v)}>
-                    <SelectTrigger data-testid="edit-bill-doctor"><SelectValue placeholder="None" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {doctorNames.map(d => d && <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={editDoctor || "none"}
+                    onValueChange={(v) => setEditDoctor(v === "none" ? "" : v)}
+                    placeholder="None"
+                    searchPlaceholder="Search doctor..."
+                    emptyText="No doctor found."
+                    data-testid="edit-bill-doctor"
+                    options={[
+                      { value: "none", label: "None" },
+                      ...doctorNames.filter(Boolean).map(d => ({ value: d, label: d, searchText: d })),
+                    ]}
+                  />
                 </div>
                 <Button
                   className="w-full"

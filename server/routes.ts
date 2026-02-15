@@ -5,6 +5,7 @@ import {
   insertPatientSchema, insertOpdVisitSchema, insertBillSchema,
   insertServiceSchema, insertInjectionSchema, insertMedicineSchema, insertExpenseSchema,
   insertBankTransactionSchema, insertInvestorSchema, insertInvestmentSchema, insertContributionSchema,
+  insertPackageSchema,
   insertUserSchema, insertRoleSchema, insertIntegrationSchema,
   insertClinicSettingsSchema, insertLabTestSchema, insertAppointmentSchema,
   insertDoctorSchema, insertSalarySchema,
@@ -617,6 +618,95 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/bills/:id/return", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid bill id" });
+      const bill = await storage.getBill(id);
+      if (!bill) return res.status(404).json({ message: "Bill not found" });
+      if (bill.status !== "paid") return res.status(400).json({ message: "Only paid bills can have medicine returns" });
+
+      const returnSchema = z.object({
+        returns: z.array(z.object({
+          itemIndex: z.number().int().min(0),
+          quantity: z.number().int().min(1),
+        })).min(1, "At least one return item required"),
+      });
+      const data = validateBody(returnSchema, req.body);
+      const items = Array.isArray(bill.items) ? [...(bill.items as any[])] : [];
+      if (items.length === 0) return res.status(400).json({ message: "Bill has no items" });
+
+      const byIndex = new Map<number, number>();
+      for (const r of data.returns) {
+        const cur = byIndex.get(r.itemIndex) ?? 0;
+        byIndex.set(r.itemIndex, cur + r.quantity);
+      }
+
+      for (const [itemIndex, qty] of byIndex) {
+        if (itemIndex >= items.length) return res.status(400).json({ message: `Invalid item index ${itemIndex}` });
+        const item = items[itemIndex];
+        if (item?.type !== "medicine" || item.medicineId == null) return res.status(400).json({ message: "Can only return medicine items" });
+        const soldQty = typeof item.quantity === "number" ? item.quantity : Number(item.quantity) || 0;
+        if (qty > soldQty) return res.status(400).json({ message: `Return quantity for "${item.name}" cannot exceed ${soldQty}` });
+      }
+
+      const newItems: any[] = [];
+      const returnCredits: { medicineId: number; quantity: number; item: any }[] = [];
+
+      for (let i = 0; i < items.length; i++) {
+        const item = { ...items[i], quantity: typeof items[i].quantity === "number" ? items[i].quantity : Number(items[i].quantity) || 0, unitPrice: Number(items[i].unitPrice) || 0 };
+        const retQty = byIndex.get(i);
+        if (retQty != null && retQty > 0 && item.type === "medicine" && item.medicineId != null) {
+          const remain = item.quantity - retQty;
+          if (remain > 0) {
+            item.quantity = remain;
+            item.total = Math.round(item.unitPrice * remain * 100) / 100;
+            newItems.push(item);
+          }
+          returnCredits.push({ medicineId: Number(item.medicineId), quantity: retQty, item });
+        } else {
+          item.total = Math.round(item.quantity * item.unitPrice * 100) / 100;
+          newItems.push(item);
+        }
+      }
+
+      const subtotal = newItems.reduce((sum, it) => sum + (Number(it.total) || 0), 0);
+      const discountVal = Number(bill.discount) || 0;
+      const discountType = (bill.discountType === "percentage" ? "percentage" : "amount") as "amount" | "percentage";
+      const discountAmount = discountType === "percentage" ? (subtotal * discountVal) / 100 : Math.min(discountVal, subtotal);
+      const total = Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100);
+      const paidAmount = total;
+
+      for (const cr of returnCredits) {
+        const med = await storage.getMedicine(cr.medicineId);
+        if (med) {
+          const prev = Number(med.stockCount ?? 0);
+          const newStock = prev + cr.quantity;
+          await storage.updateMedicine(med.id, { stockCount: newStock, quantity: newStock });
+          await storage.createStockAdjustment({
+            medicineId: med.id,
+            previousStock: prev,
+            newStock,
+            adjustmentType: "add",
+            reason: `Return from bill ${bill.billNo} – ${cr.quantity} pc`,
+          });
+        }
+      }
+
+      const updated = await storage.updateBill(id, {
+        items: newItems,
+        subtotal: String(subtotal.toFixed(2)),
+        total: String(total.toFixed(2)),
+        paidAmount: String(paidAmount.toFixed(2)),
+      });
+      res.json(updated);
+    } catch (err: any) {
+      const msg = err?.message ?? "Server error";
+      const isClientError = err?.name === "ZodError" || (typeof msg === "string" && (msg.includes("Invalid") || msg.includes("required") || msg.includes("cannot exceed") || msg.includes("Can only return") || msg.includes("No return")));
+      res.status(isClientError ? 400 : 500).json({ message: msg });
+    }
+  });
+
   // Services
   app.get("/api/services", async (_req, res) => {
     try {
@@ -911,8 +1001,10 @@ export async function registerRoutes(
             sellingPriceLocal: (parseFloat(row["Selling Price (Local)"] || row["sellingPriceLocal"] || "0") || 0).toString(),
             sellingPriceForeigner: (parseFloat(row["Selling Price (Foreigner)"] || row["sellingPriceForeigner"] || "0") || 0).toString(),
             stockCount: parseInt(row["Stock Count"] || row["stockCount"] || "0") || 0,
+            totalStock: parseInt(row["Stock Count"] || row["stockCount"] || "0") || 0,
             stockAlert: parseInt(row["Stock Alert"] || row["stockAlert"] || "10") || 10,
-            quantity: 0, unitPrice: "0", sellingPrice: "0", isActive: true,
+            quantity: parseInt(row["Stock Count"] || row["stockCount"] || "0") || 0,
+            unitPrice: "0", sellingPrice: "0", isActive: true,
           });
           imported++;
         } catch (err: any) { skipped++; errors.push(`Row ${i + 2}: ${err.message}`); }
@@ -966,6 +1058,84 @@ export async function registerRoutes(
       res.json({ message: "Deleted" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Packages
+  const packageItemSchema = z.object({
+    type: z.enum(["service", "medicine", "injection", "custom"]),
+    refId: z.coerce.number().optional(),
+    name: z.string(),
+    quantity: z.coerce.number().min(1),
+    unitPrice: z.coerce.number().min(0),
+  });
+  app.get("/api/packages", async (_req, res) => {
+    try {
+      const result = await storage.getPackages();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+  app.get("/api/packages/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid package id" });
+      const pkg = await storage.getPackage(id);
+      if (!pkg) return res.status(404).json({ message: "Package not found" });
+      res.json(pkg);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+  app.post("/api/packages", async (req, res) => {
+    try {
+      const body = z.object({
+        name: z.string().min(1),
+        description: z.string().nullable().optional(),
+        items: z.array(packageItemSchema).min(1),
+        isActive: z.boolean().optional(),
+      });
+      const data = validateBody(body, req.body);
+      const pkg = await storage.createPackage({
+        name: data.name.trim(),
+        description: data.description ?? null,
+        items: data.items,
+        isActive: data.isActive ?? true,
+      });
+      res.status(201).json(pkg);
+    } catch (err: any) {
+      const isValidation = err?.name === "ZodError" || (typeof err?.message === "string" && err.message.includes("Invalid"));
+      res.status(isValidation ? 400 : 500).json({ message: err?.message ?? "Server error" });
+    }
+  });
+  app.put("/api/packages/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid package id" });
+      const body = z.object({
+        name: z.string().min(1).optional(),
+        description: z.string().nullable().optional(),
+        items: z.array(packageItemSchema).optional(),
+        isActive: z.boolean().optional(),
+      });
+      const data = validateBody(body, req.body);
+      const pkg = await storage.updatePackage(id, data);
+      if (!pkg) return res.status(404).json({ message: "Package not found" });
+      res.json(pkg);
+    } catch (err: any) {
+      const isValidation = err?.name === "ZodError" || (typeof err?.message === "string" && err.message.includes("Invalid"));
+      res.status(isValidation ? 400 : 500).json({ message: err?.message ?? "Server error" });
+    }
+  });
+  app.delete("/api/packages/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid package id" });
+      await storage.deletePackage(id);
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message ?? "Server error" });
     }
   });
 
@@ -1075,8 +1245,10 @@ export async function registerRoutes(
 
   app.post("/api/medicines", async (req, res) => {
     try {
-      const data = validateBody(insertMedicineSchema, req.body);
-      const medicine = await storage.createMedicine(data);
+      const data = validateBody(insertMedicineSchema, req.body) as Record<string, unknown>;
+      const stockCount = Number(data.stockCount) ?? 0;
+      if (data.totalStock == null) data.totalStock = stockCount;
+      const medicine = await storage.createMedicine(data as Parameters<typeof storage.createMedicine>[0]);
       res.status(201).json(medicine);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -1132,10 +1304,20 @@ export async function registerRoutes(
       const { reason, adjustmentType, ...updateData } = data;
       if (data.stockCount !== undefined && typeof data.stockCount === "number") {
         updateData.quantity = data.stockCount;
+        const prevStock = existing.stockCount ?? 0;
+        const newStock = data.stockCount;
+        const prevTotal = Number((existing as any).totalStock) ?? prevStock;
+        if (adjustmentType === "add") {
+          updateData.totalStock = prevTotal + (newStock - prevStock);
+        } else if (adjustmentType === "set") {
+          updateData.totalStock = newStock;
+        } else {
+          updateData.totalStock = prevTotal;
+        }
         await storage.createStockAdjustment({
           medicineId: id,
-          previousStock: existing.stockCount ?? 0,
-          newStock: data.stockCount,
+          previousStock: prevStock,
+          newStock,
           adjustmentType: adjustmentType ?? "set",
           reason: reason ?? null,
         });
