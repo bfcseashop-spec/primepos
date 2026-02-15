@@ -355,37 +355,42 @@ export async function registerRoutes(
       const sampleRows = [
         {
           "Medicine Name": "Paracetamol 500mg", Category: "Tablet",
-          "Unit Type": "Box", "Total Pcs": 100, "Purchase Price (per pc)": "1.00",
-          "Total Purchase Price": "100.00", "Sales Per Pieces": "1.50",
-          "Total Sales Price": "150.00", "Stock Available pcs": 1000, "Expiry Date": "2027-12-31",
+          "Unit Type": "Box", "Total Pcs": 100,
+          "Total Purchase Price": "100.00", "Purchase Each Price (auto)": "1.00",
+          "Total Sales Price": "150.00", "Sales Each Price (auto)": "1.50",
+          "Stock Available pcs": 1000, "Expiry Date": "2027-12-31",
           Manufacturer: "PharmaCo", "Batch No": "B-2026-001", "Stock Alert": 20,
         },
         {
           "Medicine Name": "Amoxicillin 500mg", Category: "Capsule",
-          "Unit Type": "Box", "Total Pcs": 50, "Purchase Price (per pc)": "5.00",
-          "Total Purchase Price": "250.00", "Sales Per Pieces": "8.00",
-          "Total Sales Price": "400.00", "Stock Available pcs": 500, "Expiry Date": "2027-06-15",
+          "Unit Type": "Box", "Total Pcs": 50,
+          "Total Purchase Price": "250.00", "Purchase Each Price (auto)": "5.00",
+          "Total Sales Price": "400.00", "Sales Each Price (auto)": "8.00",
+          "Stock Available pcs": 500, "Expiry Date": "2027-06-15",
           Manufacturer: "MedLab", "Batch No": "B-2026-002", "Stock Alert": 15,
         },
         {
           "Medicine Name": "Cough Syrup", Category: "Syrup",
-          "Unit Type": "Bottle", "Total Pcs": 1, "Purchase Price (per pc)": "6.00",
-          "Total Purchase Price": "6.00", "Sales Per Pieces": "9.00",
-          "Total Sales Price": "9.00", "Stock Available pcs": 150, "Expiry Date": "2026-08-25",
+          "Unit Type": "Bottle", "Total Pcs": 1,
+          "Total Purchase Price": "6.00", "Purchase Each Price (auto)": "6.00",
+          "Total Sales Price": "9.00", "Sales Each Price (auto)": "9.00",
+          "Stock Available pcs": 150, "Expiry Date": "2026-08-25",
           Manufacturer: "HealthCare", "Batch No": "B-2026-003", "Stock Alert": 10,
         },
         {
           "Medicine Name": "Omeprazole 20mg", Category: "Capsule",
-          "Unit Type": "Box", "Total Pcs": 30, "Purchase Price (per pc)": "8.00",
-          "Total Purchase Price": "240.00", "Sales Per Pieces": "12.00",
-          "Total Sales Price": "360.00", "Stock Available pcs": 300, "Expiry Date": "2027-03-20",
+          "Unit Type": "Box", "Total Pcs": 30,
+          "Total Purchase Price": "240.00", "Purchase Each Price (auto)": "8.00",
+          "Total Sales Price": "360.00", "Sales Each Price (auto)": "12.00",
+          "Stock Available pcs": 300, "Expiry Date": "2027-03-20",
           Manufacturer: "GastroPharm", "Batch No": "B-2026-004", "Stock Alert": 10,
         },
         {
           "Medicine Name": "Ciprofloxacin 250mg", Category: "Tablet",
-          "Unit Type": "Box", "Total Pcs": 20, "Purchase Price (per pc)": "12.00",
-          "Total Purchase Price": "240.00", "Sales Per Pieces": "18.00",
-          "Total Sales Price": "360.00", "Stock Available pcs": 8, "Expiry Date": "2026-09-10",
+          "Unit Type": "Box", "Total Pcs": 20,
+          "Total Purchase Price": "240.00", "Purchase Each Price (auto)": "12.00",
+          "Total Sales Price": "360.00", "Sales Each Price (auto)": "18.00",
+          "Stock Available pcs": 8, "Expiry Date": "2026-09-10",
           Manufacturer: "AntiBioLab", "Batch No": "B-2026-005", "Stock Alert": 10,
         },
       ];
@@ -953,10 +958,10 @@ export async function registerRoutes(
           Category: m.category || "",
           "Unit Type": m.unit,
           "Total Pcs": totalPcs,
-          "Purchase Price (per pc)": purchasePricePerPc.toFixed(2),
           "Total Purchase Price": totalPurchasePrice.toFixed(2),
-          "Sales Per Pieces": perPiece.toFixed(2),
+          "Purchase Each Price (auto)": purchasePricePerPc.toFixed(2),
           "Total Sales Price": totalSalesPrice.toFixed(2),
+          "Sales Each Price (auto)": perPiece.toFixed(2),
           "Stock Available pcs": m.stockCount,
           "Expiry Date": m.expiryDate || "",
           Manufacturer: m.manufacturer || "",
@@ -1009,10 +1014,15 @@ export async function registerRoutes(
         try {
           const totalPcs = parseInt(row["Total Pcs"] || row["Qty Per Box"] || row["qtyPerBox"] || "1") || 1;
           const unitCount = parseInt(row["Unit Count"] || row["unitCount"] || "1") || 1;
-          const purchasePricePerPc = parseFloat(row["Purchase Price (per pc)"] || row["Purchase Price"] || row["Box Price"] || row["boxPrice"] || "0") || 0;
-          const totalPurchasePrice = parseFloat(row["Total Purchase Price"] || row["totalPurchasePrice"] || "0") || (purchasePricePerPc * totalPcs);
-          const boxPrice = purchasePricePerPc * totalPcs;
-          const salesPerPieces = parseFloat(row["Sales Per Pieces"] || row["Sales Price"] || row["Selling Price (Local)"] || row["sellingPriceLocal"] || "0") || 0;
+          const totalPurchasePriceRaw = parseFloat(row["Total Purchase Price"] || row["totalPurchasePrice"] || "0") || 0;
+          const purchasePricePerPcRaw = parseFloat(row["Purchase Each Price (auto)"] || row["Purchase Price (per pc)"] || row["Purchase Price"] || row["Box Price"] || row["boxPrice"] || "0") || 0;
+          const totalPurchasePrice = totalPurchasePriceRaw > 0 ? totalPurchasePriceRaw : (purchasePricePerPcRaw * totalPcs);
+          const purchasePricePerPc = totalPurchasePrice > 0 && totalPcs > 0 ? totalPurchasePrice / totalPcs : purchasePricePerPcRaw;
+          const boxPrice = totalPurchasePrice;
+          const totalSalesPriceRaw = parseFloat(row["Total Sales Price"] || "0") || 0;
+          const salesPerPiecesRaw = parseFloat(row["Sales Each Price (auto)"] || row["Sales Per Pieces"] || row["Sales Price"] || row["Selling Price (Local)"] || row["sellingPriceLocal"] || "0") || 0;
+          const totalSalesPrice = totalSalesPriceRaw > 0 ? totalSalesPriceRaw : (salesPerPiecesRaw * totalPcs);
+          const salesPerPieces = totalSalesPrice > 0 && totalPcs > 0 ? totalSalesPrice / totalPcs : salesPerPiecesRaw;
           const stockAvailable = parseInt(row["Stock Available pcs"] || row["Stock Available"] || row["Stock Count"] || row["stockCount"] || "0") || 0;
           await storage.createMedicine({
             name,

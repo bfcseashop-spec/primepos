@@ -494,7 +494,7 @@ export default function MedicinesPage() {
         <span className="inline-flex px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-[11px] font-mono font-medium text-blue-700 dark:text-blue-300">{totalPcs}</span>
       );
     }},
-    { header: "Purchase Price (per pc)", accessor: (row: Medicine) => {
+    { header: "Purchase Each Price", accessor: (row: Medicine) => {
       const boxPrice = Number(row.boxPrice || 0);
       const qtyPerBox = Number(row.qtyPerBox || 1);
       const pricePerPiece = qtyPerBox > 0 ? boxPrice / qtyPerBox : 0;
@@ -511,7 +511,7 @@ export default function MedicinesPage() {
         <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">${total.toFixed(2)}</span>
       );
     }},
-    { header: "Sales Per Pieces", accessor: (row: Medicine) => {
+    { header: "Sales Each Price", accessor: (row: Medicine) => {
       const perPiece = Number(row.sellingPriceLocal ?? row.sellingPrice ?? 0);
       return (
         <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">${perPiece.toFixed(2)}</span>
