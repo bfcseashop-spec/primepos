@@ -479,6 +479,18 @@ export default function MedicinesPage() {
   };
 
   const columns = [
+    { header: "Image", accessor: (row: Medicine) => {
+      const src = getMedicineImageSrc(row.imageUrl);
+      return (
+        <div className="w-10 h-10 rounded-md overflow-hidden bg-muted shrink-0 flex items-center justify-center border">
+          {src ? (
+            <img src={src} alt={row.name} className="w-full h-full object-cover" data-testid={`img-medicine-list-${row.id}`} />
+          ) : (
+            <Pill className="h-5 w-5 text-muted-foreground" />
+          )}
+        </div>
+      );
+    }, className: "w-12" },
     { header: "Medicine Name", accessor: (row: Medicine) => (
       <span className="font-semibold text-sm">{row.name}</span>
     )},
