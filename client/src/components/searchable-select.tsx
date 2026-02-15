@@ -165,17 +165,19 @@ export function SearchableSelect({
         const portalTarget = (containerRef.current?.closest("[role=\"dialog\"]") as HTMLElement) ?? document.body;
         const isInDialog = portalTarget !== document.body;
         // When inside a dialog, position:fixed is relative to the dialog's transform, so use position:absolute + dialog-relative coords
-        const dropdownStyle = {
+        const dropdownStyle: React.CSSProperties = {
           position: (isInDialog ? "absolute" : "fixed") as "absolute" | "fixed",
           top: position.top,
           left: position.left,
           width: Math.max(position.width, 200),
           minWidth: 200,
+          // Ensure dropdown paints above dialog footer/buttons (same stacking context when portaled into dialog)
+          zIndex: isInDialog ? 2147483647 : 99999,
         };
         return createPortal(
         <div
           ref={dropdownRef}
-          className="z-[99999] rounded-md border bg-popover text-popover-foreground shadow-md"
+          className="rounded-md border bg-popover text-popover-foreground shadow-md"
           style={dropdownStyle}
           onMouseDown={(e) => e.stopPropagation()}
         >
