@@ -479,22 +479,10 @@ export default function MedicinesPage() {
   };
 
   const columns = [
-    { header: "", accessor: (row: Medicine) => {
-      const src = getMedicineImageSrc(row.imageUrl);
-      return (
-        <div className="w-10 h-10 rounded-md overflow-hidden bg-muted shrink-0 flex items-center justify-center border">
-          {src ? (
-            <img src={src} alt={row.name} className="w-full h-full object-cover" data-testid={`img-medicine-list-${row.id}`} />
-          ) : (
-            <Pill className="h-5 w-5 text-muted-foreground" />
-          )}
-        </div>
-      );
-    }, className: "w-12" },
     { header: "Medicine Name", accessor: (row: Medicine) => (
       <span className="font-semibold text-sm">{row.name}</span>
     )},
-    { header: t("common.category"), accessor: (row: Medicine) => (
+    { header: "Category", accessor: (row: Medicine) => (
       <Badge variant="outline" className="text-[11px]">
         {row.category || "-"}
       </Badge>
@@ -531,7 +519,7 @@ export default function MedicinesPage() {
         <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${perUnit.toFixed(2)}</span>
       );
     }},
-    { header: "Stock Available", accessor: (row: Medicine) => {
+    { header: "Stock Available pcs", accessor: (row: Medicine) => {
       const current = row.stockCount ?? 0;
       const totalRaw = Number(row.totalStock) ?? 0;
       const purchaseQty = (row.unitCount ?? 0) * (row.qtyPerBox ?? 1);
@@ -561,7 +549,7 @@ export default function MedicinesPage() {
       );
     }},
     { header: "Expiry Date", accessor: (row: Medicine) => getExpiryBadge(row.expiryDate) },
-    { header: t("common.actions"), accessor: (row: Medicine) => (
+    { header: "Actions", accessor: (row: Medicine) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" data-testid={`button-actions-${row.id}`} onClick={(e) => e.stopPropagation()}>
