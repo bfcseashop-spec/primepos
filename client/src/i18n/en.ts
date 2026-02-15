@@ -96,6 +96,7 @@ export const en = {
     opdManagement: "OPD Management",
     appointments: "Appointments",
     services: "Services",
+    packages: "Packages",
     labTests: "Lab Tests",
     medicines: "Medicines",
     doctorManagement: "Doctor Management",

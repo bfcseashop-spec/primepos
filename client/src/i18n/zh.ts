@@ -63,6 +63,7 @@ export const zh = {
     opdManagement: "门诊管理",
     appointments: "预约管理",
     services: "服务项目",
+    packages: "套餐",
     labTests: "实验室检测",
     medicines: "药品管理",
     doctorManagement: "医生管理",

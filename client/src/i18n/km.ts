@@ -63,6 +63,7 @@ export const km = {
     opdManagement: "គ្រប់គ្រង OPD",
     appointments: "ការណាត់ជួប",
     services: "សេវាកម្ម",
+    packages: "កញ្ចប់",
     labTests: "តេស្តមន្ទីរពិសោធន៍",
     medicines: "ឱសថ",
     doctorManagement: "គ្រប់គ្រងវេជ្ជបណ្ឌិត",

@@ -15,6 +15,7 @@ import Dashboard from "@/pages/dashboard";
 import OpdPage from "@/pages/opd";
 import BillingPage from "@/pages/billing";
 import ServicesPage from "@/pages/services";
+import PackagesPage from "@/pages/packages";
 import MedicinesPage from "@/pages/medicines";
 import ExpensesPage from "@/pages/expenses";
 import BankTransactionsPage from "@/pages/bank-transactions";
@@ -39,6 +40,7 @@ function Router() {
       <Route path="/register-patient" component={RegisterPatientPage} />
       <Route path="/billing" component={BillingPage} />
       <Route path="/services" component={ServicesPage} />
+      <Route path="/packages" component={PackagesPage} />
       <Route path="/lab-tests" component={LabTestsPage} />
       <Route path="/medicines" component={MedicinesPage} />
       <Route path="/expenses" component={ExpensesPage} />

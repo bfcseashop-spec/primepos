@@ -5,6 +5,7 @@ import {
   insertPatientSchema, insertOpdVisitSchema, insertBillSchema,
   insertServiceSchema, insertInjectionSchema, insertMedicineSchema, insertExpenseSchema,
   insertBankTransactionSchema, insertInvestorSchema, insertInvestmentSchema, insertContributionSchema,
+  insertPackageSchema,
   insertUserSchema, insertRoleSchema, insertIntegrationSchema,
   insertClinicSettingsSchema, insertLabTestSchema, insertAppointmentSchema,
   insertDoctorSchema, insertSalarySchema,
@@ -966,6 +967,84 @@ export async function registerRoutes(
       res.json({ message: "Deleted" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Packages
+  const packageItemSchema = z.object({
+    type: z.enum(["service", "medicine", "injection", "custom"]),
+    refId: z.coerce.number().optional(),
+    name: z.string(),
+    quantity: z.coerce.number().min(1),
+    unitPrice: z.coerce.number().min(0),
+  });
+  app.get("/api/packages", async (_req, res) => {
+    try {
+      const result = await storage.getPackages();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+  app.get("/api/packages/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid package id" });
+      const pkg = await storage.getPackage(id);
+      if (!pkg) return res.status(404).json({ message: "Package not found" });
+      res.json(pkg);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+  app.post("/api/packages", async (req, res) => {
+    try {
+      const body = z.object({
+        name: z.string().min(1),
+        description: z.string().nullable().optional(),
+        items: z.array(packageItemSchema).min(1),
+        isActive: z.boolean().optional(),
+      });
+      const data = validateBody(body, req.body);
+      const pkg = await storage.createPackage({
+        name: data.name.trim(),
+        description: data.description ?? null,
+        items: data.items,
+        isActive: data.isActive ?? true,
+      });
+      res.status(201).json(pkg);
+    } catch (err: any) {
+      const isValidation = err?.name === "ZodError" || (typeof err?.message === "string" && err.message.includes("Invalid"));
+      res.status(isValidation ? 400 : 500).json({ message: err?.message ?? "Server error" });
+    }
+  });
+  app.put("/api/packages/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid package id" });
+      const body = z.object({
+        name: z.string().min(1).optional(),
+        description: z.string().nullable().optional(),
+        items: z.array(packageItemSchema).optional(),
+        isActive: z.boolean().optional(),
+      });
+      const data = validateBody(body, req.body);
+      const pkg = await storage.updatePackage(id, data);
+      if (!pkg) return res.status(404).json({ message: "Package not found" });
+      res.json(pkg);
+    } catch (err: any) {
+      const isValidation = err?.name === "ZodError" || (typeof err?.message === "string" && err.message.includes("Invalid"));
+      res.status(isValidation ? 400 : 500).json({ message: err?.message ?? "Server error" });
+    }
+  });
+  app.delete("/api/packages/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid package id" });
+      await storage.deletePackage(id);
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message ?? "Server error" });
     }
   });
 

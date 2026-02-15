@@ -16,10 +16,10 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag } from "lucide-react";
+import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag, Package } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
-import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings } from "@shared/schema";
+import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings, Package } from "@shared/schema";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "\u20AC", GBP: "\u00A3", JPY: "\u00A5", KHR: "\u17DB",
@@ -99,6 +99,10 @@ export default function BillingPage() {
 
   const { data: injectionsList = [] } = useQuery<Injection[]>({
     queryKey: ["/api/injections"],
+  });
+
+  const { data: packagesList = [] } = useQuery<Package[]>({
+    queryKey: ["/api/packages"],
   });
 
   const { data: users = [] } = useQuery<UserType[]>({
@@ -390,6 +394,25 @@ export default function BillingPage() {
       unitPrice: Number(injection.price),
       total: Number(injection.price),
     }]);
+  };
+
+  const addPackageToBill = (packageId: string) => {
+    const pkg = packagesList.find(p => p.id === Number(packageId));
+    if (!pkg || !Array.isArray(pkg.items)) return;
+    const newItems: BillItem[] = pkg.items.map((item) => {
+      const qty = Number(item.quantity) || 1;
+      const unitPrice = Number(item.unitPrice) || 0;
+      const billType = item.type === "custom" ? "service" : item.type as "service" | "medicine" | "injection";
+      return {
+        name: item.name,
+        type: billType,
+        quantity: qty,
+        unitPrice,
+        total: qty * unitPrice,
+        ...(billType === "medicine" && item.refId != null ? { medicineId: item.refId } : {}),
+      };
+    });
+    setBillItems(prev => [...prev, ...newItems]);
   };
 
   /** Selling price per piece (use for bills). Prefer local; fallback to foreigner or legacy sellingPrice. */
@@ -801,6 +824,26 @@ export default function BillingPage() {
                           label: `${inj.name} - $${inj.price}`,
                           searchText: inj.name,
                         }))}
+                      />
+                      <div className="flex items-center gap-2 pt-1">
+                        <Package className="h-4 w-4 text-fuchsia-500" />
+                        <span className="text-sm font-semibold">Packages</span>
+                      </div>
+                      <SearchableSelect
+                        onValueChange={addPackageToBill}
+                        placeholder="Select Package"
+                        searchPlaceholder="Search package..."
+                        emptyText="No package found."
+                        data-testid="select-add-package"
+                        resetAfterSelect
+                        options={packagesList.filter(p => p.isActive).map(p => {
+                          const total = (p.items || []).reduce((sum, it) => sum + (Number(it.quantity) || 1) * (Number(it.unitPrice) || 0), 0);
+                          return {
+                            value: String(p.id),
+                            label: `${p.name} - $${total.toFixed(2)} (${(p.items || []).length} items)`,
+                            searchText: p.name,
+                          };
+                        })}
                       />
                     </CardContent>
                   </Card>
