@@ -270,6 +270,7 @@ export default function MedicinesPage() {
     if (!form.name?.trim()) errors.name = t("common.required");
     if (!form.unit?.trim()) errors.unit = t("common.required");
     if (form.totalPcs == null || form.totalPcs < 1) errors.totalPcs = t("common.required");
+    if (form.stockAvailable > form.totalPcs) errors.stockAvailable = "Stock Available cannot exceed Total Pcs";
     if (form.purchasePrice == null || Number(form.purchasePrice) < 0) errors.purchasePrice = t("common.required");
     if (form.salesPrice == null || Number(form.salesPrice) < 0) errors.salesPrice = t("common.required");
     setFieldErrors(errors);
@@ -749,7 +750,7 @@ export default function MedicinesPage() {
       <div className="space-y-4">
         <div>
           <Label htmlFor="totalPcs">Total Pcs *</Label>
-          <Input ref={refTotalPcs} id="totalPcs" type="number" min={1} value={form.totalPcs} onChange={e => { setForm(f => ({ ...f, totalPcs: Number(e.target.value) || 0 })); setFieldErrors(prev => ({ ...prev, totalPcs: "" })); }} data-testid="input-medicine-total-pcs" className={fieldErrors.totalPcs ? "border-destructive" : ""} />
+          <Input ref={refTotalPcs} id="totalPcs" type="number" min={1} value={form.totalPcs} onChange={e => { const newTotal = Number(e.target.value) || 0; setForm(f => { const errs: Record<string, string> = { ...fieldErrors, totalPcs: "" }; if (f.stockAvailable > newTotal) errs.stockAvailable = "Stock Available cannot exceed Total Pcs"; else delete errs.stockAvailable; setFieldErrors(errs); return { ...f, totalPcs: newTotal }; }); }} data-testid="input-medicine-total-pcs" className={fieldErrors.totalPcs ? "border-destructive" : ""} />
           {fieldErrors.totalPcs && <p className="text-xs text-destructive mt-1">{fieldErrors.totalPcs}</p>}
         </div>
 
@@ -795,7 +796,13 @@ export default function MedicinesPage() {
 
         <div>
           <Label htmlFor="stockAvailable">Stock Available pcs</Label>
-          <Input ref={refStockAvailable} id="stockAvailable" type="number" min={0} value={form.stockAvailable} onChange={e => setForm(f => ({ ...f, stockAvailable: Number(e.target.value) || 0 }))} data-testid="input-medicine-stock-available" />
+          <Input ref={refStockAvailable} id="stockAvailable" type="number" min={0} max={form.totalPcs || undefined} value={form.stockAvailable} onChange={e => {
+            const val = Number(e.target.value) || 0;
+            setForm(f => ({ ...f, stockAvailable: val }));
+            if (val > form.totalPcs) setFieldErrors(prev => ({ ...prev, stockAvailable: "Stock Available cannot exceed Total Pcs" }));
+            else setFieldErrors(prev => { const { stockAvailable: _, ...rest } = prev; return rest; });
+          }} data-testid="input-medicine-stock-available" />
+          {fieldErrors.stockAvailable && <p className="text-xs text-red-500 mt-1">{fieldErrors.stockAvailable}</p>}
         </div>
       </div>
 
@@ -980,7 +987,12 @@ export default function MedicinesPage() {
                   const num = Math.floor(Number(adjustStockValue));
                   if (isNaN(num) || (adjustStockMode === "subtract" && num < 0)) return;
                   const current = adjustStockMed.stockCount ?? 0;
+                  const totalPcs = Number(adjustStockMed.qtyPerBox) || Number((adjustStockMed as Medicine & { totalStock?: number }).totalStock) || current;
                   const newStock = adjustStockMode === "set" ? Math.max(0, num) : adjustStockMode === "add" ? current + num : Math.max(0, current - num);
+                  if (newStock > totalPcs) {
+                    toast({ title: `Stock (${newStock}) cannot exceed Total Pcs (${totalPcs})`, variant: "destructive" });
+                    return;
+                  }
                   adjustStockMutation.mutate({ id: adjustStockMed.id, stockCount: newStock, reason: adjustStockReason || undefined, adjustmentType: adjustStockMode });
                 }}
                 data-testid="button-confirm-adjust-stock"

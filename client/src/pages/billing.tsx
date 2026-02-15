@@ -483,6 +483,14 @@ export default function BillingPage() {
       return;
     }
     const addQty = Math.max(1, Math.floor(medicineQty));
+    const availableStock = Number(med.stockCount ?? 0);
+    const alreadyInBill = billItems
+      .filter(it => it.type === "medicine" && it.medicineId === med.id)
+      .reduce((sum, it) => sum + it.quantity, 0);
+    if (addQty + alreadyInBill > availableStock) {
+      toast({ title: `Not enough stock. Available: ${availableStock} pcs, already in bill: ${alreadyInBill} pcs`, variant: "destructive" });
+      return;
+    }
     const total = Math.round(unitPrice * addQty * 100) / 100;
     setBillItems(prev => [...prev, { name: med.name, type: "medicine", quantity: addQty, unitPrice, total, medicineId: med.id }]);
   };
@@ -521,9 +529,26 @@ export default function BillingPage() {
   };
 
   const updateItemQuantity = (index: number, qty: number) => {
-    setBillItems(prev => prev.map((item, i) =>
-      i === index ? { ...item, quantity: qty, total: item.unitPrice * qty } : item
-    ));
+    setBillItems(prev => {
+      const item = prev[index];
+      if (!item) return prev;
+      if (item.type === "medicine" && item.medicineId != null) {
+        const med = medicines.find(m => m.id === item.medicineId);
+        if (med) {
+          const availableStock = Number(med.stockCount ?? 0);
+          const otherQty = prev
+            .filter((it, idx) => idx !== index && it.type === "medicine" && it.medicineId === item.medicineId)
+            .reduce((sum, it) => sum + it.quantity, 0);
+          if (qty + otherQty > availableStock) {
+            toast({ title: `Not enough stock. Available: ${availableStock} pcs`, variant: "destructive" });
+            return prev;
+          }
+        }
+      }
+      return prev.map((it, i) =>
+        i === index ? { ...it, quantity: qty, total: it.unitPrice * qty } : it
+      );
+    });
   };
 
   const removeItem = (index: number) => {

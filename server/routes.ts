@@ -587,23 +587,37 @@ export async function registerRoutes(
   app.post("/api/bills", async (req, res) => {
     try {
       const data = validateBody(insertBillSchema, req.body) as Record<string, unknown>;
-      const bill = await storage.createBill(data as Parameters<typeof storage.createBill>[0]);
       const items = Array.isArray(data.items) ? data.items : [];
+      const medQtyMap: Record<number, number> = {};
       for (const item of items) {
         if (item?.type === "medicine" && item.medicineId != null && typeof item.quantity === "number" && item.quantity > 0) {
-          const med = await storage.getMedicine(Number(item.medicineId));
-          if (med) {
-            const prev = Number(med.stockCount ?? 0);
-            const newStock = Math.max(0, prev - item.quantity);
-            await storage.updateMedicine(med.id, { stockCount: newStock, quantity: newStock });
-            await storage.createStockAdjustment({
-              medicineId: med.id,
-              previousStock: prev,
-              newStock,
-              adjustmentType: "subtract",
-              reason: `Bill ${bill.billNo} – sold ${item.quantity} pc`,
-            });
+          const medId = Number(item.medicineId);
+          medQtyMap[medId] = (medQtyMap[medId] || 0) + item.quantity;
+        }
+      }
+      for (const [medIdStr, totalQty] of Object.entries(medQtyMap)) {
+        const med = await storage.getMedicine(Number(medIdStr));
+        if (med) {
+          const available = Number(med.stockCount ?? 0);
+          if (totalQty > available) {
+            throw new Error(`Not enough stock for "${med.name}". Available: ${available}, requested: ${totalQty}`);
           }
+        }
+      }
+      const bill = await storage.createBill(data as Parameters<typeof storage.createBill>[0]);
+      for (const [medIdStr, totalQty] of Object.entries(medQtyMap)) {
+        const med = await storage.getMedicine(Number(medIdStr));
+        if (med) {
+          const prev = Number(med.stockCount ?? 0);
+          const newStock = Math.max(0, prev - totalQty);
+          await storage.updateMedicine(med.id, { stockCount: newStock, quantity: newStock });
+          await storage.createStockAdjustment({
+            medicineId: med.id,
+            previousStock: prev,
+            newStock,
+            adjustmentType: "subtract",
+            reason: `Bill ${bill.billNo} – sold ${totalQty} pc`,
+          });
         }
       }
       res.status(201).json(bill);
@@ -1288,6 +1302,10 @@ export async function registerRoutes(
       const data = validateBody(insertMedicineSchema, req.body) as Record<string, unknown>;
       const stockCount = Number(data.stockCount) ?? 0;
       if (data.totalStock == null) data.totalStock = stockCount;
+      const totalPcs = Number(data.qtyPerBox) || stockCount;
+      if (stockCount > totalPcs) {
+        throw new Error(`Stock Available (${stockCount}) cannot exceed Total Pcs (${totalPcs})`);
+      }
       const medicine = await storage.createMedicine(data as Parameters<typeof storage.createMedicine>[0]);
       res.status(201).json(medicine);
     } catch (err: any) {
@@ -1353,6 +1371,10 @@ export async function registerRoutes(
           updateData.totalStock = newStock;
         } else {
           updateData.totalStock = prevTotal;
+        }
+        const maxPcs = Number(updateData.qtyPerBox ?? existing.qtyPerBox) || (updateData.totalStock ?? prevTotal);
+        if (newStock > maxPcs) {
+          throw new Error(`Stock (${newStock}) cannot exceed Total Pcs (${maxPcs})`);
         }
         await storage.createStockAdjustment({
           medicineId: id,
