@@ -178,6 +178,11 @@ export const zh = {
     invoice: "发票",
     billDate: "账单日期",
     dueDate: "到期日期",
+    returnMedicine: "退药",
+    returnMedicineTitle: "退药",
+    returnMedicineDesc: "选择要退回的数量。库存和账单金额将更新。",
+    returnQty: "退药数量",
+    processReturn: "确认退货",
   },
   services: {
     title: "服务管理",

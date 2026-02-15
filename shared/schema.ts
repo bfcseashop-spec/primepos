@@ -515,6 +515,8 @@ export type BillItem = {
   unitPrice: number;
   total: number;
   medicineId?: number;
+  packageId?: number;
+  packageName?: string;
 };
 
 /** Item inside a package: service, medicine, injection, or custom (name + price only). */

@@ -178,6 +178,11 @@ export const km = {
     invoice: "វិក្កយបត្រ",
     billDate: "កាលបរិច្ឆេទវិក្កយបត្រ",
     dueDate: "កាលបរិច្ឆេទកំណត់",
+    returnMedicine: "ត្រឡប់ឱសថ",
+    returnMedicineTitle: "ត្រឡប់ឱសថ",
+    returnMedicineDesc: "ជ្រើសរើសបរិមាណដើម្បីត្រឡប់។ ស្តុក និងវិក្កយបត្រនឹងត្រូវបានធ្វើបច្ចុប្បន្នភាព។",
+    returnQty: "បរិមាណត្រឡប់",
+    processReturn: "ដំណើរការត្រឡប់",
   },
   services: {
     title: "គ្រប់គ្រងសេវាកម្ម",

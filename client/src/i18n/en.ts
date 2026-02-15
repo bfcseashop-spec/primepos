@@ -211,6 +211,11 @@ export const en = {
     invoice: "INVOICE",
     billDate: "Bill Date",
     dueDate: "Due Date",
+    returnMedicine: "Return medicine",
+    returnMedicineTitle: "Return medicine",
+    returnMedicineDesc: "Select quantities to return. Stock and bill total will be updated.",
+    returnQty: "Return qty",
+    processReturn: "Process return",
   },
   services: {
     title: "Service Management",

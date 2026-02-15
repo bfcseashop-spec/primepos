@@ -618,6 +618,95 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/bills/:id/return", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid bill id" });
+      const bill = await storage.getBill(id);
+      if (!bill) return res.status(404).json({ message: "Bill not found" });
+      if (bill.status !== "paid") return res.status(400).json({ message: "Only paid bills can have medicine returns" });
+
+      const returnSchema = z.object({
+        returns: z.array(z.object({
+          itemIndex: z.number().int().min(0),
+          quantity: z.number().int().min(1),
+        })).min(1, "At least one return item required"),
+      });
+      const data = validateBody(returnSchema, req.body);
+      const items = Array.isArray(bill.items) ? [...(bill.items as any[])] : [];
+      if (items.length === 0) return res.status(400).json({ message: "Bill has no items" });
+
+      const byIndex = new Map<number, number>();
+      for (const r of data.returns) {
+        const cur = byIndex.get(r.itemIndex) ?? 0;
+        byIndex.set(r.itemIndex, cur + r.quantity);
+      }
+
+      for (const [itemIndex, qty] of byIndex) {
+        if (itemIndex >= items.length) return res.status(400).json({ message: `Invalid item index ${itemIndex}` });
+        const item = items[itemIndex];
+        if (item?.type !== "medicine" || item.medicineId == null) return res.status(400).json({ message: "Can only return medicine items" });
+        const soldQty = typeof item.quantity === "number" ? item.quantity : Number(item.quantity) || 0;
+        if (qty > soldQty) return res.status(400).json({ message: `Return quantity for "${item.name}" cannot exceed ${soldQty}` });
+      }
+
+      const newItems: any[] = [];
+      const returnCredits: { medicineId: number; quantity: number; item: any }[] = [];
+
+      for (let i = 0; i < items.length; i++) {
+        const item = { ...items[i], quantity: typeof items[i].quantity === "number" ? items[i].quantity : Number(items[i].quantity) || 0, unitPrice: Number(items[i].unitPrice) || 0 };
+        const retQty = byIndex.get(i);
+        if (retQty != null && retQty > 0 && item.type === "medicine" && item.medicineId != null) {
+          const remain = item.quantity - retQty;
+          if (remain > 0) {
+            item.quantity = remain;
+            item.total = Math.round(item.unitPrice * remain * 100) / 100;
+            newItems.push(item);
+          }
+          returnCredits.push({ medicineId: Number(item.medicineId), quantity: retQty, item });
+        } else {
+          item.total = Math.round(item.quantity * item.unitPrice * 100) / 100;
+          newItems.push(item);
+        }
+      }
+
+      const subtotal = newItems.reduce((sum, it) => sum + (Number(it.total) || 0), 0);
+      const discountVal = Number(bill.discount) || 0;
+      const discountType = (bill.discountType === "percentage" ? "percentage" : "amount") as "amount" | "percentage";
+      const discountAmount = discountType === "percentage" ? (subtotal * discountVal) / 100 : Math.min(discountVal, subtotal);
+      const total = Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100);
+      const paidAmount = total;
+
+      for (const cr of returnCredits) {
+        const med = await storage.getMedicine(cr.medicineId);
+        if (med) {
+          const prev = Number(med.stockCount ?? 0);
+          const newStock = prev + cr.quantity;
+          await storage.updateMedicine(med.id, { stockCount: newStock, quantity: newStock });
+          await storage.createStockAdjustment({
+            medicineId: med.id,
+            previousStock: prev,
+            newStock,
+            adjustmentType: "add",
+            reason: `Return from bill ${bill.billNo} – ${cr.quantity} pc`,
+          });
+        }
+      }
+
+      const updated = await storage.updateBill(id, {
+        items: newItems,
+        subtotal: String(subtotal.toFixed(2)),
+        total: String(total.toFixed(2)),
+        paidAmount: String(paidAmount.toFixed(2)),
+      });
+      res.json(updated);
+    } catch (err: any) {
+      const msg = err?.message ?? "Server error";
+      const isClientError = err?.name === "ZodError" || (typeof msg === "string" && (msg.includes("Invalid") || msg.includes("required") || msg.includes("cannot exceed") || msg.includes("Can only return") || msg.includes("No return")));
+      res.status(isClientError ? 400 : 500).json({ message: msg });
+    }
+  });
+
   // Services
   app.get("/api/services", async (_req, res) => {
     try {
