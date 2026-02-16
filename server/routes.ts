@@ -1155,6 +1155,21 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/injections/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      for (const id of ids) {
+        await storage.deleteInjection(Number(id));
+      }
+      res.json({ message: `Deleted ${ids.length} injection(s)` });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Packages
   const packageItemSchema = z.object({
     type: z.enum(["service", "medicine", "injection", "custom"]),

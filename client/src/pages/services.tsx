@@ -136,6 +136,8 @@ function InjectionManagement() {
   const [injImportDialogOpen, setInjImportDialogOpen] = useState(false);
   const [injImportFile, setInjImportFile] = useState<File | null>(null);
   const [injImportResult, setInjImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const { data: injections = [], isLoading } = useQuery<Injection[]>({
     queryKey: ["/api/injections"],
@@ -183,6 +185,41 @@ function InjectionManagement() {
       setDeleteInj(null);
     },
   });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await apiRequest("POST", "/api/injections/bulk-delete", { ids });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/injections"] });
+      toast({ title: `Deleted ${selectedIds.size} injection(s)` });
+      setSelectedIds(new Set());
+    },
+    onError: (err: Error) => {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    bulkDeleteMutation.mutate(Array.from(selectedIds));
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(i => i.id)));
+    }
+  };
 
   const injImportMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -312,7 +349,16 @@ function InjectionManagement() {
 
   return (
     <div className="space-y-4 p-4">
-      <div className="flex items-center justify-end gap-2 flex-wrap">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1 border rounded-md p-0.5">
+          <Button variant={viewMode === "list" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("list")} data-testid="button-inj-list-view">
+            <List className="h-4 w-4 mr-1" /> List View
+          </Button>
+          <Button variant={viewMode === "grid" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("grid")} data-testid="button-inj-grid-view">
+            <Grid3X3 className="h-4 w-4 mr-1" /> Grid View
+          </Button>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" data-testid="button-import-injections">
@@ -430,6 +476,7 @@ function InjectionManagement() {
             </Button>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -481,6 +528,20 @@ function InjectionManagement() {
         </CardContent>
       </Card>
 
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border rounded-md">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} data-testid="button-clear-inj-selection">
+              <X className="h-3.5 w-3.5 mr-1" /> Clear
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-delete-injections">
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> {bulkDeleteMutation.isPending ? "Deleting..." : "Delete Selected"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {[...Array(4)].map((_, i) => (
@@ -508,6 +569,88 @@ function InjectionManagement() {
             <p className="text-xs text-muted-foreground/70 mt-1">Add your first injection to get started</p>
           </CardContent>
         </Card>
+      ) : viewMode === "list" ? (
+        <Card>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30">
+                  <th className="p-3 text-left w-10">
+                    <Checkbox checked={selectedIds.size === filtered.length && filtered.length > 0} onCheckedChange={toggleSelectAll} data-testid="checkbox-select-all-inj" />
+                  </th>
+                  <th className="p-3 text-left font-medium text-muted-foreground">Name</th>
+                  <th className="p-3 text-left font-medium text-muted-foreground">{t("common.category")}</th>
+                  <th className="p-3 text-left font-medium text-muted-foreground">{t("common.price")}</th>
+                  <th className="p-3 text-left font-medium text-muted-foreground">{t("common.status")}</th>
+                  <th className="p-3 text-left font-medium text-muted-foreground">Remarks</th>
+                  <th className="p-3 text-right font-medium text-muted-foreground">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(inj => {
+                  const catColor = getInjCatColor(inj.category);
+                  return (
+                    <tr key={inj.id} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors" data-testid={`row-injection-${inj.id}`}>
+                      <td className="p-3">
+                        <Checkbox checked={selectedIds.has(inj.id)} onCheckedChange={() => toggleSelect(inj.id)} data-testid={`checkbox-inj-${inj.id}`} />
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2.5">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className={`text-[10px] font-bold bg-gradient-to-br ${getGradient(inj.id)} text-white`}>
+                              {getInitials(inj.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="font-semibold" data-testid={`text-injection-name-${inj.id}`}>{inj.name}</span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${catColor.bg} ${catColor.text}`}>
+                          <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${catColor.dot}`} />
+                          {inj.category}
+                        </Badge>
+                      </td>
+                      <td className="p-3">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-sm font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800" data-testid={`text-injection-price-${inj.id}`}>
+                          <DollarSign className="h-3 w-3" />{inj.price}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${inj.isActive ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700" : "bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700"}`}>
+                          <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${inj.isActive ? "bg-emerald-500" : "bg-red-500"}`} />
+                          {inj.isActive ? t("common.active") : t("common.inactive")}
+                        </Badge>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-xs text-muted-foreground line-clamp-1">{inj.description || "-"}</span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" data-testid={`button-inj-actions-${inj.id}`}>
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setViewInj(inj)} className="gap-2" data-testid={`action-view-inj-${inj.id}`}>
+                              <Eye className="h-3.5 w-3.5 text-blue-500" /> View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEdit(inj)} className="gap-2" data-testid={`action-edit-inj-${inj.id}`}>
+                              <Pencil className="h-3.5 w-3.5 text-amber-500" /> {t("common.edit")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setDeleteInj(inj)} className="text-destructive gap-2" data-testid={`action-delete-inj-${inj.id}`}>
+                              <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filtered.map(inj => {
@@ -518,11 +661,14 @@ function InjectionManagement() {
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <div className="flex items-center gap-2.5">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className={`text-xs font-bold bg-gradient-to-br ${getGradient(inj.id)} text-white`}>
-                          {getInitials(inj.name)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative">
+                        <Checkbox checked={selectedIds.has(inj.id)} onCheckedChange={() => toggleSelect(inj.id)} className="absolute -top-1 -left-1 z-10" data-testid={`checkbox-inj-${inj.id}`} />
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback className={`text-xs font-bold bg-gradient-to-br ${getGradient(inj.id)} text-white`}>
+                            {getInitials(inj.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
                       <div className="min-w-0">
                         <h4 className="text-sm font-semibold truncate" data-testid={`text-injection-name-${inj.id}`}>{inj.name}</h4>
                         <Badge
