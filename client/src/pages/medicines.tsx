@@ -492,10 +492,13 @@ export default function MedicinesPage() {
       );
     }, className: "w-12" },
     { header: "Medicine Name", accessor: (row: Medicine) => (
-      <span className="font-semibold text-sm">{row.name}</span>
+      <div className="flex flex-col">
+        <span className="font-bold text-sm text-foreground">{row.name}</span>
+        {row.manufacturer && <span className="text-[10px] text-muted-foreground">{row.manufacturer}</span>}
+      </div>
     )},
     { header: "Category", accessor: (row: Medicine) => (
-      <Badge variant="outline" className="text-[11px]">
+      <Badge variant="outline" className="text-[11px] no-default-hover-elevate no-default-active-elevate bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800">
         {row.category || "-"}
       </Badge>
     )},
@@ -504,13 +507,17 @@ export default function MedicinesPage() {
       const qtyPerBox = Number(row.qtyPerBox || 1);
       const pricePerPiece = qtyPerBox > 0 ? boxPrice / qtyPerBox : 0;
       return (
-        <span className="text-sm font-medium text-violet-600 dark:text-violet-400">${pricePerPiece.toFixed(2)}</span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-50 dark:bg-violet-950/30 text-sm font-semibold text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-800">
+          <DollarSign className="h-3 w-3" />{pricePerPiece.toFixed(2)}
+        </span>
       );
     }},
     { header: "Selling Price (Per Pcs)", accessor: (row: Medicine) => {
       const perPiece = Number(row.sellingPriceLocal ?? row.sellingPrice ?? 0);
       return (
-        <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">${perPiece.toFixed(2)}</span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-sm font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+          <DollarSign className="h-3 w-3" />{perPiece.toFixed(2)}
+        </span>
       );
     }},
     { header: "Quantity (Total Pcs)", accessor: (row: Medicine) => {
@@ -518,7 +525,7 @@ export default function MedicinesPage() {
       const purchaseQty = (row.unitCount ?? 0) * (row.qtyPerBox ?? 1);
       const totalPcs = totalRaw > 0 ? totalRaw : Math.max(row.stockCount ?? 0, purchaseQty);
       return (
-        <span className="inline-flex px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-[11px] font-mono font-medium text-blue-700 dark:text-blue-300">{totalPcs}</span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/30 text-sm font-bold font-mono text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">{totalPcs}</span>
       );
     }},
     { header: "Unit", accessor: (row: Medicine) => getUnitBadge(row.unit || "Box") },
@@ -528,30 +535,45 @@ export default function MedicinesPage() {
       const purchaseQty = (row.unitCount ?? 0) * (row.qtyPerBox ?? 1);
       const total = totalRaw > 0 ? totalRaw : Math.max(current, purchaseQty);
       const sold = Math.max(0, total - current);
+      const pct = total > 0 ? Math.round((sold / total) * 100) : 0;
       return (
-        <span className="text-xs text-muted-foreground">
-          {sold} sold · {current} left
-        </span>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs font-medium text-orange-600 dark:text-orange-400">{sold} sold</span>
+          <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-500 transition-all" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
       );
     }},
-    { header: "Available", accessor: (row: Medicine) => (
-      <span className="text-sm font-semibold text-foreground">{row.stockCount ?? 0}</span>
-    )},
+    { header: "Available", accessor: (row: Medicine) => {
+      const current = row.stockCount ?? 0;
+      const isLow = current < (row.stockAlert || 10) && current > 0;
+      const isOut = current === 0;
+      return (
+        <span className={`text-sm font-bold ${isOut ? "text-red-600 dark:text-red-400" : isLow ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>{current}</span>
+      );
+    }},
     { header: "Status", accessor: (row: Medicine) => {
       const current = row.stockCount ?? 0;
       const isLow = current < (row.stockAlert || 10) && current > 0;
       const isOut = current === 0;
       if (isOut) return (
-        <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">Out of Stock</Badge>
+        <Badge variant="outline" className="text-[10px] no-default-hover-elevate no-default-active-elevate bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700">
+          <PackageX className="h-3 w-3 mr-1" />Out of Stock
+        </Badge>
       );
       if (isLow) return (
-        <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20">Low Stock</Badge>
+        <Badge variant="outline" className="text-[10px] no-default-hover-elevate no-default-active-elevate bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+          <AlertTriangle className="h-3 w-3 mr-1" />Low Stock
+        </Badge>
       );
       return (
-        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">In stock</Badge>
+        <Badge variant="outline" className="text-[10px] no-default-hover-elevate no-default-active-elevate bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700">
+          <CheckCircle2 className="h-3 w-3 mr-1" />In Stock
+        </Badge>
       );
     }},
-    { header: "Expiry Date (Optional)", accessor: (row: Medicine) => getExpiryBadge(row.expiryDate) },
+    { header: "Expiry Date", accessor: (row: Medicine) => getExpiryBadge(row.expiryDate) },
     { header: "Actions", accessor: (row: Medicine) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
