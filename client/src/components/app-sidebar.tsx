@@ -35,7 +35,6 @@ const mainItems = [
   { i18nKey: "sidebar.labTests", url: "/lab-tests", icon: FlaskConical, iconColor: "text-cyan-500" },
   { i18nKey: "sidebar.sampleCollections", url: "/sample-collections", icon: TestTubes, iconColor: "text-teal-500" },
   { i18nKey: "sidebar.medicines", url: "/medicines", icon: Pill, iconColor: "text-orange-500" },
-  { i18nKey: "sidebar.medicinePurchases", url: "/medicine-purchases", icon: ShoppingBag, iconColor: "text-lime-500" },
   { i18nKey: "sidebar.doctorManagement", url: "/doctors", icon: UserRound, iconColor: "text-teal-500" },
 ];
 
