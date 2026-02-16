@@ -319,7 +319,6 @@ export default function MedicinesPage() {
     setFieldErrors({});
     const perPiece = Number(med.sellingPriceLocal ?? med.sellingPrice ?? med.sellingPriceForeigner) || 0;
     const totalPcs = (med.unitCount || 1) * (med.qtyPerBox || 1);
-    const salesPrice = perPiece * totalPcs;
     setForm({
       name: med.name,
       category: med.category || "",
@@ -329,7 +328,7 @@ export default function MedicinesPage() {
       unit: med.unit || "Box",
       totalPcs,
       purchasePrice: Number(med.perMedPrice) || (totalPcs > 0 ? (Number(med.boxPrice) || 0) / totalPcs : 0),
-      salesPrice,
+      salesPrice: perPiece,
       stockAvailable: med.stockCount || 0,
       stockAlert: med.stockAlert || 10,
       imageUrl: med.imageUrl || "",
@@ -774,14 +773,14 @@ export default function MedicinesPage() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="salesPrice">Total Sales Price *</Label>
-              <Input ref={refSalesPrice} id="salesPrice" type="number" step="0.01" min={0} value={totalSalesPrice || ""} onChange={e => { const total = Number(e.target.value) || 0; const perPc = form.totalPcs > 0 ? total / form.totalPcs : 0; setForm(f => ({ ...f, salesPrice: perPc })); setFieldErrors(prev => ({ ...prev, salesPrice: "" })); }} data-testid="input-medicine-sales-price" className={fieldErrors.salesPrice ? "border-destructive" : ""} />
+              <Label htmlFor="salesPrice">Sales Each Price *</Label>
+              <Input ref={refSalesPrice} id="salesPrice" type="number" step="0.01" min={0} value={form.salesPrice || ""} onChange={e => { const perPc = Number(e.target.value) || 0; setForm(f => ({ ...f, salesPrice: perPc })); setFieldErrors(prev => ({ ...prev, salesPrice: "" })); }} data-testid="input-medicine-sales-price" className={fieldErrors.salesPrice ? "border-destructive" : ""} />
               {fieldErrors.salesPrice && <p className="text-xs text-destructive mt-1">{fieldErrors.salesPrice}</p>}
             </div>
             <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-md p-3 flex flex-col justify-center border border-emerald-200 dark:border-emerald-800">
-              <span className="text-xs text-muted-foreground">Sales Each Price (Auto)</span>
-              <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400" data-testid="calc-sales-each">
-                ${form.salesPrice.toFixed(2)}
+              <span className="text-xs text-muted-foreground">Total Sales Price (Auto)</span>
+              <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400" data-testid="calc-sales-total">
+                ${totalSalesPrice.toFixed(2)}
               </span>
             </div>
           </div>
