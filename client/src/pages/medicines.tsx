@@ -981,7 +981,7 @@ export default function MedicinesPage() {
                   const current = adjustStockMed.stockCount ?? 0;
                   const totalPcs = Number(adjustStockMed.qtyPerBox) || Number((adjustStockMed as Medicine & { totalStock?: number }).totalStock) || current;
                   const newStock = adjustStockMode === "set" ? Math.max(0, num) : adjustStockMode === "add" ? current + num : Math.max(0, current - num);
-                  if (newStock > totalPcs) {
+                  if (adjustStockMode !== "add" && newStock > totalPcs) {
                     toast({ title: `Stock (${newStock}) cannot exceed Total Pcs (${totalPcs})`, variant: "destructive" });
                     return;
                   }

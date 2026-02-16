@@ -1407,13 +1407,17 @@ export async function registerRoutes(
         const prevTotal = Number((existing as any).totalStock) ?? prevStock;
         if (adjustmentType === "add") {
           updateData.totalStock = prevTotal + (newStock - prevStock);
+          const currentMaxPcs = Number(existing.qtyPerBox) || prevTotal;
+          if (newStock > currentMaxPcs) {
+            updateData.qtyPerBox = newStock;
+          }
         } else if (adjustmentType === "set") {
           updateData.totalStock = newStock;
         } else {
           updateData.totalStock = prevTotal;
         }
         const maxPcs = Number(updateData.qtyPerBox ?? existing.qtyPerBox) || (updateData.totalStock ?? prevTotal);
-        if (newStock > maxPcs) {
+        if (adjustmentType !== "add" && newStock > maxPcs) {
           throw new Error(`Stock (${newStock}) cannot exceed Total Pcs (${maxPcs})`);
         }
         await storage.createStockAdjustment({
