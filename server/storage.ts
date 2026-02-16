@@ -619,6 +619,10 @@ export class DatabaseStorage implements IStorage {
 
   async getSettings(): Promise<ClinicSettings | undefined> {
     const [s] = await db.select().from(clinicSettings).limit(1);
+    if (s?.clinicName === "Prime Medical Clinic") {
+      const [updated] = await db.update(clinicSettings).set({ clinicName: "Prime Clinic Center" }).where(eq(clinicSettings.id, s.id)).returning();
+      return updated;
+    }
     return s;
   }
 
