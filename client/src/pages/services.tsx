@@ -1268,6 +1268,40 @@ export default function ServicesPage() {
     );
   };
 
+  if (activeTab === "injections") {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="border-b px-4">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setActiveTab("services")}
+              className="px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-colors"
+              data-testid="tab-services"
+            >
+              <div className="flex items-center gap-1.5">
+                <Activity className="h-4 w-4" />
+                Services
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab("injections")}
+              className="px-4 py-2.5 text-sm font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400 transition-colors"
+              data-testid="tab-injections"
+            >
+              <div className="flex items-center gap-1.5">
+                <Syringe className="h-4 w-4" />
+                Injections
+              </div>
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto">
+          <InjectionManagement />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       <PageHeader
@@ -1415,11 +1449,7 @@ export default function ServicesPage() {
         <div className="flex gap-1">
           <button
             onClick={() => setActiveTab("services")}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "services"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+            className="px-4 py-2.5 text-sm font-medium border-b-2 border-primary text-primary transition-colors"
             data-testid="tab-services"
           >
             <div className="flex items-center gap-1.5">
@@ -1429,11 +1459,7 @@ export default function ServicesPage() {
           </button>
           <button
             onClick={() => setActiveTab("injections")}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "injections"
-                ? "border-cyan-500 text-cyan-600 dark:text-cyan-400"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+            className="px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-colors"
             data-testid="tab-injections"
           >
             <div className="flex items-center gap-1.5">
@@ -1444,11 +1470,6 @@ export default function ServicesPage() {
         </div>
       </div>
 
-      {activeTab === "injections" ? (
-        <div className="flex-1 overflow-auto">
-          <InjectionManagement />
-        </div>
-      ) : (
       <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {statCards.map((s, i) => (
@@ -1575,7 +1596,6 @@ export default function ServicesPage() {
           </div>
         )}
       </div>
-      )}
 
       <Dialog open={!!viewService} onOpenChange={(open) => { if (!open) setViewService(null); }}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
