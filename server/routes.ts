@@ -356,43 +356,33 @@ export async function registerRoutes(
       const sampleRows = [
         {
           "Medicine Name": "Paracetamol 500mg", Category: "Tablet",
-          "Unit Type": "Box", "Total Pcs": 100,
-          "Total Purchase Price": "100.00", "Purchase Each Price (auto)": "1.00",
-          "Total Sales Price": "150.00", "Sales Each Price (auto)": "1.50",
-          "Stock Available pcs": 1000, "Expiry Date": "2027-12-31",
-          Manufacturer: "PharmaCo", "Batch No": "B-2026-001", "Stock Alert": 20,
+          "Purchase Price (Per Pcs)": "1.00", "Selling Price (Per Pcs)": "1.50",
+          "Quantity (Total Pcs)": 100, Unit: "Box",
+          Available: 1000, Status: "Active", "Expiry Date": "2027-12-31",
         },
         {
           "Medicine Name": "Amoxicillin 500mg", Category: "Capsule",
-          "Unit Type": "Box", "Total Pcs": 50,
-          "Total Purchase Price": "250.00", "Purchase Each Price (auto)": "5.00",
-          "Total Sales Price": "400.00", "Sales Each Price (auto)": "8.00",
-          "Stock Available pcs": 500, "Expiry Date": "2027-06-15",
-          Manufacturer: "MedLab", "Batch No": "B-2026-002", "Stock Alert": 15,
+          "Purchase Price (Per Pcs)": "5.00", "Selling Price (Per Pcs)": "8.00",
+          "Quantity (Total Pcs)": 50, Unit: "Box",
+          Available: 500, Status: "Active", "Expiry Date": "2027-06-15",
         },
         {
           "Medicine Name": "Cough Syrup", Category: "Syrup",
-          "Unit Type": "Bottle", "Total Pcs": 1,
-          "Total Purchase Price": "6.00", "Purchase Each Price (auto)": "6.00",
-          "Total Sales Price": "9.00", "Sales Each Price (auto)": "9.00",
-          "Stock Available pcs": 150, "Expiry Date": "2026-08-25",
-          Manufacturer: "HealthCare", "Batch No": "B-2026-003", "Stock Alert": 10,
+          "Purchase Price (Per Pcs)": "6.00", "Selling Price (Per Pcs)": "9.00",
+          "Quantity (Total Pcs)": 1, Unit: "Bottle",
+          Available: 150, Status: "Active", "Expiry Date": "2026-08-25",
         },
         {
           "Medicine Name": "Omeprazole 20mg", Category: "Capsule",
-          "Unit Type": "Box", "Total Pcs": 30,
-          "Total Purchase Price": "240.00", "Purchase Each Price (auto)": "8.00",
-          "Total Sales Price": "360.00", "Sales Each Price (auto)": "12.00",
-          "Stock Available pcs": 300, "Expiry Date": "2027-03-20",
-          Manufacturer: "GastroPharm", "Batch No": "B-2026-004", "Stock Alert": 10,
+          "Purchase Price (Per Pcs)": "8.00", "Selling Price (Per Pcs)": "12.00",
+          "Quantity (Total Pcs)": 30, Unit: "Box",
+          Available: 300, Status: "Active", "Expiry Date": "2027-03-20",
         },
         {
           "Medicine Name": "Ciprofloxacin 250mg", Category: "Tablet",
-          "Unit Type": "Box", "Total Pcs": 20,
-          "Total Purchase Price": "240.00", "Purchase Each Price (auto)": "12.00",
-          "Total Sales Price": "360.00", "Sales Each Price (auto)": "18.00",
-          "Stock Available pcs": 8, "Expiry Date": "2026-09-10",
-          Manufacturer: "AntiBioLab", "Batch No": "B-2026-005", "Stock Alert": 10,
+          "Purchase Price (Per Pcs)": "12.00", "Selling Price (Per Pcs)": "18.00",
+          "Quantity (Total Pcs)": 20, Unit: "Box",
+          Available: 8, Status: "Active", "Expiry Date": "2026-09-10",
         },
       ];
       const wb = XLSX.utils.book_new();
@@ -1066,39 +1056,34 @@ export async function registerRoutes(
         const name = row["Medicine Name"] || row["Name"] || row["name"];
         if (!name) { skipped++; errors.push(`Row ${i + 2}: Missing medicine name`); continue; }
         try {
-          const totalPcs = parseInt(row["Total Pcs"] || row["Qty Per Box"] || row["qtyPerBox"] || "1") || 1;
-          const unitCount = parseInt(row["Unit Count"] || row["unitCount"] || "1") || 1;
-          const totalPurchasePriceRaw = parseFloat(row["Total Purchase Price"] || row["totalPurchasePrice"] || "0") || 0;
-          const purchasePricePerPcRaw = parseFloat(row["Purchase Each Price (auto)"] || row["Purchase Price (per pc)"] || row["Purchase Price"] || row["Box Price"] || row["boxPrice"] || "0") || 0;
-          const totalPurchasePrice = totalPurchasePriceRaw > 0 ? totalPurchasePriceRaw : (purchasePricePerPcRaw * totalPcs);
-          const purchasePricePerPc = totalPurchasePrice > 0 && totalPcs > 0 ? totalPurchasePrice / totalPcs : purchasePricePerPcRaw;
-          const boxPrice = totalPurchasePrice;
-          const totalSalesPriceRaw = parseFloat(row["Total Sales Price"] || "0") || 0;
-          const salesPerPiecesRaw = parseFloat(row["Sales Each Price (auto)"] || row["Sales Per Pieces"] || row["Sales Price"] || row["Selling Price (Local)"] || row["sellingPriceLocal"] || "0") || 0;
-          const totalSalesPrice = totalSalesPriceRaw > 0 ? totalSalesPriceRaw : (salesPerPiecesRaw * totalPcs);
-          const salesPerPieces = totalSalesPrice > 0 && totalPcs > 0 ? totalSalesPrice / totalPcs : salesPerPiecesRaw;
-          const stockAvailable = parseInt(row["Stock Available pcs"] || row["Stock Available"] || row["Stock Count"] || row["stockCount"] || "0") || 0;
+          const totalPcs = parseInt(row["Quantity (Total Pcs)"] || row["Total Pcs"] || row["Qty Per Box"] || "1") || 1;
+          const purchasePricePerPc = parseFloat(row["Purchase Price (Per Pcs)"] || row["Purchase Each Price (auto)"] || row["Purchase Price"] || "0") || 0;
+          const totalPurchasePrice = purchasePricePerPc * totalPcs;
+          const sellingPricePerPc = parseFloat(row["Selling Price (Per Pcs)"] || row["Sales Each Price (auto)"] || row["Sales Price"] || "0") || 0;
+          const stockAvailable = parseInt(row["Available"] || row["Stock Available pcs"] || row["Stock Available"] || "0") || 0;
+          const statusRaw = (row["Status"] || "Active").toString().toLowerCase();
+          const isActive = statusRaw !== "inactive";
           await storage.createMedicine({
             name,
-            genericName: row["Generic Name"] || row["genericName"] || null,
+            genericName: null,
             category: row["Category"] || row["category"] || null,
-            manufacturer: row["Manufacturer"] || row["manufacturer"] || null,
-            batchNo: row["Batch No"] || row["batchNo"] || null,
+            manufacturer: null,
+            batchNo: null,
             expiryDate: row["Expiry Date"] || row["expiryDate"] || null,
-            unit: row["Unit Type"] || row["Unit"] || row["unit"] || "Box",
-            unitCount,
-            boxPrice: boxPrice.toString(),
+            unit: row["Unit"] || row["Unit Type"] || row["unit"] || "Box",
+            unitCount: 1,
+            boxPrice: totalPurchasePrice.toFixed(2),
             qtyPerBox: totalPcs,
             perMedPrice: purchasePricePerPc.toFixed(4),
             totalPurchasePrice: totalPurchasePrice.toFixed(2),
-            sellingPriceLocal: salesPerPieces.toFixed(2),
-            sellingPriceForeigner: (parseFloat(row["Selling Price (Foreigner)"] || row["sellingPriceForeigner"] || "0") || salesPerPieces).toFixed(2),
+            sellingPriceLocal: sellingPricePerPc.toFixed(2),
+            sellingPriceForeigner: sellingPricePerPc.toFixed(2),
             stockCount: stockAvailable,
             totalStock: stockAvailable,
-            stockAlert: parseInt(row["Stock Alert"] || row["stockAlert"] || "10") || 10,
+            stockAlert: 10,
             quantity: stockAvailable,
-            unitPrice: "0", sellingPrice: "0", isActive: true,
-            imageUrl: row["Image URL"] || row["imageUrl"] || null,
+            unitPrice: "0", sellingPrice: "0", isActive,
+            imageUrl: null,
           });
           imported++;
         } catch (err: any) { skipped++; errors.push(`Row ${i + 2}: ${err.message}`); }
