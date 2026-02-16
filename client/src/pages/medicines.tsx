@@ -537,14 +537,6 @@ export default function MedicinesPage() {
     { header: "Available", accessor: (row: Medicine) => (
       <span className="text-sm font-semibold text-foreground">{row.stockCount ?? 0}</span>
     )},
-    { header: "Stock Short", accessor: (row: Medicine) => {
-      const current = row.stockCount ?? 0;
-      const alert = row.stockAlert ?? 10;
-      if (current >= alert || current === 0) return <span className="text-xs text-muted-foreground">-</span>;
-      return (
-        <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Short by {alert - current}</span>
-      );
-    }},
     { header: "Status", accessor: (row: Medicine) => {
       const current = row.stockCount ?? 0;
       const isLow = current < (row.stockAlert || 10) && current > 0;
