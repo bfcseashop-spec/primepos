@@ -73,6 +73,7 @@ const defaultCategoryColor = { bg: "bg-violet-500/10", text: "text-violet-700 da
 
 const defaultForm = {
   name: "", category: "", price: "", description: "", imageUrl: "",
+  isLabTest: false, sampleCollectionRequired: false, sampleType: "Blood",
 };
 
 const injectionAvatarGradients = [
@@ -917,6 +918,9 @@ export default function ServicesPage() {
       description: form.description || null,
       imageUrl: form.imageUrl || null,
       isActive: true,
+      isLabTest: form.isLabTest,
+      sampleCollectionRequired: form.sampleCollectionRequired,
+      sampleType: form.isLabTest ? form.sampleType : null,
     };
     if (editService) {
       updateMutation.mutate({ id: editService.id, data: payload });
@@ -927,12 +931,16 @@ export default function ServicesPage() {
 
   const openEdit = (svc: Service) => {
     setFieldErrors({});
+    const s = svc as Service & { isLabTest?: boolean; sampleCollectionRequired?: boolean; sampleType?: string };
     setForm({
       name: svc.name,
       category: svc.category,
       price: svc.price,
       description: svc.description || "",
       imageUrl: svc.imageUrl || "",
+      isLabTest: s.isLabTest ?? false,
+      sampleCollectionRequired: s.sampleCollectionRequired ?? false,
+      sampleType: s.sampleType || "Blood",
     });
     setEditService(svc);
   };
@@ -1006,6 +1014,31 @@ export default function ServicesPage() {
         <div>
           <Label htmlFor="svc-description">{t("common.description")}</Label>
           <Textarea id="svc-description" rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} data-testid="input-service-description" />
+        </div>
+        <div className="flex items-center gap-4 space-y-0">
+          <div className="flex items-center gap-2">
+            <Checkbox id="svc-isLabTest" checked={form.isLabTest} onCheckedChange={v => setForm(f => ({ ...f, isLabTest: !!v }))} />
+            <Label htmlFor="svc-isLabTest" className="cursor-pointer text-sm font-normal">Lab Test (creates lab request when added to bill)</Label>
+          </div>
+          {form.isLabTest && (
+            <>
+              <div className="flex items-center gap-2">
+                <Checkbox id="svc-sampleRequired" checked={form.sampleCollectionRequired} onCheckedChange={v => setForm(f => ({ ...f, sampleCollectionRequired: !!v }))} />
+                <Label htmlFor="svc-sampleRequired" className="cursor-pointer text-sm font-normal">Sample collection required</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">Sample type</Label>
+                <Select value={form.sampleType} onValueChange={v => setForm(f => ({ ...f, sampleType: v }))}>
+                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Blood", "Urine", "Stool", "Sputum", "Swab", "Tissue", "CSF", "Saliva", "Serum", "Plasma", "Other"].map(st => (
+                      <SelectItem key={st} value={st}>{st}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

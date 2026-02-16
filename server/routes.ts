@@ -606,6 +606,45 @@ export async function registerRoutes(
         }
       }
       const bill = await storage.createBill(data as Parameters<typeof storage.createBill>[0]);
+
+      const patientId = Number(data.patientId);
+      const referrerName = (data.referenceDoctor as string) || null;
+      const allServices = await storage.getServices();
+      for (const item of items) {
+        if (item?.type === "service" && (item.serviceId != null || item.name)) {
+          const serv = item.serviceId != null
+            ? allServices.find(s => s.id === Number(item.serviceId))
+            : allServices.find(s => s.name === item.name);
+          if (serv && (serv as any).isLabTest) {
+            const code = await storage.getNextLabTestCode();
+            const sampleRequired = Boolean((serv as any).sampleCollectionRequired);
+            const labTest = await storage.createLabTest({
+              testCode: code,
+              testName: serv.name,
+              category: serv.category,
+              sampleType: (serv as any).sampleType || "Blood",
+              price: String(serv.price),
+              patientId,
+              serviceId: serv.id,
+              billId: bill.id,
+              sampleCollectionRequired: sampleRequired,
+              referrerName,
+              status: sampleRequired ? "awaiting_sample" : "processing",
+            });
+            if (sampleRequired) {
+              await storage.createSampleCollection({
+                labTestId: labTest.id,
+                patientId,
+                billId: bill.id,
+                testName: serv.name,
+                sampleType: (serv as any).sampleType || "Blood",
+                status: "pending",
+              });
+            }
+          }
+        }
+      }
+
       for (const [medIdStr, totalQty] of Object.entries(medQtyMap)) {
         const med = await storage.getMedicine(Number(medIdStr));
         if (med) {
@@ -2339,6 +2378,11 @@ export async function registerRoutes(
   app.post("/api/lab-tests/:id/upload-report", reportUpload.single('report'), async (req, res) => {
     try {
       const id = Number(req.params.id);
+      const existing = await storage.getLabTest(id);
+      if (!existing) return res.status(404).json({ message: "Lab test not found" });
+      if (existing.status === "awaiting_sample") {
+        return res.status(400).json({ message: "Sample collection is required before uploading report. Mark the sample as collected on the Sample Collection page first." });
+      }
       const file = req.file;
       if (!file) return res.status(400).json({ message: "No file uploaded" });
       const referrerName = req.body.referrerName || null;
@@ -2390,6 +2434,38 @@ export async function registerRoutes(
       res.json({ success: true, deleted: ids.length });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/sample-collections", async (_req, res) => {
+    try {
+      const result = await storage.getSampleCollections();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/sample-collections/:id", async (req, res) => {
+    try {
+      const data = req.body;
+      const allowed = ["status", "collectedAt", "collectedBy", "notes"];
+      const updateData: Record<string, unknown> = {};
+      for (const k of allowed) {
+        if (data[k] !== undefined) updateData[k] = data[k];
+      }
+      if (Object.keys(updateData).length === 0) return res.status(400).json({ message: "No valid fields to update" });
+      if (updateData.status === "collected") {
+        updateData.collectedAt = updateData.collectedAt || new Date().toISOString();
+      }
+      const sc = await storage.updateSampleCollection(Number(req.params.id), updateData);
+      if (!sc) return res.status(404).json({ message: "Sample collection not found" });
+      if (sc.status === "collected" && sc.labTestId) {
+        await storage.updateLabTest(sc.labTestId, { status: "processing" });
+      }
+      res.json(sc);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
     }
   });
 

@@ -126,6 +126,9 @@ export default function BillingPage() {
   const [editBill, setEditBill] = useState<any>(null);
   const [medicineQty, setMedicineQty] = useState(1);
   const [medicineBarcodeScan, setMedicineBarcodeScan] = useState("");
+  const [customItemName, setCustomItemName] = useState("");
+  const [customItemPrice, setCustomItemPrice] = useState("");
+  const [customItemQty, setCustomItemQty] = useState(1);
   const [deleteBillConfirm, setDeleteBillConfirm] = useState<{ open: boolean; billId?: number }>({ open: false });
   const [returnBill, setReturnBill] = useState<any>(null);
   const [returnQuantities, setReturnQuantities] = useState<Record<number, number>>({});
@@ -419,6 +422,9 @@ export default function BillingPage() {
   const resetForm = () => {
     setBillItems([]);
     setSelectedPatient("");
+    setCustomItemName("");
+    setCustomItemPrice("");
+    setCustomItemQty(1);
     setDiscount("0");
     setDiscountType("amount");
     setPaymentMethod("cash");
@@ -436,6 +442,7 @@ export default function BillingPage() {
       quantity: 1,
       unitPrice: Number(service.price),
       total: Number(service.price),
+      serviceId: service.id,
     }]);
   };
 
@@ -532,6 +539,25 @@ export default function BillingPage() {
     const med = medicines.find(m => m.id === Number(medicineId));
     if (!med) return;
     addMedicineFromObject(med);
+  };
+
+  const addCustomItem = () => {
+    const name = customItemName.trim();
+    const price = Number(customItemPrice) || 0;
+    const qty = Math.max(1, Math.floor(customItemQty));
+    if (!name) {
+      toast({ title: "Enter item name", variant: "destructive" });
+      return;
+    }
+    if (price < 0) {
+      toast({ title: "Price must be positive", variant: "destructive" });
+      return;
+    }
+    const total = Math.round(price * qty * 100) / 100;
+    setBillItems(prev => [...prev, { name, type: "custom", quantity: qty, unitPrice: price, total }]);
+    setCustomItemName("");
+    setCustomItemPrice("");
+    setCustomItemQty(1);
   };
 
   const updateItemQuantity = (index: number, qty: number) => {
@@ -955,6 +981,40 @@ export default function BillingPage() {
                           };
                         })}
                       />
+                      <div className="flex items-center gap-2 pt-1">
+                        <Tag className="h-4 w-4 text-amber-500" />
+                        <span className="text-sm font-semibold">Custom Item</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 items-end">
+                        <Input
+                          placeholder="Item name"
+                          value={customItemName}
+                          onChange={e => setCustomItemName(e.target.value)}
+                          onKeyDown={e => e.key === "Enter" && addCustomItem()}
+                          className="flex-1 min-w-[100px]"
+                          data-testid="input-custom-item-name"
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Price"
+                          value={customItemPrice}
+                          onChange={e => setCustomItemPrice(e.target.value)}
+                          className="w-20"
+                          data-testid="input-custom-item-price"
+                        />
+                        <Input
+                          type="number"
+                          min={1}
+                          value={customItemQty}
+                          onChange={e => setCustomItemQty(Number(e.target.value) || 1)}
+                          className="w-14"
+                        />
+                        <Button type="button" variant="outline" size="sm" onClick={addCustomItem} data-testid="button-add-custom-item">
+                          Add
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                   <Card className="border-dashed">
@@ -1029,7 +1089,7 @@ export default function BillingPage() {
                         <div key={i} className="grid grid-cols-[1fr,80px,70px,85px,40px] gap-2 px-4 py-2 items-center border-t text-sm">
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
-                              {item.type === "service" ? "SVC" : item.type === "injection" ? "INJ" : "MED"}
+                              {item.type === "service" ? "SVC" : item.type === "injection" ? "INJ" : item.type === "custom" ? "CUS" : "MED"}
                             </Badge>
                             <span className="truncate">{item.name}</span>
                           </div>

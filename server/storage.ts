@@ -19,6 +19,7 @@ import {
   type InsertIntegration, type Integration,
   type InsertClinicSettings, type ClinicSettings,
   type InsertLabTest, type LabTest,
+  sampleCollections, type InsertSampleCollection, type SampleCollection,
   type InsertAppointment, type Appointment,
   type InsertDoctor, type Doctor,
   type InsertSalary, type Salary,
@@ -141,6 +142,11 @@ export interface IStorage {
   deleteLabTest(id: number): Promise<void>;
   bulkDeleteLabTests(ids: number[]): Promise<void>;
   getNextLabTestCode(): Promise<string>;
+
+  getSampleCollections(): Promise<any[]>;
+  getSampleCollection(id: number): Promise<SampleCollection | undefined>;
+  createSampleCollection(s: InsertSampleCollection): Promise<SampleCollection>;
+  updateSampleCollection(id: number, data: Partial<InsertSampleCollection>): Promise<SampleCollection | undefined>;
 
   getAppointments(): Promise<any[]>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
@@ -820,6 +826,39 @@ export class DatabaseStorage implements IStorage {
     const [result] = await db.select({ maxId: sql<number>`COALESCE(MAX(id), 0)` }).from(labTests);
     const num = (result.maxId || 0) + 1;
     return `LAB-${String(num).padStart(4, '0')}`;
+  }
+
+  async getSampleCollections(): Promise<any[]> {
+    return db.select({
+      id: sampleCollections.id,
+      labTestId: sampleCollections.labTestId,
+      patientId: sampleCollections.patientId,
+      billId: sampleCollections.billId,
+      testName: sampleCollections.testName,
+      sampleType: sampleCollections.sampleType,
+      status: sampleCollections.status,
+      collectedAt: sampleCollections.collectedAt,
+      collectedBy: sampleCollections.collectedBy,
+      notes: sampleCollections.notes,
+      createdAt: sampleCollections.createdAt,
+      patientName: patients.name,
+      patientIdCode: patients.patientId,
+    }).from(sampleCollections).leftJoin(patients, eq(sampleCollections.patientId, patients.id)).orderBy(desc(sampleCollections.createdAt));
+  }
+
+  async getSampleCollection(id: number): Promise<SampleCollection | undefined> {
+    const [s] = await db.select().from(sampleCollections).where(eq(sampleCollections.id, id));
+    return s;
+  }
+
+  async createSampleCollection(s: InsertSampleCollection): Promise<SampleCollection> {
+    const [created] = await db.insert(sampleCollections).values(s as typeof sampleCollections.$inferInsert).returning();
+    return created;
+  }
+
+  async updateSampleCollection(id: number, data: Partial<InsertSampleCollection>): Promise<SampleCollection | undefined> {
+    const [updated] = await db.update(sampleCollections).set(data).where(eq(sampleCollections.id, id)).returning();
+    return updated;
   }
 
   async getAppointments(): Promise<any[]> {

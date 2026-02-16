@@ -65,6 +65,9 @@ export const services = pgTable("services", {
   description: text("description"),
   imageUrl: text("image_url"),
   isActive: boolean("is_active").notNull().default(true),
+  isLabTest: boolean("is_lab_test").notNull().default(false),
+  sampleCollectionRequired: boolean("sample_collection_required").notNull().default(false),
+  sampleType: text("sample_type"),
 });
 
 export const insertServiceSchema = createInsertSchema(services).omit({ id: true } as any);
@@ -333,12 +336,33 @@ export const labTests = pgTable("lab_tests", {
   description: text("description"),
   turnaroundTime: text("turnaround_time"),
   patientId: integer("patient_id").references(() => patients.id),
+  serviceId: integer("service_id").references(() => services.id),
+  billId: integer("bill_id").references(() => bills.id),
+  sampleCollectionRequired: boolean("sample_collection_required").notNull().default(false),
   reportFileUrl: text("report_file_url"),
   reportFileName: text("report_file_name"),
   referrerName: text("referrer_name"),
   status: text("status").notNull().default("processing"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const sampleCollections = pgTable("sample_collections", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  labTestId: integer("lab_test_id").references(() => labTests.id).notNull(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  billId: integer("bill_id").references(() => bills.id),
+  testName: text("test_name").notNull(),
+  sampleType: text("sample_type").notNull(),
+  status: text("status").notNull().default("pending"),
+  collectedAt: timestamp("collected_at"),
+  collectedBy: text("collected_by"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSampleCollectionSchema = createInsertSchema(sampleCollections).omit({ id: true, createdAt: true } as any);
+export type InsertSampleCollection = z.infer<typeof insertSampleCollectionSchema>;
+export type SampleCollection = typeof sampleCollections.$inferSelect;
 
 export const insertLabTestSchema = createInsertSchema(labTests).omit({ id: true, createdAt: true } as any);
 export type InsertLabTest = z.infer<typeof insertLabTestSchema>;
@@ -511,11 +535,12 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 
 export type BillItem = {
   name: string;
-  type: "service" | "medicine" | "injection";
+  type: "service" | "medicine" | "injection" | "custom";
   quantity: number;
   unitPrice: number;
   total: number;
   medicineId?: number;
+  serviceId?: number;
   packageId?: number;
   packageName?: string;
 };

@@ -37,6 +37,7 @@ const SAMPLE_TYPES = [
 const STATUS_OPTIONS = [
   { value: "processing", label: "Processing", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30" },
   { value: "complete", label: "Complete", color: "text-green-600 dark:text-green-400", bg: "bg-green-100 dark:bg-green-900/30" },
+  { value: "awaiting_sample", label: "Awaiting Sample", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30" },
   { value: "sample_missing", label: "Sample Missing", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30" },
   { value: "cancel", label: "Cancel", color: "text-red-600 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30" },
 ];
@@ -100,6 +101,7 @@ function LiveTimer({ createdAt, status, turnaroundTime }: { createdAt: string | 
 
   if (status === "complete") return <span className="text-xs text-green-600 dark:text-green-400 font-medium">{t("labTests.completed")}</span>;
   if (status === "cancel") return <span className="text-xs text-red-600 dark:text-red-400 font-medium">{t("labTests.cancelled")}</span>;
+  if (status === "awaiting_sample") return <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">{t("labTests.awaitingSample")}</span>;
   if (status === "sample_missing") return <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">{t("labTests.waiting")}</span>;
 
   const { text, overdue } = getCountdownTime(createdAt, turnaroundTime);
@@ -356,6 +358,7 @@ export default function LabTestsPage() {
   const statusBadgeConfig: Record<string, { dot: string; bg: string; text: string; border: string }> = {
     processing: { dot: "bg-amber-500", bg: "bg-amber-500/10 dark:bg-amber-400/10", text: "text-amber-700 dark:text-amber-300", border: "border-amber-500/20" },
     complete: { dot: "bg-emerald-500", bg: "bg-emerald-500/10 dark:bg-emerald-400/10", text: "text-emerald-700 dark:text-emerald-300", border: "border-emerald-500/20" },
+    awaiting_sample: { dot: "bg-amber-500", bg: "bg-amber-500/10 dark:bg-amber-400/10", text: "text-amber-700 dark:text-amber-300", border: "border-amber-500/20" },
     sample_missing: { dot: "bg-red-500", bg: "bg-red-500/10 dark:bg-red-400/10", text: "text-red-700 dark:text-red-300", border: "border-red-500/20" },
     cancel: { dot: "bg-slate-500", bg: "bg-slate-500/10 dark:bg-slate-400/10", text: "text-slate-700 dark:text-slate-300", border: "border-slate-500/20" },
   };
@@ -421,6 +424,9 @@ export default function LabTestsPage() {
           <SelectItem value="complete">
             <div className="flex items-center gap-1.5"><CheckCircle className="h-3 w-3 text-green-500" /> {t("labTests.completed")}</div>
           </SelectItem>
+          <SelectItem value="awaiting_sample">
+            <div className="flex items-center gap-1.5"><TestTubes className="h-3 w-3 text-amber-500" /> {t("labTests.awaitingSample")}</div>
+          </SelectItem>
           <SelectItem value="sample_missing">
             <div className="flex items-center gap-1.5"><AlertTriangle className="h-3 w-3 text-amber-500" /> {t("labTests.sampleMissing")}</div>
           </SelectItem>
@@ -449,8 +455,19 @@ export default function LabTestsPage() {
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="gap-2" data-testid={`action-edit-${row.id}`}>
             <Pencil className="h-4 w-4 text-amber-500" /> {t("common.edit")}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setUploadTest(row); setUploadReferrer(row.referrerName || ""); }} className="gap-2" data-testid={`action-upload-${row.id}`}>
-            <Upload className="h-4 w-4 text-green-500" /> {t("labTests.uploadReport")}
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              if (row.status === "awaiting_sample") return;
+              setUploadTest(row);
+              setUploadReferrer(row.referrerName || "");
+            }}
+            disabled={row.status === "awaiting_sample"}
+            className={`gap-2 ${row.status === "awaiting_sample" ? "opacity-60 cursor-not-allowed" : ""}`}
+            data-testid={`action-upload-${row.id}`}
+            title={row.status === "awaiting_sample" ? t("labTests.awaitingSampleTooltip") : undefined}
+          >
+            <Upload className="h-4 w-4 text-green-500" /> {row.status === "awaiting_sample" ? t("labTests.awaitingSample") : t("labTests.uploadReport")}
           </DropdownMenuItem>
           {row.reportFileUrl && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); window.open(row.reportFileUrl!, '_blank'); }} className="gap-2" data-testid={`action-download-${row.id}`}>
@@ -466,7 +483,7 @@ export default function LabTestsPage() {
             if (printWindow) {
               const categories = row.category.split(",").map(c => c.trim()).filter(Boolean).join(", ");
               const sampleTypes = row.sampleType.split(",").map(s => s.trim()).filter(Boolean).join(", ");
-              const statusLabels: Record<string, string> = { processing: "Processing", complete: "Complete", sample_missing: "Sample Missing", cancel: "Cancelled" };
+              const statusLabels: Record<string, string> = { processing: "Processing", complete: "Complete", awaiting_sample: "Awaiting Sample", sample_missing: "Sample Missing", cancel: "Cancelled" };
               printWindow.document.write(`
                 <html><head><title>Lab Test - ${row.testCode}</title>
                 <style>
@@ -479,6 +496,7 @@ export default function LabTestsPage() {
                   .status { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: bold; font-size: 13px; }
                   .status-processing { background: #dbeafe; color: #1d4ed8; }
                   .status-complete { background: #dcfce7; color: #15803d; }
+                  .status-awaiting_sample { background: #fef3c7; color: #b45309; }
                   .status-sample_missing { background: #fef3c7; color: #b45309; }
                   .status-cancel { background: #fee2e2; color: #dc2626; }
                   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

@@ -25,6 +25,7 @@ import IntegrationsPage from "@/pages/integrations";
 import ReportsPage from "@/pages/reports";
 import SettingsPage from "@/pages/settings";
 import LabTestsPage from "@/pages/lab-tests";
+import SampleCollectionsPage from "@/pages/sample-collections";
 import RegisterPatientPage from "@/pages/register-patient";
 import AppointmentsPage from "@/pages/appointments";
 import DoctorManagementPage from "@/pages/doctor-management";
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/services" component={ServicesPage} />
       <Route path="/packages" component={PackagesPage} />
       <Route path="/lab-tests" component={LabTestsPage} />
+      <Route path="/sample-collections" component={SampleCollectionsPage} />
       <Route path="/medicines" component={MedicinesPage} />
       <Route path="/expenses" component={ExpensesPage} />
       <Route path="/bank" component={BankTransactionsPage} />
