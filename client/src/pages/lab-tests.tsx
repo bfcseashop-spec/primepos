@@ -337,11 +337,15 @@ export default function LabTestsPage() {
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.35; }
         .lab-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
         table { border-collapse: collapse; }
-        @media print { @page { size: ${settings?.printPageSize || "A5"}; margin: 8mm; } body { padding: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+        @media print { @page { size: ${settings?.printPageSize || "A5"}; margin: 8mm; } html, body { min-height: 100%; margin: 0; padding: 0; } body { padding: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+        .lab-print-page { min-height: 100vh; display: flex; flex-direction: column; }
+        .lab-print-body { flex: 1; }
+        .lab-print-footer { margin-top: auto; }
       </style></head><body>
 
-        <div style="padding:${bodyPad};">
+        <div class="lab-print-page" style="padding:${bodyPad};">
 
+          <div class="lab-print-body">
           <!-- HEADER (compact) -->
           <div style="text-align:center;margin-bottom:${isCompact ? "4px" : "6px"};padding-bottom:${isCompact ? "4px" : "5px"};border-bottom:1px solid ${border};">
             ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "24px" : "32px"};margin:0 auto 2px;display:block;" />` : ""}
@@ -391,6 +395,9 @@ export default function LabTestsPage() {
           </table>
           ` : ""}
 
+          </div>
+
+          <div class="lab-print-footer">
           ${row.labTechnologist && row.labTechnologist.fullName ? (() => {
             const tech = row.labTechnologist;
             const sigHref = tech.signatureUrl ? (tech.signatureUrl.startsWith("http") ? tech.signatureUrl : `${typeof window !== "undefined" ? window.location.origin : ""}${tech.signatureUrl.startsWith("/") ? tech.signatureUrl : "/" + tech.signatureUrl}`) : "";
@@ -421,6 +428,7 @@ export default function LabTestsPage() {
             ${clinicEmail ? `<div style="font-size:${fSm}px;color:${muted};margin-top:1px;">Contact: ${clinicEmail}</div>` : ""}
           </div>
 
+          </div>
         </div>
 
         <script>window.onload = function() { window.print(); }</script>
