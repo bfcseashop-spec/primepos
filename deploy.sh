@@ -44,11 +44,16 @@ echo "  Code backup: $TAR_FILE"
 # --- 2. Backup database ---
 if [ -n "$DATABASE_URL" ]; then
   echo "[2/7] Backing up database to $SQL_FILE"
-  if pg_dump "$DATABASE_URL" -F p -f "$SQL_FILE" 2>/dev/null; then
-    echo "  Database backup: $SQL_FILE"
+  if command -v pg_dump >/dev/null 2>&1; then
+    if pg_dump "$DATABASE_URL" -F p -f "$SQL_FILE" 2>/dev/null; then
+      echo "  Database backup: $SQL_FILE"
+    else
+      echo "  WARNING: pg_dump failed (check DB connection). Skipping DB backup."
+      rm -f "$SQL_FILE"
+    fi
   else
-    echo "  WARNING: pg_dump failed (is PostgreSQL client installed?). Skipping DB backup."
-    rm -f "$SQL_FILE"
+    echo "  WARNING: pg_dump not found. Install with: apt install postgresql-client"
+    echo "  Skipping DB backup."
   fi
 else
   echo "[2/7] Skipping DB backup (DATABASE_URL not set)"

@@ -33,7 +33,12 @@ Backups are stored in `backups/` with timestamped names:
 - `pg_dump` - for database backup (PostgreSQL client tools)
 - `DATABASE_URL` in `.env` - for database backup
 
-To install PostgreSQL client tools on Ubuntu: `apt install postgresql-client`
+To enable database backups, install the PostgreSQL client:
+
+```bash
+sudo apt update
+sudo apt install postgresql-client
+```
 
 ## Troubleshooting
 
