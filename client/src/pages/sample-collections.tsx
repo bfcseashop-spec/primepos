@@ -91,6 +91,8 @@ export default function SampleCollectionsPage() {
 
   const printBarcode = (sample: SampleCollection) => {
     const barcodeValue = "SC" + sample.id;
+    const testName = (sample.testName || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const patientName = (sample.patientName || "-").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
     printWindow.document.write(`
@@ -98,17 +100,21 @@ export default function SampleCollectionsPage() {
       <html><head><title>Sample ${barcodeValue}</title>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
       <style>
-        @page { size: 40mm 20mm landscape; margin: 1mm; }
+        @page { size: 40mm 25mm landscape; margin: 1mm; }
         @media print { html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-        body { font-family: Arial, sans-serif; margin: 0; padding: 1mm; display: flex; justify-content: center; align-items: center; min-height: 18mm; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 1mm; display: flex; justify-content: center; align-items: center; min-height: 23mm; }
         .sticker { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; text-align: center; }
-        .sticker .barcode-wrap { margin-bottom: 1mm; }
+        .sticker .barcode-wrap { margin-bottom: 0.5mm; }
         .sticker .barcode-wrap svg { display: block; max-width: 100%; }
-        .sticker .id { font-family: monospace; font-size: 6pt; font-weight: bold; }
+        .sticker .id { font-family: monospace; font-size: 5pt; font-weight: bold; margin-bottom: 0.5mm; }
+        .sticker .test-name { font-size: 5pt; font-weight: bold; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .patient-name { font-size: 4pt; color: #333; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       </style></head><body>
       <div class="sticker">
         <div class="barcode-wrap"><svg id="barcode"></svg></div>
         <div class="id">${barcodeValue}</div>
+        <div class="test-name">${testName}</div>
+        <div class="patient-name">${patientName}</div>
       </div>
       <script>
         window.addEventListener('load', function() {
