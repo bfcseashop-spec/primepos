@@ -31,7 +31,7 @@ import type { Service, Injection } from "@shared/schema";
 
 const DEFAULT_SERVICE_CATEGORIES = [
   "General", "Emergency", "Preventive", "Cardiology", "Therapy",
-  "Consultation", "Laboratory", "Radiology", "Ultrasound",
+  "Consultation", "Laboratory", "Lab Test", "Ultrasound", "Radiology",
   "ECG", "Physiotherapy", "Dental", "Ophthalmology",
   "Surgery", "Other"
 ];
@@ -65,6 +65,8 @@ const categoryColors: Record<string, { bg: string; text: string; dot: string }> 
   Therapy: { bg: "bg-amber-500/10", text: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500" },
   Consultation: { bg: "bg-violet-500/10", text: "text-violet-700 dark:text-violet-300", dot: "bg-violet-500" },
   Laboratory: { bg: "bg-cyan-500/10", text: "text-cyan-700 dark:text-cyan-300", dot: "bg-cyan-500" },
+  "Lab Test": { bg: "bg-teal-500/10", text: "text-teal-700 dark:text-teal-300", dot: "bg-teal-500" },
+  Ultrasound: { bg: "bg-indigo-500/10", text: "text-indigo-700 dark:text-indigo-300", dot: "bg-indigo-500" },
   Radiology: { bg: "bg-indigo-500/10", text: "text-indigo-700 dark:text-indigo-300", dot: "bg-indigo-500" },
   Surgery: { bg: "bg-red-500/10", text: "text-red-700 dark:text-red-300", dot: "bg-red-500" },
 };
@@ -1096,17 +1098,20 @@ export default function ServicesPage() {
     toast({ title: t("common.dataRefreshed") });
   };
 
+  const parseCategories = (cat: string) => cat.split(",").map(c => c.trim()).filter(Boolean);
   const filtered = services.filter(s => {
     const matchSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (s.description || "").toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCategory = categoryFilter === "all" || s.category === categoryFilter;
+    const matchCategory = categoryFilter === "all" || parseCategories(s.category).includes(categoryFilter);
     return matchSearch && matchCategory;
   });
 
   const activeCount = services.filter(s => s.isActive).length;
   const inactiveCount = services.filter(s => !s.isActive).length;
-  const uniqueCategories = Array.from(new Set(services.map(s => s.category)));
+  const uniqueCategories = Array.from(new Set(services.flatMap(s => parseCategories(s.category)))).sort();
+  const allCategoriesForForm = Array.from(new Set([...categories, ...uniqueCategories, ...services.map(s => s.category).filter(Boolean)])).sort();
+  const categoriesToShowInModal = Array.from(new Set([...categories, ...uniqueCategories])).sort();
   const totalValue = services.reduce((sum, s) => sum + parseFloat(s.price || "0"), 0);
 
   const getAvatarGradient = (id: number) => avatarGradients[id % avatarGradients.length];
@@ -1144,7 +1149,7 @@ export default function ServicesPage() {
             <Select value={form.category} onValueChange={v => { setForm(f => ({ ...f, category: v })); setFieldErrors(prev => ({ ...prev, category: "" })); }}>
               <SelectTrigger ref={refCategory} data-testid="select-service-category"><SelectValue placeholder={t("common.category")} /></SelectTrigger>
               <SelectContent>
-                {categories.map(cat => (
+                {allCategoriesForForm.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
@@ -1254,7 +1259,7 @@ export default function ServicesPage() {
   );
 
   const renderServiceCard = (svc: Service) => {
-    const catColor = getCatColor(svc.category);
+    const cats = parseCategories(svc.category);
     const topGrad = cardTopGradients[svc.id % cardTopGradients.length];
 
     return (
@@ -1283,13 +1288,24 @@ export default function ServicesPage() {
                   <div className="min-w-0">
                     <h4 className="text-sm font-semibold truncate" data-testid={`text-service-name-${svc.id}`}>{svc.name}</h4>
                     <div className="flex flex-wrap gap-1 mt-0.5">
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${catColor.bg} ${catColor.text}`}
-                      >
-                        <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${catColor.dot}`} />
-                        {svc.category}
-                      </Badge>
+                      {cats.length > 0 ? cats.map(c => {
+                        const cc = getCatColor(c);
+                        return (
+                          <Badge
+                            key={c}
+                            variant="outline"
+                            className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${cc.bg} ${cc.text}`}
+                          >
+                            <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${cc.dot}`} />
+                            {c}
+                          </Badge>
+                        );
+                      }) : (
+                        <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${defaultCategoryColor.bg} ${defaultCategoryColor.text}`}>
+                          <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${defaultCategoryColor.dot}`} />
+                          {svc.category || "-"}
+                        </Badge>
+                      )}
                       {(svc as Service & { isLabTest?: boolean }).isLabTest && (
                         <Badge variant="outline" className="text-[10px] bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20">
                           Lab Test
@@ -1350,7 +1366,7 @@ export default function ServicesPage() {
   };
 
   const renderServiceListItem = (svc: Service) => {
-    const catColor = getCatColor(svc.category);
+    const cats = parseCategories(svc.category);
 
     return (
       <Card key={svc.id} className="overflow-visible hover-elevate" data-testid={`card-service-${svc.id}`}>
@@ -1374,10 +1390,20 @@ export default function ServicesPage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="text-sm font-semibold truncate" data-testid={`text-service-name-${svc.id}`}>{svc.name}</h4>
-                <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${catColor.bg} ${catColor.text}`}>
-                  <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${catColor.dot}`} />
-                  {svc.category}
-                </Badge>
+                {cats.length > 0 ? cats.map(c => {
+                  const cc = getCatColor(c);
+                  return (
+                    <Badge key={c} variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${cc.bg} ${cc.text}`}>
+                      <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${cc.dot}`} />
+                      {c}
+                    </Badge>
+                  );
+                }) : (
+                  <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${defaultCategoryColor.bg} ${defaultCategoryColor.text}`}>
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${defaultCategoryColor.dot}`} />
+                    {svc.category || "-"}
+                  </Badge>
+                )}
                 {(svc as Service & { isLabTest?: boolean }).isLabTest && (
                   <Badge variant="outline" className="text-[10px] bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20">
                     Lab Test
@@ -1486,7 +1512,7 @@ export default function ServicesPage() {
                       onChange={e => setNewCategory(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === "Enter" && newCategory.trim()) {
-                          if (categories.includes(newCategory.trim())) {
+                          if (categoriesToShowInModal.includes(newCategory.trim())) {
                             toast({ title: t("common.categoryExists"), variant: "destructive" });
                             return;
                           }
@@ -1502,7 +1528,7 @@ export default function ServicesPage() {
                     <Button
                       onClick={() => {
                         if (!newCategory.trim()) return;
-                        if (categories.includes(newCategory.trim())) {
+                        if (categoriesToShowInModal.includes(newCategory.trim())) {
                           toast({ title: t("common.categoryExists"), variant: "destructive" });
                           return;
                         }
@@ -1518,15 +1544,19 @@ export default function ServicesPage() {
                     </Button>
                   </div>
                   <div className="max-h-60 overflow-y-auto space-y-1">
-                    {categories.map(cat => {
+                    {categoriesToShowInModal.map(cat => {
                       const cc = getCatColor(cat);
+                      const canRemove = categories.includes(cat) && !DEFAULT_SERVICE_CATEGORIES.includes(cat);
                       return (
                         <div key={cat} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md hover-elevate">
                           <div className="flex items-center gap-2">
                             <span className={`inline-block h-2 w-2 rounded-full ${cc.dot}`} />
                             <span className="text-sm">{cat}</span>
+                            {uniqueCategories.includes(cat) && !categories.includes(cat) && (
+                              <span className="text-[10px] text-muted-foreground">(used by services)</span>
+                            )}
                           </div>
-                          {!DEFAULT_SERVICE_CATEGORIES.includes(cat) && (
+                          {canRemove && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1762,7 +1792,7 @@ export default function ServicesPage() {
             <DialogDescription>{t("services.subtitle")}</DialogDescription>
           </DialogHeader>
           {viewService && (() => {
-            const catColor = getCatColor(viewService.category);
+            const viewCats = parseCategories(viewService.category);
             return (
               <div className="space-y-4">
                 {viewService.imageUrl && (
@@ -1780,10 +1810,22 @@ export default function ServicesPage() {
                   )}
                   <div>
                     <h3 className="font-semibold">{viewService.name}</h3>
-                    <Badge variant="outline" className={`text-[10px] mt-1 no-default-hover-elevate no-default-active-elevate ${catColor.bg} ${catColor.text}`}>
-                      <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${catColor.dot}`} />
-                      {viewService.category}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {viewCats.length > 0 ? viewCats.map(c => {
+                        const cc = getCatColor(c);
+                        return (
+                          <Badge key={c} variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${cc.bg} ${cc.text}`}>
+                            <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${cc.dot}`} />
+                            {c}
+                          </Badge>
+                        );
+                      }) : (
+                        <Badge variant="outline" className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${defaultCategoryColor.bg} ${defaultCategoryColor.text}`}>
+                          <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${defaultCategoryColor.dot}`} />
+                          {viewService.category || "-"}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
