@@ -208,6 +208,7 @@ export default function StaffPage() {
         roleId: form.get("roleId") ? Number(form.get("roleId")) : null,
         isActive: form.get("status") === "active",
         qualification: form.get("qualification") || null,
+        signaturePrintInLabReport: form.get("signaturePrintInLabReport") === "on",
       },
     });
   };
@@ -709,6 +710,10 @@ export default function StaffPage() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Used on printed lab test reports for Lab Technologist role</p>
+                <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                  <input type="checkbox" name="signaturePrintInLabReport" defaultChecked={(selectedUser as { signaturePrintInLabReport?: boolean }).signaturePrintInLabReport !== false} className="rounded border-input" />
+                  <span className="text-sm">Print signature in lab reports</span>
+                </label>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

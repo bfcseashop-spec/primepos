@@ -408,7 +408,7 @@ export default function LabTestsPage() {
 
   type PrintLayout = "compact" | "full";
   const escapeHtml = (s: string) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  const printLabReport = (row: LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string; category?: string }> | null; labTechnologist?: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string } | null }, layout: PrintLayout = "full") => {
+  const printLabReport = (row: LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string; category?: string }> | null; labTechnologist?: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string; signaturePrintInLabReport?: boolean } | null }, layout: PrintLayout = "full") => {
     const pageSize = settings?.printPageSize || "A4";
     const labPageSize = pageSize === "A5" ? "A4" : pageSize;
     const printWindow = window.open("", "_blank", "width=794,height=1123");
@@ -566,16 +566,16 @@ export default function LabTestsPage() {
             </div>
             ${row.labTechnologist && row.labTechnologist.fullName ? (() => {
               const tech = row.labTechnologist!;
-              const sigHref = tech.signatureUrl ? (tech.signatureUrl.startsWith("http") ? tech.signatureUrl : `${typeof window !== "undefined" ? window.location.origin : ""}${tech.signatureUrl.startsWith("/") ? tech.signatureUrl : "/" + tech.signatureUrl}`) : "";
+              const printSig = tech.signaturePrintInLabReport !== false;
+              const sigHref = printSig && tech.signatureUrl ? (tech.signatureUrl.startsWith("http") ? tech.signatureUrl : `${typeof window !== "undefined" ? window.location.origin : ""}${tech.signatureUrl.startsWith("/") ? tech.signatureUrl : "/" + tech.signatureUrl}`) : "";
               const name = escapeHtml(tech.fullName);
-              const qual = tech.qualification ? escapeHtml(tech.qualification) : "";
-              const role = tech.roleName ? escapeHtml(tech.roleName) : "";
+              const qualRaw = tech.qualification || "";
+              const qual = qualRaw ? qualRaw.split(",").map(s => escapeHtml(s.trim())).filter(Boolean).join("<br/>") : "";
               return `
             <div style="text-align:right;font-size:${fSm}px;line-height:1.35;">
               ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:36px;max-width:80px;object-contain;display:block;margin-left:auto;margin-bottom:2px;" onerror="this.style.display='none'" />` : ""}
               <div style="font-weight:700;color:${accent};">${name}</div>
               ${qual ? `<div style="color:${muted};">${qual}</div>` : ""}
-              ${role ? `<div style="color:${teal};font-weight:600;">${role}</div>` : ""}
             </div>`;
             })() : ""}
           </div>

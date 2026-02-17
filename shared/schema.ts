@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   roleId: integer("role_id").references(() => roles.id),
   qualification: text("qualification"),
   signatureUrl: text("signature_url"),
+  signaturePrintInLabReport: boolean("signature_print_in_lab_report").notNull().default(true),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });

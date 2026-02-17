@@ -2132,7 +2132,7 @@ export async function registerRoutes(
 
   app.patch("/api/users/:id", async (req, res) => {
     try {
-      const updateSchema = z.object({ isActive: z.boolean().optional(), roleId: z.number().nullable().optional(), fullName: z.string().optional(), email: z.string().nullable().optional(), phone: z.string().nullable().optional(), qualification: z.string().nullable().optional(), signatureUrl: z.string().nullable().optional() });
+      const updateSchema = z.object({ isActive: z.boolean().optional(), roleId: z.number().nullable().optional(), fullName: z.string().optional(), email: z.string().nullable().optional(), phone: z.string().nullable().optional(), qualification: z.string().nullable().optional(), signatureUrl: z.string().nullable().optional(), signaturePrintInLabReport: z.boolean().optional() });
       const data = validateBody(updateSchema, req.body);
       const user = await storage.updateUser(Number(req.params.id), data);
       if (!user) return res.status(404).json({ message: "User not found" });

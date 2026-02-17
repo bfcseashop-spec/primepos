@@ -824,6 +824,7 @@ export class DatabaseStorage implements IStorage {
       technologistFullName: users.fullName,
       technologistQualification: users.qualification,
       technologistSignatureUrl: users.signatureUrl,
+      technologistSignaturePrintInLabReport: users.signaturePrintInLabReport,
       technologistRoleName: roles.name,
     }).from(labTests)
       .leftJoin(patients, eq(labTests.patientId, patients.id))
@@ -831,7 +832,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(roles, eq(users.roleId, roles.id))
       .orderBy(desc(labTests.createdAt));
     return result.map((r: any) => {
-      const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistRoleName, patientPatientId, patientAge, patientDateOfBirth, patientGender, ...rest } = r;
+      const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistSignaturePrintInLabReport, technologistRoleName, patientPatientId, patientAge, patientDateOfBirth, patientGender, ...rest } = r;
       const resolvedAge = patientAge != null ? patientAge : this._ageFromDob(patientDateOfBirth);
       return {
         ...rest,
@@ -843,6 +844,7 @@ export class DatabaseStorage implements IStorage {
           fullName: technologistFullName,
           qualification: technologistQualification,
           signatureUrl: technologistSignatureUrl,
+          signaturePrintInLabReport: technologistSignaturePrintInLabReport ?? true,
           roleName: technologistRoleName,
         } : null,
       };
@@ -883,6 +885,7 @@ export class DatabaseStorage implements IStorage {
       technologistFullName: users.fullName,
       technologistQualification: users.qualification,
       technologistSignatureUrl: users.signatureUrl,
+      technologistSignaturePrintInLabReport: users.signaturePrintInLabReport,
       technologistRoleName: roles.name,
     }).from(labTests)
       .leftJoin(patients, eq(labTests.patientId, patients.id))
@@ -890,7 +893,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(roles, eq(users.roleId, roles.id))
       .where(eq(labTests.id, id));
     if (!row) return undefined;
-    const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistRoleName, patientPatientId, patientAge, patientDateOfBirth, patientGender, ...rest } = row as any;
+    const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistSignaturePrintInLabReport, technologistRoleName, patientPatientId, patientAge, patientDateOfBirth, patientGender, ...rest } = row as any;
     const resolvedAge = patientAge != null ? patientAge : this._ageFromDob(patientDateOfBirth);
     return {
       ...rest,
@@ -902,6 +905,7 @@ export class DatabaseStorage implements IStorage {
         fullName: technologistFullName,
         qualification: technologistQualification,
         signatureUrl: technologistSignatureUrl,
+        signaturePrintInLabReport: technologistSignaturePrintInLabReport ?? true,
         roleName: technologistRoleName,
       } : null,
     };
