@@ -789,6 +789,16 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/services/:id", async (req, res) => {
+    try {
+      const service = await storage.getService(Number(req.params.id));
+      if (!service) return res.status(404).json({ message: "Service not found" });
+      res.json(service);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/services", async (req, res) => {
     try {
       const data = validateBody(insertServiceSchema, req.body);
@@ -801,6 +811,13 @@ export async function registerRoutes(
 
   app.patch("/api/services/:id", async (req, res) => {
     try {
+      const reportParamSchema = z.object({
+        parameter: z.string(),
+        unit: z.string(),
+        normalRange: z.string(),
+        unitType: z.enum(["text", "select"]).optional(),
+        unitOptions: z.array(z.string()).optional(),
+      });
       const updateSchema = z.object({
         isActive: z.boolean().optional(),
         name: z.string().optional(),
@@ -811,6 +828,7 @@ export async function registerRoutes(
         isLabTest: z.boolean().optional(),
         sampleCollectionRequired: z.boolean().optional(),
         sampleType: z.string().nullable().optional(),
+        reportParameters: z.array(reportParamSchema).optional(),
       });
       const data = validateBody(updateSchema, req.body);
       const service = await storage.updateService(Number(req.params.id), data);
@@ -2372,6 +2390,7 @@ export async function registerRoutes(
 
   app.patch("/api/lab-tests/:id", async (req, res) => {
     try {
+      const reportResultSchema = z.object({ parameter: z.string(), result: z.string(), unit: z.string(), normalRange: z.string() });
       const updateSchema = z.object({
         testName: z.string().optional(),
         category: z.string().optional(),
@@ -2383,6 +2402,7 @@ export async function registerRoutes(
         referrerName: z.string().nullable().optional(),
         reportFileUrl: z.string().nullable().optional(),
         reportFileName: z.string().nullable().optional(),
+        reportResults: z.array(reportResultSchema).optional(),
         status: z.string().optional(),
       });
       const data = validateBody(updateSchema, req.body);

@@ -73,10 +73,14 @@ const categoryColors: Record<string, { bg: string; text: string; dot: string }> 
 
 const defaultCategoryColor = { bg: "bg-violet-500/10", text: "text-violet-700 dark:text-violet-300", dot: "bg-violet-500" };
 
+type ReportParam = { parameter: string; unit: string; normalRange: string; unitType?: "text" | "select"; unitOptions?: string[] };
 const defaultForm = {
   name: "", category: "", price: "", description: "", imageUrl: "",
   isLabTest: false, sampleCollectionRequired: false, sampleType: "Blood",
+  reportParameters: [] as ReportParam[],
 };
+
+const COMMON_LAB_UNITS = ["mg/dL", "mmol/L", "g/L", "g/dL", "mg/L", "µmol/L", "%", "cells/µL", "IU/L", "U/L", "mEq/L", "pg/mL", "ng/mL", "µg/mL", "HPF", "LPF", "—", "N/A"];
 
 const injectionAvatarGradients = [
   "from-cyan-500 to-teal-400",
@@ -1069,6 +1073,9 @@ export default function ServicesPage() {
       isLabTest: form.isLabTest,
       sampleCollectionRequired: form.sampleCollectionRequired,
       sampleType: form.isLabTest ? form.sampleType : null,
+      reportParameters: form.isLabTest && form.reportParameters?.length
+        ? form.reportParameters.filter(p => (p.parameter || "").trim())
+        : null,
     };
     if (editService) {
       updateMutation.mutate({ id: editService.id, data: payload });
@@ -1079,7 +1086,7 @@ export default function ServicesPage() {
 
   const openEdit = (svc: Service) => {
     setFieldErrors({});
-    const s = svc as Service & { isLabTest?: boolean; sampleCollectionRequired?: boolean; sampleType?: string };
+    const s = svc as Service & { isLabTest?: boolean; sampleCollectionRequired?: boolean; sampleType?: string; reportParameters?: ReportParam[] };
     setForm({
       name: svc.name,
       category: svc.category,
@@ -1089,6 +1096,7 @@ export default function ServicesPage() {
       isLabTest: s.isLabTest ?? false,
       sampleCollectionRequired: s.sampleCollectionRequired ?? false,
       sampleType: s.sampleType || "Blood",
+      reportParameters: Array.isArray(s.reportParameters) ? s.reportParameters : [],
     });
     setEditService(svc);
   };
@@ -1187,6 +1195,61 @@ export default function ServicesPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="col-span-2 mt-2">
+                <Label className="text-sm font-medium">Report Parameters</Label>
+                <p className="text-xs text-muted-foreground mb-2">Configure parameters for manual test result entry. Unit can be manual text or dropdown selector.</p>
+                <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
+                  {(form.reportParameters || []).map((p, i) => (
+                    <div key={i} className="flex gap-2 items-start flex-wrap">
+                      <Input placeholder="Parameter (e.g. Glucose)" value={p.parameter} onChange={e => {
+                        const arr = [...(form.reportParameters || [])];
+                        arr[i] = { ...arr[i], parameter: e.target.value };
+                        setForm(f => ({ ...f, reportParameters: arr }));
+                      }} className="flex-1 min-w-[120px]" />
+                      <Select value={p.unitType || "text"} onValueChange={(v: "text" | "select") => {
+                        const arr = [...(form.reportParameters || [])];
+                        arr[i] = { ...arr[i], unitType: v, unitOptions: v === "select" ? COMMON_LAB_UNITS : undefined };
+                        setForm(f => ({ ...f, reportParameters: arr }));
+                      }}>
+                        <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="text">Manual</SelectItem>
+                          <SelectItem value="select">Dropdown</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {p.unitType === "select" ? (
+                        <Select value={p.unit} onValueChange={v => {
+                          const arr = [...(form.reportParameters || [])];
+                          arr[i] = { ...arr[i], unit: v };
+                          setForm(f => ({ ...f, reportParameters: arr }));
+                        }}>
+                          <SelectTrigger className="w-28"><SelectValue placeholder="Unit" /></SelectTrigger>
+                          <SelectContent>
+                            {COMMON_LAB_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input placeholder="Unit" value={p.unit} onChange={e => {
+                          const arr = [...(form.reportParameters || [])];
+                          arr[i] = { ...arr[i], unit: e.target.value };
+                          setForm(f => ({ ...f, reportParameters: arr }));
+                        }} className="w-24" />
+                      )}
+                      <Input placeholder="Normal Range" value={p.normalRange} onChange={e => {
+                        const arr = [...(form.reportParameters || [])];
+                        arr[i] = { ...arr[i], normalRange: e.target.value };
+                        setForm(f => ({ ...f, reportParameters: arr }));
+                      }} className="w-28" />
+                      <Button type="button" variant="ghost" size="icon" onClick={() => setForm(f => ({ ...f, reportParameters: (f.reportParameters || []).filter((_, j) => j !== i) }))}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" size="sm" onClick={() => setForm(f => ({ ...f, reportParameters: [...(f.reportParameters || []), { parameter: "", unit: "", normalRange: "", unitType: "text" }] }))}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Parameter
+                  </Button>
+                </div>
               </div>
             </>
           )}

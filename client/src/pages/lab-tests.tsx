@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, QrCode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User, Clock, XCircle, AlertTriangle, Loader2, ChevronDown } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, QrCode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User, Clock, XCircle, AlertTriangle, Loader2, ChevronDown, ClipboardList } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { LabTest, Patient } from "@shared/schema";
 
@@ -168,6 +168,8 @@ export default function LabTestsPage() {
   const [viewTest, setViewTest] = useState<LabTestWithPatient | null>(null);
   const [barcodeTest, setBarcodeTest] = useState<LabTestWithPatient | null>(null);
   const [uploadTest, setUploadTest] = useState<LabTestWithPatient | null>(null);
+  const [inputResultsTest, setInputResultsTest] = useState<LabTestWithPatient | null>(null);
+  const [inputResultsValues, setInputResultsValues] = useState<Record<string, string>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [form, setForm] = useState(defaultForm);
@@ -190,6 +192,11 @@ export default function LabTestsPage() {
 
   const { data: patients = [] } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
+  });
+
+  const { data: inputResultsService } = useQuery<{ reportParameters?: Array<{ parameter: string; unit: string; normalRange: string; unitType?: string; unitOptions?: string[] }> }>({
+    queryKey: inputResultsTest?.serviceId ? [`/api/services/${inputResultsTest.serviceId}`] : ["__skip"],
+    enabled: !!inputResultsTest?.serviceId,
   });
 
   const createMutation = useMutation({
@@ -515,6 +522,25 @@ export default function LabTestsPage() {
           >
             <Upload className="h-4 w-4 text-green-500" /> {row.status === "awaiting_sample" ? t("labTests.awaitingSample") : t("labTests.uploadReport")}
           </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              if (row.status === "awaiting_sample") return;
+              setInputResultsTest(row);
+              const existing = (row as LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string }> }).reportResults;
+              const init: Record<string, string> = {};
+              if (Array.isArray(existing)) {
+                for (const r of existing) init[r.parameter] = r.result;
+              }
+              setInputResultsValues(init);
+            }}
+            disabled={row.status === "awaiting_sample"}
+            className={`gap-2 ${row.status === "awaiting_sample" ? "opacity-60 cursor-not-allowed" : ""}`}
+            data-testid={`action-input-results-${row.id}`}
+            title={row.status === "awaiting_sample" ? t("labTests.awaitingSampleTooltip") : undefined}
+          >
+            <ClipboardList className="h-4 w-4 text-teal-500" /> Input Test Results
+          </DropdownMenuItem>
           {row.reportFileUrl && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); window.open(row.reportFileUrl!, '_blank'); }} className="gap-2" data-testid={`action-download-${row.id}`}>
               <Download className="h-4 w-4 text-emerald-500" /> {t("labTests.downloadReport")}
@@ -768,6 +794,33 @@ export default function LabTestsPage() {
                     <span className="text-sm text-muted-foreground">{t("labTests.noReport")}</span>
                   )}
                 </div>
+                {(viewTest as LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults?.length ? (
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground font-medium mb-2">Test Results</p>
+                    <div className="border rounded-md overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-muted/50">
+                            <th className="p-2 text-left font-medium">Parameter</th>
+                            <th className="p-2 text-left font-medium">Result</th>
+                            <th className="p-2 text-left font-medium">Unit</th>
+                            <th className="p-2 text-left font-medium">Normal Range</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(viewTest as LabTestWithPatient & { reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults.map((r, i) => (
+                            <tr key={i} className="border-t">
+                              <td className="p-2">{r.parameter}</td>
+                              <td className="p-2 font-medium text-emerald-600 dark:text-emerald-400">{r.result}</td>
+                              <td className="p-2 text-muted-foreground">{r.unit || "—"}</td>
+                              <td className="p-2 text-muted-foreground">{r.normalRange || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="col-span-2">
                   <p className="text-xs text-muted-foreground">{t("common.description")}</p>
                   <p className="text-sm">{viewTest.description || "-"}</p>
@@ -837,6 +890,81 @@ export default function LabTestsPage() {
                 {uploading ? t("common.loading") : t("labTests.uploadReport")}
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {inputResultsTest && (
+        <Dialog open={!!inputResultsTest} onOpenChange={(open) => { if (!open) { setInputResultsTest(null); setInputResultsValues({}); } }}>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-teal-500" />
+                Input Test Results
+              </DialogTitle>
+              <DialogDescription>Enter results for {inputResultsTest.testCode} - {inputResultsTest.testName}</DialogDescription>
+            </DialogHeader>
+            {!inputResultsTest.serviceId ? (
+              <p className="text-sm text-muted-foreground">This lab test is not linked to a service. Configure report parameters in the linked service (Services → Edit Lab Test service) to use this feature.</p>
+            ) : !inputResultsService ? (
+              <div className="flex items-center gap-2 py-4"><Loader2 className="h-5 w-5 animate-spin" /> Loading...</div>
+            ) : !inputResultsService.reportParameters?.length ? (
+              <p className="text-sm text-muted-foreground">No report parameters configured for this service. Edit the service (Services page) and add parameters under &quot;Report Parameters&quot; for Lab Test services.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/50">
+                        <th className="p-2 text-left font-medium">Parameter</th>
+                        <th className="p-2 text-left font-medium w-48">Result</th>
+                        <th className="p-2 text-left font-medium w-24">Unit</th>
+                        <th className="p-2 text-left font-medium">Normal Range</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {inputResultsService.reportParameters!.map((p, i) => {
+                        const existing = (inputResultsTest as LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults?.find(r => r.parameter === p.parameter);
+                        const value = inputResultsValues[p.parameter] ?? existing?.result ?? "";
+                        return (
+                          <tr key={i} className="border-t">
+                            <td className="p-2 font-medium">{p.parameter}</td>
+                            <td className="p-2">
+                              <Input value={value} onChange={e => setInputResultsValues(prev => ({ ...prev, [p.parameter]: e.target.value }))} placeholder="Enter result" className="h-8" />
+                            </td>
+                            <td className="p-2 text-muted-foreground">{p.unit || "—"}</td>
+                            <td className="p-2 text-muted-foreground">{p.normalRange || "—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={async () => {
+                    const params = inputResultsService.reportParameters!;
+                    const reportResults = params.map(p => ({
+                      parameter: p.parameter,
+                      result: inputResultsValues[p.parameter] ?? "",
+                      unit: p.unit || "",
+                      normalRange: p.normalRange || "",
+                    }));
+                    try {
+                      await apiRequest("PATCH", `/api/lab-tests/${inputResultsTest.id}`, { reportResults, status: "complete" });
+                      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+                      toast({ title: "Test results saved" });
+                      setInputResultsTest(null);
+                      setInputResultsValues({});
+                    } catch (err: any) {
+                      toast({ title: err.message || "Failed to save", variant: "destructive" });
+                    }
+                  }}
+                >
+                  Save Results
+                </Button>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       )}

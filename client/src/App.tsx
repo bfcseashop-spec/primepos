@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
+import { cleanupDialogScrollLock } from "@/components/ui/dialog";
 import { queryClient, apiRequest, safeJsonRes, API_NOT_REACHABLE_MSG } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -34,6 +35,10 @@ import AuthenticationPage from "@/pages/authentication";
 import SignInPage from "@/pages/sign-in";
 
 function Router() {
+  const [location] = useLocation();
+  useEffect(() => {
+    cleanupDialogScrollLock();
+  }, [location]);
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
