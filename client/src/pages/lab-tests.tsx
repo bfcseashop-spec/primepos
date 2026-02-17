@@ -57,12 +57,56 @@ function LabTestBarcodePreview({ test, onClose, t }: { test: LabTestWithPatient;
   useEffect(() => {
     if (svgRef.current && barcodeValue) {
       try {
-        JsBarcode(svgRef.current, barcodeValue, { format: "CODE128", width: 2, height: 60, displayValue: true, margin: 8 });
+        JsBarcode(svgRef.current, barcodeValue, {
+          format: "CODE128",
+          width: 2,
+          height: 60,
+          displayValue: true,
+          margin: 8,
+          lineColor: "#000000",
+          background: "#ffffff",
+        });
       } catch {
         // ignore
       }
     }
   }, [test, barcodeValue]);
+
+  const printBarcode = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    const val = barcodeValue;
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html><head><title>Barcode - ${test.testCode}</title>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
+      <style>
+        @page { size: 80mm 50mm; margin: 5mm; }
+        @media print { html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 40mm; }
+        .barcode-wrap svg { display: block; max-width: 100%; }
+        .id { font-family: monospace; font-size: 10pt; font-weight: bold; margin-top: 4px; color: #000; }
+        .name { font-size: 9pt; font-weight: 600; margin-top: 2px; color: #000; }
+        .detail { font-size: 8pt; margin-top: 2px; color: #333; }
+      </style></head><body>
+      <div class="barcode-wrap"><svg id="barcode"></svg></div>
+      <div class="id">${test.testCode}</div>
+      <div class="name">${test.testName}</div>
+      <div class="detail">${test.category} | ${test.sampleType}</div>
+      <script>
+        window.addEventListener('load', function() {
+          try {
+            JsBarcode("#barcode", "${val}", { format: "CODE128", width: 2, height: 40, displayValue: false, margin: 4, lineColor: "#000000", background: "#ffffff" });
+          } catch (e) { document.getElementById("barcode").innerHTML = "<text x='10' y='20' fill='black'>Barcode error</text>"; }
+          setTimeout(function() { window.print(); }, 200);
+        });
+      <\/script>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+  };
+
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="w-[calc(100%-2rem)] max-w-sm">
@@ -74,16 +118,20 @@ function LabTestBarcodePreview({ test, onClose, t }: { test: LabTestWithPatient;
           <DialogDescription className="sr-only">View barcode for this lab test</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-3 py-4">
-          <div className="p-4 bg-white rounded-md border w-full">
+          <div className="p-4 bg-white dark:bg-white rounded-md border border-slate-200 w-full">
             <div className="flex flex-col items-center">
-              <svg ref={svgRef} className="w-full max-w-[280px] h-[80px]" data-testid="img-barcode" />
-              <div className="text-center space-y-1 mt-2">
-                <p className="font-mono text-sm font-bold">{test.testCode}</p>
-                <p className="font-semibold text-sm">{test.testName}</p>
-                <p className="text-xs text-muted-foreground">{test.category} | {test.sampleType}</p>
+              <svg ref={svgRef} className="w-full max-w-[280px] min-h-[70px]" data-testid="img-barcode" />
+              <div className="text-center space-y-1 mt-2 text-black">
+                <p className="font-mono text-sm font-bold text-black">{test.testCode}</p>
+                <p className="font-semibold text-sm text-black">{test.testName}</p>
+                <p className="text-xs text-slate-700">{test.category} | {test.sampleType}</p>
               </div>
             </div>
           </div>
+          <Button onClick={printBarcode} className="w-full gap-2" data-testid="button-print-barcode">
+            <Printer className="h-4 w-4" />
+            {t("common.print")}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
