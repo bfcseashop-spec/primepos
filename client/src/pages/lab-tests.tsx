@@ -408,7 +408,7 @@ export default function LabTestsPage() {
 
   type PrintLayout = "compact" | "full";
   const escapeHtml = (s: string) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  const printLabReport = (row: LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string; category?: string }>; labTechnologist?: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string } | null }, layout: PrintLayout = "full") => {
+  const printLabReport = (row: LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string; category?: string }> | null; labTechnologist?: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string } | null }, layout: PrintLayout = "full") => {
     const pageSize = settings?.printPageSize || "A4";
     const labPageSize = pageSize === "A5" ? "A4" : pageSize;
     const printWindow = window.open("", "_blank", "width=794,height=1123");
@@ -423,9 +423,10 @@ export default function LabTestsPage() {
     const reportDateStr = row.createdAt ? new Date(row.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
     const printedAtStr = new Date().toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
     const reportStatus = row.status === "complete" ? "Final" : row.status === "processing" ? "Processing" : row.status === "awaiting_sample" ? "Awaiting Sample" : row.status || "—";
+    const rowExt = row as unknown as { patientAge?: number; patientGender?: string };
     const patientAgeGender = [
-      (row as { patientAge?: number }).patientAge != null ? `${(row as { patientAge: number }).patientAge}Y` : "",
-      (row as { patientGender?: string }).patientGender ? escapeHtml((row as { patientGender: string }).patientGender) : "",
+      rowExt.patientAge != null ? `${rowExt.patientAge}Y` : "",
+      rowExt.patientGender ? escapeHtml(rowExt.patientGender) : "",
     ].filter(Boolean).join(" / ") || "-";
 
     const teal = "#0d9488";
@@ -481,7 +482,7 @@ export default function LabTestsPage() {
             <tr>
               <td style="width:50%;vertical-align:top;padding:6px 12px 6px 0;">
                 <div style="margin-bottom:4px;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}</div>
-                ${(row as { patientPatientId?: string }).patientPatientId ? `<div style="margin-bottom:4px;"><strong>UHID:</strong> ${escapeHtml((row as { patientPatientId: string }).patientPatientId)}</div>` : ""}
+                ${(row as unknown as { patientPatientId?: string }).patientPatientId ? `<div style="margin-bottom:4px;"><strong>UHID:</strong> ${escapeHtml(String((row as unknown as { patientPatientId: string }).patientPatientId))}</div>` : ""}
                 <div style="margin-bottom:4px;"><strong>Age/Gender:</strong> ${patientAgeGender}</div>
                 ${row.referrerName ? `<div style="margin-bottom:4px;"><strong>Referred By:</strong> ${escapeHtml(row.referrerName)}</div>` : ""}
                 <div><strong>Sample Type:</strong> ${escapeHtml(row.sampleType || "-")}</div>
@@ -1298,7 +1299,7 @@ export default function LabTestsPage() {
                           const value = inputResultsValues[p.parameter] ?? existing?.result ?? "";
                           const outOfRange = !!value && isResultOutOfRange(value, p.normalRange);
                           const isDropdown = p.resultType === "dropdown" || (p as { unitType?: string }).unitType === "select";
-                          const items = [...new Set([...(p.dropdownItems || []).filter(Boolean), ...(value && !(p.dropdownItems || []).includes(value) ? [value] : [])])];
+                          const items = Array.from(new Set([...(p.dropdownItems || []).filter(Boolean), ...(value && !(p.dropdownItems || []).includes(value) ? [value] : [])]));
                           return (
                             <tr key={`param-${idx}-${p.parameter}`} className={`border-b last:border-b-0 hover:bg-muted/20 transition-colors ${outOfRange ? "bg-red-50/30 dark:bg-red-950/20" : ""}`}>
                               <td className="px-4 py-3 font-medium">{p.parameter}</td>
