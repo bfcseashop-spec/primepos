@@ -928,6 +928,8 @@ export default function ServicesPage() {
   const [reportCategoryDialogOpen, setReportCategoryDialogOpen] = useState(false);
   const [reportCategoryList, setReportCategoryList] = useState<string[]>([]);
   const [reportCategoryNew, setReportCategoryNew] = useState("");
+  const [rangesModalParamIndex, setRangesModalParamIndex] = useState<number | null>(null);
+  const [rangesModalRanges, setRangesModalRanges] = useState<string[]>([]);
 
   const { data: settings } = useQuery<{ reportCategories?: string[] }>({ queryKey: ["/api/settings"] });
   const reportCategories = settings?.reportCategories && settings.reportCategories.length > 0 ? settings.reportCategories : DEFAULT_REPORT_CATEGORIES;
@@ -1370,11 +1372,24 @@ export default function ServicesPage() {
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-muted-foreground">Normal/Reference Ranges</Label>
-                            <Textarea placeholder={"One range per line, e.g.:\n70-99 mg/dL\nFasting: <140 mg/dL\nOut-of-range results print red."} value={p.normalRange} onChange={e => {
-                              const arr = [...(form.reportParameters || [])];
-                              arr[i] = { ...arr[i], normalRange: e.target.value };
-                              setForm(f => ({ ...f, reportParameters: arr }));
-                            }} className="min-h-[60px] resize-y text-sm" rows={2} />
+                            <div className="flex gap-2">
+                              <div className="flex-1 min-h-[36px] rounded-md border bg-muted/30 px-3 py-2 text-sm flex items-center gap-1 flex-wrap">
+                                {(p.normalRange || "").split(/\r?\n/).filter(Boolean).length > 0 ? (
+                                  (p.normalRange || "").split(/\r?\n/).filter(Boolean).map((r, j) => (
+                                    <span key={j} className="inline-flex items-center rounded bg-muted px-2 py-0.5 text-xs">{r}</span>
+                                  ))
+                                ) : (
+                                  <span className="text-muted-foreground">No ranges</span>
+                                )}
+                              </div>
+                              <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => {
+                                setRangesModalParamIndex(i);
+                                const ranges = (p.normalRange || "").split(/\r?\n/).map(r => r.trim()).filter(Boolean);
+                                setRangesModalRanges(ranges.length > 0 ? ranges : [""]);
+                              }}>
+                                <Pencil className="h-4 w-4 mr-1" /> Manage
+                              </Button>
+                            </div>
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-muted-foreground">Result Type</Label>
@@ -2146,6 +2161,58 @@ export default function ServicesPage() {
             <Button className="w-full" onClick={() => saveReportCategoriesMutation.mutate(reportCategoryList)} disabled={saveReportCategoriesMutation.isPending}>
               {saveReportCategoriesMutation.isPending ? t("common.saving") : "Save categories"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rangesModalParamIndex !== null} onOpenChange={(open) => { if (!open) setRangesModalParamIndex(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manage Normal/Reference Ranges</DialogTitle>
+            <DialogDescription>
+              {rangesModalParamIndex !== null && form.reportParameters?.[rangesModalParamIndex] && (
+                <>Add or edit reference ranges for <strong>{form.reportParameters[rangesModalParamIndex].parameter || "this parameter"}</strong>. One range per line on the printed report. Out-of-range results will print in red.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {(rangesModalRanges.length === 0 ? [""] : rangesModalRanges).map((r, j) => (
+                <div key={j} className="flex gap-2">
+                  <Input
+                    placeholder="e.g. 70-99 mg/dL, Fasting: <140 mg/dL"
+                    value={r}
+                    onChange={e => {
+                      const arr = [...rangesModalRanges];
+                      arr[j] = e.target.value;
+                      setRangesModalRanges(arr);
+                    }}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={() => setRangesModalRanges(rangesModalRanges.length <= 1 ? [""] : rangesModalRanges.filter((_, k) => k !== j))}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setRangesModalRanges([...rangesModalRanges, ""])}>
+              <Plus className="h-4 w-4 mr-2" /> Add range
+            </Button>
+            <div className="flex gap-2 pt-2">
+              <Button className="flex-1" onClick={() => {
+                if (rangesModalParamIndex !== null) {
+                  const arr = [...(form.reportParameters || [])];
+                  const joined = rangesModalRanges.map(r => r.trim()).filter(Boolean).join("\n");
+                  arr[rangesModalParamIndex] = { ...arr[rangesModalParamIndex], normalRange: joined };
+                  setForm(f => ({ ...f, reportParameters: arr }));
+                  setRangesModalParamIndex(null);
+                  toast({ title: "Ranges saved" });
+                }
+              }}>
+                Save
+              </Button>
+              <Button variant="outline" className="flex-1" onClick={() => setRangesModalParamIndex(null)}>Cancel</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
