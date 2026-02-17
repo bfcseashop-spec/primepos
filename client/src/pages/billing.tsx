@@ -353,12 +353,10 @@ export default function BillingPage() {
             ${billNoBarcode ? `<div style="text-align:right;"><div style="color:${teal};font-weight:700;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">invoice code:</div><div class="invoice-barcode" style="font-size:${barcodeSize}px;">${billNoBarcode}</div></div>` : ""}
           </div>
 
-          <!-- PATIENT + DOCTOR (two rows, larger font) -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:${isCompact ? "16px" : "22px"};gap:16px;flex-wrap:wrap;font-size:${isCompact ? "12px" : "14px"};line-height:1.5;text-align:justify;width:100%;">
-            <div>
-              <div style="font-weight:700;color:${accent};margin-bottom:4px;"><strong>Patient:</strong> ${patient?.name || "-"}${patient?.patientId ? ` (${patient.patientId})` : ""}${patient?.age != null ? ` · Age: ${patient.age}` : ""}${patient?.gender ? ` · ${patient.gender}` : ""}</div>
-              <div style="color:${muted};"><strong>Dr. Name:</strong> ${bill.referenceDoctor || "-"}</div>
-            </div>
+          <!-- PATIENT + DOCTOR (left · right layout) -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:${isCompact ? "16px" : "22px"};font-size:${isCompact ? "12px" : "14px"};line-height:1.5;width:100%;">
+            <div style="flex:1;min-width:0;text-align:left;"><strong>Patient:</strong> ${patient?.name || "-"}${patient?.patientId ? ` (${patient.patientId})` : ""} · Age: ${patient?.age != null ? patient.age : "-"}${patient?.gender ? ` · ${patient.gender}` : ""}</div>
+            <div style="flex:1;min-width:0;text-align:right;"><strong>Dr. Name:</strong> ${bill.referenceDoctor || "-"}</div>
           </div>
 
           <!-- ITEMS TABLE -->
