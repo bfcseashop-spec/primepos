@@ -19,8 +19,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, QrCode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User, Clock, XCircle, AlertTriangle, Loader2, ChevronDown, ClipboardList } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, Barcode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User, Clock, XCircle, AlertTriangle, Loader2, ChevronDown, ClipboardList } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import JsBarcode from "jsbarcode";
 import type { LabTest, Patient, ClinicSettings } from "@shared/schema";
 
 const LAB_CATEGORIES = [
@@ -49,6 +50,45 @@ const defaultForm = {
 };
 
 type LabTestWithPatient = LabTest & { patientName?: string | null };
+
+function LabTestBarcodePreview({ test, onClose, t }: { test: LabTestWithPatient; onClose: () => void; t: (key: string) => string }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const barcodeValue = (test.testCode || "").replace(/[^A-Za-z0-9\-]/g, "") || test.testCode || "";
+  useEffect(() => {
+    if (svgRef.current && barcodeValue) {
+      try {
+        JsBarcode(svgRef.current, barcodeValue, { format: "CODE128", width: 2, height: 60, displayValue: true, margin: 8 });
+      } catch {
+        // ignore
+      }
+    }
+  }, [test, barcodeValue]);
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="w-[calc(100%-2rem)] max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Barcode className="h-5 w-5 text-purple-500" />
+            {t("labTests.barcode")}
+          </DialogTitle>
+          <DialogDescription className="sr-only">View barcode for this lab test</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col items-center gap-3 py-4">
+          <div className="p-4 bg-white rounded-md border w-full">
+            <div className="flex flex-col items-center">
+              <svg ref={svgRef} className="w-full max-w-[280px] h-[80px]" data-testid="img-barcode" />
+              <div className="text-center space-y-1 mt-2">
+                <p className="font-mono text-sm font-bold">{test.testCode}</p>
+                <p className="font-semibold text-sm">{test.testName}</p>
+                <p className="text-xs text-muted-foreground">{test.category} | {test.sampleType}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function parseTurnaroundToMs(tat: string | null): number | null {
   if (!tat) return null;
@@ -731,7 +771,7 @@ export default function LabTestsPage() {
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBarcodeTest(row); }} className="gap-2" data-testid={`action-barcode-${row.id}`}>
-            <QrCode className="h-4 w-4 text-purple-500" /> {t("labTests.barcode")}
+            <Barcode className="h-4 w-4 text-purple-500" /> {t("labTests.barcode")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printLabReport(row, "compact"); }} className="gap-2" data-testid={`action-print-compact-${row.id}`}>
             <Printer className="h-4 w-4 text-violet-500" /> Print (Compact)
@@ -1159,45 +1199,7 @@ export default function LabTestsPage() {
       )}
 
       {barcodeTest && (
-        <Dialog open={!!barcodeTest} onOpenChange={(open) => { if (!open) setBarcodeTest(null); }}>
-          <DialogContent className="w-[calc(100%-2rem)] max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <QrCode className="h-5 w-5 text-purple-500" />
-                {t("labTests.barcode")}
-              </DialogTitle>
-              <DialogDescription className="sr-only">View barcode for this lab test</DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col items-center gap-3 py-4">
-              <div className="p-4 bg-white rounded-md border">
-                <svg viewBox="0 0 200 200" width="180" height="180" data-testid="img-barcode-qr">
-                  {(() => {
-                    const data = `LAB-TEST|${barcodeTest.testCode}|${barcodeTest.testName}|${barcodeTest.category}|$${barcodeTest.price}`;
-                    const cells: JSX.Element[] = [];
-                    let seed = 0;
-                    for (let i = 0; i < data.length; i++) seed = ((seed << 5) - seed + data.charCodeAt(i)) | 0;
-                    for (let y = 0; y < 20; y++) {
-                      for (let x = 0; x < 20; x++) {
-                        seed = (seed * 16807 + 0) % 2147483647;
-                        const isBorder = x === 0 || x === 19 || y === 0 || y === 19;
-                        const isCorner = (x < 4 && y < 4) || (x > 15 && y < 4) || (x < 4 && y > 15);
-                        if (isCorner || isBorder || seed % 3 === 0) {
-                          cells.push(<rect key={`${x}-${y}`} x={x * 10} y={y * 10} width="10" height="10" fill="black" />);
-                        }
-                      }
-                    }
-                    return cells;
-                  })()}
-                </svg>
-              </div>
-              <div className="text-center space-y-1">
-                <p className="font-mono text-sm font-bold">{barcodeTest.testCode}</p>
-                <p className="font-semibold text-sm">{barcodeTest.testName}</p>
-                <p className="text-xs text-muted-foreground">{barcodeTest.category} | {barcodeTest.sampleType}</p>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <LabTestBarcodePreview test={barcodeTest} onClose={() => setBarcodeTest(null)} t={t} />
       )}
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
