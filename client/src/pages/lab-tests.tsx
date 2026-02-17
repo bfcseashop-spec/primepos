@@ -365,12 +365,12 @@ export default function LabTestsPage() {
             </div>
           </div>
 
-          <!-- PATIENT DETAILS (3 rows with proper labels, left · middle · right aligned) -->
-          <div style="margin-bottom:${isCompact ? "6px" : "8px"};font-size:${fPatient}px;line-height:1.6;width:100%;">
-            <div style="text-align:left;margin-bottom:2px;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}${(row as { patientPatientId?: string }).patientPatientId ? ` (${escapeHtml((row as { patientPatientId: string }).patientPatientId)})` : ""}</div>
-            <div style="text-align:center;margin-bottom:2px;"><strong>Age:</strong> ${(row as { patientAge?: number }).patientAge != null ? (row as { patientAge: number }).patientAge : "-"}</div>
-            <div style="text-align:right;"><strong>Gender:</strong> ${(row as { patientGender?: string }).patientGender ? escapeHtml((row as { patientGender: string }).patientGender) : "-"}</div>
-          </div>
+          <!-- PATIENT DETAILS (3 rows, left · center · right aligned, with spacing) -->
+          <table style="width:100%;margin-bottom:${isCompact ? "10px" : "14px"};border-collapse:collapse;font-size:${fPatient}px;">
+            <tr><td style="padding:${isCompact ? "6px 0" : "8px 0"};text-align:left;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}${(row as { patientPatientId?: string }).patientPatientId ? ` (${escapeHtml((row as { patientPatientId: string }).patientPatientId)})` : ""}</td></tr>
+            <tr><td style="padding:${isCompact ? "6px 0" : "8px 0"};text-align:center;"><strong>Age:</strong> ${(row as { patientAge?: number }).patientAge != null ? (row as { patientAge: number }).patientAge : "-"}</td></tr>
+            <tr><td style="padding:${isCompact ? "6px 0" : "8px 0"};text-align:right;"><strong>Gender:</strong> ${(row as { patientGender?: string }).patientGender ? escapeHtml((row as { patientGender: string }).patientGender) : "-"}</td></tr>
+          </table>
           <!-- TEST INFO -->
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:${isCompact ? "6px" : "8px"};font-size:${fPatient}px;line-height:1.45;width:100%;">
             <div style="flex:1;min-width:0;text-align:left;"><strong>Test:</strong> ${row.testName} · ${categories || "-"} · ${sampleTypes || "-"}</div>

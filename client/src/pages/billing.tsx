@@ -363,12 +363,12 @@ export default function BillingPage() {
             ${billNoBarcode ? `<div style="text-align:right;"><div style="color:${teal};font-weight:700;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">invoice code:</div><div class="invoice-barcode" style="font-size:${barcodeSize}px;">${billNoBarcode}</div></div>` : ""}
           </div>
 
-          <!-- PATIENT DETAILS (3 rows with proper labels, left · middle · right aligned) -->
-          <div style="margin-bottom:${isCompact ? "16px" : "22px"};font-size:${isCompact ? "12px" : "14px"};line-height:1.6;width:100%;">
-            <div style="text-align:left;margin-bottom:4px;"><strong>Patient Name:</strong> ${patient?.name || "-"}${patient?.patientId ? ` (${patient.patientId})` : ""}</div>
-            <div style="text-align:center;margin-bottom:4px;"><strong>Age:</strong> ${patient?.age != null ? patient.age : (ageFromDob(patient?.dateOfBirth) ?? "-")}</div>
-            <div style="text-align:right;"><strong>Gender:</strong> ${patient?.gender || "-"}</div>
-          </div>
+          <!-- PATIENT DETAILS (3 rows, left · center · right aligned, with spacing) -->
+          <table style="width:100%;margin-bottom:${isCompact ? "18px" : "24px"};border-collapse:collapse;font-size:${isCompact ? "12px" : "14px"};">
+            <tr><td style="padding:${isCompact ? "8px 0" : "10px 0"};text-align:left;"><strong>Patient Name:</strong> ${patient?.name || "-"}${patient?.patientId ? ` (${patient.patientId})` : ""}</td></tr>
+            <tr><td style="padding:${isCompact ? "8px 0" : "10px 0"};text-align:center;"><strong>Age:</strong> ${patient?.age != null ? patient.age : (ageFromDob(patient?.dateOfBirth) ?? "-")}</td></tr>
+            <tr><td style="padding:${isCompact ? "8px 0" : "10px 0"};text-align:right;"><strong>Gender:</strong> ${patient?.gender || "-"}</td></tr>
+          </table>
           <div style="margin-bottom:${isCompact ? "12px" : "16px"};font-size:${isCompact ? "12px" : "14px"};"><strong>Dr. Name:</strong> ${bill.referenceDoctor || "-"}</div>
 
           <!-- ITEMS TABLE -->
