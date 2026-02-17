@@ -8,3 +8,6 @@ primepos_deploy_key.pub
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Backup artifacts (keep scripts, ignore generated backups)
+backups/
