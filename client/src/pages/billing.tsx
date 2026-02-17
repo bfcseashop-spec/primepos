@@ -244,6 +244,16 @@ export default function BillingPage() {
     },
   });
 
+  const ageFromDob = (dob: string | null | undefined): number | null => {
+    if (!dob || typeof dob !== "string") return null;
+    const birth = new Date(dob);
+    if (isNaN(birth.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age >= 0 ? age : null;
+  };
   type PrintLayout = "compact" | "full";
   const printReceipt = (bill: any, layout: PrintLayout = "compact") => {
     const patient = patients.find(p => p.id === Number(selectedPatient || bill.patientId));
@@ -353,11 +363,13 @@ export default function BillingPage() {
             ${billNoBarcode ? `<div style="text-align:right;"><div style="color:${teal};font-weight:700;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">invoice code:</div><div class="invoice-barcode" style="font-size:${barcodeSize}px;">${billNoBarcode}</div></div>` : ""}
           </div>
 
-          <!-- PATIENT + DOCTOR (left · right layout) -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:${isCompact ? "16px" : "22px"};font-size:${isCompact ? "12px" : "14px"};line-height:1.5;width:100%;">
-            <div style="flex:1;min-width:0;text-align:left;"><strong>Patient:</strong> ${patient?.name || "-"}${patient?.patientId ? ` (${patient.patientId})` : ""} · Age: ${patient?.age != null ? patient.age : "-"}${patient?.gender ? ` · ${patient.gender}` : ""}</div>
-            <div style="flex:1;min-width:0;text-align:right;"><strong>Dr. Name:</strong> ${bill.referenceDoctor || "-"}</div>
+          <!-- PATIENT DETAILS (3 rows with proper labels, left · middle · right aligned) -->
+          <div style="margin-bottom:${isCompact ? "16px" : "22px"};font-size:${isCompact ? "12px" : "14px"};line-height:1.6;width:100%;">
+            <div style="text-align:left;margin-bottom:4px;"><strong>Patient Name:</strong> ${patient?.name || "-"}${patient?.patientId ? ` (${patient.patientId})` : ""}</div>
+            <div style="text-align:center;margin-bottom:4px;"><strong>Age:</strong> ${patient?.age != null ? patient.age : (ageFromDob(patient?.dateOfBirth) ?? "-")}</div>
+            <div style="text-align:right;"><strong>Gender:</strong> ${patient?.gender || "-"}</div>
           </div>
+          <div style="margin-bottom:${isCompact ? "12px" : "16px"};font-size:${isCompact ? "12px" : "14px"};"><strong>Dr. Name:</strong> ${bill.referenceDoctor || "-"}</div>
 
           <!-- ITEMS TABLE -->
           <table style="width:100%;margin-bottom:${isCompact ? "14px" : "20px"};">

@@ -365,10 +365,15 @@ export default function LabTestsPage() {
             </div>
           </div>
 
-          <!-- PATIENT + TEST INFO (left · middle · right layout) -->
+          <!-- PATIENT DETAILS (3 rows with proper labels, left · middle · right aligned) -->
+          <div style="margin-bottom:${isCompact ? "6px" : "8px"};font-size:${fPatient}px;line-height:1.6;width:100%;">
+            <div style="text-align:left;margin-bottom:2px;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}${(row as { patientPatientId?: string }).patientPatientId ? ` (${escapeHtml((row as { patientPatientId: string }).patientPatientId)})` : ""}</div>
+            <div style="text-align:center;margin-bottom:2px;"><strong>Age:</strong> ${(row as { patientAge?: number }).patientAge != null ? (row as { patientAge: number }).patientAge : "-"}</div>
+            <div style="text-align:right;"><strong>Gender:</strong> ${(row as { patientGender?: string }).patientGender ? escapeHtml((row as { patientGender: string }).patientGender) : "-"}</div>
+          </div>
+          <!-- TEST INFO -->
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:${isCompact ? "6px" : "8px"};font-size:${fPatient}px;line-height:1.45;width:100%;">
-            <div style="flex:1;min-width:0;text-align:left;"><strong>Patient:</strong> ${escapeHtml(row.patientName || "-")}${(row as { patientPatientId?: string }).patientPatientId ? ` (${escapeHtml((row as { patientPatientId: string }).patientPatientId)})` : ""} · Age: ${(row as { patientAge?: number }).patientAge != null ? (row as { patientAge: number }).patientAge : "-"}${(row as { patientGender?: string }).patientGender ? ` · ${escapeHtml((row as { patientGender: string }).patientGender)}` : ""}</div>
-            <div style="flex:1;min-width:0;text-align:center;"><strong>Test:</strong> ${row.testName} · ${categories || "-"} · ${sampleTypes || "-"}</div>
+            <div style="flex:1;min-width:0;text-align:left;"><strong>Test:</strong> ${row.testName} · ${categories || "-"} · ${sampleTypes || "-"}</div>
             <div style="flex:1;min-width:0;text-align:right;">${row.referrerName ? `Ref: ${row.referrerName} · ` : ""}<strong style="color:${accent};">$${row.price}</strong></div>
           </div>
 

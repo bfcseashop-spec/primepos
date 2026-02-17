@@ -785,6 +785,18 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  /** Calculate age in years from date of birth string (YYYY-MM-DD). Returns null if invalid. */
+  _ageFromDob(dob: string | null | undefined): number | null {
+    if (!dob || typeof dob !== "string") return null;
+    const birth = new Date(dob);
+    if (isNaN(birth.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age >= 0 ? age : null;
+  }
+
   async getLabTests(): Promise<any[]> {
     const result = await db.select({
       id: labTests.id,
@@ -807,6 +819,7 @@ export class DatabaseStorage implements IStorage {
       patientName: patients.name,
       patientPatientId: patients.patientId,
       patientAge: patients.age,
+      patientDateOfBirth: patients.dateOfBirth,
       patientGender: patients.gender,
       technologistFullName: users.fullName,
       technologistQualification: users.qualification,
@@ -818,11 +831,12 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(roles, eq(users.roleId, roles.id))
       .orderBy(desc(labTests.createdAt));
     return result.map((r: any) => {
-      const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistRoleName, patientPatientId, patientAge, patientGender, ...rest } = r;
+      const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistRoleName, patientPatientId, patientAge, patientDateOfBirth, patientGender, ...rest } = r;
+      const resolvedAge = patientAge != null ? patientAge : this._ageFromDob(patientDateOfBirth);
       return {
         ...rest,
         patientPatientId,
-        patientAge,
+        patientAge: resolvedAge,
         patientGender,
         labTechnologist: r.labTechnologistId && r.technologistFullName ? {
           id: r.labTechnologistId,
@@ -864,6 +878,7 @@ export class DatabaseStorage implements IStorage {
       patientName: patients.name,
       patientPatientId: patients.patientId,
       patientAge: patients.age,
+      patientDateOfBirth: patients.dateOfBirth,
       patientGender: patients.gender,
       technologistFullName: users.fullName,
       technologistQualification: users.qualification,
@@ -875,11 +890,12 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(roles, eq(users.roleId, roles.id))
       .where(eq(labTests.id, id));
     if (!row) return undefined;
-    const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistRoleName, patientPatientId, patientAge, patientGender, ...rest } = row as any;
+    const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistRoleName, patientPatientId, patientAge, patientDateOfBirth, patientGender, ...rest } = row as any;
+    const resolvedAge = patientAge != null ? patientAge : this._ageFromDob(patientDateOfBirth);
     return {
       ...rest,
       patientPatientId,
-      patientAge,
+      patientAge: resolvedAge,
       patientGender,
       labTechnologist: row.labTechnologistId && technologistFullName ? {
         id: row.labTechnologistId,
