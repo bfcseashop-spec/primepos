@@ -194,7 +194,7 @@ export default function LabTestsPage() {
     queryKey: ["/api/patients"],
   });
 
-  const { data: inputResultsService } = useQuery<{ reportParameters?: Array<{ parameter: string; unit: string; normalRange: string; unitType?: string; unitOptions?: string[] }> }>({
+  const { data: inputResultsService } = useQuery<{ reportParameters?: Array<{ parameter: string; unit: string; normalRange: string; resultType?: "manual" | "dropdown"; dropdownItems?: string[] }> }>({
     queryKey: inputResultsTest?.serviceId ? [`/api/services/${inputResultsTest.serviceId}`] : ["__skip"],
     enabled: !!inputResultsTest?.serviceId,
   });
@@ -259,6 +259,22 @@ export default function LabTestsPage() {
     },
     onError: (err: Error) => {
       toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const saveResultsMutation = useMutation({
+    mutationFn: async ({ id, reportResults }: { id: number; reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }) => {
+      const res = await apiRequest("PATCH", `/api/lab-tests/${id}`, { reportResults, status: "complete" });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      toast({ title: "Test results saved" });
+      setInputResultsTest(null);
+      setInputResultsValues({});
+    },
+    onError: (err: Error) => {
+      toast({ title: err.message || "Failed to save", variant: "destructive" });
     },
   });
 
@@ -896,53 +912,74 @@ export default function LabTestsPage() {
 
       {inputResultsTest && (
         <Dialog open={!!inputResultsTest} onOpenChange={(open) => { if (!open) { setInputResultsTest(null); setInputResultsValues({}); } }}>
-          <DialogContent className="w-[calc(100%-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-3xl max-h-[95vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <ClipboardList className="h-5 w-5 text-teal-500" />
                 Input Test Results
               </DialogTitle>
-              <DialogDescription>Enter results for {inputResultsTest.testCode} - {inputResultsTest.testName}</DialogDescription>
+              <DialogDescription>Enter results for {inputResultsTest.testCode} — {inputResultsTest.testName}</DialogDescription>
             </DialogHeader>
             {!inputResultsTest.serviceId ? (
-              <p className="text-sm text-muted-foreground">This lab test is not linked to a service. Configure report parameters in the linked service (Services → Edit Lab Test service) to use this feature.</p>
+              <div className="rounded-lg border border-dashed bg-muted/10 p-6 text-center text-sm text-muted-foreground">
+                This lab test is not linked to a service. Configure report parameters in the linked service (Services → Edit Lab Test service) to use this feature.
+              </div>
             ) : !inputResultsService ? (
-              <div className="flex items-center gap-2 py-4"><Loader2 className="h-5 w-5 animate-spin" /> Loading...</div>
+              <div className="flex items-center gap-2 py-8 justify-center"><Loader2 className="h-5 w-5 animate-spin" /> Loading parameters...</div>
             ) : !inputResultsService.reportParameters?.length ? (
-              <p className="text-sm text-muted-foreground">No report parameters configured for this service. Edit the service (Services page) and add parameters under &quot;Report Parameters&quot; for Lab Test services.</p>
+              <div className="rounded-lg border border-dashed bg-muted/10 p-6 text-center text-sm text-muted-foreground">
+                No report parameters configured for this service. Edit the service (Services page) and add parameters under &quot;Report Parameters&quot; for Lab Test services.
+              </div>
             ) : (
               <div className="space-y-4">
-                <div className="border rounded-md overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-muted/50">
-                        <th className="p-2 text-left font-medium">Parameter</th>
-                        <th className="p-2 text-left font-medium w-48">Result</th>
-                        <th className="p-2 text-left font-medium w-24">Unit</th>
-                        <th className="p-2 text-left font-medium">Normal Range</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {inputResultsService.reportParameters!.map((p, i) => {
-                        const existing = (inputResultsTest as LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults?.find(r => r.parameter === p.parameter);
-                        const value = inputResultsValues[p.parameter] ?? existing?.result ?? "";
-                        return (
-                          <tr key={i} className="border-t">
-                            <td className="p-2 font-medium">{p.parameter}</td>
-                            <td className="p-2">
-                              <Input value={value} onChange={e => setInputResultsValues(prev => ({ ...prev, [p.parameter]: e.target.value }))} placeholder="Enter result" className="h-8" />
-                            </td>
-                            <td className="p-2 text-muted-foreground">{p.unit || "—"}</td>
-                            <td className="p-2 text-muted-foreground">{p.normalRange || "—"}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div className="rounded-xl border overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/50 border-b">
+                          <th className="px-4 py-3 text-left font-medium">Parameter</th>
+                          <th className="px-4 py-3 text-left font-medium w-56">Result</th>
+                          <th className="px-4 py-3 text-left font-medium w-24">Unit</th>
+                          <th className="px-4 py-3 text-left font-medium">Normal Range</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {inputResultsService.reportParameters!.map((p, i) => {
+                          const existing = (inputResultsTest as LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults?.find(r => r.parameter === p.parameter);
+                          const value = inputResultsValues[p.parameter] ?? existing?.result ?? "";
+                          const isDropdown = p.resultType === "dropdown" || (p as { unitType?: string }).unitType === "select";
+                          const items = [...new Set([...(p.dropdownItems || []).filter(Boolean), ...(value && !(p.dropdownItems || []).includes(value) ? [value] : [])])];
+                          return (
+                            <tr key={i} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                              <td className="px-4 py-3 font-medium">{p.parameter}</td>
+                              <td className="px-4 py-3">
+                                {isDropdown && items.length > 0 ? (
+                                  <Select value={value || "__empty__"} onValueChange={v => setInputResultsValues(prev => ({ ...prev, [p.parameter]: v === "__empty__" ? "" : v }))}>
+                                    <SelectTrigger className="h-9 w-full min-w-[140px]"><SelectValue placeholder="Select result" /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="__empty__">— Select —</SelectItem>
+                                      {items.map((opt, j) => (
+                                        <SelectItem key={j} value={opt}>{opt}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input value={value} onChange={e => setInputResultsValues(prev => ({ ...prev, [p.parameter]: e.target.value }))} placeholder="Enter result" className="h-9 min-w-[140px]" />
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-muted-foreground">{p.unit || "—"}</td>
+                              <td className="px-4 py-3 text-muted-foreground">{p.normalRange || "—"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
                 <Button
-                  className="w-full"
-                  onClick={async () => {
+                  className="w-full h-10"
+                  disabled={saveResultsMutation.isPending}
+                  onClick={() => {
                     const params = inputResultsService.reportParameters!;
                     const reportResults = params.map(p => ({
                       parameter: p.parameter,
@@ -950,18 +987,17 @@ export default function LabTestsPage() {
                       unit: p.unit || "",
                       normalRange: p.normalRange || "",
                     }));
-                    try {
-                      await apiRequest("PATCH", `/api/lab-tests/${inputResultsTest.id}`, { reportResults, status: "complete" });
-                      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
-                      toast({ title: "Test results saved" });
-                      setInputResultsTest(null);
-                      setInputResultsValues({});
-                    } catch (err: any) {
-                      toast({ title: err.message || "Failed to save", variant: "destructive" });
-                    }
+                    saveResultsMutation.mutate({ id: inputResultsTest.id, reportResults });
                   }}
                 >
-                  Save Results
+                  {saveResultsMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Results"
+                  )}
                 </Button>
               </div>
             )}

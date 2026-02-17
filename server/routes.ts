@@ -815,8 +815,8 @@ export async function registerRoutes(
         parameter: z.string(),
         unit: z.string(),
         normalRange: z.string(),
-        unitType: z.enum(["text", "select"]).optional(),
-        unitOptions: z.array(z.string()).optional(),
+        resultType: z.enum(["manual", "dropdown"]).optional(),
+        dropdownItems: z.array(z.string()).optional(),
       });
       const updateSchema = z.object({
         isActive: z.boolean().optional(),

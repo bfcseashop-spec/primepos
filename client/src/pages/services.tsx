@@ -73,14 +73,12 @@ const categoryColors: Record<string, { bg: string; text: string; dot: string }> 
 
 const defaultCategoryColor = { bg: "bg-violet-500/10", text: "text-violet-700 dark:text-violet-300", dot: "bg-violet-500" };
 
-type ReportParam = { parameter: string; unit: string; normalRange: string; unitType?: "text" | "select"; unitOptions?: string[] };
+type ReportParam = { parameter: string; unit: string; normalRange: string; resultType?: "manual" | "dropdown"; dropdownItems?: string[] };
 const defaultForm = {
   name: "", category: "", price: "", description: "", imageUrl: "",
   isLabTest: false, sampleCollectionRequired: false, sampleType: "Blood",
   reportParameters: [] as ReportParam[],
 };
-
-const COMMON_LAB_UNITS = ["mg/dL", "mmol/L", "g/L", "g/dL", "mg/L", "µmol/L", "%", "cells/µL", "IU/L", "U/L", "mEq/L", "pg/mL", "ng/mL", "µg/mL", "HPF", "LPF", "—", "N/A"];
 
 const injectionAvatarGradients = [
   "from-cyan-500 to-teal-400",
@@ -1074,7 +1072,19 @@ export default function ServicesPage() {
       sampleCollectionRequired: form.sampleCollectionRequired,
       sampleType: form.isLabTest ? form.sampleType : null,
       reportParameters: form.isLabTest && form.reportParameters?.length
-        ? form.reportParameters.filter(p => (p.parameter || "").trim())
+        ? form.reportParameters
+            .filter(p => (p.parameter || "").trim())
+            .map(p => ({
+              parameter: (p.parameter || "").trim(),
+              unit: p.unit || "",
+              normalRange: p.normalRange || "",
+              resultType: p.resultType ?? "manual",
+              dropdownItems: (() => {
+                if (p.resultType !== "dropdown" || !p.dropdownItems?.length) return undefined;
+                const filtered = p.dropdownItems.filter(Boolean).map(s => (s || "").trim()).filter(Boolean);
+                return filtered.length ? filtered : undefined;
+              })(),
+            }))
         : null,
     };
     if (editService) {
@@ -1096,7 +1106,13 @@ export default function ServicesPage() {
       isLabTest: s.isLabTest ?? false,
       sampleCollectionRequired: s.sampleCollectionRequired ?? false,
       sampleType: s.sampleType || "Blood",
-      reportParameters: Array.isArray(s.reportParameters) ? s.reportParameters : [],
+      reportParameters: Array.isArray(s.reportParameters) ? s.reportParameters.map((rp: ReportParam & { unitType?: string }) => ({
+        parameter: rp.parameter,
+        unit: rp.unit,
+        normalRange: rp.normalRange,
+        resultType: rp.resultType ?? (rp.unitType === "select" ? "dropdown" : "manual"),
+        dropdownItems: rp.dropdownItems,
+      })) : [],
     });
     setEditService(svc);
   };
@@ -1267,73 +1283,115 @@ export default function ServicesPage() {
       {form.isLabTest && (
         <>
           <Separator />
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Report Parameters</Label>
-            <p className="text-xs text-muted-foreground">Configure parameters for manual test result entry. Unit can be manual text or dropdown selector.</p>
-            <div className="border rounded-lg overflow-hidden">
-              <div className="max-h-64 overflow-y-auto space-y-3 p-3">
-                {(form.reportParameters || []).map((p, i) => (
-                  <div key={i} className="space-y-2 p-3 rounded-md border bg-muted/20">
-                    <div className="flex items-center justify-between gap-2">
-                      <Label className="text-xs font-medium">Parameter</Label>
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0 -mr-1" onClick={() => setForm(f => ({ ...f, reportParameters: (f.reportParameters || []).filter((_, j) => j !== i) }))}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </div>
-                    <Input placeholder="e.g. Glucose, Hb" value={p.parameter} onChange={e => {
-                      const arr = [...(form.reportParameters || [])];
-                      arr[i] = { ...arr[i], parameter: e.target.value };
-                      setForm(f => ({ ...f, reportParameters: arr }));
-                    }} className="w-full" />
-                    <div className="space-y-1">
-                      <Label className="text-xs font-medium">Unit type</Label>
-                      <Select value={p.unitType || "text"} onValueChange={(v: "text" | "select") => {
-                        const arr = [...(form.reportParameters || [])];
-                        arr[i] = { ...arr[i], unitType: v, unitOptions: v === "select" ? COMMON_LAB_UNITS : undefined };
-                        setForm(f => ({ ...f, reportParameters: arr }));
-                      }}>
-                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="text">Manual</SelectItem>
-                          <SelectItem value="select">Dropdown</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-medium">Unit</Label>
-                      {p.unitType === "select" ? (
-                        <Select value={p.unit} onValueChange={v => {
-                          const arr = [...(form.reportParameters || [])];
-                          arr[i] = { ...arr[i], unit: v };
-                          setForm(f => ({ ...f, reportParameters: arr }));
-                        }}>
-                          <SelectTrigger className="w-full"><SelectValue placeholder="Select unit" /></SelectTrigger>
-                          <SelectContent>
-                            {COMMON_LAB_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input placeholder="e.g. mg/dL, mmol/L" value={p.unit} onChange={e => {
-                          const arr = [...(form.reportParameters || [])];
-                          arr[i] = { ...arr[i], unit: e.target.value };
-                          setForm(f => ({ ...f, reportParameters: arr }));
-                        }} className="w-full" />
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-medium">Normal range</Label>
-                      <Input placeholder="e.g. 70-99" value={p.normalRange} onChange={e => {
-                        const arr = [...(form.reportParameters || [])];
-                        arr[i] = { ...arr[i], normalRange: e.target.value };
-                        setForm(f => ({ ...f, reportParameters: arr }));
-                      }} className="w-full" />
-                    </div>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-sm font-medium">Report Parameters</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">Configure parameters for test result entry. Manual = type value; Dropdown = select from predefined options.</p>
+            </div>
+            <div className="rounded-xl border bg-muted/5 overflow-hidden shadow-sm">
+              <div className="max-h-72 overflow-y-auto space-y-3 p-4">
+                {(form.reportParameters || []).length === 0 ? (
+                  <div className="py-6 text-center text-sm text-muted-foreground rounded-lg border border-dashed bg-muted/10">
+                    No parameters yet. Add one to configure result entry.
                   </div>
-                ))}
+                ) : (
+                  (form.reportParameters || []).map((p, i) => {
+                    const isDropdown = (p as ReportParam & { unitType?: string }).resultType === "dropdown" || (p as ReportParam & { unitType?: string }).unitType === "select";
+                    return (
+                      <div key={i} className="space-y-3 p-4 rounded-lg border bg-background shadow-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge variant="secondary" className="text-xs font-medium">#{i + 1}</Badge>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setForm(f => ({ ...f, reportParameters: (f.reportParameters || []).filter((_, j) => j !== i) }))}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="space-y-1.5 sm:col-span-2">
+                            <Label className="text-xs font-medium text-muted-foreground">Parameter</Label>
+                            <Input placeholder="e.g. Glucose, HbA1c" value={p.parameter} onChange={e => {
+                              const arr = [...(form.reportParameters || [])];
+                              arr[i] = { ...arr[i], parameter: e.target.value };
+                              setForm(f => ({ ...f, reportParameters: arr }));
+                            }} className="h-9" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-muted-foreground">Unit</Label>
+                            <Input placeholder="e.g. mg/dL" value={p.unit} onChange={e => {
+                              const arr = [...(form.reportParameters || [])];
+                              arr[i] = { ...arr[i], unit: e.target.value };
+                              setForm(f => ({ ...f, reportParameters: arr }));
+                            }} className="h-9" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-muted-foreground">Normal Range</Label>
+                            <Input placeholder="e.g. 70-99, 4.0-5.6" value={p.normalRange} onChange={e => {
+                              const arr = [...(form.reportParameters || [])];
+                              arr[i] = { ...arr[i], normalRange: e.target.value };
+                              setForm(f => ({ ...f, reportParameters: arr }));
+                            }} className="h-9" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-muted-foreground">Result Type</Label>
+                            <Select value={(() => { const u = p as ReportParam & { unitType?: string }; return (u.resultType ?? (u.unitType === "select" ? "dropdown" : "manual")) || "manual"; })()} onValueChange={(v: "manual" | "dropdown") => {
+                              const arr = [...(form.reportParameters || [])];
+                              arr[i] = { ...arr[i], resultType: v, dropdownItems: v === "dropdown" ? (arr[i].dropdownItems || []) : undefined };
+                              setForm(f => ({ ...f, reportParameters: arr }));
+                            }}>
+                              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="manual">Manual (type value)</SelectItem>
+                                <SelectItem value="dropdown">Dropdown (select from list)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        {isDropdown && (
+                          <div className="space-y-2 pt-1 border-t">
+                            <Label className="text-xs font-medium text-muted-foreground">Dropdown options</Label>
+                            {((p as ReportParam).dropdownItems || []).filter(Boolean).length === 0 && (
+                              <p className="text-xs text-amber-600 dark:text-amber-500">Add at least one option; otherwise manual input will be used when entering results.</p>
+                            )}
+                            <div className="space-y-2">
+                              {((p as ReportParam).dropdownItems || []).map((item, j) => (
+                                <div key={j} className="flex gap-2">
+                                  <Input value={item} onChange={e => {
+                                    const arr = [...(form.reportParameters || [])];
+                                    const items = [...(arr[i].dropdownItems || [])];
+                                    items[j] = e.target.value;
+                                    arr[i] = { ...arr[i], dropdownItems: items };
+                                    setForm(f => ({ ...f, reportParameters: arr }));
+                                  }} placeholder="e.g. Positive, Negative, Normal" className="h-9 flex-1" />
+                                  <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => {
+                                    const arr = [...(form.reportParameters || [])];
+                                    const items = (arr[i].dropdownItems || []).filter((_, k) => k !== j);
+                                    arr[i] = { ...arr[i], dropdownItems: items };
+                                    setForm(f => ({ ...f, reportParameters: arr }));
+                                  }}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => {
+                                const arr = [...(form.reportParameters || [])];
+                                const items = [...(arr[i].dropdownItems || []), ""];
+                                arr[i] = { ...arr[i], dropdownItems: items };
+                                setForm(f => ({ ...f, reportParameters: arr }));
+                              }}>
+                                <Plus className="h-4 w-4 mr-2" /> Add option
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
-              <div className="p-3 border-t">
-                <Button type="button" variant="outline" size="sm" onClick={() => setForm(f => ({ ...f, reportParameters: [...(f.reportParameters || []), { parameter: "", unit: "", normalRange: "", unitType: "text" }] }))}>
-                  <Plus className="h-4 w-4 mr-1.5" /> Add parameter
+              <div className="p-3 border-t bg-muted/5">
+                <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setForm(f => ({ ...f, reportParameters: [...(f.reportParameters || []), { parameter: "", unit: "", normalRange: "", resultType: "manual" }] }))}>
+                  <Plus className="h-4 w-4 mr-2" /> Add parameter
                 </Button>
               </div>
             </div>

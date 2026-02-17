@@ -68,7 +68,7 @@ export const services = pgTable("services", {
   isLabTest: boolean("is_lab_test").notNull().default(false),
   sampleCollectionRequired: boolean("sample_collection_required").notNull().default(false),
   sampleType: text("sample_type"),
-  reportParameters: jsonb("report_parameters").$type<Array<{ parameter: string; unit: string; normalRange: string; unitType?: "text" | "select"; unitOptions?: string[] }>>(),
+  reportParameters: jsonb("report_parameters").$type<Array<{ parameter: string; unit: string; normalRange: string; resultType?: "manual" | "dropdown"; dropdownItems?: string[] }>>(),
 });
 
 export const insertServiceSchema = createInsertSchema(services).omit({ id: true } as any);
