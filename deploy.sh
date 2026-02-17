@@ -45,11 +45,13 @@ echo "  Code backup: $TAR_FILE"
 if [ -n "$DATABASE_URL" ]; then
   echo "[2/7] Backing up database to $SQL_FILE"
   if command -v pg_dump >/dev/null 2>&1; then
-    if pg_dump "$DATABASE_URL" -F p -f "$SQL_FILE" 2>/dev/null; then
+    if pg_dump "$DATABASE_URL" -F p -f "$SQL_FILE" 2>"$BACKUP_DIR/.pg_dump_err"; then
       echo "  Database backup: $SQL_FILE"
+      rm -f "$BACKUP_DIR/.pg_dump_err"
     else
-      echo "  WARNING: pg_dump failed (check DB connection). Skipping DB backup."
-      rm -f "$SQL_FILE"
+      echo "  WARNING: pg_dump failed. Skipping DB backup."
+      [ -s "$BACKUP_DIR/.pg_dump_err" ] && echo "  Error: $(cat "$BACKUP_DIR/.pg_dump_err")"
+      rm -f "$SQL_FILE" "$BACKUP_DIR/.pg_dump_err"
     fi
   else
     echo "  WARNING: pg_dump not found. Install with: apt install postgresql-client"

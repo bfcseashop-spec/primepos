@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { TestTubes, CheckCircle2, Clock, Search, Beaker, QrCode, Printer } from "lucide-react";
+import { TestTubes, CheckCircle2, Clock, Search, Beaker, Barcode, Printer } from "lucide-react";
+import JsBarcode from "jsbarcode";
 
 type SampleCollection = {
   id: number;
@@ -27,6 +28,32 @@ type SampleCollection = {
   patientName?: string | null;
   patientIdCode?: string | null;
 };
+
+function BarcodePreview({ sample }: { sample: SampleCollection }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    if (svgRef.current && sample) {
+      const data = `SAMPLE|${sample.id}|${sample.labTestId}|${sample.testName}|${sample.patientIdCode || "N/A"}`;
+      try {
+        JsBarcode(svgRef.current, data, { format: "CODE128", width: 1.5, height: 40, displayValue: false });
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [sample]);
+  return (
+    <div className="p-4 bg-white rounded-md border w-full">
+      <div className="flex items-center gap-3">
+        <div className="text-left min-w-0 flex-shrink-0">
+          <p className="font-semibold text-sm">{sample.testName}</p>
+          <p className="text-xs text-muted-foreground">{sample.sampleType} • {sample.patientName || "-"}</p>
+          <p className="font-mono text-xs">{sample.patientIdCode || ""}</p>
+        </div>
+        <svg ref={svgRef} className="flex-1 max-w-full" data-testid="img-sample-barcode" />
+      </div>
+    </div>
+  );
+}
 
 export default function SampleCollectionsPage() {
   const { t } = useTranslation();
@@ -65,54 +92,47 @@ export default function SampleCollectionsPage() {
     markCollectedMutation.mutate(id);
   };
 
-  function generateBarcodeSvg(data: string, size = "80"): string {
-    let seed = 0;
-    for (let i = 0; i < data.length; i++) seed = ((seed << 5) - seed + data.charCodeAt(i)) | 0;
-    const rects: string[] = [];
-    for (let y = 0; y < 20; y++) {
-      for (let x = 0; x < 20; x++) {
-        seed = (seed * 16807 + 0) % 2147483647;
-        const isBorder = x === 0 || x === 19 || y === 0 || y === 19;
-        const isCorner = (x < 4 && y < 4) || (x > 15 && y < 4) || (x < 4 && y > 15);
-        if (isCorner || isBorder || seed % 3 === 0) {
-          rects.push(`<rect x="${x * 10}" y="${y * 10}" width="10" height="10" fill="black"/>`);
-        }
-      }
-    }
-    return `<svg viewBox="0 0 200 200" width="${size}" height="${size}">${rects.join("")}</svg>`;
-  }
-
   const printBarcode = (sample: SampleCollection) => {
     const data = `SAMPLE|${sample.id}|${sample.labTestId}|${sample.testName}|${sample.patientIdCode || "N/A"}`;
-    const svgHtml = generateBarcodeSvg(data, "80");
+    const dataEscaped = data.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, '\\"');
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
     printWindow.document.write(`
       <!DOCTYPE html>
-      <html><head><title>Sample Barcode - ${sample.testName}</title>
+      <html><head><title>Sample Barcode - ${sample.testName.replace(/</g, "&lt;")}</title>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
       <style>
-        @page { size: 30mm 55mm; margin: 2mm; }
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-        .sticker { width: 30mm; min-height: 55mm; max-width: 90px; border: 1px dashed #999; padding: 4px; box-sizing: border-box; }
-        .sticker .test-name { font-weight: bold; font-size: 9pt; line-height: 1.2; margin-bottom: 2px; word-wrap: break-word; }
-        .sticker .meta { font-size: 7pt; color: #444; margin-bottom: 2px; }
-        .sticker .id { font-family: monospace; font-size: 8pt; margin-bottom: 3px; }
-        .sticker .barcode { margin: 4px 0; text-align: center; }
+        @page { size: 60mm 30mm landscape; margin: 2mm; }
+        @media print { html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 2mm; }
+        .sticker { display: flex; flex-direction: row; align-items: center; gap: 4mm; width: 56mm; min-height: 26mm; }
+        .sticker .text { flex-shrink: 0; min-width: 0; }
+        .sticker .test-name { font-weight: bold; font-size: 8pt; line-height: 1.2; margin-bottom: 1px; }
+        .sticker .meta { font-size: 7pt; color: #333; }
+        .sticker .id { font-family: monospace; font-size: 7pt; margin-top: 1px; }
+        .sticker .barcode { flex: 1; min-width: 0; text-align: center; }
+        .sticker .barcode svg { max-width: 100%; height: auto; }
       </style></head><body>
       <div class="sticker">
-        <div class="test-name">${sample.testName}</div>
-        <div class="meta">${sample.sampleType} • ${sample.patientName || "-"}</div>
-        <div class="id">${sample.patientIdCode || ""}</div>
-        <div class="barcode">${svgHtml}</div>
+        <div class="text">
+          <div class="test-name">${sample.testName.replace(/</g, "&lt;")}</div>
+          <div class="meta">${sample.sampleType} • ${(sample.patientName || "-").replace(/</g, "&lt;")}</div>
+          <div class="id">${(sample.patientIdCode || "").replace(/</g, "&lt;")}</div>
+        </div>
+        <div class="barcode"><svg id="barcode"></svg></div>
       </div>
+      <script>
+        window.addEventListener('load', function() {
+          try {
+            JsBarcode("#barcode", "${dataEscaped}", { format: "CODE128", width: 1.2, height: 20, displayValue: false, margin: 0 });
+          } catch (e) { document.getElementById("barcode").innerHTML = "<text>Barcode error</text>"; }
+          setTimeout(function() { window.print(); window.close(); }, 150);
+        });
+      <\/script>
       </body></html>
     `);
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
   };
 
   const filtered = samples.filter((s) => {
@@ -180,7 +200,7 @@ export default function SampleCollectionsPage() {
             onClick={() => setBarcodeSample(row)}
             data-testid={`button-barcode-${row.id}`}
           >
-            <QrCode className="h-4 w-4 mr-1.5" />
+            <Barcode className="h-4 w-4 mr-1.5" />
             Print Barcode
           </Button>
           {row.status === "pending" && (
@@ -284,38 +304,13 @@ export default function SampleCollectionsPage() {
           <DialogContent className="w-[calc(100%-2rem)] max-w-sm">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <QrCode className="h-5 w-5 text-purple-500" />
+                <Barcode className="h-5 w-5 text-purple-500" />
                 Print Barcode
               </DialogTitle>
-              <DialogDescription className="sr-only">Print barcode label for this sample collection</DialogDescription>
+              <DialogDescription className="sr-only">Print barcode label for this sample collection (Code 128, landscape)</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col items-center gap-3 py-4">
-              <div className="p-4 bg-white rounded-md border">
-                <svg viewBox="0 0 200 200" width="180" height="180" data-testid="img-sample-barcode-qr">
-                  {(() => {
-                    const data = `SAMPLE|${barcodeSample.id}|${barcodeSample.labTestId}|${barcodeSample.testName}|${barcodeSample.patientIdCode || "N/A"}`;
-                    const cells: JSX.Element[] = [];
-                    let seed = 0;
-                    for (let i = 0; i < data.length; i++) seed = ((seed << 5) - seed + data.charCodeAt(i)) | 0;
-                    for (let y = 0; y < 20; y++) {
-                      for (let x = 0; x < 20; x++) {
-                        seed = (seed * 16807 + 0) % 2147483647;
-                        const isBorder = x === 0 || x === 19 || y === 0 || y === 19;
-                        const isCorner = (x < 4 && y < 4) || (x > 15 && y < 4) || (x < 4 && y > 15);
-                        if (isCorner || isBorder || seed % 3 === 0) {
-                          cells.push(<rect key={`${x}-${y}`} x={x * 10} y={y * 10} width="10" height="10" fill="black" />);
-                        }
-                      }
-                    }
-                    return cells;
-                  })()}
-                </svg>
-              </div>
-              <div className="text-center space-y-1">
-                <p className="font-semibold text-sm">{barcodeSample.testName}</p>
-                <p className="text-xs text-muted-foreground">{barcodeSample.sampleType} • {barcodeSample.patientName || "-"}</p>
-                <p className="font-mono text-xs">{barcodeSample.patientIdCode || ""}</p>
-              </div>
+              <BarcodePreview sample={barcodeSample} />
               <Button
                 className="w-full"
                 onClick={() => printBarcode(barcodeSample)}
