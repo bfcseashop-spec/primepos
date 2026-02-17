@@ -52,7 +52,11 @@ if [ -n "$DATABASE_URL" ]; then
       echo "  WARNING: pg_dump failed. Skipping DB backup."
       [ -s "$BACKUP_DIR/.pg_dump_err" ] && echo "  Error: $(cat "$BACKUP_DIR/.pg_dump_err")"
       if grep -q "1234@localhost\|could not translate host" "$BACKUP_DIR/.pg_dump_err" 2>/dev/null; then
-        echo "  Hint: Password may contain @. In .env, encode it: Primepos@1234 -> Primepos%401234"
+        echo ""
+        echo "  Hint: Password contains @ which breaks the URL. Edit .env and encode @ as %40:"
+        echo "    Primepos@1234  ->  Primepos%401234"
+        echo "  Example: DATABASE_URL=postgresql://primepos_user:Primepos%401234@localhost:5432/primepos_db"
+        echo ""
       fi
       rm -f "$SQL_FILE" "$BACKUP_DIR/.pg_dump_err"
     fi

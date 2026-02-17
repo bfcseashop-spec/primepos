@@ -36,7 +36,13 @@ Backups are stored in `backups/` with timestamped names:
 To enable database backups:
 
 1. Install the PostgreSQL client: `sudo apt install postgresql-client`
-2. If pg_dump fails with "1234@localhost" or "could not translate host": the `@` in your password breaks the URL. In `.env`, change `Primepos@1234` to `Primepos%401234`:
+2. **If pg_dump fails** with "1234@localhost" or "could not translate host": the `@` in your password breaks the URL. Edit `.env` on the server and encode `@` as `%40`:
+   ```bash
+   # On the server:
+   nano /var/www/primepos/.env
+   # Change: Primepos@1234  ->  Primepos%401234
+   ```
+   Example line:
    ```
    DATABASE_URL=postgresql://primepos_user:Primepos%401234@localhost:5432/primepos_db
    ```
