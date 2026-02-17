@@ -21,12 +21,12 @@ npm run deploy:backup-only
 
 Backups are stored in `backups/` with timestamped names:
 
-- `08-15-2026-23-30-primepos.zip` - Code snapshot (excludes node_modules, dist, .git)
+- `08-15-2026-23-30-primepos.tar.gz` - Code snapshot (excludes node_modules, dist, .git)
 - `08-15-2026-23-30-primepos.sql` - Database dump (PostgreSQL)
 
 ## Requirements
 
-- `zip` - for code backup
+- `tar` - for code backup (built-in on Linux)
 - `pg_dump` - for database backup (PostgreSQL client tools)
 - `DATABASE_URL` in `.env` - for database backup
 

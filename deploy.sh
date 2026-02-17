@@ -13,7 +13,7 @@ mkdir -p "$BACKUP_DIR"
 # Timestamp: MM-DD-YYYY-HH-MM (e.g. 08-15-2026-23-30)
 TIMESTAMP=$(date +%m-%d-%Y-%H-%M)
 PREFIX="${TIMESTAMP}-primepos"
-ZIP_FILE="$BACKUP_DIR/${PREFIX}.zip"
+TAR_FILE="$BACKUP_DIR/${PREFIX}.tar.gz"
 SQL_FILE="$BACKUP_DIR/${PREFIX}.sql"
 
 echo "=== PrimePOS Backup & Deploy ==="
@@ -29,18 +29,11 @@ if [ -f .env ]; then
 fi
 
 # --- 1. Backup code ---
-echo "[1/7] Backing up code to $ZIP_FILE"
-zip -r "$ZIP_FILE" . \
-  -x "node_modules/*" \
-  -x "dist/*" \
-  -x ".git/*" \
-  -x "backups/*" \
-  -x "*.zip" \
-  -x "*.sql" \
-  -x ".env" \
-  -x "*.log" \
-  -q
-echo "  Code backup: $ZIP_FILE"
+echo "[1/7] Backing up code to $TAR_FILE"
+tar --exclude='node_modules' --exclude='dist' --exclude='.git' --exclude='backups' \
+  --exclude='*.zip' --exclude='*.tar.gz' --exclude='*.sql' --exclude='.env' \
+  --exclude='*.log' -czf "$TAR_FILE" .
+echo "  Code backup: $TAR_FILE"
 
 # --- 2. Backup database ---
 if [ -n "$DATABASE_URL" ]; then
@@ -85,4 +78,4 @@ npm run pm2:restart
 
 echo ""
 echo "=== Deploy complete ==="
-echo "Backups: $ZIP_FILE, $SQL_FILE"
+echo "Backups: $TAR_FILE, $SQL_FILE"
