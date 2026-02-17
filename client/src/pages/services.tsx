@@ -1346,14 +1346,14 @@ export default function ServicesPage() {
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-muted-foreground">Category</Label>
-                            <Select value={p.category || ""} onValueChange={(v) => {
+                            <Select value={p.category || "__none__"} onValueChange={(v) => {
                               const arr = [...(form.reportParameters || [])];
-                              arr[i] = { ...arr[i], category: v || undefined };
+                              arr[i] = { ...arr[i], category: v === "__none__" ? undefined : v };
                               setForm(f => ({ ...f, reportParameters: arr }));
                             }}>
                               <SelectTrigger className="h-9 w-full"><SelectValue placeholder="—" /></SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">—</SelectItem>
+                                <SelectItem value="__none__">—</SelectItem>
                                 {reportCategories.map(c => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
                               </SelectContent>
                             </Select>
