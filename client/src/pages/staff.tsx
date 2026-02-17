@@ -50,52 +50,13 @@ const MODULE_COLORS: Record<string, { bg: string; text: string; border: string }
   settings: { bg: "bg-slate-500/10", text: "text-slate-700 dark:text-slate-300", border: "border-slate-500/20" },
 };
 
-const PERMISSION_MODULES = [
-  { key: "dashboard", label: "Dashboard" },
-  { key: "make_payment", label: "Make Payment (POS)" },
-  { key: "opd", label: "OPD Management" },
-  { key: "appointments", label: "Appointments" },
-  { key: "services", label: "Services" },
-  { key: "lab_tests", label: "Lab Tests" },
-  { key: "medicines", label: "Medicines" },
-  { key: "doctors", label: "Doctor Management" },
-  { key: "patients", label: "Patient Registration" },
-  { key: "expenses", label: "Expenses" },
-  { key: "bank_transactions", label: "Bank Transactions" },
-  { key: "investments", label: "Investments" },
-  { key: "salary", label: "Salary" },
-  { key: "user_role", label: "User & Role" },
-  { key: "authentication", label: "Authentication" },
-  { key: "integrations", label: "Integrations" },
-  { key: "reports", label: "Reports" },
-  { key: "settings", label: "Settings" },
-] as const;
-
-const PERMISSION_ACTIONS = ["view", "add", "edit", "delete"] as const;
-
-type PermissionMap = Record<string, Record<string, boolean>>;
-
-function getDefaultPermissions(): PermissionMap {
-  const perms: PermissionMap = {};
-  PERMISSION_MODULES.forEach(m => {
-    perms[m.key] = {};
-    PERMISSION_ACTIONS.forEach(a => { perms[m.key][a] = false; });
-  });
-  return perms;
-}
-
-function mergePermissions(saved: any): PermissionMap {
-  const defaults = getDefaultPermissions();
-  if (!saved || typeof saved !== "object") return defaults;
-  PERMISSION_MODULES.forEach(m => {
-    if (saved[m.key] && typeof saved[m.key] === "object") {
-      PERMISSION_ACTIONS.forEach(a => {
-        defaults[m.key][a] = !!saved[m.key][a];
-      });
-    }
-  });
-  return defaults;
-}
+import {
+  PERMISSION_MODULES,
+  PERMISSION_ACTIONS,
+  getDefaultPermissions,
+  mergePermissions,
+  type PermissionMap,
+} from "@shared/permissions";
 
 const avatarGradients = [
   "from-blue-500 to-cyan-400",

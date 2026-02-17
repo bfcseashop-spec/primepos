@@ -1,5 +1,4 @@
 import { useLocation, Link } from "wouter";
-import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard, Users, FileText, Stethoscope, Pill,
@@ -21,6 +20,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { canView, NAV_TO_MODULE } from "@shared/permissions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -53,8 +53,12 @@ const systemItems = [
   { i18nKey: "sidebar.settings", url: "/settings", icon: Settings, iconColor: "text-slate-400" },
 ];
 
-function NavGroup({ label, items, isActive }: { label: string; items: typeof mainItems; isActive: (url: string) => boolean }) {
+type NavItem = typeof mainItems[0];
+
+function NavGroup({ label, items, isActive, visibleItems }: { label: string; items: NavItem[]; isActive: (url: string) => boolean; visibleItems: Set<string> }) {
   const { t } = useTranslation();
+  const visible = items.filter((item) => visibleItems.has(item.url));
+  if (visible.length === 0) return null;
   return (
     <SidebarGroup>
       <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 px-3 mb-1">
@@ -62,7 +66,7 @@ function NavGroup({ label, items, isActive }: { label: string; items: typeof mai
       </SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
-          {items.map((item) => {
+          {visible.map((item) => {
             const active = isActive(item.url);
             const title = t(item.i18nKey);
             return (
@@ -85,21 +89,21 @@ function NavGroup({ label, items, isActive }: { label: string; items: typeof mai
   );
 }
 
-export function AppSidebar() {
+export function AppSidebar({ currentUser }: { currentUser: any }) {
   const [location] = useLocation();
   const { t } = useTranslation();
-  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const { data: settings } = useQuery<any>({
     queryKey: ["/api/settings"],
   });
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("clinicpos_user");
-      if (stored) setCurrentUser(JSON.parse(stored));
-    } catch {}
-  }, []);
+  const permissions = currentUser?.permissions;
+  const roleName = currentUser?.role;
+  const visibleUrls = new Set(
+    [...mainItems, ...financeItems, ...systemItems]
+      .filter((item) => canView(permissions, NAV_TO_MODULE[item.url] ?? "dashboard", roleName))
+      .map((item) => item.url)
+  );
 
   const isActive = (url: string) => {
     if (url === "/") return location === "/";
@@ -148,9 +152,9 @@ export function AppSidebar() {
       </div>
 
       <SidebarContent className="px-1">
-        <NavGroup label={t("sidebar.main")} items={mainItems} isActive={isActive} />
-        <NavGroup label={t("sidebar.finance")} items={financeItems} isActive={isActive} />
-        <NavGroup label={t("sidebar.system")} items={systemItems} isActive={isActive} />
+        <NavGroup label={t("sidebar.main")} items={mainItems} isActive={isActive} visibleItems={visibleUrls} />
+        <NavGroup label={t("sidebar.finance")} items={financeItems} isActive={isActive} visibleItems={visibleUrls} />
+        <NavGroup label={t("sidebar.system")} items={systemItems} isActive={isActive} visibleItems={visibleUrls} />
       </SidebarContent>
 
       <div className="px-4 pt-1">

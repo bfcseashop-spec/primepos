@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, Redirect } from "wouter";
 import { cleanupDialogScrollLock } from "@/components/ui/dialog";
 import { queryClient, apiRequest, safeJsonRes, API_NOT_REACHABLE_MSG } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -33,13 +33,27 @@ import DoctorManagementPage from "@/pages/doctor-management";
 import SalaryPage from "@/pages/salary";
 import AuthenticationPage from "@/pages/authentication";
 import SignInPage from "@/pages/sign-in";
+import { canView, NAV_TO_MODULE } from "@shared/permissions";
 
-function Router() {
+function RouteGuard({ currentUser, children }: { currentUser: any; children: React.ReactNode }) {
+  const [location] = useLocation();
+  const permissions = currentUser?.permissions;
+  const roleName = currentUser?.role;
+  const pathname = location.split("?")[0];
+  const pathKey = "/" + (pathname.split("/")[1] || "");
+  const moduleKey = NAV_TO_MODULE[pathKey];
+  const hasAccess = moduleKey == null || canView(permissions, moduleKey, roleName);
+  if (!hasAccess) return <Redirect to="/" replace />;
+  return <>{children}</>;
+}
+
+function Router({ currentUser }: { currentUser: any }) {
   const [location] = useLocation();
   useEffect(() => {
     cleanupDialogScrollLock();
   }, [location]);
   return (
+    <RouteGuard currentUser={currentUser}>
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/opd" component={OpdPage} />
@@ -63,6 +77,7 @@ function Router() {
       <Route path="/settings" component={SettingsPage} />
       <Route component={NotFound} />
     </Switch>
+    </RouteGuard>
   );
 }
 
@@ -188,11 +203,11 @@ function App() {
             <SidebarProvider style={sidebarStyle as React.CSSProperties}>
               <DocumentHeadFromSettings />
               <div className="flex h-screen w-full">
-                <AppSidebar />
+                <AppSidebar currentUser={currentUser} />
                 <div className="flex flex-col flex-1 overflow-hidden">
                   <LayoutHeader />
                   <main className="flex-1 overflow-hidden">
-                    <Router />
+                    <Router currentUser={currentUser} />
                   </main>
                 </div>
               </div>

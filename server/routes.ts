@@ -1,6 +1,8 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { createRequirePermission } from "./permissions";
+import { mergePermissions } from "@shared/permissions";
 import {
   insertPatientSchema, insertOpdVisitSchema, insertBillSchema,
   insertServiceSchema, insertInjectionSchema, insertMedicineSchema, insertExpenseSchema,
@@ -285,9 +287,13 @@ export async function registerRoutes(
       return res.status(401).json({ message: "Not authenticated" });
     }
     let roleName = "User";
+    let permissions: Record<string, Record<string, boolean>> = {};
     if (req.session.roleId) {
       const role = await storage.getRole(req.session.roleId);
-      if (role) roleName = role.name;
+      if (role) {
+        roleName = role.name;
+        permissions = mergePermissions(role.permissions);
+      }
     }
     res.json({
       id: req.session.userId,
@@ -296,6 +302,7 @@ export async function registerRoutes(
       email: req.session.email,
       roleId: req.session.roleId,
       role: roleName,
+      permissions,
     });
   });
 
@@ -454,8 +461,9 @@ export async function registerRoutes(
     }
   });
 
-  // Protect all other API routes
-  app.use("/api", requireAuth);
+  // Protect all other API routes (auth + permission check)
+  const requirePermission = createRequirePermission(storage);
+  app.use("/api", requireAuth, requirePermission);
 
   // Dashboard
   app.get("/api/dashboard/stats", async (_req, res) => {

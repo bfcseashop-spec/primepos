@@ -1,6 +1,25 @@
 import { db } from "./db";
 import { roles, users, patients, services, medicines, opdVisits, bills, expenses, bankTransactions, investments, integrations, clinicSettings } from "@shared/schema";
 import { count } from "drizzle-orm";
+import { getDefaultPermissions } from "@shared/permissions";
+
+/** Build role permissions: pass module keys with {view, add, edit, delete} booleans. */
+function perms(mods: Record<string, { view?: boolean; add?: boolean; edit?: boolean; delete?: boolean }>) {
+  const base = getDefaultPermissions();
+  for (const [k, v] of Object.entries(mods)) {
+    if (base[k]) {
+      base[k].view = !!v.view;
+      base[k].add = !!v.add;
+      base[k].edit = !!v.edit;
+      base[k].delete = !!v.delete;
+    }
+  }
+  return base;
+}
+
+const all = { view: true, add: true, edit: true, delete: true };
+const viewOnly = { view: true, add: false, edit: false, delete: false };
+const viewAddEdit = { view: true, add: true, edit: true, delete: false };
 
 export async function seedDatabase() {
   const [existingPatients] = await db.select({ count: count() }).from(patients);
@@ -8,11 +27,12 @@ export async function seedDatabase() {
 
   console.log("Seeding database...");
 
-  // Roles
+  // Roles (view/add/edit/delete format for role permission UI)
   const [adminRole] = await db.insert(roles).values([
-    { name: "Admin", permissions: { dashboard: { read: true, write: true, delete: true }, opd: { read: true, write: true, delete: true }, billing: { read: true, write: true, delete: true }, services: { read: true, write: true, delete: true }, medicines: { read: true, write: true, delete: true }, expenses: { read: true, write: true, delete: true }, bank: { read: true, write: true, delete: true }, investments: { read: true, write: true, delete: true }, staff: { read: true, write: true, delete: true }, integrations: { read: true, write: true, delete: true }, settings: { read: true, write: true, delete: true }, reports: { read: true, write: true, delete: true } } },
-    { name: "Doctor", permissions: { dashboard: { read: true, write: false, delete: false }, opd: { read: true, write: true, delete: false }, billing: { read: true, write: true, delete: false }, services: { read: true, write: false, delete: false }, medicines: { read: true, write: false, delete: false }, expenses: { read: false, write: false, delete: false }, bank: { read: false, write: false, delete: false }, investments: { read: false, write: false, delete: false }, staff: { read: false, write: false, delete: false }, integrations: { read: true, write: false, delete: false }, settings: { read: false, write: false, delete: false }, reports: { read: true, write: false, delete: false } } },
-    { name: "Receptionist", permissions: { dashboard: { read: true, write: false, delete: false }, opd: { read: true, write: true, delete: false }, billing: { read: true, write: true, delete: false }, services: { read: true, write: false, delete: false }, medicines: { read: true, write: false, delete: false }, expenses: { read: false, write: false, delete: false }, bank: { read: false, write: false, delete: false }, investments: { read: false, write: false, delete: false }, staff: { read: false, write: false, delete: false }, integrations: { read: false, write: false, delete: false }, settings: { read: false, write: false, delete: false }, reports: { read: false, write: false, delete: false } } },
+    { name: "Admin", permissions: perms({ dashboard: all, make_payment: all, opd: all, appointments: all, services: all, lab_tests: all, medicines: all, doctors: all, patients: all, expenses: all, bank_transactions: all, investments: all, salary: all, user_role: all, authentication: all, integrations: all, reports: all, settings: all }) },
+    { name: "Doctor", permissions: perms({ dashboard: viewOnly, make_payment: viewAddEdit, opd: viewAddEdit, appointments: viewOnly, services: viewOnly, lab_tests: viewOnly, medicines: viewOnly, doctors: viewOnly, patients: viewOnly, integrations: viewOnly, reports: viewOnly }) },
+    { name: "Receptionist", permissions: perms({ dashboard: viewOnly, make_payment: viewAddEdit, opd: viewAddEdit, appointments: viewAddEdit, services: viewOnly, lab_tests: viewOnly, medicines: viewOnly, patients: viewAddEdit }) },
+    { name: "Lab Technologist", description: "Lab Technologist user", permissions: perms({ dashboard: viewOnly, make_payment: viewAddEdit, opd: viewAddEdit, services: all, lab_tests: all, medicines: viewOnly, patients: all }) },
   ]).returning();
 
   // Staff
@@ -20,6 +40,7 @@ export async function seedDatabase() {
     { username: "admin", password: "admin123", fullName: "Dr. Sarah Mitchell", email: "sarah@clinic.com", phone: "+1-555-0101", roleId: adminRole.id, isActive: true },
     { username: "drjones", password: "doctor123", fullName: "Dr. Michael Jones", email: "michael@clinic.com", phone: "+1-555-0102", roleId: adminRole.id + 1, isActive: true },
     { username: "reception", password: "reception123", fullName: "Emily Parker", email: "emily@clinic.com", phone: "+1-555-0103", roleId: adminRole.id + 2, isActive: true },
+    { username: "ekbal", password: "lab123", fullName: "Md Ekbal Hossain", email: "ekbalhossain@gmail.com", phone: "+1-555-0104", roleId: adminRole.id + 3, isActive: true },
   ]);
 
   // Patients
