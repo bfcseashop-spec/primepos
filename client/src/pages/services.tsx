@@ -1144,7 +1144,7 @@ export default function ServicesPage() {
   ];
 
   const formContent = (
-    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+    <div className="space-y-4 max-h-[85vh] overflow-y-auto pr-1">
       <div className="space-y-3">
         <div>
           <Label htmlFor="svc-name">{t("services.serviceName")} *</Label>
@@ -1174,21 +1174,21 @@ export default function ServicesPage() {
           <Label htmlFor="svc-description">{t("common.description")}</Label>
           <Textarea id="svc-description" rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} data-testid="input-service-description" />
         </div>
-        <div className="flex items-center gap-4 space-y-0">
+        <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Checkbox id="svc-isLabTest" checked={form.isLabTest} onCheckedChange={v => setForm(f => ({ ...f, isLabTest: !!v }))} />
             <Label htmlFor="svc-isLabTest" className="cursor-pointer text-sm font-normal">Lab Test (creates lab request when added to bill)</Label>
           </div>
           {form.isLabTest && (
-            <>
+            <div className="space-y-3 pl-6 border-l-2 border-muted">
               <div className="flex items-center gap-2">
                 <Checkbox id="svc-sampleRequired" checked={form.sampleCollectionRequired} onCheckedChange={v => setForm(f => ({ ...f, sampleCollectionRequired: !!v }))} />
                 <Label htmlFor="svc-sampleRequired" className="cursor-pointer text-sm font-normal">Sample collection required</Label>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="space-y-1">
                 <Label className="text-sm">Sample type</Label>
                 <Select value={form.sampleType} onValueChange={v => setForm(f => ({ ...f, sampleType: v }))}>
-                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full max-w-[200px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {["Blood", "Urine", "Stool", "Sputum", "Swab", "Tissue", "CSF", "Saliva", "Serum", "Plasma", "Other"].map(st => (
                       <SelectItem key={st} value={st}>{st}</SelectItem>
@@ -1196,80 +1196,7 @@ export default function ServicesPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2 mt-3 space-y-2">
-                <div>
-                  <Label className="text-sm font-medium">Report Parameters</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">Configure parameters for manual test result entry. Unit can be manual text or dropdown selector.</p>
-                </div>
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="max-h-64 overflow-y-auto space-y-3 p-3">
-                    {(form.reportParameters || []).map((p, i) => (
-                      <div key={i} className="space-y-2 p-3 rounded-md border bg-muted/20">
-                        <div className="flex items-center justify-between gap-2">
-                          <Label className="text-xs font-medium">Parameter</Label>
-                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0 -mr-1" onClick={() => setForm(f => ({ ...f, reportParameters: (f.reportParameters || []).filter((_, j) => j !== i) }))}>
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        </div>
-                        <Input placeholder="e.g. Glucose, Hb" value={p.parameter} onChange={e => {
-                          const arr = [...(form.reportParameters || [])];
-                          arr[i] = { ...arr[i], parameter: e.target.value };
-                          setForm(f => ({ ...f, reportParameters: arr }));
-                        }} className="w-full" />
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium">Unit type</Label>
-                          <Select value={p.unitType || "text"} onValueChange={(v: "text" | "select") => {
-                            const arr = [...(form.reportParameters || [])];
-                            arr[i] = { ...arr[i], unitType: v, unitOptions: v === "select" ? COMMON_LAB_UNITS : undefined };
-                            setForm(f => ({ ...f, reportParameters: arr }));
-                          }}>
-                            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="text">Manual</SelectItem>
-                              <SelectItem value="select">Dropdown</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium">Unit</Label>
-                          {p.unitType === "select" ? (
-                            <Select value={p.unit} onValueChange={v => {
-                              const arr = [...(form.reportParameters || [])];
-                              arr[i] = { ...arr[i], unit: v };
-                              setForm(f => ({ ...f, reportParameters: arr }));
-                            }}>
-                              <SelectTrigger className="w-full"><SelectValue placeholder="Select unit" /></SelectTrigger>
-                              <SelectContent>
-                                {COMMON_LAB_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input placeholder="e.g. mg/dL, mmol/L" value={p.unit} onChange={e => {
-                              const arr = [...(form.reportParameters || [])];
-                              arr[i] = { ...arr[i], unit: e.target.value };
-                              setForm(f => ({ ...f, reportParameters: arr }));
-                            }} className="w-full" />
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium">Normal range</Label>
-                          <Input placeholder="e.g. 70-99" value={p.normalRange} onChange={e => {
-                            const arr = [...(form.reportParameters || [])];
-                            arr[i] = { ...arr[i], normalRange: e.target.value };
-                            setForm(f => ({ ...f, reportParameters: arr }));
-                          }} className="w-full" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-3 border-t">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setForm(f => ({ ...f, reportParameters: [...(f.reportParameters || []), { parameter: "", unit: "", normalRange: "", unitType: "text" }] }))}>
-                      <Plus className="h-4 w-4 mr-1.5" /> Add parameter
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -1336,6 +1263,83 @@ export default function ServicesPage() {
           </div>
         </div>
       </div>
+
+      {form.isLabTest && (
+        <>
+          <Separator />
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Report Parameters</Label>
+            <p className="text-xs text-muted-foreground">Configure parameters for manual test result entry. Unit can be manual text or dropdown selector.</p>
+            <div className="border rounded-lg overflow-hidden">
+              <div className="max-h-64 overflow-y-auto space-y-3 p-3">
+                {(form.reportParameters || []).map((p, i) => (
+                  <div key={i} className="space-y-2 p-3 rounded-md border bg-muted/20">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs font-medium">Parameter</Label>
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0 -mr-1" onClick={() => setForm(f => ({ ...f, reportParameters: (f.reportParameters || []).filter((_, j) => j !== i) }))}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                    <Input placeholder="e.g. Glucose, Hb" value={p.parameter} onChange={e => {
+                      const arr = [...(form.reportParameters || [])];
+                      arr[i] = { ...arr[i], parameter: e.target.value };
+                      setForm(f => ({ ...f, reportParameters: arr }));
+                    }} className="w-full" />
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Unit type</Label>
+                      <Select value={p.unitType || "text"} onValueChange={(v: "text" | "select") => {
+                        const arr = [...(form.reportParameters || [])];
+                        arr[i] = { ...arr[i], unitType: v, unitOptions: v === "select" ? COMMON_LAB_UNITS : undefined };
+                        setForm(f => ({ ...f, reportParameters: arr }));
+                      }}>
+                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="text">Manual</SelectItem>
+                          <SelectItem value="select">Dropdown</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Unit</Label>
+                      {p.unitType === "select" ? (
+                        <Select value={p.unit} onValueChange={v => {
+                          const arr = [...(form.reportParameters || [])];
+                          arr[i] = { ...arr[i], unit: v };
+                          setForm(f => ({ ...f, reportParameters: arr }));
+                        }}>
+                          <SelectTrigger className="w-full"><SelectValue placeholder="Select unit" /></SelectTrigger>
+                          <SelectContent>
+                            {COMMON_LAB_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input placeholder="e.g. mg/dL, mmol/L" value={p.unit} onChange={e => {
+                          const arr = [...(form.reportParameters || [])];
+                          arr[i] = { ...arr[i], unit: e.target.value };
+                          setForm(f => ({ ...f, reportParameters: arr }));
+                        }} className="w-full" />
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Normal range</Label>
+                      <Input placeholder="e.g. 70-99" value={p.normalRange} onChange={e => {
+                        const arr = [...(form.reportParameters || [])];
+                        arr[i] = { ...arr[i], normalRange: e.target.value };
+                        setForm(f => ({ ...f, reportParameters: arr }));
+                      }} className="w-full" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-3 border-t">
+                <Button type="button" variant="outline" size="sm" onClick={() => setForm(f => ({ ...f, reportParameters: [...(f.reportParameters || []), { parameter: "", unit: "", normalRange: "", unitType: "text" }] }))}>
+                  <Plus className="h-4 w-4 mr-1.5" /> Add parameter
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -1975,7 +1979,7 @@ export default function ServicesPage() {
       </Dialog>
 
       <Dialog open={!!editService} onOpenChange={(open) => { if (!open) { setEditService(null); setForm(defaultForm); setFieldErrors({}); } }}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-3xl sm:max-w-4xl max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle data-testid="text-edit-service-title">{t("services.editService")}</DialogTitle>
             <DialogDescription>{t("services.subtitle")}</DialogDescription>
