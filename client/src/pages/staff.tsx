@@ -245,6 +245,7 @@ export default function StaffPage() {
         phone: form.get("phone") || null,
         roleId: form.get("roleId") ? Number(form.get("roleId")) : null,
         isActive: form.get("status") === "active",
+        qualification: form.get("qualification") || null,
       },
     });
   };
@@ -698,6 +699,43 @@ export default function StaffPage() {
                   <Label htmlFor="editPhone">Phone</Label>
                   <Input id="editPhone" name="phone" defaultValue={selectedUser.phone || ""} data-testid="input-edit-user-phone" />
                 </div>
+              </div>
+              <div>
+                <Label htmlFor="editQualification">Qualification (for Lab Technologist)</Label>
+                <Input id="editQualification" name="qualification" defaultValue={selectedUser.qualification || ""} placeholder="e.g. B.Sc in Lab Medicine (RU) BD" data-testid="input-edit-user-qualification" />
+              </div>
+              <div>
+                <Label>Signature (for Lab Technologist)</Label>
+                <div className="flex items-center gap-2">
+                  {selectedUser.signatureUrl && (
+                    <img src={selectedUser.signatureUrl} alt="Signature" className="h-10 object-contain border rounded" />
+                  )}
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    className="max-w-[200px]"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file || !selectedUser) return;
+                      const fd = new FormData();
+                      fd.append("file", file);
+                      try {
+                        const res = await fetch(`/api/users/${selectedUser.id}/upload-signature`, { method: "POST", body: fd, credentials: "include" });
+                        if (res.ok) {
+                          queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+                          toast({ title: "Signature uploaded" });
+                        } else {
+                          const err = await res.json().catch(() => ({}));
+                          toast({ title: err.message || "Upload failed", variant: "destructive" });
+                        }
+                      } catch {
+                        toast({ title: "Upload failed", variant: "destructive" });
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Used on printed lab test reports for Lab Technologist role</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

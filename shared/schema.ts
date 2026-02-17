@@ -22,6 +22,8 @@ export const users = pgTable("users", {
   email: text("email"),
   phone: text("phone"),
   roleId: integer("role_id").references(() => roles.id),
+  qualification: text("qualification"),
+  signatureUrl: text("signature_url"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -344,6 +346,7 @@ export const labTests = pgTable("lab_tests", {
   reportFileName: text("report_file_name"),
   reportResults: jsonb("report_results").$type<Array<{ parameter: string; result: string; unit: string; normalRange: string }>>(),
   referrerName: text("referrer_name"),
+  labTechnologistId: integer("lab_technologist_id").references(() => users.id),
   status: text("status").notNull().default("processing"),
   createdAt: timestamp("created_at").defaultNow(),
 });

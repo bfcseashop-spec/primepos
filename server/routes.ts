@@ -50,6 +50,30 @@ if (!fs.existsSync(paymentSlipDir)) {
   fs.mkdirSync(paymentSlipDir, { recursive: true });
 }
 
+const userSignaturesDir = path.join(process.cwd(), "uploads", "user-signatures");
+if (!fs.existsSync(userSignaturesDir)) {
+  fs.mkdirSync(userSignaturesDir, { recursive: true });
+}
+
+const userSignatureUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, userSignaturesDir),
+    filename: (_req, file, cb) => {
+      const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+      cb(null, uniqueName);
+    },
+  }),
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only JPG, PNG, GIF, WebP image files are allowed"));
+    }
+  },
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
+
 const paymentSlipUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, paymentSlipDir),
@@ -2099,7 +2123,7 @@ export async function registerRoutes(
 
   app.patch("/api/users/:id", async (req, res) => {
     try {
-      const updateSchema = z.object({ isActive: z.boolean().optional(), roleId: z.number().nullable().optional(), fullName: z.string().optional(), email: z.string().nullable().optional(), phone: z.string().nullable().optional() });
+      const updateSchema = z.object({ isActive: z.boolean().optional(), roleId: z.number().nullable().optional(), fullName: z.string().optional(), email: z.string().nullable().optional(), phone: z.string().nullable().optional(), qualification: z.string().nullable().optional(), signatureUrl: z.string().nullable().optional() });
       const data = validateBody(updateSchema, req.body);
       const user = await storage.updateUser(Number(req.params.id), data);
       if (!user) return res.status(404).json({ message: "User not found" });
@@ -2109,6 +2133,20 @@ export async function registerRoutes(
       res.status(400).json({ message: err.message });
     }
   });
+
+  app.post("/api/users/:id/upload-signature", userSignatureUpload.single("file"), async (req: any, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const signatureUrl = `/uploads/user-signatures/${req.file.filename}`;
+      const user = await storage.updateUser(Number(req.params.id), { signatureUrl });
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json(user);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.use("/uploads/user-signatures", express.static(userSignaturesDir));
 
   app.delete("/api/users/:id", async (req, res) => {
     try {
@@ -2403,6 +2441,7 @@ export async function registerRoutes(
         reportFileUrl: z.string().nullable().optional(),
         reportFileName: z.string().nullable().optional(),
         reportResults: z.array(reportResultSchema).optional(),
+        labTechnologistId: z.number().nullable().optional(),
         status: z.string().optional(),
       });
       const data = validateBody(updateSchema, req.body);

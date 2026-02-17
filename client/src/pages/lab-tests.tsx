@@ -203,6 +203,12 @@ export default function LabTestsPage() {
     queryKey: ["/api/settings"],
   });
 
+  const { data: users = [] } = useQuery<{ id: number; fullName: string; roleName?: string }[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const [inputResultsLabTechnologistId, setInputResultsLabTechnologistId] = useState<number | null>(null);
+
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       const codeRes = await fetch("/api/lab-tests/next-code", { credentials: "include" });
@@ -267,8 +273,8 @@ export default function LabTestsPage() {
   });
 
   const saveResultsMutation = useMutation({
-    mutationFn: async ({ id, reportResults }: { id: number; reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }) => {
-      const res = await apiRequest("PATCH", `/api/lab-tests/${id}`, { reportResults, status: "complete" });
+    mutationFn: async ({ id, reportResults, labTechnologistId }: { id: number; reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string }>; labTechnologistId?: number | null }) => {
+      const res = await apiRequest("PATCH", `/api/lab-tests/${id}`, { reportResults, labTechnologistId: labTechnologistId ?? undefined, status: "complete" });
       return res.json();
     },
     onSuccess: () => {
@@ -276,6 +282,7 @@ export default function LabTestsPage() {
       toast({ title: "Test results saved" });
       setInputResultsTest(null);
       setInputResultsValues({});
+      setInputResultsLabTechnologistId(null);
     },
     onError: (err: Error) => {
       toast({ title: err.message || "Failed to save", variant: "destructive" });
@@ -304,13 +311,16 @@ export default function LabTestsPage() {
     const statusColor = row.status === "complete" ? "#059669" : row.status === "processing" ? "#2563eb" : row.status === "cancel" ? "#dc2626" : "#d97706";
 
     const isCompact = layout === "compact";
-    const bodyPad = isCompact ? "12px 14px" : "20px 24px";
+    const bodyPad = isCompact ? "10px 12px" : "16px 20px";
     const maxW = isCompact ? "340px" : "720px";
     const fBase = isCompact ? 10 : 11;
     const fSm = isCompact ? 9 : 10;
-    const fLg = isCompact ? 13 : 15;
-    const pad = isCompact ? "6px 8px" : "10px 12px";
-    const padSm = isCompact ? "5px 8px" : "8px 12px";
+    const fResult = isCompact ? 15 : 18;
+    const pad = isCompact ? "5px 6px" : "8px 10px";
+    const padSm = isCompact ? "4px 6px" : "6px 10px";
+
+    const testCodeBarcode = (row.testCode || "").replace(/[^A-Za-z0-9\-]/g, "") || row.testCode || "";
+    const barcodeSize = isCompact ? 32 : 40;
 
     const logoHref = settings?.logo
       ? (settings.logo.startsWith("http") ? settings.logo : `${typeof window !== "undefined" ? window.location.origin : ""}${settings.logo.startsWith("/") ? settings.logo : "/" + settings.logo}`)
@@ -319,9 +329,11 @@ export default function LabTestsPage() {
     printWindow.document.write(`
       <html><head><title>Lab Test Report - ${row.testCode}</title>
       <meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.5; }
+        .lab-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
         table { border-collapse: collapse; }
         @media print { body { padding: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
       </style></head><body>
@@ -329,58 +341,61 @@ export default function LabTestsPage() {
         <div style="padding:${bodyPad};">
 
           <!-- HEADER -->
-          <div style="text-align:center;margin-bottom:${isCompact ? "16px" : "24px"};padding-bottom:${isCompact ? "12px" : "16px"};border-bottom:2px solid ${border};">
+          <div style="text-align:center;margin-bottom:${isCompact ? "10px" : "14px"};padding-bottom:${isCompact ? "8px" : "10px"};border-bottom:2px solid ${border};">
             ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "40px" : "56px"};margin:0 auto 8px;display:block;" />` : ""}
             <div style="font-size:${isCompact ? "16px" : "22px"};font-weight:900;color:${teal};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">${clinicNameDisplay}</div>
-            <div style="font-size:${isCompact ? "9px" : "11px"};color:${muted};line-height:1.7;">
+            <div style="font-size:${isCompact ? "9px" : "11px"};color:${muted};line-height:1.5;">
               ${clinicAddress ? `<div>${clinicAddress}</div>` : ""}
               <div>${[clinicPhone, clinicEmail].filter(Boolean).join(", ")}</div>
             </div>
           </div>
 
-          <!-- TITLE + META -->
-          <div style="margin-bottom:${isCompact ? "16px" : "22px"};">
-            <div style="font-size:${isCompact ? "14px" : "18px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Lab Test Report</div>
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
-              <div style="font-size:${fSm}px;line-height:2;">
+          <!-- TITLE + META + BARCODE -->
+          <div style="margin-bottom:${isCompact ? "10px" : "14px"};">
+            <div style="font-size:${isCompact ? "14px" : "18px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Lab Test Report</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;">
+              <div style="font-size:${fSm}px;line-height:1.6;">
                 <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${fSm}px;">Test ID:</span> <span style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${row.testCode}</span></div>
                 <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${fSm}px;">Date:</span> <span style="font-weight:600;">${formattedDate}</span></div>
               </div>
-              <div style="background:${statusColor}15;color:${statusColor};padding:4px 10px;border-radius:6px;font-weight:700;font-size:${fSm}px;">${statusLabels[row.status] || row.status}</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="background:${statusColor}15;color:${statusColor};padding:3px 8px;border-radius:6px;font-weight:700;font-size:${fSm}px;">${statusLabels[row.status] || row.status}</div>
+                ${testCodeBarcode ? `<div style="text-align:right;"><div style="color:${teal};font-weight:700;font-size:${isCompact ? "7px" : "9px"};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1px;">Test Code</div><div class="lab-barcode" style="font-size:${barcodeSize}px;">${testCodeBarcode}</div></div>` : ""}
+              </div>
             </div>
           </div>
 
           <!-- PATIENT + TEST INFO -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:${isCompact ? "12px" : "20px"};margin-bottom:${isCompact ? "16px" : "22px"};">
-            <div style="line-height:1.8;">
-              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:3px;">Patient</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:${isCompact ? "8px" : "12px"};margin-bottom:${isCompact ? "10px" : "14px"};">
+            <div style="line-height:1.4;">
+              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Patient</div>
               <div style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${row.patientName || "-"}</div>
             </div>
-            <div style="line-height:1.8;">
-              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:3px;">Test Name</div>
+            <div style="line-height:1.4;">
+              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Test Name</div>
               <div style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${row.testName}</div>
             </div>
-            <div style="line-height:1.8;">
-              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:3px;">Category</div>
+            <div style="line-height:1.4;">
+              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Category</div>
               <div style="font-size:${fSm}px;">${categories || "-"}</div>
             </div>
-            <div style="line-height:1.8;">
-              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:3px;">Sample Type</div>
+            <div style="line-height:1.4;">
+              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Sample Type</div>
               <div style="font-size:${fSm}px;">${sampleTypes || "-"}</div>
             </div>
-            <div style="line-height:1.8;">
-              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:3px;">Referrer</div>
+            <div style="line-height:1.4;">
+              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Referrer</div>
               <div style="font-size:${fSm}px;">${row.referrerName || "-"}</div>
             </div>
-            <div style="line-height:1.8;">
-              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:3px;">Price</div>
+            <div style="line-height:1.4;">
+              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Price</div>
               <div style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">$${row.price}</div>
             </div>
           </div>
 
           ${reportResults.length > 0 ? `
           <!-- RESULTS TABLE -->
-          <table style="width:100%;margin-bottom:${isCompact ? "16px" : "24px"};">
+          <table style="width:100%;margin-bottom:${isCompact ? "10px" : "14px"};">
             <thead>
               <tr style="background:${teal};-webkit-print-color-adjust:exact;print-color-adjust:exact;">
                 <th style="padding:${pad};text-align:left;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;border-radius:6px 0 0 0;">Parameter</th>
@@ -393,7 +408,7 @@ export default function LabTestsPage() {
               ${reportResults.map((r: { parameter: string; result: string; unit: string; normalRange: string }) => `
                 <tr style="border-bottom:1px solid ${border};">
                   <td style="padding:${padSm};font-size:${fSm}px;font-weight:600;color:${accent};">${r.parameter}</td>
-                  <td style="padding:${padSm};font-size:${fSm}px;font-weight:700;color:#059669;">${r.result || "-"}</td>
+                  <td style="padding:${padSm};font-size:${fResult}px;font-weight:800;color:#059669;">${r.result || "-"}</td>
                   <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${r.unit || "-"}</td>
                   <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${r.normalRange || "-"}</td>
                 </tr>
@@ -402,8 +417,25 @@ export default function LabTestsPage() {
           </table>
           ` : ""}
 
+          ${(row as { labTechnologist?: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string } }).labTechnologist ? (() => {
+            const tech = (row as { labTechnologist: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string } }).labTechnologist;
+            const sigHref = tech.signatureUrl ? (tech.signatureUrl.startsWith("http") ? tech.signatureUrl : `${typeof window !== "undefined" ? window.location.origin : ""}${tech.signatureUrl.startsWith("/") ? tech.signatureUrl : "/" + tech.signatureUrl}`) : "";
+            return `
+          <!-- LAB TECHNOLOGIST -->
+          <div style="margin-top:${isCompact ? "12px" : "16px"};padding-top:${isCompact ? "10px" : "14px"};border-top:2px solid ${border};display:flex;align-items:center;justify-content:flex-end;gap:${isCompact ? "12px" : "20px"};">
+            <div style="text-align:right;line-height:1.5;">
+              <div style="font-weight:800;font-size:${isCompact ? "11px" : "13px"};color:${accent};">${tech.fullName}</div>
+              ${tech.qualification ? `<div style="font-size:${fSm}px;color:${muted};">${tech.qualification}</div>` : ""}
+              ${tech.roleName ? `<div style="font-size:${fSm}px;color:${teal};font-weight:600;">${tech.roleName}</div>` : ""}
+              <div style="font-size:${fSm}px;color:${muted};">${clinicNameDisplay}</div>
+            </div>
+            ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:${isCompact ? "32px" : "44px"};max-width:80px;object-contain;" />` : ""}
+          </div>
+            `;
+          })() : ""}
+
           <!-- FOOTER -->
-          <div style="text-align:center;margin-top:${isCompact ? "16px" : "24px"};padding-top:${isCompact ? "12px" : "16px"};border-top:2px solid ${border};">
+          <div style="text-align:center;margin-top:${isCompact ? "10px" : "14px"};padding-top:${isCompact ? "8px" : "10px"};border-top:2px solid ${border};">
             <div style="font-size:${isCompact ? "9px" : "12px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.06em;line-height:1.5;">Thank you for choosing ${clinicNameDisplay}!</div>
             ${clinicEmail ? `<div style="font-size:${isCompact ? "8px" : "10px"};color:${muted};margin-top:4px;text-transform:uppercase;font-weight:500;">For questions, contact ${clinicEmail}</div>` : ""}
           </div>
@@ -681,6 +713,7 @@ export default function LabTestsPage() {
               e.stopPropagation();
               if (row.status === "awaiting_sample") return;
               setInputResultsTest(row);
+              setInputResultsLabTechnologistId((row as { labTechnologistId?: number }).labTechnologistId ?? null);
               const existing = (row as LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string }> }).reportResults;
               const init: Record<string, string> = {};
               if (Array.isArray(existing)) {
@@ -1016,7 +1049,7 @@ export default function LabTestsPage() {
       )}
 
       {inputResultsTest && (
-        <Dialog open={!!inputResultsTest} onOpenChange={(open) => { if (!open) { setInputResultsTest(null); setInputResultsValues({}); } }}>
+        <Dialog open={!!inputResultsTest} onOpenChange={(open) => { if (!open) { setInputResultsTest(null); setInputResultsValues({}); setInputResultsLabTechnologistId(null); } }}>
           <DialogContent className="w-[calc(100%-2rem)] max-w-3xl max-h-[95vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -1037,6 +1070,24 @@ export default function LabTestsPage() {
               </div>
             ) : (
               <div className="space-y-4">
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground">Lab Technologist</Label>
+                  <SearchableSelect
+                    value={inputResultsLabTechnologistId ? String(inputResultsLabTechnologistId) : "none"}
+                    onValueChange={v => setInputResultsLabTechnologistId(v === "none" ? null : Number(v))}
+                    placeholder="Select lab technologist..."
+                    searchPlaceholder="Search by name..."
+                    emptyText="No users found."
+                    options={[
+                      { value: "none", label: "— Not selected —", searchText: "" },
+                      ...users.filter((u: any) => u.isActive !== false).map((u: any) => ({
+                        value: String(u.id),
+                        label: `${u.fullName}${u.roleName ? ` (${u.roleName})` : ""}`,
+                        searchText: `${u.fullName} ${u.roleName || ""}`,
+                      })),
+                    ]}
+                  />
+                </div>
                 <div className="rounded-xl border overflow-hidden shadow-sm">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -1092,7 +1143,7 @@ export default function LabTestsPage() {
                       unit: p.unit || "",
                       normalRange: p.normalRange || "",
                     }));
-                    saveResultsMutation.mutate({ id: inputResultsTest.id, reportResults });
+                    saveResultsMutation.mutate({ id: inputResultsTest.id, reportResults, labTechnologistId: inputResultsLabTechnologistId });
                   }}
                 >
                   {saveResultsMutation.isPending ? (

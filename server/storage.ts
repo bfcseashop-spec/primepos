@@ -220,6 +220,8 @@ export class DatabaseStorage implements IStorage {
       email: users.email,
       phone: users.phone,
       roleId: users.roleId,
+      qualification: users.qualification,
+      signatureUrl: users.signatureUrl,
       isActive: users.isActive,
       createdAt: users.createdAt,
       roleName: roles.name,
@@ -799,11 +801,32 @@ export class DatabaseStorage implements IStorage {
       reportFileName: labTests.reportFileName,
       reportResults: labTests.reportResults,
       referrerName: labTests.referrerName,
+      labTechnologistId: labTests.labTechnologistId,
       status: labTests.status,
       createdAt: labTests.createdAt,
       patientName: patients.name,
-    }).from(labTests).leftJoin(patients, eq(labTests.patientId, patients.id)).orderBy(desc(labTests.createdAt));
-    return result;
+      technologistFullName: users.fullName,
+      technologistQualification: users.qualification,
+      technologistSignatureUrl: users.signatureUrl,
+      technologistRoleName: roles.name,
+    }).from(labTests)
+      .leftJoin(patients, eq(labTests.patientId, patients.id))
+      .leftJoin(users, eq(labTests.labTechnologistId, users.id))
+      .leftJoin(roles, eq(users.roleId, roles.id))
+      .orderBy(desc(labTests.createdAt));
+    return result.map((r: any) => {
+      const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistRoleName, ...rest } = r;
+      return {
+        ...rest,
+        labTechnologist: r.labTechnologistId && r.technologistFullName ? {
+          id: r.labTechnologistId,
+          fullName: technologistFullName,
+          qualification: technologistQualification,
+          signatureUrl: technologistSignatureUrl,
+          roleName: technologistRoleName,
+        } : null,
+      };
+    });
   }
 
   async getLabTest(id: number): Promise<LabTest | undefined> {
@@ -829,11 +852,31 @@ export class DatabaseStorage implements IStorage {
       reportFileName: labTests.reportFileName,
       reportResults: labTests.reportResults,
       referrerName: labTests.referrerName,
+      labTechnologistId: labTests.labTechnologistId,
       status: labTests.status,
       createdAt: labTests.createdAt,
       patientName: patients.name,
-    }).from(labTests).leftJoin(patients, eq(labTests.patientId, patients.id)).where(eq(labTests.id, id));
-    return row;
+      technologistFullName: users.fullName,
+      technologistQualification: users.qualification,
+      technologistSignatureUrl: users.signatureUrl,
+      technologistRoleName: roles.name,
+    }).from(labTests)
+      .leftJoin(patients, eq(labTests.patientId, patients.id))
+      .leftJoin(users, eq(labTests.labTechnologistId, users.id))
+      .leftJoin(roles, eq(users.roleId, roles.id))
+      .where(eq(labTests.id, id));
+    if (!row) return undefined;
+    const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistRoleName, ...rest } = row as any;
+    return {
+      ...rest,
+      labTechnologist: row.labTechnologistId && technologistFullName ? {
+        id: row.labTechnologistId,
+        fullName: technologistFullName,
+        qualification: technologistQualification,
+        signatureUrl: technologistSignatureUrl,
+        roleName: technologistRoleName,
+      } : null,
+    };
   }
 
   async createLabTest(test: InsertLabTest): Promise<LabTest> {
