@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, QrCode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User, Clock, XCircle, AlertTriangle, Loader2, ChevronDown, ClipboardList } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
-import type { LabTest, Patient } from "@shared/schema";
+import type { LabTest, Patient, ClinicSettings } from "@shared/schema";
 
 const LAB_CATEGORIES = [
   "Hematology", "Biochemistry", "Microbiology", "Immunology",
@@ -199,6 +199,10 @@ export default function LabTestsPage() {
     enabled: !!inputResultsTest?.serviceId,
   });
 
+  const { data: settings } = useQuery<ClinicSettings>({
+    queryKey: ["/api/settings"],
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       const codeRes = await fetch("/api/lab-tests/next-code", { credentials: "include" });
@@ -277,6 +281,140 @@ export default function LabTestsPage() {
       toast({ title: err.message || "Failed to save", variant: "destructive" });
     },
   });
+
+  type PrintLayout = "compact" | "full";
+  const printLabReport = (row: LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }, layout: PrintLayout = "compact") => {
+    const printWindow = window.open("", "_blank", layout === "compact" ? "width=400,height=600" : "width=800,height=900");
+    if (!printWindow) return;
+    const clinicName = settings?.clinicName || "";
+    const clinicNameDisplay = clinicName || "Clinic";
+    const clinicEmail = settings?.email || "";
+    const clinicPhone = settings?.phone || "";
+    const clinicAddress = settings?.address || "";
+    const categories = row.category.split(",").map((c: string) => c.trim()).filter(Boolean).join(", ");
+    const sampleTypes = row.sampleType.split(",").map((s: string) => s.trim()).filter(Boolean).join(", ");
+    const statusLabels: Record<string, string> = { processing: "Processing", complete: "Complete", awaiting_sample: "Awaiting Sample", sample_missing: "Sample Missing", cancel: "Cancelled" };
+    const reportResults = row.reportResults || [];
+    const formattedDate = row.createdAt ? new Date(row.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-";
+
+    const teal = "#0d9488";
+    const accent = "#0f172a";
+    const muted = "#475569";
+    const border = "#e2e8f0";
+    const statusColor = row.status === "complete" ? "#059669" : row.status === "processing" ? "#2563eb" : row.status === "cancel" ? "#dc2626" : "#d97706";
+
+    const isCompact = layout === "compact";
+    const bodyPad = isCompact ? "12px 14px" : "20px 24px";
+    const maxW = isCompact ? "340px" : "720px";
+    const fBase = isCompact ? 10 : 11;
+    const fSm = isCompact ? 9 : 10;
+    const fLg = isCompact ? 13 : 15;
+    const pad = isCompact ? "6px 8px" : "10px 12px";
+    const padSm = isCompact ? "5px 8px" : "8px 12px";
+
+    const logoHref = settings?.logo
+      ? (settings.logo.startsWith("http") ? settings.logo : `${typeof window !== "undefined" ? window.location.origin : ""}${settings.logo.startsWith("/") ? settings.logo : "/" + settings.logo}`)
+      : "";
+
+    printWindow.document.write(`
+      <html><head><title>Lab Test Report - ${row.testCode}</title>
+      <meta charset="UTF-8">
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.5; }
+        table { border-collapse: collapse; }
+        @media print { body { padding: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+      </style></head><body>
+
+        <div style="padding:${bodyPad};">
+
+          <!-- HEADER -->
+          <div style="text-align:center;margin-bottom:${isCompact ? "16px" : "24px"};padding-bottom:${isCompact ? "12px" : "16px"};border-bottom:2px solid ${border};">
+            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "40px" : "56px"};margin:0 auto 8px;display:block;" />` : ""}
+            <div style="font-size:${isCompact ? "16px" : "22px"};font-weight:900;color:${teal};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">${clinicNameDisplay}</div>
+            <div style="font-size:${isCompact ? "9px" : "11px"};color:${muted};line-height:1.7;">
+              ${clinicAddress ? `<div>${clinicAddress}</div>` : ""}
+              <div>${[clinicPhone, clinicEmail].filter(Boolean).join(", ")}</div>
+            </div>
+          </div>
+
+          <!-- TITLE + META -->
+          <div style="margin-bottom:${isCompact ? "16px" : "22px"};">
+            <div style="font-size:${isCompact ? "14px" : "18px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Lab Test Report</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+              <div style="font-size:${fSm}px;line-height:2;">
+                <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${fSm}px;">Test ID:</span> <span style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${row.testCode}</span></div>
+                <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${fSm}px;">Date:</span> <span style="font-weight:600;">${formattedDate}</span></div>
+              </div>
+              <div style="background:${statusColor}15;color:${statusColor};padding:4px 10px;border-radius:6px;font-weight:700;font-size:${fSm}px;">${statusLabels[row.status] || row.status}</div>
+            </div>
+          </div>
+
+          <!-- PATIENT + TEST INFO -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:${isCompact ? "12px" : "20px"};margin-bottom:${isCompact ? "16px" : "22px"};">
+            <div style="line-height:1.8;">
+              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:3px;">Patient</div>
+              <div style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${row.patientName || "-"}</div>
+            </div>
+            <div style="line-height:1.8;">
+              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:3px;">Test Name</div>
+              <div style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${row.testName}</div>
+            </div>
+            <div style="line-height:1.8;">
+              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:3px;">Category</div>
+              <div style="font-size:${fSm}px;">${categories || "-"}</div>
+            </div>
+            <div style="line-height:1.8;">
+              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:3px;">Sample Type</div>
+              <div style="font-size:${fSm}px;">${sampleTypes || "-"}</div>
+            </div>
+            <div style="line-height:1.8;">
+              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:3px;">Referrer</div>
+              <div style="font-size:${fSm}px;">${row.referrerName || "-"}</div>
+            </div>
+            <div style="line-height:1.8;">
+              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:3px;">Price</div>
+              <div style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">$${row.price}</div>
+            </div>
+          </div>
+
+          ${reportResults.length > 0 ? `
+          <!-- RESULTS TABLE -->
+          <table style="width:100%;margin-bottom:${isCompact ? "16px" : "24px"};">
+            <thead>
+              <tr style="background:${teal};-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+                <th style="padding:${pad};text-align:left;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;border-radius:6px 0 0 0;">Parameter</th>
+                <th style="padding:${pad};text-align:left;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;">Result</th>
+                <th style="padding:${pad};text-align:left;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;">Unit</th>
+                <th style="padding:${pad};text-align:left;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;border-radius:0 6px 0 0;">Normal Range</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reportResults.map((r: { parameter: string; result: string; unit: string; normalRange: string }) => `
+                <tr style="border-bottom:1px solid ${border};">
+                  <td style="padding:${padSm};font-size:${fSm}px;font-weight:600;color:${accent};">${r.parameter}</td>
+                  <td style="padding:${padSm};font-size:${fSm}px;font-weight:700;color:#059669;">${r.result || "-"}</td>
+                  <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${r.unit || "-"}</td>
+                  <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${r.normalRange || "-"}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+          ` : ""}
+
+          <!-- FOOTER -->
+          <div style="text-align:center;margin-top:${isCompact ? "16px" : "24px"};padding-top:${isCompact ? "12px" : "16px"};border-top:2px solid ${border};">
+            <div style="font-size:${isCompact ? "9px" : "12px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.06em;line-height:1.5;">Thank you for choosing ${clinicNameDisplay}!</div>
+            ${clinicEmail ? `<div style="font-size:${isCompact ? "8px" : "10px"};color:${muted};margin-top:4px;text-transform:uppercase;font-weight:500;">For questions, contact ${clinicEmail}</div>` : ""}
+          </div>
+
+        </div>
+
+        <script>window.onload = function() { window.print(); }</script>
+      </body></html>
+    `);
+    printWindow.document.close();
+  };
 
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
@@ -565,52 +703,11 @@ export default function LabTestsPage() {
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBarcodeTest(row); }} className="gap-2" data-testid={`action-barcode-${row.id}`}>
             <QrCode className="h-4 w-4 text-purple-500" /> {t("labTests.barcode")}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => {
-            e.stopPropagation();
-            const printWindow = window.open('', '_blank');
-            if (printWindow) {
-              const categories = row.category.split(",").map(c => c.trim()).filter(Boolean).join(", ");
-              const sampleTypes = row.sampleType.split(",").map(s => s.trim()).filter(Boolean).join(", ");
-              const statusLabels: Record<string, string> = { processing: "Processing", complete: "Complete", awaiting_sample: "Awaiting Sample", sample_missing: "Sample Missing", cancel: "Cancelled" };
-              printWindow.document.write(`
-                <html><head><title>Lab Test - ${row.testCode}</title>
-                <style>
-                  body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
-                  h1 { font-size: 22px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-                  .info { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
-                  .field { margin-bottom: 8px; }
-                  .label { font-weight: bold; font-size: 12px; color: #666; text-transform: uppercase; }
-                  .value { font-size: 15px; margin-top: 2px; }
-                  .status { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: bold; font-size: 13px; }
-                  .status-processing { background: #dbeafe; color: #1d4ed8; }
-                  .status-complete { background: #dcfce7; color: #15803d; }
-                  .status-awaiting_sample { background: #fef3c7; color: #b45309; }
-                  .status-sample_missing { background: #fef3c7; color: #b45309; }
-                  .status-cancel { background: #fee2e2; color: #dc2626; }
-                  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                  @media print { body { padding: 20px; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
-                </style></head><body>
-                <h1>Lab Test Report - ${row.testCode}</h1>
-                <div class="info">
-                  <div class="field"><div class="label">Test Name</div><div class="value">${row.testName}</div></div>
-                  <div class="field"><div class="label">Test ID</div><div class="value">${row.testCode}</div></div>
-                  <div class="field"><div class="label">Patient</div><div class="value">${row.patientName || "-"}</div></div>
-                  <div class="field"><div class="label">Category</div><div class="value">${categories}</div></div>
-                  <div class="field"><div class="label">Sample Type</div><div class="value">${sampleTypes}</div></div>
-                  <div class="field"><div class="label">Price</div><div class="value">$${row.price}</div></div>
-                  <div class="field"><div class="label">Status</div><div class="value"><span class="status status-${row.status}">${statusLabels[row.status] || row.status}</span></div></div>
-                  <div class="field"><div class="label">Turnaround Time</div><div class="value">${row.turnaroundTime || "-"}</div></div>
-                  <div class="field"><div class="label">Referrer</div><div class="value">${row.referrerName || "-"}</div></div>
-                  <div class="field"><div class="label">Description</div><div class="value">${row.description || "-"}</div></div>
-                  <div class="field"><div class="label">Created</div><div class="value">${row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-"}</div></div>
-                </div>
-                </body></html>
-              `);
-              printWindow.document.close();
-              printWindow.print();
-            }
-          }} className="gap-2" data-testid={`action-print-${row.id}`}>
-            <Printer className="h-4 w-4 text-violet-500" /> {t("common.print")}
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printLabReport(row, "compact"); }} className="gap-2" data-testid={`action-print-compact-${row.id}`}>
+            <Printer className="h-4 w-4 text-violet-500" /> Print (Compact)
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printLabReport(row, "full"); }} className="gap-2" data-testid={`action-print-full-${row.id}`}>
+            <Printer className="h-4 w-4 text-violet-500" /> Print (Full size)
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, id: row.id }); }}
@@ -841,6 +938,14 @@ export default function LabTestsPage() {
                   <p className="text-xs text-muted-foreground">{t("common.description")}</p>
                   <p className="text-sm">{viewTest.description || "-"}</p>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-4 mt-4 border-t">
+                <Button variant="outline" onClick={() => printLabReport(viewTest, "compact")} data-testid="button-view-print-compact">
+                  <Printer className="h-4 w-4 mr-1.5" /> Print (Compact)
+                </Button>
+                <Button onClick={() => printLabReport(viewTest, "full")} data-testid="button-view-print-full">
+                  <Printer className="h-4 w-4 mr-1.5" /> Print (Full size)
+                </Button>
               </div>
             </div>
           </DialogContent>
