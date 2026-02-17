@@ -365,11 +365,10 @@ export default function LabTestsPage() {
             </div>
           </div>
 
-          <!-- PATIENT DETAILS (3 rows, left · center · right aligned, with spacing) -->
+          <!-- PATIENT DETAILS (2 rows: Name, then Age + Gender) -->
           <table style="width:100%;margin-bottom:${isCompact ? "10px" : "14px"};border-collapse:collapse;font-size:${fPatient}px;">
             <tr><td style="padding:${isCompact ? "6px 0" : "8px 0"};text-align:left;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}${(row as { patientPatientId?: string }).patientPatientId ? ` (${escapeHtml((row as { patientPatientId: string }).patientPatientId)})` : ""}</td></tr>
-            <tr><td style="padding:${isCompact ? "6px 0" : "8px 0"};text-align:center;"><strong>Age:</strong> ${(row as { patientAge?: number }).patientAge != null ? (row as { patientAge: number }).patientAge : "-"}</td></tr>
-            <tr><td style="padding:${isCompact ? "6px 0" : "8px 0"};text-align:right;"><strong>Gender:</strong> ${(row as { patientGender?: string }).patientGender ? escapeHtml((row as { patientGender: string }).patientGender) : "-"}</td></tr>
+            <tr><td style="padding:${isCompact ? "6px 0" : "8px 0"};text-align:left;"><strong>Age:</strong> ${(row as { patientAge?: number }).patientAge != null ? (row as { patientAge: number }).patientAge : "-"} &nbsp;&nbsp; <strong>Gender:</strong> ${(row as { patientGender?: string }).patientGender ? escapeHtml((row as { patientGender: string }).patientGender) : "-"}</td></tr>
           </table>
           <!-- TEST INFO -->
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:${isCompact ? "6px" : "8px"};font-size:${fPatient}px;line-height:1.45;width:100%;">
