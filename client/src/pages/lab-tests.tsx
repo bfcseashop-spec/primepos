@@ -467,9 +467,8 @@ export default function LabTestsPage() {
         <div class="lab-print-page" style="padding:${bodyPad};">
 
           <div class="lab-print-body">
-          <!-- HEADER: Clinic name, address, contact. Page number top-right -->
-          <div style="margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${border};position:relative;">
-            <div style="position:absolute;top:0;right:0;font-size:9px;color:${muted};">1 of 1</div>
+          <!-- HEADER: Clinic name, address, contact -->
+          <div style="margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${border};">
             ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:40px;margin-bottom:4px;" />` : ""}
             <div style="font-size:16px;font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.03em;">${escapeHtml(clinicNameDisplay)}</div>
             ${clinicAddress ? `<div style="font-size:${fSm}px;color:${muted};margin-top:2px;">${escapeHtml(clinicAddress)}</div>` : ""}
@@ -509,8 +508,10 @@ export default function LabTestsPage() {
             }, {});
             const cats = Object.keys(byCat).sort((a, b) => (a === "\x00" ? -1 : b === "\x00" ? 1 : a.localeCompare(b)));
             const formatNormalRange = (s: string) => {
-              const lines = (s || "-").split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-              return lines.length ? lines.map(l => escapeHtml(l)).join("<br/>") : escapeHtml("-");
+              const raw = String(s || "").trim();
+              const lines = raw.split(/\r?\n|\r/).map(l => l.trim()).filter(Boolean);
+              const text = lines.length > 0 ? lines.join("\n") : "-";
+              return escapeHtml(text);
             };
             const rowHtml = (r: R) => {
               const outOfRange = isResultOutOfRange(r.result, r.normalRange);
@@ -520,7 +521,7 @@ export default function LabTestsPage() {
                 <td style="padding:${padSm};font-size:${fSm}px;font-weight:600;color:${accent};">${escapeHtml(r.parameter)}</td>
                 <td style="padding:${padSm};font-size:${fResult}px;font-weight:700;color:${resultColor};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(r.result || "-")}</td>
                 <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${escapeHtml(r.unit || "-")}</td>
-                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};line-height:1.4;">${formatNormalRange(r.normalRange)}</td>
+                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};line-height:1.4;white-space:pre-line;">${formatNormalRange(r.normalRange)}</td>
               </tr>`;
             };
             let tbody = "";
