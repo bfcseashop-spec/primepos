@@ -493,10 +493,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteBill(id: number): Promise<void> {
+    await db.update(sampleCollections).set({ billId: null }).where(eq(sampleCollections.billId, id));
+    await db.update(labTests).set({ billId: null }).where(eq(labTests.billId, id));
     await db.delete(bills).where(eq(bills.id, id));
   }
 
   async bulkDeleteBills(ids: number[]): Promise<void> {
+    await db.update(sampleCollections).set({ billId: null }).where(inArray(sampleCollections.billId, ids));
+    await db.update(labTests).set({ billId: null }).where(inArray(labTests.billId, ids));
     await db.delete(bills).where(inArray(bills.id, ids));
   }
 
