@@ -316,6 +316,11 @@ export default function LabTestsPage() {
     enabled: !!inputResultsTest?.serviceId,
   });
 
+  const { data: viewService } = useQuery<{ reportParameters?: Array<{ parameter: string; normalRange: string }> }>({
+    queryKey: viewTest?.serviceId ? [`/api/services/${viewTest.serviceId}`] : ["__skip"],
+    enabled: !!viewTest?.serviceId,
+  });
+
   const { data: settings } = useQuery<ClinicSettings>({
     queryKey: ["/api/settings"],
   });
@@ -708,6 +713,7 @@ export default function LabTestsPage() {
   const handleBarcodeSearch = async (value: string) => {
     const v = value?.trim() ?? "";
     if (!v) return;
+    // Barcode scan only opens view modal — no auto-print.
     // Sample collection barcode: SC5 or plain 5 (from small sticker)
     let sampleId: number | null = null;
     const scMatch = v.match(/^SC(\d+)$/i);
@@ -1121,8 +1127,8 @@ export default function LabTestsPage() {
                     <span className="text-sm text-muted-foreground">{t("labTests.noReport")}</span>
                   )}
                 </div>
-                {(viewTest as LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults?.length ? (
-                  <div className="col-span-2">
+                {(viewTest as LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }>; serviceId?: number }).reportResults?.length ? (
+                    <div className="col-span-2">
                     <p className="text-xs text-muted-foreground font-medium mb-2">Test Results</p>
                     <div className="border rounded-md overflow-hidden">
                       <table className="w-full text-sm">
@@ -1135,17 +1141,22 @@ export default function LabTestsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {(viewTest as LabTestWithPatient & { reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults.map((r, i) => {
-                            const outOfRange = isResultOutOfRange(r.result, r.normalRange);
-                            return (
+                          {(() => {
+                            const reportResults = (viewTest as LabTestWithPatient & { reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults;
+                            const paramsByName = new Map((viewService?.reportParameters || []).map(p => [p.parameter, p.normalRange || ""]));
+                            return reportResults.map((r, i) => {
+                              const normalRange = paramsByName.has(r.parameter) ? paramsByName.get(r.parameter)! : (r.normalRange || "—");
+                              const outOfRange = isResultOutOfRange(r.result, normalRange);
+                              return (
                             <tr key={i} className="border-t">
                               <td className="p-2">{r.parameter}</td>
                               <td className={`p-2 font-medium ${outOfRange ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>{r.result}</td>
                               <td className="p-2 text-muted-foreground">{r.unit || "—"}</td>
-                              <td className="p-2 text-muted-foreground whitespace-pre-line">{r.normalRange || "—"}</td>
+                              <td className="p-2 text-muted-foreground whitespace-pre-line">{normalRange || "—"}</td>
                             </tr>
                             );
-                          })}
+                            });
+                          })()}
                         </tbody>
                       </table>
                     </div>
