@@ -65,7 +65,7 @@ export default function SampleCollectionsPage() {
     markCollectedMutation.mutate(id);
   };
 
-  function generateBarcodeSvg(data: string): string {
+  function generateBarcodeSvg(data: string, size = "80"): string {
     let seed = 0;
     for (let i = 0; i < data.length; i++) seed = ((seed << 5) - seed + data.charCodeAt(i)) | 0;
     const rects: string[] = [];
@@ -79,26 +79,27 @@ export default function SampleCollectionsPage() {
         }
       }
     }
-    return `<svg viewBox="0 0 200 200" width="120" height="120">${rects.join("")}</svg>`;
+    return `<svg viewBox="0 0 200 200" width="${size}" height="${size}">${rects.join("")}</svg>`;
   }
 
   const printBarcode = (sample: SampleCollection) => {
     const data = `SAMPLE|${sample.id}|${sample.labTestId}|${sample.testName}|${sample.patientIdCode || "N/A"}`;
-    const svgHtml = generateBarcodeSvg(data);
+    const svgHtml = generateBarcodeSvg(data, "80");
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
     printWindow.document.write(`
       <!DOCTYPE html>
       <html><head><title>Sample Barcode - ${sample.testName}</title>
       <style>
-        body { font-family: Arial, sans-serif; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
-        .label { text-align: center; border: 1px solid #ccc; padding: 16px; }
-        .barcode { margin: 12px 0; }
-        .test-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; }
-        .meta { font-size: 12px; color: #666; }
-        .id { font-family: monospace; font-size: 11px; margin-top: 4px; }
+        @page { size: 30mm 55mm; margin: 2mm; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        .sticker { width: 30mm; min-height: 55mm; max-width: 90px; border: 1px dashed #999; padding: 4px; box-sizing: border-box; }
+        .sticker .test-name { font-weight: bold; font-size: 9pt; line-height: 1.2; margin-bottom: 2px; word-wrap: break-word; }
+        .sticker .meta { font-size: 7pt; color: #444; margin-bottom: 2px; }
+        .sticker .id { font-family: monospace; font-size: 8pt; margin-bottom: 3px; }
+        .sticker .barcode { margin: 4px 0; text-align: center; }
       </style></head><body>
-      <div class="label">
+      <div class="sticker">
         <div class="test-name">${sample.testName}</div>
         <div class="meta">${sample.sampleType} • ${sample.patientName || "-"}</div>
         <div class="id">${sample.patientIdCode || ""}</div>

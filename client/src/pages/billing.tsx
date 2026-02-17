@@ -176,6 +176,8 @@ export default function BillingPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sample-collections"] });
 
       if (billAction === "print") {
         printReceipt(bill);
@@ -472,6 +474,7 @@ export default function BillingPage() {
         unitPrice,
         total: qty * unitPrice,
         ...(billType === "medicine" && item.refId != null ? { medicineId: item.refId } : {}),
+        ...(billType === "service" && item.refId != null ? { serviceId: item.refId } : {}),
         packageId: pkg.id,
         packageName: pkg.name,
       };

@@ -808,6 +808,9 @@ export async function registerRoutes(
         price: z.string().optional(),
         description: z.string().nullable().optional(),
         imageUrl: z.string().nullable().optional(),
+        isLabTest: z.boolean().optional(),
+        sampleCollectionRequired: z.boolean().optional(),
+        sampleType: z.string().nullable().optional(),
       });
       const data = validateBody(updateSchema, req.body);
       const service = await storage.updateService(Number(req.params.id), data);
@@ -2340,6 +2343,18 @@ export async function registerRoutes(
     try {
       const code = await storage.getNextLabTestCode();
       res.json({ code });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/lab-tests/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid lab test id" });
+      const test = await storage.getLabTestWithPatient(id);
+      if (!test) return res.status(404).json({ message: "Lab test not found" });
+      res.json(test);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

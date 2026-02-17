@@ -1282,13 +1282,20 @@ export default function ServicesPage() {
                   )}
                   <div className="min-w-0">
                     <h4 className="text-sm font-semibold truncate" data-testid={`text-service-name-${svc.id}`}>{svc.name}</h4>
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] mt-0.5 no-default-hover-elevate no-default-active-elevate ${catColor.bg} ${catColor.text}`}
-                    >
-                      <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${catColor.dot}`} />
-                      {svc.category}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${catColor.bg} ${catColor.text}`}
+                      >
+                        <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${catColor.dot}`} />
+                        {svc.category}
+                      </Badge>
+                      {(svc as Service & { isLabTest?: boolean }).isLabTest && (
+                        <Badge variant="outline" className="text-[10px] bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20">
+                          Lab Test
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1371,6 +1378,11 @@ export default function ServicesPage() {
                   <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${catColor.dot}`} />
                   {svc.category}
                 </Badge>
+                {(svc as Service & { isLabTest?: boolean }).isLabTest && (
+                  <Badge variant="outline" className="text-[10px] bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20">
+                    Lab Test
+                  </Badge>
+                )}
               </div>
               {svc.description && (
                 <p className="text-xs text-muted-foreground truncate mt-0.5">{svc.description}</p>

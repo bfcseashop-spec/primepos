@@ -137,6 +137,7 @@ export interface IStorage {
 
   getLabTests(): Promise<any[]>;
   getLabTest(id: number): Promise<LabTest | undefined>;
+  getLabTestWithPatient(id: number): Promise<any | undefined>;
   createLabTest(test: InsertLabTest): Promise<LabTest>;
   updateLabTest(id: number, data: Partial<InsertLabTest>): Promise<LabTest | undefined>;
   deleteLabTest(id: number): Promise<void>;
@@ -802,6 +803,30 @@ export class DatabaseStorage implements IStorage {
   async getLabTest(id: number): Promise<LabTest | undefined> {
     const [test] = await db.select().from(labTests).where(eq(labTests.id, id));
     return test;
+  }
+
+  async getLabTestWithPatient(id: number): Promise<any | undefined> {
+    const [row] = await db.select({
+      id: labTests.id,
+      testCode: labTests.testCode,
+      testName: labTests.testName,
+      category: labTests.category,
+      sampleType: labTests.sampleType,
+      price: labTests.price,
+      description: labTests.description,
+      turnaroundTime: labTests.turnaroundTime,
+      patientId: labTests.patientId,
+      serviceId: labTests.serviceId,
+      billId: labTests.billId,
+      sampleCollectionRequired: labTests.sampleCollectionRequired,
+      reportFileUrl: labTests.reportFileUrl,
+      reportFileName: labTests.reportFileName,
+      referrerName: labTests.referrerName,
+      status: labTests.status,
+      createdAt: labTests.createdAt,
+      patientName: patients.name,
+    }).from(labTests).leftJoin(patients, eq(labTests.patientId, patients.id)).where(eq(labTests.id, id));
+    return row;
   }
 
   async createLabTest(test: InsertLabTest): Promise<LabTest> {

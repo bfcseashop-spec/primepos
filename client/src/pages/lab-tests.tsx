@@ -337,6 +337,40 @@ export default function LabTestsPage() {
     }
   };
 
+  const handleBarcodeSearch = async (value: string) => {
+    const v = value?.trim() ?? "";
+    if (!v) return;
+    // SAMPLE|sampleId|labTestId|testName|patientCode
+    const sampleMatch = v.match(/^SAMPLE\|(\d+)\|(\d+)\|/);
+    if (sampleMatch) {
+      const labTestId = parseInt(sampleMatch[2], 10);
+      try {
+        const res = await apiRequest("GET", `/api/lab-tests/${labTestId}`);
+        const test = await res.json();
+        setSearchTerm("");
+        setViewTest(test);
+        return;
+      } catch {
+        toast({ title: t("labTests.test") + " not found", variant: "destructive" });
+        return;
+      }
+    }
+    // LAB-TEST|testCode|testName|category|price
+    const labMatch = v.match(/^LAB-TEST\|([^|]+)\|/);
+    const testCode = labMatch ? labMatch[1] : (v.includes("|") ? "" : v);
+    if (testCode) {
+      const found = labTests.find(t => (t.testCode || "").toLowerCase() === testCode.toLowerCase());
+      if (found) {
+        setSearchTerm("");
+        setViewTest(found);
+        return;
+      }
+      toast({ title: t("labTests.test") + " not found: " + testCode, variant: "destructive" });
+      return;
+    }
+    setSearchTerm(v);
+  };
+
   const filtered = labTests.filter(t => {
     const matchSearch = searchTerm === "" ||
       t.testName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -880,11 +914,11 @@ export default function LabTestsPage() {
               </Select>
               <div className="w-64">
                 <SearchInputWithBarcode
-                  placeholder={t("labTests.searchTests")}
+                  placeholder={t("labTests.searchTests") + " / " + (t("labTests.barcode") || "Scan barcode")}
                   className="h-8 text-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  onSearch={(v) => setSearchTerm(v)}
+                  onSearch={handleBarcodeSearch}
                   data-testid="input-search-lab-tests"
                 />
               </div>
