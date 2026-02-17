@@ -277,7 +277,7 @@ export default function BillingPage() {
       ...(medicationTotal > 0 ? [{ name: "Medication", quantity: 1, unitPrice: medicationTotal, total: medicationTotal }] : []),
     ];
 
-    const printWindow = window.open("", "_blank", layout === "compact" ? "width=400,height=600" : "width=800,height=900");
+    const printWindow = window.open("", "_blank", layout === "compact" ? "width=400,height=600" : "width=794,height=1123");
     if (!printWindow) return;
     const clinicName = settings?.clinicName || "";
     const clinicEmail = settings?.email || "";
@@ -297,7 +297,7 @@ export default function BillingPage() {
     const fBase = isCompact ? 10 : 11;
     const fSm = isCompact ? 9 : 10;
     const fLg = isCompact ? 13 : 15;
-    const maxW = isCompact ? "340px" : "720px";
+    const maxW = isCompact ? "340px" : "100%";
     const bodyPad = isCompact ? "8px 10px" : "14px 18px";
     const teal = "#0d9488";
     const tealBg = "#0d948815";
@@ -328,6 +328,7 @@ export default function BillingPage() {
     printWindow.document.write(`
       <html><head><title>Invoice ${billNoShort}</title>
       <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
       <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }

@@ -292,7 +292,7 @@ export default function LabTestsPage() {
   type PrintLayout = "compact" | "full";
   const escapeHtml = (s: string) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const printLabReport = (row: LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }>; labTechnologist?: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string } | null }, layout: PrintLayout = "compact") => {
-    const printWindow = window.open("", "_blank", layout === "compact" ? "width=400,height=600" : "width=800,height=900");
+    const printWindow = window.open("", "_blank", layout === "compact" ? "width=400,height=600" : "width=794,height=1123");
     if (!printWindow) return;
     const clinicName = settings?.clinicName || "";
     const clinicNameDisplay = clinicName || "Clinic";
@@ -313,7 +313,7 @@ export default function LabTestsPage() {
 
     const isCompact = layout === "compact";
     const bodyPad = isCompact ? "4px 6px" : "8px 10px";
-    const maxW = isCompact ? "340px" : "720px";
+    const maxW = isCompact ? "340px" : "100%";
     const fBase = isCompact ? 9 : 10;
     const fSm = isCompact ? 8 : 9;
     const fPatient = isCompact ? 10 : 11;
@@ -331,6 +331,7 @@ export default function LabTestsPage() {
     printWindow.document.write(`
       <html><head><title>Lab Test Report - ${row.testCode}</title>
       <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
       <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
