@@ -298,7 +298,7 @@ export default function BillingPage() {
     const fSm = isCompact ? 9 : 10;
     const fLg = isCompact ? 13 : 15;
     const maxW = isCompact ? "340px" : "720px";
-    const bodyPad = isCompact ? "12px 14px" : "20px 24px";
+    const bodyPad = isCompact ? "8px 10px" : "14px 18px";
     const teal = "#0d9488";
     const tealBg = "#0d948815";
     const accent = "#0f172a";
@@ -344,7 +344,7 @@ export default function BillingPage() {
 
           <div class="invoice-print-body">
           <!-- HEADER -->
-          <div style="text-align:center;margin-bottom:${isCompact ? "16px" : "24px"};padding-bottom:${isCompact ? "12px" : "16px"};border-bottom:2px solid ${border};width:100%;">
+          <div style="text-align:center;margin-bottom:${isCompact ? "8px" : "14px"};padding-bottom:${isCompact ? "6px" : "10px"};border-bottom:2px solid ${border};width:100%;">
             ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "40px" : "56px"};margin:0 auto 8px;display:block;" />` : ""}
             <div style="font-size:${isCompact ? "16px" : "22px"};font-weight:900;color:${teal};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">${clinicNameDisplay}</div>
             <div style="font-size:${isCompact ? "9px" : "11px"};color:${muted};line-height:1.7;">
@@ -354,8 +354,8 @@ export default function BillingPage() {
           </div>
 
           <!-- INVOICE META + BARCODE -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:${isCompact ? "12px" : "18px"};width:100%;">
-            <div style="font-size:${isCompact ? "10px" : "12px"};line-height:2;text-align:justify;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:${isCompact ? "6px" : "10px"};width:100%;">
+            <div style="font-size:${isCompact ? "10px" : "12px"};line-height:1.6;text-align:justify;">
               <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${isCompact ? "9px" : "11px"};">Invoice No #:</span> <span style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${billNoShort}</span></div>
               <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${isCompact ? "9px" : "11px"};">Date:</span> <span style="font-weight:600;">${formattedDate}</span></div>
               <div style="color:${muted};">Paid By: <span style="font-weight:600;color:${accent};">${getPaymentLabel(bill.paymentMethod)}</span></div>
@@ -364,14 +364,14 @@ export default function BillingPage() {
           </div>
 
           <!-- PATIENT DETAILS (2 rows: Name, then Age + Gender) -->
-          <table style="width:100%;margin-bottom:${isCompact ? "18px" : "24px"};border-collapse:collapse;font-size:${isCompact ? "12px" : "14px"};">
-            <tr><td style="padding:${isCompact ? "8px 0" : "10px 0"};text-align:left;"><strong>Patient Name:</strong> ${patient?.name || "-"}${patient?.patientId ? ` (${patient.patientId})` : ""}</td></tr>
-            <tr><td style="padding:${isCompact ? "8px 0" : "10px 0"};text-align:left;"><strong>Age:</strong> ${patient?.age != null ? patient.age : (ageFromDob(patient?.dateOfBirth) ?? "-")} &nbsp;&nbsp; <strong>Gender:</strong> ${patient?.gender || "-"}</td></tr>
+          <table style="width:100%;margin-bottom:${isCompact ? "4px" : "8px"};border-collapse:collapse;font-size:${isCompact ? "12px" : "14px"};">
+            <tr><td style="padding:${isCompact ? "2px 0" : "4px 0"};text-align:left;"><strong>Patient Name:</strong> ${patient?.name || "-"}${patient?.patientId ? ` (${patient.patientId})` : ""}</td></tr>
+            <tr><td style="padding:${isCompact ? "2px 0" : "4px 0"};text-align:left;"><strong>Age:</strong> ${patient?.age != null ? patient.age : (ageFromDob(patient?.dateOfBirth) ?? "-")} &nbsp;&nbsp; <strong>Gender:</strong> ${patient?.gender || "-"}</td></tr>
           </table>
-          <div style="margin-bottom:${isCompact ? "12px" : "16px"};font-size:${isCompact ? "12px" : "14px"};"><strong>Dr. Name:</strong> ${bill.referenceDoctor || "-"}</div>
+          <div style="margin-bottom:${isCompact ? "6px" : "10px"};font-size:${isCompact ? "12px" : "14px"};"><strong>Dr. Name:</strong> ${bill.referenceDoctor || "-"}</div>
 
           <!-- ITEMS TABLE -->
-          <table style="width:100%;margin-bottom:${isCompact ? "14px" : "20px"};">
+          <table style="width:100%;margin-bottom:${isCompact ? "8px" : "12px"};">
             <thead>
               <tr style="background:${teal};-webkit-print-color-adjust:exact;print-color-adjust:exact;">
                 <th style="padding:${isCompact ? "6px 8px" : "10px 12px"};text-align:center;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;width:${isCompact ? "36px" : "54px"};border-radius:${isCompact ? "4px" : "6px"} 0 0 0;">Item</th>
@@ -395,14 +395,14 @@ export default function BillingPage() {
           </table>
 
           <!-- TOTALS -->
-          <div style="display:flex;justify-content:flex-end;margin-bottom:${isCompact ? "16px" : "24px"};width:100%;">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:${isCompact ? "8px" : "12px"};width:100%;">
             <div style="width:${isCompact ? "210px" : "300px"};">
               <div style="display:flex;justify-content:space-between;padding:${isCompact ? "4px" : "5px"} 0;font-size:${isCompact ? "10px" : "12px"};">
                 <span style="font-weight:600;">Subtotal:</span>
                 <span style="font-weight:500;">${pSym}${subtotalVal}${hasSecondary ? ` / ${secSym}${toSec(Number(subtotalVal))}` : ""}</span>
               </div>
               ${Number(discountVal) > 0 ? `<div style="display:flex;justify-content:space-between;padding:${isCompact ? "4px" : "5px"} 0;font-size:${isCompact ? "10px" : "12px"};"><span style="font-weight:600;">Discount:</span><span style="font-weight:500;">-${pSym}${discountVal}${hasSecondary ? ` / ${secSym}${toSec(Number(discountVal))}` : ""}</span></div>` : ""}
-              <div style="border-top:3px solid ${accent};margin-top:8px;padding-top:10px;">
+              <div style="border-top:3px solid ${accent};margin-top:4px;padding-top:6px;">
                 <div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;">
                   <span style="font-weight:800;color:${teal};font-size:${isCompact ? "12px" : "16px"};">Grand Total:</span>
                   <span style="font-weight:900;font-size:${isCompact ? "14px" : "20px"};letter-spacing:-0.02em;">${pSym}${totalDue.toFixed(2)}</span>
@@ -418,7 +418,7 @@ export default function BillingPage() {
 
           <div class="invoice-print-footer" style="width:100%;">
           <!-- FOOTER -->
-          <div style="text-align:center;margin-top:${isCompact ? "16px" : "24px"};padding-top:${isCompact ? "12px" : "16px"};border-top:2px solid ${border};width:100%;">
+          <div style="text-align:center;margin-top:${isCompact ? "8px" : "12px"};padding-top:${isCompact ? "6px" : "10px"};border-top:2px solid ${border};width:100%;">
             <div style="font-size:${isCompact ? "9px" : "12px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.06em;line-height:1.5;">Thank you for choosing ${clinicNameDisplay}!</div>
             ${clinicEmailDisplay ? `<div style="font-size:${isCompact ? "8px" : "10px"};color:${muted};margin-top:4px;text-transform:uppercase;font-weight:500;">For questions, contact ${clinicEmailDisplay}</div>` : ""}
           </div>
@@ -710,8 +710,11 @@ export default function BillingPage() {
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewBill(row); }} data-testid={`action-view-${row.id}`} className="gap-2">
             <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" /> {t("common.view")}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printReceipt(row); }} data-testid={`action-print-${row.id}`} className="gap-2">
-            <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" /> {t("common.print")}
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printReceipt(row, "compact"); }} data-testid={`action-print-compact-${row.id}`} className="gap-2">
+            <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" /> Print (Compact)
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printReceipt(row, "full"); }} data-testid={`action-print-full-${row.id}`} className="gap-2">
+            <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" /> Print (Full size)
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditBill(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
             <Pencil className="h-4 w-4 text-amber-500 dark:text-amber-400" /> {t("common.edit")}

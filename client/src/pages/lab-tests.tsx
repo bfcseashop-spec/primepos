@@ -312,14 +312,14 @@ export default function LabTestsPage() {
     const statusColor = row.status === "complete" ? "#059669" : row.status === "processing" ? "#2563eb" : row.status === "cancel" ? "#dc2626" : "#d97706";
 
     const isCompact = layout === "compact";
-    const bodyPad = isCompact ? "6px 8px" : "10px 14px";
+    const bodyPad = isCompact ? "4px 6px" : "8px 10px";
     const maxW = isCompact ? "340px" : "720px";
     const fBase = isCompact ? 9 : 10;
     const fSm = isCompact ? 8 : 9;
     const fPatient = isCompact ? 10 : 11;
     const fResult = isCompact ? 10 : 11;
-    const pad = isCompact ? "3px 4px" : "5px 6px";
-    const padSm = isCompact ? "2px 4px" : "4px 6px";
+    const pad = isCompact ? "2px 3px" : "4px 5px";
+    const padSm = isCompact ? "1px 3px" : "3px 5px";
 
     const testCodeBarcode = (row.testCode || "").replace(/[^A-Za-z0-9\-]/g, "") || row.testCode || "";
     const barcodeSize = isCompact ? 32 : 40;
@@ -334,7 +334,7 @@ export default function LabTestsPage() {
       <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; width: 100%; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.35; text-align: justify; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; width: 100%; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.3; text-align: justify; }
         .lab-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
         table { border-collapse: collapse; width: 100%; }
         @media print { @page { size: ${settings?.printPageSize || "A5"}; margin: 8mm; } html, body { min-height: 100%; margin: 0; padding: 0; width: 100% !important; max-width: 100% !important; } body { padding: 0; text-align: justify; } .lab-print-page, .lab-print-body, .lab-print-footer { max-width: 100% !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
@@ -347,15 +347,15 @@ export default function LabTestsPage() {
 
           <div class="lab-print-body">
           <!-- HEADER (compact) -->
-          <div style="text-align:center;margin-bottom:${isCompact ? "4px" : "6px"};padding-bottom:${isCompact ? "4px" : "5px"};border-bottom:1px solid ${border};width:100%;">
+          <div style="text-align:center;margin-bottom:${isCompact ? "2px" : "4px"};padding-bottom:${isCompact ? "2px" : "3px"};border-bottom:1px solid ${border};width:100%;">
             ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "24px" : "32px"};margin:0 auto 2px;display:block;" />` : ""}
             <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.04em;">${clinicNameDisplay}</div>
             <div style="font-size:${isCompact ? "7px" : "8px"};color:${muted};">${[clinicAddress, clinicPhone, clinicEmail].filter(Boolean).slice(0, 2).join(" · ")}</div>
           </div>
 
           <!-- TITLE + META + BARCODE -->
-          <div style="margin-bottom:${isCompact ? "4px" : "6px"};text-align:justify;width:100%;">
-            <div style="font-size:${isCompact ? "9px" : "11px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:2px;">Lab Test Report</div>
+          <div style="margin-bottom:${isCompact ? "2px" : "4px"};text-align:justify;width:100%;">
+            <div style="font-size:${isCompact ? "9px" : "11px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Lab Test Report</div>
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;width:100%;">
               <div style="font-size:${fSm}px;line-height:1.3;">Test ID: <strong>${row.testCode}</strong> | Date: ${formattedDate}</div>
               <div style="display:flex;align-items:center;gap:4px;">
@@ -366,19 +366,19 @@ export default function LabTestsPage() {
           </div>
 
           <!-- PATIENT DETAILS (2 rows: Name, then Age + Gender) -->
-          <table style="width:100%;margin-bottom:${isCompact ? "10px" : "14px"};border-collapse:collapse;font-size:${fPatient}px;">
-            <tr><td style="padding:${isCompact ? "6px 0" : "8px 0"};text-align:left;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}${(row as { patientPatientId?: string }).patientPatientId ? ` (${escapeHtml((row as { patientPatientId: string }).patientPatientId)})` : ""}</td></tr>
-            <tr><td style="padding:${isCompact ? "6px 0" : "8px 0"};text-align:left;"><strong>Age:</strong> ${(row as { patientAge?: number }).patientAge != null ? (row as { patientAge: number }).patientAge : "-"} &nbsp;&nbsp; <strong>Gender:</strong> ${(row as { patientGender?: string }).patientGender ? escapeHtml((row as { patientGender: string }).patientGender) : "-"}</td></tr>
+          <table style="width:100%;margin-bottom:${isCompact ? "4px" : "6px"};border-collapse:collapse;font-size:${fPatient}px;">
+            <tr><td style="padding:${isCompact ? "2px 0" : "4px 0"};text-align:left;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}${(row as { patientPatientId?: string }).patientPatientId ? ` (${escapeHtml((row as { patientPatientId: string }).patientPatientId)})` : ""}</td></tr>
+            <tr><td style="padding:${isCompact ? "2px 0" : "4px 0"};text-align:left;"><strong>Age:</strong> ${(row as { patientAge?: number }).patientAge != null ? (row as { patientAge: number }).patientAge : "-"} &nbsp;&nbsp; <strong>Gender:</strong> ${(row as { patientGender?: string }).patientGender ? escapeHtml((row as { patientGender: string }).patientGender) : "-"}</td></tr>
           </table>
           <!-- TEST INFO -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:${isCompact ? "6px" : "8px"};font-size:${fPatient}px;line-height:1.45;width:100%;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:${isCompact ? "4px" : "6px"};font-size:${fPatient}px;line-height:1.45;width:100%;">
             <div style="flex:1;min-width:0;text-align:left;"><strong>Test:</strong> ${row.testName} · ${categories || "-"} · ${sampleTypes || "-"}</div>
             <div style="flex:1;min-width:0;text-align:right;">${row.referrerName ? `Ref: ${row.referrerName} · ` : ""}<strong style="color:${accent};">$${row.price}</strong></div>
           </div>
 
           ${reportResults.length > 0 ? `
           <!-- RESULTS TABLE -->
-          <table style="width:100%;margin-bottom:${isCompact ? "4px" : "8px"};">
+          <table style="width:100%;margin-bottom:${isCompact ? "2px" : "4px"};">
             <thead>
               <tr style="background:${teal};-webkit-print-color-adjust:exact;print-color-adjust:exact;">
                 <th style="padding:${pad};text-align:justify;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;border-radius:6px 0 0 0;">Parameter</th>
@@ -413,9 +413,9 @@ export default function LabTestsPage() {
             const clinic = escapeHtml(clinicNameDisplay);
             return `
           <!-- LAB TECHNOLOGIST -->
-          <div style="margin-top:${isCompact ? "4px" : "6px"};padding-top:${isCompact ? "4px" : "6px"};border-top:1px solid ${border};">
-            <div style="font-size:${fSm}px;font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:2px;">Lab Technologist</div>
-            <div style="display:flex;align-items:center;justify-content:flex-end;gap:${isCompact ? "6px" : "10px"};">
+          <div style="margin-top:${isCompact ? "2px" : "4px"};padding-top:${isCompact ? "2px" : "4px"};border-top:1px solid ${border};">
+            <div style="font-size:${fSm}px;font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Lab Technologist</div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:${isCompact ? "4px" : "6px"};">
               <div style="text-align:right;line-height:1.25;">
                 <div style="font-weight:700;font-size:${isCompact ? "9px" : "10px"};color:${accent};">${name}</div>
                 ${qual ? `<div style="font-size:${fSm}px;color:${muted};">${qual}</div>` : ""}
@@ -429,7 +429,7 @@ export default function LabTestsPage() {
           })() : ""}
 
           <!-- FOOTER -->
-          <div style="text-align:center;margin-top:${isCompact ? "4px" : "6px"};padding-top:${isCompact ? "4px" : "5px"};border-top:1px solid ${border};width:100%;">
+          <div style="text-align:center;margin-top:${isCompact ? "2px" : "4px"};padding-top:${isCompact ? "2px" : "4px"};border-top:1px solid ${border};width:100%;">
             <div style="font-size:${isCompact ? "7px" : "8px"};font-weight:700;color:${teal};text-transform:uppercase;">Thank you for choosing ${clinicNameDisplay}!</div>
             ${clinicEmail ? `<div style="font-size:${fSm}px;color:${muted};margin-top:1px;">Contact: ${clinicEmail}</div>` : ""}
           </div>
