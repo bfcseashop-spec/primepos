@@ -37,6 +37,14 @@ To install PostgreSQL client tools on Ubuntu: `apt install postgresql-client`
 
 ## Troubleshooting
 
+**"Permission denied" when writing to backups/**
+
+If backups were created by root (from a previous `sudo` run), run once:
+```bash
+sudo chown -R $USER:$USER /var/www/primepos/backups
+```
+Or the script will automatically use `~/primepos-backups` as fallback.
+
 **"Permission denied" or "command not found" when running ./deploy.sh**
 
 Use `bash deploy.sh` or `sudo bash deploy.sh` instead—invoking `bash` directly avoids issues from file permissions or Windows line endings (CRLF).

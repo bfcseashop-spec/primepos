@@ -6,9 +6,15 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Backup directory (create if missing)
+# Backup directory (create if missing, use fallback if not writable)
 BACKUP_DIR="${BACKUP_DIR:-$SCRIPT_DIR/backups}"
 mkdir -p "$BACKUP_DIR"
+if ! touch "$BACKUP_DIR/.write-test" 2>/dev/null; then
+  BACKUP_DIR="${HOME:-/tmp}/primepos-backups"
+  mkdir -p "$BACKUP_DIR"
+  echo "Note: Using $BACKUP_DIR (default backups dir not writable by current user)"
+fi
+rm -f "$BACKUP_DIR/.write-test" 2>/dev/null || true
 
 # Timestamp: MM-DD-YYYY-HH-MM (e.g. 08-15-2026-23-30)
 TIMESTAMP=$(date +%m-%d-%Y-%H-%M)
