@@ -31,25 +31,22 @@ type SampleCollection = {
 
 function BarcodePreview({ sample }: { sample: SampleCollection }) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const barcodeValue = "SC" + sample.id;
   useEffect(() => {
     if (svgRef.current && sample) {
-      const data = `SAMPLE|${sample.id}|${sample.labTestId}|${sample.testName}|${sample.patientIdCode || "N/A"}`;
       try {
-        JsBarcode(svgRef.current, data, { format: "CODE128", width: 1.5, height: 40, displayValue: false });
+        JsBarcode(svgRef.current, barcodeValue, { format: "CODE128", width: 1, height: 25, displayValue: false });
       } catch (e) {
         // ignore
       }
     }
-  }, [sample]);
+  }, [sample, barcodeValue]);
   return (
     <div className="p-4 bg-white rounded-md border w-full">
-      <div className="flex flex-col items-center text-center gap-3">
-        <svg ref={svgRef} className="w-full max-w-[280px]" data-testid="img-sample-barcode" />
-        <div>
-          <p className="font-semibold text-sm">{sample.testName}</p>
-          <p className="text-xs text-muted-foreground">{sample.sampleType} • {sample.patientName || "-"}</p>
-          <p className="font-mono text-xs">{sample.patientIdCode || ""}</p>
-        </div>
+      <div className="flex flex-col items-center text-center gap-2">
+        <svg ref={svgRef} className="w-full max-w-[200px]" data-testid="img-sample-barcode" />
+        <p className="font-mono text-sm font-bold">{barcodeValue}</p>
+        <p className="text-xs text-muted-foreground">{sample.testName} • {sample.patientName || "-"}</p>
       </div>
     </div>
   );
@@ -93,38 +90,30 @@ export default function SampleCollectionsPage() {
   };
 
   const printBarcode = (sample: SampleCollection) => {
-    const data = `SAMPLE|${sample.id}|${sample.labTestId}|${sample.testName}|${sample.patientIdCode || "N/A"}`;
-    const dataEscaped = data.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, '\\"');
+    const barcodeValue = "SC" + sample.id;
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
     printWindow.document.write(`
       <!DOCTYPE html>
-      <html><head><title>Sample Barcode - ${sample.testName.replace(/</g, "&lt;")}</title>
+      <html><head><title>Sample ${barcodeValue}</title>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
       <style>
-        @page { size: 60mm 30mm landscape; margin: 2mm; }
+        @page { size: 40mm 20mm landscape; margin: 1mm; }
         @media print { html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-        body { font-family: Arial, sans-serif; margin: 0; padding: 2mm; display: flex; justify-content: center; align-items: center; min-height: 26mm; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 1mm; display: flex; justify-content: center; align-items: center; min-height: 18mm; }
         .sticker { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; text-align: center; }
-        .sticker .barcode-wrap { margin-bottom: 3mm; }
+        .sticker .barcode-wrap { margin-bottom: 1mm; }
         .sticker .barcode-wrap svg { display: block; max-width: 100%; }
-        .sticker .text { text-align: center; }
-        .sticker .test-name { font-weight: bold; font-size: 7pt; line-height: 1.2; margin-bottom: 0.5px; }
-        .sticker .meta { font-size: 6pt; color: #333; }
-        .sticker .id { font-family: monospace; font-size: 6pt; }
+        .sticker .id { font-family: monospace; font-size: 6pt; font-weight: bold; }
       </style></head><body>
       <div class="sticker">
         <div class="barcode-wrap"><svg id="barcode"></svg></div>
-        <div class="text">
-          <div class="test-name">${sample.testName.replace(/</g, "&lt;")}</div>
-          <div class="meta">${sample.sampleType} • ${(sample.patientName || "-").replace(/</g, "&lt;")}</div>
-          <div class="id">${(sample.patientIdCode || "").replace(/</g, "&lt;")}</div>
-        </div>
+        <div class="id">${barcodeValue}</div>
       </div>
       <script>
         window.addEventListener('load', function() {
           try {
-            JsBarcode("#barcode", "${dataEscaped}", { format: "CODE128", width: 1.5, height: 35, displayValue: false, margin: 6 });
+            JsBarcode("#barcode", "${barcodeValue}", { format: "CODE128", width: 1, height: 25, displayValue: false, margin: 4 });
           } catch (e) { document.getElementById("barcode").innerHTML = "<text>Barcode error</text>"; }
           setTimeout(function() { window.print(); window.close(); }, 150);
         });

@@ -340,11 +340,23 @@ export default function LabTestsPage() {
   const handleBarcodeSearch = async (value: string) => {
     const v = value?.trim() ?? "";
     if (!v) return;
-    // SAMPLE|sampleId|labTestId|testName|patientCode
-    const sampleMatch = v.match(/^SAMPLE\|(\d+)\|(\d+)\|/);
-    if (sampleMatch) {
-      const labTestId = parseInt(sampleMatch[2], 10);
+    // Sample collection barcode: SC5 or plain 5 (from small sticker)
+    let sampleId: number | null = null;
+    const scMatch = v.match(/^SC(\d+)$/i);
+    if (scMatch) {
+      sampleId = parseInt(scMatch[1], 10);
+    } else if (/^\d+$/.test(v)) {
+      sampleId = parseInt(v, 10);
+    }
+    if (sampleId != null) {
       try {
+        const scRes = await apiRequest("GET", `/api/sample-collections/${sampleId}`);
+        const sc = await scRes.json();
+        const labTestId = sc?.labTestId;
+        if (!labTestId) {
+          toast({ title: t("labTests.test") + " not linked", variant: "destructive" });
+          return;
+        }
         const res = await apiRequest("GET", `/api/lab-tests/${labTestId}`);
         const test = await res.json();
         setSearchTerm("");

@@ -2465,6 +2465,18 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/sample-collections/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid sample collection id" });
+      const sc = await storage.getSampleCollection(id);
+      if (!sc) return res.status(404).json({ message: "Sample collection not found" });
+      res.json(sc);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.patch("/api/sample-collections/:id", async (req, res) => {
     try {
       const data = req.body;
