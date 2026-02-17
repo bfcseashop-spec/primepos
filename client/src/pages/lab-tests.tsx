@@ -408,18 +408,32 @@ export default function LabTestsPage() {
 
   type PrintLayout = "compact" | "full";
   const escapeHtml = (s: string) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  const printLabReport = (row: LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string; category?: string }> | null; labTechnologist?: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string; signaturePrintInLabReport?: boolean } | null }, layout: PrintLayout = "full") => {
+  const printLabReport = async (row: LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string; category?: string }> | null; labTechnologist?: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string; signaturePrintInLabReport?: boolean } | null; serviceId?: number | null }, layout: PrintLayout = "full") => {
     const pageSize = settings?.printPageSize || "A4";
     const labPageSize = pageSize === "A5" ? "A4" : pageSize;
     const printWindow = window.open("", "_blank", "width=794,height=1123");
     if (!printWindow) return;
+    let reportResults = (row.reportResults || []).map(r => ({ ...r }));
+    if (row.serviceId) {
+      try {
+        const svc = await queryClient.fetchQuery<{ reportParameters?: Array<{ parameter: string; normalRange: string }> }>({
+          queryKey: [`/api/services/${row.serviceId}`],
+        });
+        const paramsByName = new Map((svc?.reportParameters || []).map(p => [p.parameter, p.normalRange || ""]));
+        reportResults = reportResults.map(r => ({
+          ...r,
+          normalRange: paramsByName.has(r.parameter) ? paramsByName.get(r.parameter)! : r.normalRange,
+        }));
+      } catch {
+        /* use existing reportResults */
+      }
+    }
     const clinicName = settings?.clinicName || "";
     const clinicNameDisplay = clinicName || "Clinic";
     const clinicEmail = settings?.email || "";
     const clinicPhone = settings?.phone || "";
     const clinicAddress = settings?.address || "";
     const clinicWebsite = (settings as { companyWebsite?: string })?.companyWebsite || "";
-    const reportResults = row.reportResults || [];
     const reportDateStr = row.createdAt ? new Date(row.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
     const printedAtStr = new Date().toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
     const rowExt = row as unknown as { patientAge?: number; patientGender?: string };
@@ -511,7 +525,7 @@ export default function LabTestsPage() {
               const raw = String(s || "").trim();
               const lines = raw.split(/\r?\n|\r/).map(l => l.trim()).filter(Boolean);
               if (lines.length === 0) return escapeHtml("-");
-              return lines.map(l => escapeHtml(l)).join("<br/>");
+              return lines.map(l => `<span style="display:block;">${escapeHtml(l)}</span>`).join("");
             };
             const rowHtml = (r: R) => {
               const outOfRange = isResultOutOfRange(r.result, r.normalRange);
