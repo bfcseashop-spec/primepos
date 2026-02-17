@@ -1,0 +1,2 @@
+# Ensure shell scripts use LF line endings (fixes "command not found" on Linux)
+*.sh text eol=lf

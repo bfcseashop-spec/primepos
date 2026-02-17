@@ -10,8 +10,8 @@
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "pm2:restart": "pm2 restart primepos 2>/dev/null || pm2 start ecosystem.config.cjs",
-    "deploy": "./deploy.sh",
-    "deploy:backup-only": "./deploy.sh --no-deploy"
+    "deploy": "bash deploy.sh",
+    "deploy:backup-only": "bash deploy.sh --no-deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

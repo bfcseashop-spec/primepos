@@ -3,16 +3,19 @@
 ## Quick Deploy (with backup)
 
 ```bash
-chmod +x deploy.sh   # one-time: make executable
-sudo ./deploy.sh
-# or
+# Option A: via npm (works even if chmod not set)
 sudo npm run deploy
+
+# Option B: direct (run with bash to avoid CRLF issues)
+bash deploy.sh
+# or with sudo:
+sudo bash deploy.sh
 ```
 
 ## Backup only (no git pull / build / restart)
 
 ```bash
-./deploy.sh --no-deploy
+bash deploy.sh --no-deploy
 # or
 npm run deploy:backup-only
 ```
@@ -31,3 +34,19 @@ Backups are stored in `backups/` with timestamped names:
 - `DATABASE_URL` in `.env` - for database backup
 
 To install PostgreSQL client tools on Ubuntu: `apt install postgresql-client`
+
+## Troubleshooting
+
+**"Permission denied" or "command not found" when running ./deploy.sh**
+
+Use `bash deploy.sh` or `sudo bash deploy.sh` instead—invoking `bash` directly avoids issues from file permissions or Windows line endings (CRLF).
+
+**To fix line endings in repo** (so `./deploy.sh` works after `chmod +x`):
+
+```bash
+git add --renormalize .
+git commit -m "Fix line endings for deploy.sh"
+git push
+```
+
+Then on server: `git pull` and `chmod +x deploy.sh`; `./deploy.sh` will work.
