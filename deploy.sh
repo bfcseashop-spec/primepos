@@ -51,6 +51,9 @@ if [ -n "$DATABASE_URL" ]; then
     else
       echo "  WARNING: pg_dump failed. Skipping DB backup."
       [ -s "$BACKUP_DIR/.pg_dump_err" ] && echo "  Error: $(cat "$BACKUP_DIR/.pg_dump_err")"
+      if grep -q "1234@localhost\|could not translate host" "$BACKUP_DIR/.pg_dump_err" 2>/dev/null; then
+        echo "  Hint: Password may contain @. In .env, encode it: Primepos@1234 -> Primepos%401234"
+      fi
       rm -f "$SQL_FILE" "$BACKUP_DIR/.pg_dump_err"
     fi
   else
