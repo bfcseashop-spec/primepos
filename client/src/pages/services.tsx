@@ -22,7 +22,7 @@ import { apiRequest, queryClient, downloadFile } from "@/lib/queryClient";
 import {
   Plus, Search, MoreVertical, Eye, Pencil, Trash2, ImagePlus, X,
   FolderPlus, Activity, CheckCircle2, XCircle, DollarSign, Layers,
-  RefreshCw, Grid3X3, List, Stethoscope, Tag, FileText,
+  RefreshCw, Grid3X3, List, Stethoscope, Tag, FileText, FolderTree,
   Download, Upload, FileSpreadsheet, FileDown, Syringe,
 } from "lucide-react";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -73,7 +73,9 @@ const categoryColors: Record<string, { bg: string; text: string; dot: string }> 
 
 const defaultCategoryColor = { bg: "bg-violet-500/10", text: "text-violet-700 dark:text-violet-300", dot: "bg-violet-500" };
 
-type ReportParam = { parameter: string; unit: string; normalRange: string; resultType?: "manual" | "dropdown"; dropdownItems?: string[] };
+type ReportParam = { parameter: string; unit: string; normalRange: string; resultType?: "manual" | "dropdown"; dropdownItems?: string[]; category?: string };
+
+const DEFAULT_REPORT_CATEGORIES = ["Enzymes", "Bilirubin", "Lipids", "Hematology", "Renal", "Glucose", "Other"];
 const defaultForm = {
   name: "", category: "", price: "", description: "", imageUrl: "",
   isLabTest: false, sampleCollectionRequired: false, sampleType: "Blood",
@@ -923,6 +925,27 @@ export default function ServicesPage() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
+  const [reportCategoryDialogOpen, setReportCategoryDialogOpen] = useState(false);
+  const [reportCategoryList, setReportCategoryList] = useState<string[]>([]);
+  const [reportCategoryNew, setReportCategoryNew] = useState("");
+
+  const { data: settings } = useQuery<{ reportCategories?: string[] }>({ queryKey: ["/api/settings"] });
+  const reportCategories = settings?.reportCategories && settings.reportCategories.length > 0 ? settings.reportCategories : DEFAULT_REPORT_CATEGORIES;
+
+  const saveReportCategoriesMutation = useMutation({
+    mutationFn: async (cats: string[]) => {
+      const res = await apiRequest("PUT", "/api/settings", { reportCategories: cats });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      setReportCategoryDialogOpen(false);
+      toast({ title: "Report categories saved" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
 
   const { data: services = [], isLoading } = useQuery<Service[]>({
     queryKey: ["/api/services"],
@@ -1079,6 +1102,7 @@ export default function ServicesPage() {
               unit: p.unit || "",
               normalRange: p.normalRange || "",
               resultType: p.resultType ?? "manual",
+              category: p.category || undefined,
               dropdownItems: (() => {
                 if (p.resultType !== "dropdown" || !p.dropdownItems?.length) return undefined;
                 const filtered = p.dropdownItems.filter(Boolean).map(s => (s || "").trim()).filter(Boolean);
@@ -1110,6 +1134,7 @@ export default function ServicesPage() {
         parameter: rp.parameter,
         unit: rp.unit,
         normalRange: rp.normalRange,
+        category: rp.category,
         resultType: rp.resultType ?? (rp.unitType === "select" ? "dropdown" : "manual"),
         dropdownItems: rp.dropdownItems,
       })) : [],
@@ -1285,7 +1310,12 @@ export default function ServicesPage() {
           <Separator />
           <div className="space-y-3">
             <div>
-              <Label className="text-sm font-medium">Report Parameters</Label>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium">Report Parameters</Label>
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => { setReportCategoryList([...reportCategories]); setReportCategoryDialogOpen(true); }} title="Manage report categories">
+                  <FolderTree className="h-4 w-4" />
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground mt-0.5">Configure parameters for test result entry. Manual = type value; Dropdown = select from predefined options.</p>
             </div>
             <div className="rounded-xl border bg-muted/5 overflow-hidden shadow-sm">
@@ -1315,6 +1345,22 @@ export default function ServicesPage() {
                             }} className="h-9" />
                           </div>
                           <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-muted-foreground">Category</Label>
+                            <Select value={p.category || ""} onValueChange={(v) => {
+                              const arr = [...(form.reportParameters || [])];
+                              arr[i] = { ...arr[i], category: v || undefined };
+                              setForm(f => ({ ...f, reportParameters: arr }));
+                            }}>
+                              <SelectTrigger className="h-9 w-full"><SelectValue placeholder="—" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="">—</SelectItem>
+                                {reportCategories.map(c => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-muted-foreground">Unit</Label>
                             <Input placeholder="e.g. mg/dL" value={p.unit} onChange={e => {
                               const arr = [...(form.reportParameters || [])];
@@ -1322,11 +1368,9 @@ export default function ServicesPage() {
                               setForm(f => ({ ...f, reportParameters: arr }));
                             }} className="h-9" />
                           </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-muted-foreground">Normal Range</Label>
-                            <Input placeholder="e.g. 70-99, 4.0-5.6" value={p.normalRange} onChange={e => {
+                            <Input placeholder="e.g. 70-99, 45-135 U/L. Out-of-range results print red." value={p.normalRange} onChange={e => {
                               const arr = [...(form.reportParameters || [])];
                               arr[i] = { ...arr[i], normalRange: e.target.value };
                               setForm(f => ({ ...f, reportParameters: arr }));
@@ -2046,6 +2090,63 @@ export default function ServicesPage() {
           <Button className="w-full" onClick={handleSubmit} disabled={updateMutation.isPending} data-testid="button-update-service">
             {updateMutation.isPending ? t("common.updating") : t("common.update")}
           </Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reportCategoryDialogOpen} onOpenChange={(open) => { setReportCategoryDialogOpen(open); if (!open) setReportCategoryNew(""); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manage Report Categories</DialogTitle>
+            <DialogDescription>Add or remove report categories. Use these to group parameters in lab reports (e.g. Enzymes, Hematology).</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                placeholder="New category (e.g. Enzymes)"
+                value={reportCategoryNew}
+                onChange={e => setReportCategoryNew(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && reportCategoryNew.trim()) {
+                    if (reportCategoryList.includes(reportCategoryNew.trim())) {
+                      toast({ title: "Category already exists", variant: "destructive" });
+                      return;
+                    }
+                    setReportCategoryList([...reportCategoryList, reportCategoryNew.trim()].sort());
+                    setReportCategoryNew("");
+                    toast({ title: "Category added" });
+                  }
+                }}
+              />
+              <Button onClick={() => {
+                if (!reportCategoryNew.trim()) return;
+                if (reportCategoryList.includes(reportCategoryNew.trim())) {
+                  toast({ title: "Category already exists", variant: "destructive" });
+                  return;
+                }
+                setReportCategoryList([...reportCategoryList, reportCategoryNew.trim()].sort());
+                setReportCategoryNew("");
+                toast({ title: "Category added" });
+              }}>
+                {t("common.add")}
+              </Button>
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-1">
+              {reportCategoryList.map(cat => (
+                <div key={cat} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50">
+                  <span className="text-sm">{cat}</span>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                    setReportCategoryList(reportCategoryList.filter(c => c !== cat));
+                    toast({ title: "Category removed" });
+                  }}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <Button className="w-full" onClick={() => saveReportCategoriesMutation.mutate(reportCategoryList)} disabled={saveReportCategoriesMutation.isPending}>
+              {saveReportCategoriesMutation.isPending ? t("common.saving") : "Save categories"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

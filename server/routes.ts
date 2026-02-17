@@ -849,6 +849,7 @@ export async function registerRoutes(
         normalRange: z.string(),
         resultType: z.enum(["manual", "dropdown"]).optional(),
         dropdownItems: z.array(z.string()).optional(),
+        category: z.string().optional(),
       });
       const updateSchema = z.object({
         isActive: z.boolean().optional(),
@@ -2436,7 +2437,7 @@ export async function registerRoutes(
 
   app.patch("/api/lab-tests/:id", async (req, res) => {
     try {
-      const reportResultSchema = z.object({ parameter: z.string(), result: z.string(), unit: z.string(), normalRange: z.string() });
+      const reportResultSchema = z.object({ parameter: z.string(), result: z.string(), unit: z.string(), normalRange: z.string(), category: z.string().optional() });
       const updateSchema = z.object({
         testName: z.string().optional(),
         category: z.string().optional(),

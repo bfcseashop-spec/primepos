@@ -70,7 +70,7 @@ export const services = pgTable("services", {
   isLabTest: boolean("is_lab_test").notNull().default(false),
   sampleCollectionRequired: boolean("sample_collection_required").notNull().default(false),
   sampleType: text("sample_type"),
-  reportParameters: jsonb("report_parameters").$type<Array<{ parameter: string; unit: string; normalRange: string; resultType?: "manual" | "dropdown"; dropdownItems?: string[] }>>(),
+  reportParameters: jsonb("report_parameters").$type<Array<{ parameter: string; unit: string; normalRange: string; resultType?: "manual" | "dropdown"; dropdownItems?: string[]; category?: string }>>(),
 });
 
 export const insertServiceSchema = createInsertSchema(services).omit({ id: true } as any);
@@ -324,6 +324,7 @@ export const clinicSettings = pgTable("clinic_settings", {
   appTagline: text("app_tagline"),
   appVersion: text("app_version").default("1.0.0"),
   printPageSize: text("print_page_size").default("A5"),
+  reportCategories: jsonb("report_categories").$type<string[]>().default([]),
 });
 
 export const insertClinicSettingsSchema = createInsertSchema(clinicSettings).omit({ id: true } as any);
@@ -345,7 +346,7 @@ export const labTests = pgTable("lab_tests", {
   sampleCollectionRequired: boolean("sample_collection_required").notNull().default(false),
   reportFileUrl: text("report_file_url"),
   reportFileName: text("report_file_name"),
-  reportResults: jsonb("report_results").$type<Array<{ parameter: string; result: string; unit: string; normalRange: string }>>(),
+  reportResults: jsonb("report_results").$type<Array<{ parameter: string; result: string; unit: string; normalRange: string; category?: string }>>(),
   referrerName: text("referrer_name"),
   labTechnologistId: integer("lab_technologist_id").references(() => users.id),
   status: text("status").notNull().default("processing"),

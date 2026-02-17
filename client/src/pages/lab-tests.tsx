@@ -18,7 +18,7 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { usePermissions } from "@/contexts/auth-context";
+import { usePermissions, useAuth } from "@/contexts/auth-context";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, Barcode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User, Clock, XCircle, AlertTriangle, Loader2, ChevronDown, ClipboardList } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
@@ -139,6 +139,32 @@ function LabTestBarcodePreview({ test, onClose, t }: { test: LabTestWithPatient;
   );
 }
 
+/** Check if a numeric result is outside the normal/reference range. Returns true if out of range. Supports multiple ranges (e.g. "70-99, 4.0-5.6"), <X, >X, and categorical values. */
+function isResultOutOfRange(result: string, normalRange: string): boolean {
+  if (!result?.trim() || !normalRange?.trim()) return false;
+  const r = result.trim();
+  const nr = normalRange.trim();
+  const num = parseFloat(r.replace(/[^\d.\-]/g, ""));
+  if (Number.isNaN(num)) {
+    const opts = nr.split(/[,;\/]|\bor\b/i).map((s) => s.trim().toLowerCase()).filter(Boolean);
+    if (opts.length > 0) return !opts.some((o) => r.toLowerCase().includes(o) || o.includes(r.toLowerCase()));
+    return false;
+  }
+  const rangeRegex = /(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/g;
+  let rangeMatch;
+  while ((rangeMatch = rangeRegex.exec(nr)) !== null) {
+    const low = parseFloat(rangeMatch[1]);
+    const high = parseFloat(rangeMatch[2]);
+    if (num >= low && num <= high) return false;
+  }
+  if (/\d+\s*-\s*\d+/.test(nr)) return true;
+  const ltMatch = nr.match(/<\s*(\d+(?:\.\d+)?)/);
+  if (ltMatch) return num >= parseFloat(ltMatch[1]);
+  const gtMatch = nr.match(/>\s*(\d+(?:\.\d+)?)/);
+  if (gtMatch) return num <= parseFloat(gtMatch[1]);
+  return false;
+}
+
 function parseTurnaroundToMs(tat: string | null): number | null {
   if (!tat) return null;
   const lower = tat.toLowerCase().trim();
@@ -252,6 +278,7 @@ function MultiSelect({ options, selected, onChange, placeholder, testId, trigger
 export default function LabTestsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const currentUser = useAuth();
   const { canAdd, canEdit, canDelete } = usePermissions("lab_tests");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTest, setEditTest] = useState<LabTestWithPatient | null>(null);
@@ -381,54 +408,57 @@ export default function LabTestsPage() {
 
   type PrintLayout = "compact" | "full";
   const escapeHtml = (s: string) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  const printLabReport = (row: LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }>; labTechnologist?: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string } | null }, layout: PrintLayout = "compact") => {
-    const printWindow = window.open("", "_blank", layout === "compact" ? "width=400,height=600" : "width=794,height=1123");
+  const printLabReport = (row: LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string; category?: string }>; labTechnologist?: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string } | null }, layout: PrintLayout = "full") => {
+    const pageSize = settings?.printPageSize || "A4";
+    const labPageSize = pageSize === "A5" ? "A4" : pageSize;
+    const printWindow = window.open("", "_blank", "width=794,height=1123");
     if (!printWindow) return;
     const clinicName = settings?.clinicName || "";
     const clinicNameDisplay = clinicName || "Clinic";
     const clinicEmail = settings?.email || "";
     const clinicPhone = settings?.phone || "";
     const clinicAddress = settings?.address || "";
-    const categories = row.category.split(",").map((c: string) => c.trim()).filter(Boolean).join(", ");
-    const sampleTypes = row.sampleType.split(",").map((s: string) => s.trim()).filter(Boolean).join(", ");
-    const statusLabels: Record<string, string> = { processing: "Processing", complete: "Complete", awaiting_sample: "Awaiting Sample", sample_missing: "Sample Missing", cancel: "Cancelled" };
+    const clinicWebsite = (settings as { companyWebsite?: string })?.companyWebsite || "";
     const reportResults = row.reportResults || [];
-    const formattedDate = row.createdAt ? new Date(row.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-";
+    const reportDateStr = row.createdAt ? new Date(row.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
+    const printedAtStr = new Date().toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const reportStatus = row.status === "complete" ? "Final" : row.status === "processing" ? "Processing" : row.status === "awaiting_sample" ? "Awaiting Sample" : row.status || "—";
+    const patientAgeGender = [
+      (row as { patientAge?: number }).patientAge != null ? `${(row as { patientAge: number }).patientAge}Y` : "",
+      (row as { patientGender?: string }).patientGender ? escapeHtml((row as { patientGender: string }).patientGender) : "",
+    ].filter(Boolean).join(" / ") || "-";
 
     const teal = "#0d9488";
     const accent = "#0f172a";
     const muted = "#475569";
     const border = "#e2e8f0";
-    const statusColor = row.status === "complete" ? "#059669" : row.status === "processing" ? "#2563eb" : row.status === "cancel" ? "#dc2626" : "#d97706";
 
-    const isCompact = layout === "compact";
-    const bodyPad = isCompact ? "4px 6px" : "8px 10px";
-    const maxW = isCompact ? "340px" : "100%";
-    const fBase = isCompact ? 9 : 10;
-    const fSm = isCompact ? 8 : 9;
-    const fPatient = isCompact ? 10 : 11;
-    const fResult = isCompact ? 10 : 11;
-    const pad = isCompact ? "2px 3px" : "4px 5px";
-    const padSm = isCompact ? "1px 3px" : "3px 5px";
+    const bodyPad = "12px 16px";
+    const maxW = "100%";
+    const fBase = 11;
+    const fSm = 10;
+    const fPatient = 11;
+    const fResult = 12;
+    const pad = "6px 8px";
+    const padSm = "4px 6px";
 
     const testCodeBarcode = (row.testCode || "").replace(/[^A-Za-z0-9\-]/g, "") || row.testCode || "";
-    const barcodeSize = isCompact ? 32 : 40;
 
     const logoHref = settings?.logo
       ? (settings.logo.startsWith("http") ? settings.logo : `${typeof window !== "undefined" ? window.location.origin : ""}${settings.logo.startsWith("/") ? settings.logo : "/" + settings.logo}`)
       : "";
+    const printedBy = currentUser?.fullName || "—";
 
     printWindow.document.write(`
       <html><head><title>Lab Test Report - ${row.testCode}</title>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; width: 100%; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.3; text-align: justify; }
-        .lab-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; width: 100%; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.3; }
         table { border-collapse: collapse; width: 100%; }
-        @media print { @page { size: ${settings?.printPageSize || "A5"}; margin: 8mm; } html, body { min-height: 100%; margin: 0; padding: 0; width: 100% !important; max-width: 100% !important; } body { padding: 0; text-align: justify; } .lab-print-page, .lab-print-body, .lab-print-footer { max-width: 100% !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+        @media print { @page { size: ${labPageSize}; margin: 10mm; } html, body { min-height: 100%; margin: 0; padding: 0; width: 100% !important; max-width: 100% !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
         .lab-print-page { min-height: 100vh; display: flex; flex-direction: column; width: 100%; }
         .lab-print-body { flex: 1; width: 100%; }
         .lab-print-footer { margin-top: auto; width: 100%; }
@@ -437,99 +467,141 @@ export default function LabTestsPage() {
         <div class="lab-print-page" style="padding:${bodyPad};">
 
           <div class="lab-print-body">
-          <!-- HEADER (compact) -->
-          <div style="text-align:center;margin-bottom:${isCompact ? "2px" : "4px"};padding-bottom:${isCompact ? "2px" : "3px"};border-bottom:1px solid ${border};width:100%;">
-            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "24px" : "32px"};margin:0 auto 2px;display:block;" />` : ""}
-            <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.04em;">${clinicNameDisplay}</div>
-            <div style="font-size:${isCompact ? "7px" : "8px"};color:${muted};">${[clinicAddress, clinicPhone, clinicEmail].filter(Boolean).slice(0, 2).join(" · ")}</div>
+          <!-- HEADER: Clinic name, address, contact. Page number top-right -->
+          <div style="margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${border};position:relative;">
+            <div style="position:absolute;top:0;right:0;font-size:9px;color:${muted};">1 of 1</div>
+            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:40px;margin-bottom:4px;" />` : ""}
+            <div style="font-size:16px;font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.03em;">${escapeHtml(clinicNameDisplay)}</div>
+            ${clinicAddress ? `<div style="font-size:${fSm}px;color:${muted};margin-top:2px;">${escapeHtml(clinicAddress)}</div>` : ""}
+            ${clinicPhone || clinicEmail || clinicWebsite ? `<div style="font-size:9px;color:${muted};margin-top:2px;">${[clinicPhone, clinicEmail, clinicWebsite].filter(Boolean).join(" · ")}</div>` : ""}
           </div>
 
-          <!-- TITLE + META + BARCODE -->
-          <div style="margin-bottom:${isCompact ? "2px" : "4px"};text-align:justify;width:100%;">
-            <div style="font-size:${isCompact ? "9px" : "11px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Lab Test Report</div>
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;width:100%;">
-              <div style="font-size:${fSm}px;line-height:1.3;">Test ID: <strong>${row.testCode}</strong> | Date: ${formattedDate}</div>
-              <div style="display:flex;align-items:center;gap:4px;">
-                <span style="background:${statusColor}15;color:${statusColor};padding:1px 4px;border-radius:4px;font-weight:600;font-size:${fSm}px;">${statusLabels[row.status] || row.status}</span>
-                ${testCodeBarcode ? `<div style="text-align:right;"><div class="lab-barcode" style="font-size:${isCompact ? 24 : 28}px;">${testCodeBarcode}</div></div>` : ""}
-              </div>
-            </div>
-          </div>
-
-          <!-- PATIENT DETAILS (2 rows: Name, then Age + Gender) -->
-          <table style="width:100%;margin-bottom:${isCompact ? "4px" : "6px"};border-collapse:collapse;font-size:${fPatient}px;">
-            <tr><td style="padding:${isCompact ? "2px 0" : "4px 0"};text-align:left;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}${(row as { patientPatientId?: string }).patientPatientId ? ` (${escapeHtml((row as { patientPatientId: string }).patientPatientId)})` : ""}</td></tr>
-            <tr><td style="padding:${isCompact ? "2px 0" : "4px 0"};text-align:left;"><strong>Age:</strong> ${(row as { patientAge?: number }).patientAge != null ? (row as { patientAge: number }).patientAge : "-"} &nbsp;&nbsp; <strong>Gender:</strong> ${(row as { patientGender?: string }).patientGender ? escapeHtml((row as { patientGender: string }).patientGender) : "-"}</td></tr>
+          <!-- TWO-COLUMN: Patient info (left) | Lab info (right) -->
+          <table style="width:100%;margin-bottom:12px;font-size:${fPatient}px;border-collapse:collapse;">
+            <tr>
+              <td style="width:50%;vertical-align:top;padding:6px 12px 6px 0;">
+                <div style="margin-bottom:4px;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}</div>
+                ${(row as { patientPatientId?: string }).patientPatientId ? `<div style="margin-bottom:4px;"><strong>UHID:</strong> ${escapeHtml((row as { patientPatientId: string }).patientPatientId)}</div>` : ""}
+                <div style="margin-bottom:4px;"><strong>Age/Gender:</strong> ${patientAgeGender}</div>
+                ${row.referrerName ? `<div style="margin-bottom:4px;"><strong>Referred By:</strong> ${escapeHtml(row.referrerName)}</div>` : ""}
+                <div><strong>Sample Type:</strong> ${escapeHtml(row.sampleType || "-")}</div>
+              </td>
+              <td style="width:50%;vertical-align:top;padding:6px 0 6px 12px;border-left:1px solid ${border};">
+                <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px;">
+                  <div><strong>Lab No:</strong> ${escapeHtml(row.testCode)}</div>
+                  ${testCodeBarcode ? `<div id="lab-report-barcode" style="flex-shrink:0;"></div>` : ""}
+                </div>
+                <div style="margin-bottom:4px;"><strong>Report Date:</strong> ${reportDateStr}</div>
+                <div><strong>Report Status:</strong> ${reportStatus}</div>
+              </td>
+            </tr>
           </table>
-          <!-- TEST INFO -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:${isCompact ? "4px" : "6px"};font-size:${fPatient}px;line-height:1.45;width:100%;">
-            <div style="flex:1;min-width:0;text-align:left;"><strong>Test:</strong> ${row.testName} · ${categories || "-"} · ${sampleTypes || "-"}</div>
-            <div style="flex:1;min-width:0;text-align:right;">${row.referrerName ? `Ref: ${row.referrerName} · ` : ""}<strong style="color:${accent};">$${row.price}</strong></div>
-          </div>
 
-          ${reportResults.length > 0 ? `
+          <!-- SECTION TITLE -->
+          <div style="font-size:13px;font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:8px;">${escapeHtml(row.testName)}</div>
+
+          ${reportResults.length > 0 ? (() => {
+            type R = { parameter: string; result: string; unit: string; normalRange: string; category?: string };
+            const byCat = (reportResults as R[]).reduce<Record<string, R[]>>((acc, r) => {
+              const cat = r.category || "\x00";
+              if (!acc[cat]) acc[cat] = [];
+              acc[cat].push(r);
+              return acc;
+            }, {});
+            const cats = Object.keys(byCat).sort((a, b) => (a === "\x00" ? -1 : b === "\x00" ? 1 : a.localeCompare(b)));
+            const rowHtml = (r: R) => {
+              const outOfRange = isResultOutOfRange(r.result, r.normalRange);
+              const resultColor = outOfRange ? "#dc2626" : "#059669";
+              return `
+              <tr style="border-bottom:1px solid ${border};">
+                <td style="padding:${padSm};font-size:${fSm}px;font-weight:600;color:${accent};">${escapeHtml(r.parameter)}</td>
+                <td style="padding:${padSm};font-size:${fResult}px;font-weight:700;color:${resultColor};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(r.result || "-")}</td>
+                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${escapeHtml(r.unit || "-")}</td>
+                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${escapeHtml(r.normalRange || "-")}</td>
+                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">—</td>
+              </tr>`;
+            };
+            let tbody = "";
+            for (const cat of cats) {
+              const items = byCat[cat] || [];
+              if (cat !== "\x00") {
+                tbody += `<tr style="background:${teal}20;border-bottom:1px solid ${border};"><td colspan="5" style="padding:${padSm};font-size:${fSm}px;font-weight:700;color:${teal};text-transform:uppercase;">${escapeHtml(cat)}</td></tr>`;
+              }
+              tbody += items.map(rowHtml).join("");
+            }
+            return `
           <!-- RESULTS TABLE -->
-          <table style="width:100%;margin-bottom:${isCompact ? "2px" : "4px"};">
+          <table style="width:100%;margin-bottom:12px;">
             <thead>
               <tr style="background:${teal};-webkit-print-color-adjust:exact;print-color-adjust:exact;">
-                <th style="padding:${pad};text-align:justify;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;border-radius:6px 0 0 0;">Parameter</th>
-                <th style="padding:${pad};text-align:justify;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;">Result</th>
-                <th style="padding:${pad};text-align:justify;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;">Unit</th>
-                <th style="padding:${pad};text-align:justify;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;border-radius:0 6px 0 0;">Normal Range</th>
+                <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Test Name</th>
+                <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Result</th>
+                <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Unit</th>
+                <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Reference Ranges</th>
+                <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Methodology</th>
               </tr>
             </thead>
             <tbody>
-              ${reportResults.map((r: { parameter: string; result: string; unit: string; normalRange: string }) => `
-                <tr style="border-bottom:1px solid ${border};">
-                  <td style="padding:${padSm};font-size:${fSm}px;font-weight:600;color:${accent};text-align:justify;">${r.parameter}</td>
-                  <td style="padding:${padSm};font-size:${fResult}px;font-weight:700;color:#059669;text-align:justify;">${r.result || "-"}</td>
-                  <td style="padding:${padSm};font-size:${fSm}px;color:${muted};text-align:justify;">${r.unit || "-"}</td>
-                  <td style="padding:${padSm};font-size:${fSm}px;color:${muted};text-align:justify;">${r.normalRange || "-"}</td>
-                </tr>
-              `).join("")}
+              ${tbody}
             </tbody>
-          </table>
-          ` : ""}
+          </table>`;
+          })() : ""}
 
           </div>
 
           <div class="lab-print-footer">
           <div style="width:100%;">
-          ${row.labTechnologist && row.labTechnologist.fullName ? (() => {
-            const tech = row.labTechnologist;
-            const sigHref = tech.signatureUrl ? (tech.signatureUrl.startsWith("http") ? tech.signatureUrl : `${typeof window !== "undefined" ? window.location.origin : ""}${tech.signatureUrl.startsWith("/") ? tech.signatureUrl : "/" + tech.signatureUrl}`) : "";
-            const name = escapeHtml(tech.fullName);
-            const qual = tech.qualification ? escapeHtml(tech.qualification) : "";
-            const role = tech.roleName ? escapeHtml(tech.roleName) : "";
-            const clinic = escapeHtml(clinicNameDisplay);
-            return `
-          <!-- LAB TECHNOLOGIST -->
-          <div style="margin-top:${isCompact ? "2px" : "4px"};padding-top:${isCompact ? "2px" : "4px"};border-top:1px solid ${border};">
-            <div style="font-size:${fSm}px;font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Lab Technologist</div>
-            <div style="display:flex;align-items:center;justify-content:flex-end;gap:${isCompact ? "4px" : "6px"};">
-              <div style="text-align:right;line-height:1.25;">
-                <div style="font-weight:700;font-size:${isCompact ? "9px" : "10px"};color:${accent};">${name}</div>
-                ${qual ? `<div style="font-size:${fSm}px;color:${muted};">${qual}</div>` : ""}
-                ${role ? `<div style="font-size:${fSm}px;color:${teal};font-weight:600;">${role}</div>` : ""}
-                <div style="font-size:${fSm}px;color:${muted};">${clinic}</div>
-              </div>
-              ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:${isCompact ? "24px" : "32px"};max-width:70px;object-contain;" onerror="this.style.display='none'" />` : ""}
-            </div>
-          </div>
-            `;
-          })() : ""}
 
-          <!-- FOOTER -->
-          <div style="text-align:center;margin-top:${isCompact ? "2px" : "4px"};padding-top:${isCompact ? "2px" : "4px"};border-top:1px solid ${border};width:100%;">
-            <div style="font-size:${isCompact ? "7px" : "8px"};font-weight:700;color:${teal};text-transform:uppercase;">Thank you for choosing ${clinicNameDisplay}!</div>
-            ${clinicEmail ? `<div style="font-size:${fSm}px;color:${muted};margin-top:1px;">Contact: ${clinicEmail}</div>` : ""}
+          <!-- END OF REPORT -->
+          <div style="text-align:center;margin:12px 0;font-size:11px;font-weight:700;color:${teal};">*** End Of Report ***</div>
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;padding-top:8px;border-top:1px solid ${border};">
+            <div style="font-size:${fSm}px;">
+              ${row.labTechnologist?.fullName ? `<div><strong>Verified By:</strong> ${escapeHtml(row.labTechnologist.fullName)}</div>` : ""}
+              ${row.createdAt ? `<div style="margin-top:2px;"><strong>Verified At:</strong> ${reportDateStr}</div>` : ""}
+              <div style="margin-top:4px;"><strong>Printed By:</strong> ${escapeHtml(printedBy)}</div>
+              <div style="margin-top:2px;"><strong>Printed At:</strong> ${printedAtStr}</div>
+            </div>
+            ${row.labTechnologist && row.labTechnologist.fullName ? (() => {
+              const tech = row.labTechnologist!;
+              const sigHref = tech.signatureUrl ? (tech.signatureUrl.startsWith("http") ? tech.signatureUrl : `${typeof window !== "undefined" ? window.location.origin : ""}${tech.signatureUrl.startsWith("/") ? tech.signatureUrl : "/" + tech.signatureUrl}`) : "";
+              const name = escapeHtml(tech.fullName);
+              const qual = tech.qualification ? escapeHtml(tech.qualification) : "";
+              const role = tech.roleName ? escapeHtml(tech.roleName) : "";
+              return `
+            <div style="text-align:right;font-size:${fSm}px;line-height:1.35;">
+              ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:36px;max-width:80px;object-contain;display:block;margin-left:auto;margin-bottom:2px;" onerror="this.style.display='none'" />` : ""}
+              <div style="font-weight:700;color:${accent};">${name}</div>
+              ${qual ? `<div style="color:${muted};">${qual}</div>` : ""}
+              ${role ? `<div style="color:${teal};font-weight:600;">${role}</div>` : ""}
+            </div>`;
+            })() : ""}
+          </div>
+
+          <div style="text-align:center;margin-top:8px;padding-top:6px;border-top:1px solid ${border};font-size:${fSm}px;color:${muted};">
+            Thank you for choosing ${escapeHtml(clinicNameDisplay)}!${clinicEmail ? ` · ${escapeHtml(clinicEmail)}` : ""}
           </div>
           </div>
 
           </div>
         </div>
 
-        <script>window.onload = function() { window.print(); }</script>
+        <script>
+        (function() {
+          var barcodeVal = ${JSON.stringify(testCodeBarcode)};
+          window.onload = function() {
+            try {
+              var el = document.getElementById("lab-report-barcode");
+              if (el && barcodeVal && typeof JsBarcode !== "undefined") {
+                var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                el.appendChild(svg);
+                JsBarcode(svg, barcodeVal, { format: "CODE128", width: 2, height: 50, displayValue: false, margin: 4, lineColor: "#000000", background: "#ffffff" });
+              }
+            } catch (e) {}
+            setTimeout(function() { window.print(); }, 150);
+          };
+        })();
+        <\/script>
       </body></html>
     `);
     printWindow.document.close();
@@ -1047,14 +1119,17 @@ export default function LabTestsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {(viewTest as LabTestWithPatient & { reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults.map((r, i) => (
+                          {(viewTest as LabTestWithPatient & { reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults.map((r, i) => {
+                            const outOfRange = isResultOutOfRange(r.result, r.normalRange);
+                            return (
                             <tr key={i} className="border-t">
                               <td className="p-2">{r.parameter}</td>
-                              <td className="p-2 font-medium text-emerald-600 dark:text-emerald-400">{r.result}</td>
+                              <td className={`p-2 font-medium ${outOfRange ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>{r.result}</td>
                               <td className="p-2 text-muted-foreground">{r.unit || "—"}</td>
                               <td className="p-2 text-muted-foreground">{r.normalRange || "—"}</td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -1193,18 +1268,44 @@ export default function LabTestsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {inputResultsService.reportParameters!.map((p, i) => {
+                        {(() => {
+                          const params = inputResultsService.reportParameters!;
+                          const byCat = params.reduce<Record<string, typeof params>>((acc, p) => {
+                            const cat = (p as { category?: string }).category || "\x00"; // \x00 = uncategorized
+                            if (!acc[cat]) acc[cat] = [];
+                            acc[cat].push(p);
+                            return acc;
+                          }, {});
+                          const cats = Object.keys(byCat).sort((a, b) => (a === "\x00" ? -1 : b === "\x00" ? 1 : a.localeCompare(b)));
+                          return cats.flatMap(cat => {
+                            const items = byCat[cat] || [];
+                            const label = cat === "\x00" ? null : cat;
+                            return [
+                              ...(label ? [{ _header: true as const, label }] : []),
+                              ...items.map((p) => ({ _header: false as const, p })),
+                            ];
+                          });
+                        })().map((x, idx) => {
+                          if (x._header) {
+                            return (
+                              <tr key={`cat-${idx}-${x.label}`} className="bg-muted/30 border-b">
+                                <td colSpan={4} className="px-4 py-2 font-semibold text-teal-600 dark:text-teal-400">{x.label}</td>
+                              </tr>
+                            );
+                          }
+                          const { p } = x;
                           const existing = (inputResultsTest as LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults?.find(r => r.parameter === p.parameter);
                           const value = inputResultsValues[p.parameter] ?? existing?.result ?? "";
+                          const outOfRange = !!value && isResultOutOfRange(value, p.normalRange);
                           const isDropdown = p.resultType === "dropdown" || (p as { unitType?: string }).unitType === "select";
                           const items = [...new Set([...(p.dropdownItems || []).filter(Boolean), ...(value && !(p.dropdownItems || []).includes(value) ? [value] : [])])];
                           return (
-                            <tr key={i} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                            <tr key={`param-${idx}-${p.parameter}`} className={`border-b last:border-b-0 hover:bg-muted/20 transition-colors ${outOfRange ? "bg-red-50/30 dark:bg-red-950/20" : ""}`}>
                               <td className="px-4 py-3 font-medium">{p.parameter}</td>
                               <td className="px-4 py-3">
                                 {isDropdown && items.length > 0 ? (
                                   <Select value={value || "__empty__"} onValueChange={v => setInputResultsValues(prev => ({ ...prev, [p.parameter]: v === "__empty__" ? "" : v }))}>
-                                    <SelectTrigger className="h-9 w-full min-w-[140px]"><SelectValue placeholder="Select result" /></SelectTrigger>
+                                    <SelectTrigger className={`h-9 w-full min-w-[140px] ${outOfRange ? "border-red-500 text-red-600 dark:text-red-400" : ""}`}><SelectValue placeholder="Select result" /></SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="__empty__">— Select —</SelectItem>
                                       {items.map((opt, j) => (
@@ -1213,7 +1314,7 @@ export default function LabTestsPage() {
                                     </SelectContent>
                                   </Select>
                                 ) : (
-                                  <Input value={value} onChange={e => setInputResultsValues(prev => ({ ...prev, [p.parameter]: e.target.value }))} placeholder="Enter result" className="h-9 min-w-[140px]" />
+                                  <Input value={value} onChange={e => setInputResultsValues(prev => ({ ...prev, [p.parameter]: e.target.value }))} placeholder="Enter result" className={`h-9 min-w-[140px] ${outOfRange ? "border-red-500 text-red-600 dark:text-red-400" : ""}`} />
                                 )}
                               </td>
                               <td className="px-4 py-3 text-muted-foreground">{p.unit || "—"}</td>
@@ -1235,6 +1336,7 @@ export default function LabTestsPage() {
                       result: inputResultsValues[p.parameter] ?? "",
                       unit: p.unit || "",
                       normalRange: p.normalRange || "",
+                      category: (p as { category?: string }).category,
                     }));
                     saveResultsMutation.mutate({ id: inputResultsTest.id, reportResults, labTechnologistId: inputResultsLabTechnologistId });
                   }}

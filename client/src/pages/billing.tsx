@@ -329,11 +329,11 @@ export default function BillingPage() {
       <html><head><title>Invoice ${billNoShort}</title>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; width: 100%; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.5; text-align: justify; }
-        .invoice-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
+        .invoice-barcode-svg { display: block; max-width: 100%; height: auto; }
         table { border-collapse: collapse; width: 100%; }
         @media print { @page { size: ${settings?.printPageSize || "A5"}; margin: 8mm; } html, body { min-height: 100%; margin: 0; padding: 0; width: 100% !important; max-width: 100% !important; } body { padding: 0; text-align: justify; } .invoice-print-page, .invoice-print-body, .invoice-print-footer { max-width: 100% !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
         .invoice-print-page { min-height: 100vh; display: flex; flex-direction: column; width: 100%; }
@@ -361,7 +361,7 @@ export default function BillingPage() {
               <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${isCompact ? "9px" : "11px"};">Date:</span> <span style="font-weight:600;">${formattedDate}</span></div>
               <div style="color:${muted};">Paid By: <span style="font-weight:600;color:${accent};">${getPaymentLabel(bill.paymentMethod)}</span></div>
             </div>
-            ${billNoBarcode ? `<div style="text-align:right;"><div style="color:${teal};font-weight:700;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">invoice code:</div><div class="invoice-barcode" style="font-size:${barcodeSize}px;">${billNoBarcode}</div></div>` : ""}
+            ${billNoBarcode ? `<div style="text-align:right;"><div style="color:${teal};font-weight:700;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">invoice code:</div><div id="invoice-barcode"></div><div style="font-size:9px;font-weight:600;color:${muted};margin-top:2px;">${billNoShort}</div></div>` : ""}
           </div>
 
           <!-- PATIENT DETAILS (2 rows: Name, then Age + Gender) -->
@@ -426,7 +426,22 @@ export default function BillingPage() {
           </div>
         </div>
 
-        <script>window.onload = function() { window.print(); }</script>
+        <script>
+        (function() {
+          var barcodeVal = ${JSON.stringify(billNoBarcode)};
+          window.onload = function() {
+            try {
+              var el = document.getElementById("invoice-barcode");
+              if (el && barcodeVal && typeof JsBarcode !== "undefined") {
+                var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                el.appendChild(svg);
+                JsBarcode(svg, barcodeVal, { format: "CODE128", width: 2, height: 45, displayValue: false, margin: 4, lineColor: "#000000", background: "#ffffff" });
+              }
+            } catch (e) {}
+            setTimeout(function() { window.print(); }, 150);
+          };
+        })();
+        <\/script>
       </body></html>
     `);
     printWindow.document.close();
