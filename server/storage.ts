@@ -805,6 +805,9 @@ export class DatabaseStorage implements IStorage {
       status: labTests.status,
       createdAt: labTests.createdAt,
       patientName: patients.name,
+      patientPatientId: patients.patientId,
+      patientAge: patients.age,
+      patientGender: patients.gender,
       technologistFullName: users.fullName,
       technologistQualification: users.qualification,
       technologistSignatureUrl: users.signatureUrl,
@@ -815,9 +818,12 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(roles, eq(users.roleId, roles.id))
       .orderBy(desc(labTests.createdAt));
     return result.map((r: any) => {
-      const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistRoleName, ...rest } = r;
+      const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistRoleName, patientPatientId, patientAge, patientGender, ...rest } = r;
       return {
         ...rest,
+        patientPatientId,
+        patientAge,
+        patientGender,
         labTechnologist: r.labTechnologistId && r.technologistFullName ? {
           id: r.labTechnologistId,
           fullName: technologistFullName,
@@ -856,6 +862,9 @@ export class DatabaseStorage implements IStorage {
       status: labTests.status,
       createdAt: labTests.createdAt,
       patientName: patients.name,
+      patientPatientId: patients.patientId,
+      patientAge: patients.age,
+      patientGender: patients.gender,
       technologistFullName: users.fullName,
       technologistQualification: users.qualification,
       technologistSignatureUrl: users.signatureUrl,
@@ -866,9 +875,12 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(roles, eq(users.roleId, roles.id))
       .where(eq(labTests.id, id));
     if (!row) return undefined;
-    const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistRoleName, ...rest } = row as any;
+    const { technologistFullName, technologistQualification, technologistSignatureUrl, technologistRoleName, patientPatientId, patientAge, patientGender, ...rest } = row as any;
     return {
       ...rest,
+      patientPatientId,
+      patientAge,
+      patientGender,
       labTechnologist: row.labTechnologistId && technologistFullName ? {
         id: row.labTechnologistId,
         fullName: technologistFullName,

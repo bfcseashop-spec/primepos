@@ -312,13 +312,13 @@ export default function LabTestsPage() {
     const statusColor = row.status === "complete" ? "#059669" : row.status === "processing" ? "#2563eb" : row.status === "cancel" ? "#dc2626" : "#d97706";
 
     const isCompact = layout === "compact";
-    const bodyPad = isCompact ? "10px 12px" : "16px 20px";
+    const bodyPad = isCompact ? "6px 8px" : "10px 14px";
     const maxW = isCompact ? "340px" : "720px";
-    const fBase = isCompact ? 10 : 11;
-    const fSm = isCompact ? 9 : 10;
-    const fResult = isCompact ? 15 : 18;
-    const pad = isCompact ? "5px 6px" : "8px 10px";
-    const padSm = isCompact ? "4px 6px" : "6px 10px";
+    const fBase = isCompact ? 8 : 9;
+    const fSm = isCompact ? 7 : 8;
+    const fResult = isCompact ? 9 : 10;
+    const pad = isCompact ? "3px 4px" : "5px 6px";
+    const padSm = isCompact ? "2px 4px" : "4px 6px";
 
     const testCodeBarcode = (row.testCode || "").replace(/[^A-Za-z0-9\-]/g, "") || row.testCode || "";
     const barcodeSize = isCompact ? 32 : 40;
@@ -333,70 +333,43 @@ export default function LabTestsPage() {
       <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.5; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.35; }
         .lab-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
         table { border-collapse: collapse; }
-        @media print { body { padding: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+        @media print { @page { size: A5; margin: 8mm; } body { padding: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
       </style></head><body>
 
         <div style="padding:${bodyPad};">
 
-          <!-- HEADER -->
-          <div style="text-align:center;margin-bottom:${isCompact ? "10px" : "14px"};padding-bottom:${isCompact ? "8px" : "10px"};border-bottom:2px solid ${border};">
-            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "40px" : "56px"};margin:0 auto 8px;display:block;" />` : ""}
-            <div style="font-size:${isCompact ? "16px" : "22px"};font-weight:900;color:${teal};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">${clinicNameDisplay}</div>
-            <div style="font-size:${isCompact ? "9px" : "11px"};color:${muted};line-height:1.5;">
-              ${clinicAddress ? `<div>${clinicAddress}</div>` : ""}
-              <div>${[clinicPhone, clinicEmail].filter(Boolean).join(", ")}</div>
-            </div>
+          <!-- HEADER (compact) -->
+          <div style="text-align:center;margin-bottom:${isCompact ? "4px" : "6px"};padding-bottom:${isCompact ? "4px" : "5px"};border-bottom:1px solid ${border};">
+            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "24px" : "32px"};margin:0 auto 2px;display:block;" />` : ""}
+            <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.04em;">${clinicNameDisplay}</div>
+            <div style="font-size:${isCompact ? "7px" : "8px"};color:${muted};">${[clinicAddress, clinicPhone, clinicEmail].filter(Boolean).slice(0, 2).join(" · ")}</div>
           </div>
 
           <!-- TITLE + META + BARCODE -->
-          <div style="margin-bottom:${isCompact ? "10px" : "14px"};">
-            <div style="font-size:${isCompact ? "14px" : "18px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Lab Test Report</div>
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;">
-              <div style="font-size:${fSm}px;line-height:1.6;">
-                <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${fSm}px;">Test ID:</span> <span style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${row.testCode}</span></div>
-                <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${fSm}px;">Date:</span> <span style="font-weight:600;">${formattedDate}</span></div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <div style="background:${statusColor}15;color:${statusColor};padding:3px 8px;border-radius:6px;font-weight:700;font-size:${fSm}px;">${statusLabels[row.status] || row.status}</div>
-                ${testCodeBarcode ? `<div style="text-align:right;"><div style="color:${teal};font-weight:700;font-size:${isCompact ? "7px" : "9px"};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1px;">Test Code</div><div class="lab-barcode" style="font-size:${barcodeSize}px;">${testCodeBarcode}</div></div>` : ""}
+          <div style="margin-bottom:${isCompact ? "4px" : "6px"};">
+            <div style="font-size:${isCompact ? "9px" : "11px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:2px;">Lab Test Report</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
+              <div style="font-size:${fSm}px;line-height:1.3;">Test ID: <strong>${row.testCode}</strong> | Date: ${formattedDate}</div>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <span style="background:${statusColor}15;color:${statusColor};padding:1px 4px;border-radius:4px;font-weight:600;font-size:${fSm}px;">${statusLabels[row.status] || row.status}</span>
+                ${testCodeBarcode ? `<div style="text-align:right;"><div class="lab-barcode" style="font-size:${isCompact ? 24 : 28}px;">${testCodeBarcode}</div></div>` : ""}
               </div>
             </div>
           </div>
 
-          <!-- PATIENT + TEST INFO -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:${isCompact ? "8px" : "12px"};margin-bottom:${isCompact ? "10px" : "14px"};">
-            <div style="line-height:1.4;">
-              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Patient</div>
-              <div style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${row.patientName || "-"}</div>
-            </div>
-            <div style="line-height:1.4;">
-              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Test Name</div>
-              <div style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${row.testName}</div>
-            </div>
-            <div style="line-height:1.4;">
-              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Category</div>
-              <div style="font-size:${fSm}px;">${categories || "-"}</div>
-            </div>
-            <div style="line-height:1.4;">
-              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Sample Type</div>
-              <div style="font-size:${fSm}px;">${sampleTypes || "-"}</div>
-            </div>
-            <div style="line-height:1.4;">
-              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Referrer</div>
-              <div style="font-size:${fSm}px;">${row.referrerName || "-"}</div>
-            </div>
-            <div style="line-height:1.4;">
-              <div style="font-size:${isCompact ? "10px" : "12px"};font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:1px;">Price</div>
-              <div style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">$${row.price}</div>
-            </div>
+          <!-- PATIENT + TEST INFO (compact single line) -->
+          <div style="margin-bottom:${isCompact ? "4px" : "6px"};font-size:${fSm}px;line-height:1.3;">
+            <strong>Patient:</strong> ${escapeHtml(row.patientName || "-")}${(row as { patientPatientId?: string }).patientPatientId ? ` (${escapeHtml((row as { patientPatientId: string }).patientPatientId)})` : ""}${(row as { patientAge?: number }).patientAge != null ? ` · Age: ${(row as { patientAge: number }).patientAge}` : ""}${(row as { patientGender?: string }).patientGender ? ` · ${escapeHtml((row as { patientGender: string }).patientGender)}` : ""}
+            <span style="opacity:0.6;"> · </span>
+            <strong>Test:</strong> ${row.testName} · ${categories || "-"} · ${sampleTypes || "-"}${row.referrerName ? ` · Ref: ${row.referrerName}` : ""} · $${row.price}
           </div>
 
           ${reportResults.length > 0 ? `
           <!-- RESULTS TABLE -->
-          <table style="width:100%;margin-bottom:${isCompact ? "10px" : "14px"};">
+          <table style="width:100%;margin-bottom:${isCompact ? "4px" : "8px"};">
             <thead>
               <tr style="background:${teal};-webkit-print-color-adjust:exact;print-color-adjust:exact;">
                 <th style="padding:${pad};text-align:left;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;border-radius:6px 0 0 0;">Parameter</th>
@@ -409,7 +382,7 @@ export default function LabTestsPage() {
               ${reportResults.map((r: { parameter: string; result: string; unit: string; normalRange: string }) => `
                 <tr style="border-bottom:1px solid ${border};">
                   <td style="padding:${padSm};font-size:${fSm}px;font-weight:600;color:${accent};">${r.parameter}</td>
-                  <td style="padding:${padSm};font-size:${fResult}px;font-weight:800;color:#059669;">${r.result || "-"}</td>
+                  <td style="padding:${padSm};font-size:${fResult}px;font-weight:700;color:#059669;">${r.result || "-"}</td>
                   <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${r.unit || "-"}</td>
                   <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${r.normalRange || "-"}</td>
                 </tr>
@@ -427,25 +400,25 @@ export default function LabTestsPage() {
             const clinic = escapeHtml(clinicNameDisplay);
             return `
           <!-- LAB TECHNOLOGIST -->
-          <div style="margin-top:${isCompact ? "12px" : "16px"};padding-top:${isCompact ? "10px" : "14px"};border-top:2px solid ${border};">
-            <div style="font-size:${isCompact ? "8px" : "9px"};font-weight:700;color:${teal};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Lab Technologist</div>
-            <div style="display:flex;align-items:center;justify-content:flex-end;gap:${isCompact ? "12px" : "20px"};">
-              <div style="text-align:right;line-height:1.5;">
-                <div style="font-weight:800;font-size:${isCompact ? "11px" : "13px"};color:${accent};">${name}</div>
+          <div style="margin-top:${isCompact ? "4px" : "6px"};padding-top:${isCompact ? "4px" : "6px"};border-top:1px solid ${border};">
+            <div style="font-size:${fSm}px;font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:2px;">Lab Technologist</div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:${isCompact ? "6px" : "10px"};">
+              <div style="text-align:right;line-height:1.25;">
+                <div style="font-weight:700;font-size:${isCompact ? "9px" : "10px"};color:${accent};">${name}</div>
                 ${qual ? `<div style="font-size:${fSm}px;color:${muted};">${qual}</div>` : ""}
                 ${role ? `<div style="font-size:${fSm}px;color:${teal};font-weight:600;">${role}</div>` : ""}
                 <div style="font-size:${fSm}px;color:${muted};">${clinic}</div>
               </div>
-              ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:${isCompact ? "36px" : "48px"};max-width:100px;object-contain;" onerror="this.style.display='none'" />` : ""}
+              ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:${isCompact ? "24px" : "32px"};max-width:70px;object-contain;" onerror="this.style.display='none'" />` : ""}
             </div>
           </div>
             `;
           })() : ""}
 
           <!-- FOOTER -->
-          <div style="text-align:center;margin-top:${isCompact ? "10px" : "14px"};padding-top:${isCompact ? "8px" : "10px"};border-top:2px solid ${border};">
-            <div style="font-size:${isCompact ? "9px" : "12px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.06em;line-height:1.5;">Thank you for choosing ${clinicNameDisplay}!</div>
-            ${clinicEmail ? `<div style="font-size:${isCompact ? "8px" : "10px"};color:${muted};margin-top:4px;text-transform:uppercase;font-weight:500;">For questions, contact ${clinicEmail}</div>` : ""}
+          <div style="text-align:center;margin-top:${isCompact ? "4px" : "6px"};padding-top:${isCompact ? "4px" : "5px"};border-top:1px solid ${border};">
+            <div style="font-size:${isCompact ? "7px" : "8px"};font-weight:700;color:${teal};text-transform:uppercase;">Thank you for choosing ${clinicNameDisplay}!</div>
+            ${clinicEmail ? `<div style="font-size:${fSm}px;color:${muted};margin-top:1px;">Contact: ${clinicEmail}</div>` : ""}
           </div>
 
         </div>
