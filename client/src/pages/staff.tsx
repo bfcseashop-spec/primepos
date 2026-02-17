@@ -229,6 +229,7 @@ export default function StaffPage() {
       email: form.get("email") || null,
       phone: form.get("phone") || null,
       roleId: form.get("roleId") ? Number(form.get("roleId")) : null,
+      qualification: form.get("qualification") || null,
       isActive: true,
     });
   };
@@ -647,6 +648,11 @@ export default function StaffPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label htmlFor="createQualification">Qualification (for Lab Technologist)</Label>
+              <Input id="createQualification" name="qualification" placeholder="e.g. B.Sc in Lab Medicine (RU) BD, Medical Technologist (LAB)" data-testid="input-user-qualification" />
+              <p className="text-xs text-muted-foreground mt-1">Shown on printed lab test reports when this user is selected as lab technologist. Add signature in Edit User after creation.</p>
+            </div>
             <Button type="submit" className="w-full" disabled={createStaffMutation.isPending} data-testid="button-submit-user">
               {createStaffMutation.isPending ? "Creating..." : "Create User"}
             </Button>
@@ -668,6 +674,12 @@ export default function StaffPage() {
                 <div><span className="text-muted-foreground">Email</span><p className="font-medium">{selectedUser.email || "-"}</p></div>
                 <div><span className="text-muted-foreground">Phone</span><p className="font-medium">{selectedUser.phone || "-"}</p></div>
                 <div><span className="text-muted-foreground">Role</span><p className="font-medium">{selectedUser.roleName || "No Role"}</p></div>
+                {(selectedUser.qualification || selectedUser.signatureUrl) && (
+                  <>
+                    {selectedUser.qualification && <div><span className="text-muted-foreground">Qualification (Lab Tech)</span><p className="font-medium">{selectedUser.qualification}</p></div>}
+                    {selectedUser.signatureUrl && <div><span className="text-muted-foreground">Signature</span><p><img src={selectedUser.signatureUrl} alt="Signature" className="h-8 object-contain border rounded" /></p></div>}
+                  </>
+                )}
                 <div><span className="text-muted-foreground">Status</span><p><Badge className={selectedUser.isActive ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20" : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"}>{selectedUser.isActive ? "Active" : "Deactive"}</Badge></p></div>
               </div>
             </div>

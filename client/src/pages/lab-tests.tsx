@@ -290,7 +290,8 @@ export default function LabTestsPage() {
   });
 
   type PrintLayout = "compact" | "full";
-  const printLabReport = (row: LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }, layout: PrintLayout = "compact") => {
+  const escapeHtml = (s: string) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const printLabReport = (row: LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }>; labTechnologist?: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string } | null }, layout: PrintLayout = "compact") => {
     const printWindow = window.open("", "_blank", layout === "compact" ? "width=400,height=600" : "width=800,height=900");
     if (!printWindow) return;
     const clinicName = settings?.clinicName || "";
@@ -417,19 +418,26 @@ export default function LabTestsPage() {
           </table>
           ` : ""}
 
-          ${(row as { labTechnologist?: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string } }).labTechnologist ? (() => {
-            const tech = (row as { labTechnologist: { fullName: string; qualification?: string; roleName?: string; signatureUrl?: string } }).labTechnologist;
+          ${row.labTechnologist && row.labTechnologist.fullName ? (() => {
+            const tech = row.labTechnologist;
             const sigHref = tech.signatureUrl ? (tech.signatureUrl.startsWith("http") ? tech.signatureUrl : `${typeof window !== "undefined" ? window.location.origin : ""}${tech.signatureUrl.startsWith("/") ? tech.signatureUrl : "/" + tech.signatureUrl}`) : "";
+            const name = escapeHtml(tech.fullName);
+            const qual = tech.qualification ? escapeHtml(tech.qualification) : "";
+            const role = tech.roleName ? escapeHtml(tech.roleName) : "";
+            const clinic = escapeHtml(clinicNameDisplay);
             return `
           <!-- LAB TECHNOLOGIST -->
-          <div style="margin-top:${isCompact ? "12px" : "16px"};padding-top:${isCompact ? "10px" : "14px"};border-top:2px solid ${border};display:flex;align-items:center;justify-content:flex-end;gap:${isCompact ? "12px" : "20px"};">
-            <div style="text-align:right;line-height:1.5;">
-              <div style="font-weight:800;font-size:${isCompact ? "11px" : "13px"};color:${accent};">${tech.fullName}</div>
-              ${tech.qualification ? `<div style="font-size:${fSm}px;color:${muted};">${tech.qualification}</div>` : ""}
-              ${tech.roleName ? `<div style="font-size:${fSm}px;color:${teal};font-weight:600;">${tech.roleName}</div>` : ""}
-              <div style="font-size:${fSm}px;color:${muted};">${clinicNameDisplay}</div>
+          <div style="margin-top:${isCompact ? "12px" : "16px"};padding-top:${isCompact ? "10px" : "14px"};border-top:2px solid ${border};">
+            <div style="font-size:${isCompact ? "8px" : "9px"};font-weight:700;color:${teal};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Lab Technologist</div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:${isCompact ? "12px" : "20px"};">
+              <div style="text-align:right;line-height:1.5;">
+                <div style="font-weight:800;font-size:${isCompact ? "11px" : "13px"};color:${accent};">${name}</div>
+                ${qual ? `<div style="font-size:${fSm}px;color:${muted};">${qual}</div>` : ""}
+                ${role ? `<div style="font-size:${fSm}px;color:${teal};font-weight:600;">${role}</div>` : ""}
+                <div style="font-size:${fSm}px;color:${muted};">${clinic}</div>
+              </div>
+              ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:${isCompact ? "36px" : "48px"};max-width:100px;object-contain;" onerror="this.style.display='none'" />` : ""}
             </div>
-            ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:${isCompact ? "32px" : "44px"};max-width:80px;object-contain;" />` : ""}
           </div>
             `;
           })() : ""}
