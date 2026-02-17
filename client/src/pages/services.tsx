@@ -1696,7 +1696,7 @@ export default function ServicesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t("common.all")} {t("services.categories")}</SelectItem>
-                    {uniqueCategories.map(cat => (
+                    {categoriesToShowInModal.map(cat => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
                   </SelectContent>
