@@ -314,9 +314,10 @@ export default function LabTestsPage() {
     const isCompact = layout === "compact";
     const bodyPad = isCompact ? "6px 8px" : "10px 14px";
     const maxW = isCompact ? "340px" : "720px";
-    const fBase = isCompact ? 8 : 9;
-    const fSm = isCompact ? 7 : 8;
-    const fResult = isCompact ? 9 : 10;
+    const fBase = isCompact ? 9 : 10;
+    const fSm = isCompact ? 8 : 9;
+    const fPatient = isCompact ? 10 : 11;
+    const fResult = isCompact ? 10 : 11;
     const pad = isCompact ? "3px 4px" : "5px 6px";
     const padSm = isCompact ? "2px 4px" : "4px 6px";
 
@@ -336,7 +337,7 @@ export default function LabTestsPage() {
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.35; }
         .lab-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
         table { border-collapse: collapse; }
-        @media print { @page { size: A5; margin: 8mm; } body { padding: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+        @media print { @page { size: ${settings?.printPageSize || "A5"}; margin: 8mm; } body { padding: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
       </style></head><body>
 
         <div style="padding:${bodyPad};">
@@ -360,11 +361,10 @@ export default function LabTestsPage() {
             </div>
           </div>
 
-          <!-- PATIENT + TEST INFO (compact single line) -->
-          <div style="margin-bottom:${isCompact ? "4px" : "6px"};font-size:${fSm}px;line-height:1.3;">
-            <strong>Patient:</strong> ${escapeHtml(row.patientName || "-")}${(row as { patientPatientId?: string }).patientPatientId ? ` (${escapeHtml((row as { patientPatientId: string }).patientPatientId)})` : ""}${(row as { patientAge?: number }).patientAge != null ? ` · Age: ${(row as { patientAge: number }).patientAge}` : ""}${(row as { patientGender?: string }).patientGender ? ` · ${escapeHtml((row as { patientGender: string }).patientGender)}` : ""}
-            <span style="opacity:0.6;"> · </span>
-            <strong>Test:</strong> ${row.testName} · ${categories || "-"} · ${sampleTypes || "-"}${row.referrerName ? ` · Ref: ${row.referrerName}` : ""} · $${row.price}
+          <!-- PATIENT + TEST INFO (two rows, larger font) -->
+          <div style="margin-bottom:${isCompact ? "6px" : "8px"};font-size:${fPatient}px;line-height:1.45;">
+            <div style="font-weight:700;color:${accent};margin-bottom:2px;"><strong>Patient:</strong> ${escapeHtml(row.patientName || "-")}${(row as { patientPatientId?: string }).patientPatientId ? ` (${escapeHtml((row as { patientPatientId: string }).patientPatientId)})` : ""}${(row as { patientAge?: number }).patientAge != null ? ` · Age: ${(row as { patientAge: number }).patientAge}` : ""}${(row as { patientGender?: string }).patientGender ? ` · ${escapeHtml((row as { patientGender: string }).patientGender)}` : ""}</div>
+            <div style="color:${muted};"><strong>Test:</strong> ${row.testName} · ${categories || "-"} · ${sampleTypes || "-"}${row.referrerName ? ` · Ref: ${row.referrerName}` : ""} · <strong style="color:${accent};">$${row.price}</strong></div>
           </div>
 
           ${reportResults.length > 0 ? `

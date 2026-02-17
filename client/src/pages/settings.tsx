@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Save, AppWindow, Coins, Building2, ScrollText,
   Trash2, Clock, User, ArrowRightLeft, Upload, X, ImageIcon, FileText,
-  Globe, Hash,
+  Globe, Hash, Printer,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { ClinicSettings, ActivityLog } from "@shared/schema";
@@ -80,6 +80,7 @@ export default function SettingsPage() {
   const [invoicePrefix, setInvoicePrefix] = useState("INV");
   const [visitPrefix, setVisitPrefix] = useState("VIS");
   const [patientPrefix, setPatientPrefix] = useState("PAT");
+  const [printPageSize, setPrintPageSize] = useState("A5");
 
   const [companyName, setCompanyName] = useState("");
   const [companyAddress, setCompanyAddress] = useState("");
@@ -117,6 +118,7 @@ export default function SettingsPage() {
       setInvoicePrefix(settings.invoicePrefix ?? "INV");
       setVisitPrefix(settings.visitPrefix ?? "VIS");
       setPatientPrefix(settings.patientPrefix ?? "PAT");
+      setPrintPageSize(settings.printPageSize ?? "A5");
       setCompanyName(settings.companyName ?? "");
       setCompanyAddress(settings.companyAddress ?? "");
       setCompanyPhone(settings.companyPhone ?? "");
@@ -224,6 +226,7 @@ export default function SettingsPage() {
       invoicePrefix: invoicePrefix || "INV",
       visitPrefix: visitPrefix || "VIS",
       patientPrefix: patientPrefix || "PAT",
+      printPageSize: printPageSize || "A5",
     });
   };
 
@@ -455,6 +458,31 @@ export default function SettingsPage() {
                     <Label htmlFor="patientPrefix">Patient Prefix</Label>
                     <Input id="patientPrefix" name="patientPrefix" value={patientPrefix} onChange={(e) => setPatientPrefix(e.target.value)} data-testid="input-patient-prefix" />
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-slate-500 to-slate-600">
+                    <Printer className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  Print Settings
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                <div>
+                  <Label htmlFor="printPageSize">Page Size (Lab Reports & Invoices)</Label>
+                  <Select value={printPageSize} onValueChange={setPrintPageSize}>
+                    <SelectTrigger data-testid="select-print-page-size"><SelectValue placeholder="Select page size" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="A4">A4</SelectItem>
+                      <SelectItem value="A5">A5</SelectItem>
+                      <SelectItem value="Letter">Letter</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground mt-1">Page type used when printing lab reports and invoices.</p>
                 </div>
               </CardContent>
             </Card>

@@ -323,6 +323,7 @@ export const clinicSettings = pgTable("clinic_settings", {
   appName: text("app_name").default("ClinicPOS"),
   appTagline: text("app_tagline"),
   appVersion: text("app_version").default("1.0.0"),
+  printPageSize: text("print_page_size").default("A5"),
 });
 
 export const insertClinicSettingsSchema = createInsertSchema(clinicSettings).omit({ id: true } as any);
