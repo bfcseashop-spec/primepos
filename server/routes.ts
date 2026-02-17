@@ -2487,7 +2487,9 @@ export async function registerRoutes(
       }
       if (Object.keys(updateData).length === 0) return res.status(400).json({ message: "No valid fields to update" });
       if (updateData.status === "collected") {
-        updateData.collectedAt = updateData.collectedAt || new Date().toISOString();
+        updateData.collectedAt = updateData.collectedAt
+          ? new Date(updateData.collectedAt as string)
+          : new Date();
       }
       const sc = await storage.updateSampleCollection(Number(req.params.id), updateData);
       if (!sc) return res.status(404).json({ message: "Sample collection not found" });
