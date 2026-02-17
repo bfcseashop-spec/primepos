@@ -1369,12 +1369,12 @@ export default function ServicesPage() {
                             }} className="h-9" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-muted-foreground">Normal Range</Label>
-                            <Input placeholder="e.g. 70-99, 45-135 U/L. Out-of-range results print red." value={p.normalRange} onChange={e => {
+                            <Label className="text-xs font-medium text-muted-foreground">Normal/Reference Ranges</Label>
+                            <Textarea placeholder={"One range per line, e.g.:\n70-99 mg/dL\nFasting: <140 mg/dL\nOut-of-range results print red."} value={p.normalRange} onChange={e => {
                               const arr = [...(form.reportParameters || [])];
                               arr[i] = { ...arr[i], normalRange: e.target.value };
                               setForm(f => ({ ...f, reportParameters: arr }));
-                            }} className="h-9" />
+                            }} className="min-h-[60px] resize-y text-sm" rows={2} />
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-muted-foreground">Result Type</Label>

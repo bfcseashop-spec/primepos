@@ -143,7 +143,7 @@ function LabTestBarcodePreview({ test, onClose, t }: { test: LabTestWithPatient;
 function isResultOutOfRange(result: string, normalRange: string): boolean {
   if (!result?.trim() || !normalRange?.trim()) return false;
   const r = result.trim();
-  const nr = normalRange.trim();
+  const nr = normalRange.replace(/\r?\n/g, ",").trim();
   const num = parseFloat(r.replace(/[^\d.\-]/g, ""));
   if (Number.isNaN(num)) {
     const opts = nr.split(/[,;\/]|\bor\b/i).map((s) => s.trim().toLowerCase()).filter(Boolean);
@@ -422,7 +422,6 @@ export default function LabTestsPage() {
     const reportResults = row.reportResults || [];
     const reportDateStr = row.createdAt ? new Date(row.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
     const printedAtStr = new Date().toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-    const reportStatus = row.status === "complete" ? "Final" : row.status === "processing" ? "Processing" : row.status === "awaiting_sample" ? "Awaiting Sample" : row.status || "—";
     const rowExt = row as unknown as { patientAge?: number; patientGender?: string };
     const patientAgeGender = [
       rowExt.patientAge != null ? `${rowExt.patientAge}Y` : "",
@@ -492,8 +491,7 @@ export default function LabTestsPage() {
                   <div><strong>Lab No:</strong> ${escapeHtml(row.testCode)}</div>
                   ${testCodeBarcode ? `<div id="lab-report-barcode" style="flex-shrink:0;"></div>` : ""}
                 </div>
-                <div style="margin-bottom:4px;"><strong>Report Date:</strong> ${reportDateStr}</div>
-                <div><strong>Report Status:</strong> ${reportStatus}</div>
+                <div><strong>Report Date:</strong> ${reportDateStr}</div>
               </td>
             </tr>
           </table>
@@ -510,6 +508,10 @@ export default function LabTestsPage() {
               return acc;
             }, {});
             const cats = Object.keys(byCat).sort((a, b) => (a === "\x00" ? -1 : b === "\x00" ? 1 : a.localeCompare(b)));
+            const formatNormalRange = (s: string) => {
+              const lines = (s || "-").split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+              return lines.length ? lines.map(l => escapeHtml(l)).join("<br/>") : escapeHtml("-");
+            };
             const rowHtml = (r: R) => {
               const outOfRange = isResultOutOfRange(r.result, r.normalRange);
               const resultColor = outOfRange ? "#dc2626" : "#059669";
@@ -518,15 +520,14 @@ export default function LabTestsPage() {
                 <td style="padding:${padSm};font-size:${fSm}px;font-weight:600;color:${accent};">${escapeHtml(r.parameter)}</td>
                 <td style="padding:${padSm};font-size:${fResult}px;font-weight:700;color:${resultColor};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(r.result || "-")}</td>
                 <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${escapeHtml(r.unit || "-")}</td>
-                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${escapeHtml(r.normalRange || "-")}</td>
-                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">—</td>
+                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};line-height:1.4;">${formatNormalRange(r.normalRange)}</td>
               </tr>`;
             };
             let tbody = "";
             for (const cat of cats) {
               const items = byCat[cat] || [];
               if (cat !== "\x00") {
-                tbody += `<tr style="background:${teal}20;border-bottom:1px solid ${border};"><td colspan="5" style="padding:${padSm};font-size:${fSm}px;font-weight:700;color:${teal};text-transform:uppercase;">${escapeHtml(cat)}</td></tr>`;
+                tbody += `<tr style="background:${teal}20;border-bottom:1px solid ${border};"><td colspan="4" style="padding:${padSm};font-size:${fSm}px;font-weight:700;color:${teal};text-transform:uppercase;">${escapeHtml(cat)}</td></tr>`;
               }
               tbody += items.map(rowHtml).join("");
             }
@@ -538,8 +539,7 @@ export default function LabTestsPage() {
                 <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Test Name</th>
                 <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Result</th>
                 <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Unit</th>
-                <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Reference Ranges</th>
-                <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Methodology</th>
+                <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Normal/Reference Ranges</th>
               </tr>
             </thead>
             <tbody>
@@ -1116,7 +1116,7 @@ export default function LabTestsPage() {
                             <th className="p-2 text-left font-medium">Parameter</th>
                             <th className="p-2 text-left font-medium">Result</th>
                             <th className="p-2 text-left font-medium">Unit</th>
-                            <th className="p-2 text-left font-medium">Normal Range</th>
+                            <th className="p-2 text-left font-medium">Normal/Reference Ranges</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1127,7 +1127,7 @@ export default function LabTestsPage() {
                               <td className="p-2">{r.parameter}</td>
                               <td className={`p-2 font-medium ${outOfRange ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>{r.result}</td>
                               <td className="p-2 text-muted-foreground">{r.unit || "—"}</td>
-                              <td className="p-2 text-muted-foreground">{r.normalRange || "—"}</td>
+                              <td className="p-2 text-muted-foreground whitespace-pre-line">{r.normalRange || "—"}</td>
                             </tr>
                             );
                           })}
@@ -1265,7 +1265,7 @@ export default function LabTestsPage() {
                           <th className="px-4 py-3 text-left font-medium">Parameter</th>
                           <th className="px-4 py-3 text-left font-medium w-56">Result</th>
                           <th className="px-4 py-3 text-left font-medium w-24">Unit</th>
-                          <th className="px-4 py-3 text-left font-medium">Normal Range</th>
+                          <th className="px-4 py-3 text-left font-medium">Normal/Reference Ranges</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1319,7 +1319,7 @@ export default function LabTestsPage() {
                                 )}
                               </td>
                               <td className="px-4 py-3 text-muted-foreground">{p.unit || "—"}</td>
-                              <td className="px-4 py-3 text-muted-foreground">{p.normalRange || "—"}</td>
+                              <td className="px-4 py-3 text-muted-foreground whitespace-pre-line">{p.normalRange || "—"}</td>
                             </tr>
                           );
                         })}
