@@ -510,8 +510,8 @@ export default function LabTestsPage() {
             const formatNormalRange = (s: string) => {
               const raw = String(s || "").trim();
               const lines = raw.split(/\r?\n|\r/).map(l => l.trim()).filter(Boolean);
-              const text = lines.length > 0 ? lines.join("\n") : "-";
-              return escapeHtml(text);
+              if (lines.length === 0) return escapeHtml("-");
+              return lines.map(l => escapeHtml(l)).join("<br/>");
             };
             const rowHtml = (r: R) => {
               const outOfRange = isResultOutOfRange(r.result, r.normalRange);
@@ -521,7 +521,7 @@ export default function LabTestsPage() {
                 <td style="padding:${padSm};font-size:${fSm}px;font-weight:600;color:${accent};">${escapeHtml(r.parameter)}</td>
                 <td style="padding:${padSm};font-size:${fResult}px;font-weight:700;color:${resultColor};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(r.result || "-")}</td>
                 <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${escapeHtml(r.unit || "-")}</td>
-                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};line-height:1.4;white-space:pre-line;">${formatNormalRange(r.normalRange)}</td>
+                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};line-height:1.4;">${formatNormalRange(r.normalRange)}</td>
               </tr>`;
             };
             let tbody = "";
