@@ -324,7 +324,7 @@ export default function BillingPage() {
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; width: 100%; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.5; text-align: justify; }
         .invoice-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
         table { border-collapse: collapse; width: 100%; }
-        @media print { @page { size: ${settings?.printPageSize || "A5"}; margin: 8mm; } html, body { min-height: 100%; margin: 0; padding: 0; } body { padding: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+        @media print { @page { size: ${settings?.printPageSize || "A5"}; margin: 8mm; } html, body { min-height: 100%; margin: 0; padding: 0; width: 100% !important; max-width: 100% !important; } body { padding: 0; text-align: justify; } .invoice-print-page, .invoice-print-body, .invoice-print-footer { max-width: 100% !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
         .invoice-print-page { min-height: 100vh; display: flex; flex-direction: column; width: 100%; }
         .invoice-print-body { flex: 1; width: 100%; }
         .invoice-print-footer { margin-top: auto; }

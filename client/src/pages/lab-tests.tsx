@@ -337,7 +337,7 @@ export default function LabTestsPage() {
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; width: 100%; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.35; text-align: justify; }
         .lab-barcode { font-family: 'Libre Barcode 128', monospace; letter-spacing: 1px; line-height: 1; color: ${accent}; }
         table { border-collapse: collapse; width: 100%; }
-        @media print { @page { size: ${settings?.printPageSize || "A5"}; margin: 8mm; } html, body { min-height: 100%; margin: 0; padding: 0; } body { padding: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+        @media print { @page { size: ${settings?.printPageSize || "A5"}; margin: 8mm; } html, body { min-height: 100%; margin: 0; padding: 0; width: 100% !important; max-width: 100% !important; } body { padding: 0; text-align: justify; } .lab-print-page, .lab-print-body, .lab-print-footer { max-width: 100% !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
         .lab-print-page { min-height: 100vh; display: flex; flex-direction: column; width: 100%; }
         .lab-print-body { flex: 1; width: 100%; }
         .lab-print-footer { margin-top: auto; width: 100%; }
