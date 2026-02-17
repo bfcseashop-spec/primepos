@@ -34,6 +34,7 @@ import SalaryPage from "@/pages/salary";
 import AuthenticationPage from "@/pages/authentication";
 import SignInPage from "@/pages/sign-in";
 import { canView, NAV_TO_MODULE } from "@shared/permissions";
+import { AuthProvider } from "@/contexts/auth-context";
 
 function RouteGuard({ currentUser, children }: { currentUser: any; children: React.ReactNode }) {
   const [location] = useLocation();
@@ -200,6 +201,7 @@ function App() {
       <I18nProvider>
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
+            <AuthProvider user={currentUser}>
             <SidebarProvider style={sidebarStyle as React.CSSProperties}>
               <DocumentHeadFromSettings />
               <div className="flex h-screen w-full">
@@ -212,6 +214,7 @@ function App() {
                 </div>
               </div>
             </SidebarProvider>
+            </AuthProvider>
             <Toaster />
           </TooltipProvider>
         </QueryClientProvider>

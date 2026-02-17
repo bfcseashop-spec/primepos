@@ -18,6 +18,7 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/contexts/auth-context";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, Barcode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User, Clock, XCircle, AlertTriangle, Loader2, ChevronDown, ClipboardList } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
@@ -251,6 +252,7 @@ function MultiSelect({ options, selected, onChange, placeholder, testId, trigger
 export default function LabTestsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { canAdd, canEdit, canDelete } = usePermissions("lab_tests");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTest, setEditTest] = useState<LabTestWithPatient | null>(null);
   const [viewTest, setViewTest] = useState<LabTestWithPatient | null>(null);
@@ -776,9 +778,11 @@ export default function LabTestsPage() {
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewTest(row); }} className="gap-2" data-testid={`action-view-${row.id}`}>
             <Eye className="h-4 w-4 text-blue-500" /> {t("common.view")}
           </DropdownMenuItem>
+          {canEdit && (
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="gap-2" data-testid={`action-edit-${row.id}`}>
             <Pencil className="h-4 w-4 text-amber-500" /> {t("common.edit")}
           </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             onClick={(e) => {
               e.stopPropagation();
@@ -827,6 +831,7 @@ export default function LabTestsPage() {
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printLabReport(row, "full"); }} className="gap-2" data-testid={`action-print-full-${row.id}`}>
             <Printer className="h-4 w-4 text-violet-500" /> Print (Full size)
           </DropdownMenuItem>
+          {canDelete && (
           <DropdownMenuItem
             onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, id: row.id }); }}
             className="text-red-600 gap-2"
@@ -834,6 +839,7 @@ export default function LabTestsPage() {
           >
             <Trash2 className="h-4 w-4" /> {t("common.delete")}
           </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     )},
@@ -932,6 +938,7 @@ export default function LabTestsPage() {
         title={t("labTests.title")}
         description={t("labTests.subtitle")}
         actions={
+          canAdd && (
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setForm(defaultForm); setFieldErrors({}); } }}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-lab-test">
@@ -949,6 +956,7 @@ export default function LabTestsPage() {
               </Button>
             </DialogContent>
           </Dialog>
+          )
         }
       />
 
@@ -1304,7 +1312,7 @@ export default function LabTestsPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            {selectedIds.size > 0 && (
+            {selectedIds.size > 0 && canDelete && (
               <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border-b">
                 <span className="text-sm font-medium">{selectedIds.size} selected</span>
                 <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-delete-lab-tests">
@@ -1312,7 +1320,7 @@ export default function LabTestsPage() {
                 </Button>
               </div>
             )}
-            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={t("labTests.noLabTests")} selectedIds={selectedIds} onSelectionChange={setSelectedIds} />
+            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={t("labTests.noLabTests")} selectedIds={canDelete ? selectedIds : undefined} onSelectionChange={canDelete ? setSelectedIds : undefined} />
           </CardContent>
         </Card>
       </div>
