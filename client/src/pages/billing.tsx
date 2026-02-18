@@ -294,13 +294,13 @@ export default function BillingPage() {
     const pSym = CURRENCY_SYMBOLS[settings?.currency || "USD"] || "$";
     const currencyCode = settings?.currency || "USD";
     const isCompact = layout === "compact";
-    const pad = isCompact ? "6px 8px" : "8px 10px";
-    const padSm = isCompact ? "4px 6px" : "6px 8px";
-    const fBase = isCompact ? 10 : 11;
-    const fSm = isCompact ? 9 : 10;
-    const fLg = isCompact ? 13 : 15;
+    const pad = isCompact ? "4px 6px" : "6px 8px";
+    const padSm = isCompact ? "3px 4px" : "4px 6px";
+    const fBase = isCompact ? 9 : 10;
+    const fSm = isCompact ? 8 : 9;
+    const fLg = isCompact ? 11 : 13;
     const maxW = isCompact ? "340px" : "100%";
-    const bodyPad = isCompact ? "8px 10px" : "14px 18px";
+    const bodyPad = isCompact ? "6px 8px" : "10px 14px";
     const teal = "#0d9488";
     const tealBg = "#0d948815";
     const accent = "#0f172a";
@@ -312,7 +312,7 @@ export default function BillingPage() {
     const logoHref = settings?.logo
       ? (settings.logo.startsWith("http") ? settings.logo : `${typeof window !== "undefined" ? window.location.origin : ""}${settings.logo.startsWith("/") ? settings.logo : "/" + settings.logo}`)
       : "";
-    const barcodeSize = isCompact ? 30 : 36;
+    const barcodeSize = isCompact ? 22 : 28;
     const totalDue = Number(bill.total) || 0;
     const paidAmt = Number(bill.paidAmount) || 0;
     const amountOwed = Math.max(0, totalDue - paidAmt);
@@ -346,35 +346,34 @@ export default function BillingPage() {
         <div class="invoice-print-page" style="padding:${bodyPad};">
 
           <div class="invoice-print-body">
-          <!-- HEADER -->
-          <div style="text-align:center;margin-bottom:${isCompact ? "8px" : "14px"};padding-bottom:${isCompact ? "6px" : "10px"};border-bottom:2px solid ${border};width:100%;">
-            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "40px" : "56px"};margin:0 auto 8px;display:block;" />` : ""}
-            <div style="font-size:${isCompact ? "16px" : "22px"};font-weight:900;color:${teal};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">${clinicNameDisplay}</div>
-            <div style="font-size:${isCompact ? "9px" : "11px"};color:${muted};line-height:1.7;">
+          <!-- HEADER (compact) -->
+          <div style="text-align:center;margin-bottom:${isCompact ? "4px" : "8px"};padding-bottom:${isCompact ? "4px" : "6px"};border-bottom:2px solid ${border};width:100%;">
+            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:${isCompact ? "28px" : "36px"};margin:0 auto 4px;display:block;" />` : ""}
+            <div style="font-size:${isCompact ? "13px" : "16px"};font-weight:900;color:${teal};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">${clinicNameDisplay}</div>
+            <div style="font-size:${isCompact ? "8px" : "9px"};color:${muted};line-height:1.5;">
               ${clinicAddress ? `<div>${clinicAddress}</div>` : ""}
               <div>${[clinicPhone, clinicEmailDisplay].filter(Boolean).join(", ")}</div>
             </div>
           </div>
 
-          <!-- INVOICE META + BARCODE -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:${isCompact ? "6px" : "10px"};width:100%;">
-            <div style="font-size:${isCompact ? "10px" : "12px"};line-height:1.6;text-align:justify;">
-              <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${isCompact ? "9px" : "11px"};">Invoice No #:</span> <span style="font-weight:700;font-size:${isCompact ? "11px" : "13px"};">${billNoShort}</span></div>
-              <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${isCompact ? "9px" : "11px"};">Date:</span> <span style="font-weight:600;">${formattedDate}</span></div>
-              <div style="color:${muted};">Paid By: <span style="font-weight:600;color:${accent};">${getPaymentLabel(bill.paymentMethod)}</span></div>
+          <!-- INVOICE META + BARCODE (compact barcode) -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:${isCompact ? "4px" : "6px"};width:100%;">
+            <div style="font-size:${isCompact ? "9px" : "10px"};line-height:1.5;">
+              <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${isCompact ? "8px" : "9px"};">Invoice No #:</span> <span style="font-weight:700;font-size:${isCompact ? "10px" : "11px"};">${billNoShort}</span></div>
+              <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${isCompact ? "8px" : "9px"};">Date:</span> <span style="font-weight:600;">${formattedDate}</span></div>
             </div>
-            ${billNoBarcode ? `<div style="text-align:right;"><div style="color:${teal};font-weight:700;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">invoice code:</div><div id="invoice-barcode"></div><div style="font-size:9px;font-weight:600;color:${muted};margin-top:2px;">${billNoShort}</div></div>` : ""}
+            ${billNoBarcode ? `<div style="text-align:right;max-width:${isCompact ? "90px" : "110px"};"><div style="color:${teal};font-weight:700;font-size:${isCompact ? "7px" : "8px"};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1px;">invoice code:</div><div id="invoice-barcode" style="max-height:${barcodeSize}px;overflow:hidden;"></div><div style="font-size:${isCompact ? "7px" : "8px"};font-weight:600;color:${muted};margin-top:1px;">${billNoShort}</div></div>` : ""}
           </div>
 
-          <!-- PATIENT DETAILS (2 rows: Name, then Age + Gender) -->
-          <table style="width:100%;margin-bottom:${isCompact ? "4px" : "8px"};border-collapse:collapse;font-size:${isCompact ? "12px" : "14px"};">
-            <tr><td style="padding:${isCompact ? "2px 0" : "4px 0"};text-align:left;"><strong>Patient Name:</strong> ${patient?.name || "-"}${patient?.patientId ? ` (${patient.patientId})` : ""}</td></tr>
-            <tr><td style="padding:${isCompact ? "2px 0" : "4px 0"};text-align:left;"><strong>Age:</strong> ${patient?.age != null ? patient.age : (ageFromDob(patient?.dateOfBirth) ?? "-")} &nbsp;&nbsp; <strong>Gender:</strong> ${patient?.gender || "-"}</td></tr>
+          <!-- PATIENT DETAILS -->
+          <table style="width:100%;margin-bottom:${isCompact ? "3px" : "5px"};border-collapse:collapse;font-size:${isCompact ? "10px" : "11px"};">
+            <tr><td style="padding:${isCompact ? "1px 0" : "2px 0"};text-align:left;"><strong>Patient Name:</strong> ${patient?.name || "-"}${patient?.patientId ? ` (${patient.patientId})` : ""}</td></tr>
+            <tr><td style="padding:${isCompact ? "1px 0" : "2px 0"};text-align:left;"><strong>Age:</strong> ${patient?.age != null ? patient.age : (ageFromDob(patient?.dateOfBirth) ?? "-")} &nbsp;&nbsp; <strong>Gender:</strong> ${patient?.gender || "-"}</td></tr>
           </table>
-          <div style="margin-bottom:${isCompact ? "6px" : "10px"};font-size:${isCompact ? "12px" : "14px"};"><strong>Dr. Name:</strong> ${bill.referenceDoctor || "-"}</div>
+          <div style="margin-bottom:${isCompact ? "4px" : "6px"};font-size:${isCompact ? "10px" : "11px"};"><strong>Dr. Name:</strong> ${bill.referenceDoctor || "-"}</div>
 
           <!-- ITEMS TABLE -->
-          <table style="width:100%;margin-bottom:${isCompact ? "8px" : "12px"};">
+          <table style="width:100%;margin-bottom:${isCompact ? "5px" : "8px"};">
             <thead>
               <tr style="background:${teal};-webkit-print-color-adjust:exact;print-color-adjust:exact;">
                 <th style="padding:${isCompact ? "6px 8px" : "10px 12px"};text-align:center;font-size:${isCompact ? "8px" : "10px"};text-transform:uppercase;letter-spacing:0.08em;color:#fff;font-weight:700;width:${isCompact ? "36px" : "54px"};border-radius:${isCompact ? "4px" : "6px"} 0 0 0;">Item</th>
@@ -398,22 +397,23 @@ export default function BillingPage() {
           </table>
 
           <!-- TOTALS -->
-          <div style="display:flex;justify-content:flex-end;margin-bottom:${isCompact ? "8px" : "12px"};width:100%;">
-            <div style="width:${isCompact ? "210px" : "300px"};">
-              <div style="display:flex;justify-content:space-between;padding:${isCompact ? "4px" : "5px"} 0;font-size:${isCompact ? "10px" : "12px"};">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:${isCompact ? "5px" : "8px"};width:100%;">
+            <div style="width:${isCompact ? "200px" : "260px"};">
+              <div style="display:flex;justify-content:space-between;padding:${isCompact ? "2px" : "3px"} 0;font-size:${isCompact ? "9px" : "10px"};">
                 <span style="font-weight:600;">Subtotal:</span>
                 <span style="font-weight:500;">${pSym}${subtotalVal}${hasSecondary ? ` / ${secSym}${toSec(Number(subtotalVal))}` : ""}</span>
               </div>
-              ${Number(discountVal) > 0 ? `<div style="display:flex;justify-content:space-between;padding:${isCompact ? "4px" : "5px"} 0;font-size:${isCompact ? "10px" : "12px"};"><span style="font-weight:600;">Discount:</span><span style="font-weight:500;">-${pSym}${discountVal}${hasSecondary ? ` / ${secSym}${toSec(Number(discountVal))}` : ""}</span></div>` : ""}
-              <div style="border-top:3px solid ${accent};margin-top:4px;padding-top:6px;">
-                <div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;">
-                  <span style="font-weight:800;color:${teal};font-size:${isCompact ? "12px" : "16px"};">Grand Total:</span>
-                  <span style="font-weight:900;font-size:${isCompact ? "14px" : "20px"};letter-spacing:-0.02em;">${pSym}${totalDue.toFixed(2)}</span>
+              ${Number(discountVal) > 0 ? `<div style="display:flex;justify-content:space-between;padding:${isCompact ? "2px" : "3px"} 0;font-size:${isCompact ? "9px" : "10px"};"><span style="font-weight:600;">Discount:</span><span style="font-weight:500;">-${pSym}${discountVal}${hasSecondary ? ` / ${secSym}${toSec(Number(discountVal))}` : ""}</span></div>` : ""}
+              <div style="border-top:2px solid ${accent};margin-top:3px;padding-top:4px;">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;">
+                  <span style="font-weight:800;color:${teal};font-size:${isCompact ? "10px" : "12px"};">Grand Total:</span>
+                  <span style="font-weight:900;font-size:${isCompact ? "12px" : "15px"};letter-spacing:-0.02em;">${pSym}${totalDue.toFixed(2)}</span>
                 </div>
-                ${hasSecondary ? `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;"><span style="font-weight:800;color:${teal};font-size:${isCompact ? "12px" : "16px"};">Grand Total:</span><span style="font-weight:900;font-size:${isCompact ? "14px" : "20px"};letter-spacing:-0.02em;">${secSym}${toSec(totalDue)}</span></div>` : ""}
+                ${hasSecondary ? `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;"><span style="font-weight:800;color:${teal};font-size:${isCompact ? "10px" : "12px"};">Grand Total:</span><span style="font-weight:900;font-size:${isCompact ? "12px" : "15px"};letter-spacing:-0.02em;">${secSym}${toSec(totalDue)}</span></div>` : ""}
               </div>
-              <div style="display:flex;justify-content:space-between;padding:4px 0;margin-top:6px;font-size:${isCompact ? "9px" : "11px"};"><span style="color:${muted};">Amount Paid</span><span style="font-weight:700;color:#059669;">${pSym}${paidAmt.toFixed(2)}</span></div>
-              ${amountOwed > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:${isCompact ? "9px" : "11px"};"><span style="color:${muted};">Balance Due</span><span style="font-weight:700;color:#ef4444;">${pSym}${amountOwed.toFixed(2)}</span></div>` : ""}
+              <div style="display:flex;justify-content:space-between;padding:3px 0;margin-top:4px;font-size:${isCompact ? "8px" : "9px"};"><span style="color:${muted};">Amount Paid</span><span style="font-weight:700;color:#059669;">${pSym}${paidAmt.toFixed(2)}</span></div>
+              <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:${isCompact ? "8px" : "9px"};"><span style="color:${muted};">Paid By</span><span style="font-weight:600;color:${accent};">${getPaymentLabel(bill.paymentMethod)}</span></div>
+              ${amountOwed > 0 ? `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:${isCompact ? "8px" : "9px"};"><span style="color:${muted};">Balance Due</span><span style="font-weight:700;color:#ef4444;">${pSym}${amountOwed.toFixed(2)}</span></div>` : ""}
             </div>
           </div>
 
@@ -421,9 +421,9 @@ export default function BillingPage() {
 
           <div class="invoice-print-footer" style="width:100%;">
           <!-- FOOTER -->
-          <div style="text-align:center;margin-top:${isCompact ? "8px" : "12px"};padding-top:${isCompact ? "6px" : "10px"};border-top:2px solid ${border};width:100%;">
-            <div style="font-size:${isCompact ? "9px" : "12px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.06em;line-height:1.5;">Thank you for choosing ${clinicNameDisplay}!</div>
-            ${clinicEmailDisplay ? `<div style="font-size:${isCompact ? "8px" : "10px"};color:${muted};margin-top:4px;text-transform:uppercase;font-weight:500;">For questions, contact ${clinicEmailDisplay}</div>` : ""}
+          <div style="text-align:center;margin-top:${isCompact ? "5px" : "8px"};padding-top:${isCompact ? "4px" : "6px"};border-top:2px solid ${border};width:100%;">
+            <div style="font-size:${isCompact ? "8px" : "10px"};font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.05em;line-height:1.4;">Thank you for choosing ${clinicNameDisplay}!</div>
+            ${clinicEmailDisplay ? `<div style="font-size:${isCompact ? "7px" : "8px"};color:${muted};margin-top:2px;text-transform:uppercase;font-weight:500;">For questions, contact ${clinicEmailDisplay}</div>` : ""}
           </div>
           </div>
         </div>
@@ -437,7 +437,7 @@ export default function BillingPage() {
               if (el && barcodeVal && typeof JsBarcode !== "undefined") {
                 var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
                 el.appendChild(svg);
-                JsBarcode(svg, barcodeVal, { format: "CODE128", width: 2, height: 45, displayValue: false, margin: 4, lineColor: "#000000", background: "#ffffff" });
+                JsBarcode(svg, barcodeVal, { format: "CODE128", width: 1.2, height: ${barcodeSize}, displayValue: false, margin: 2, lineColor: "#000000", background: "#ffffff" });
               }
             } catch (e) {}
             setTimeout(function() { window.print(); }, 150);
@@ -644,7 +644,7 @@ export default function BillingPage() {
       total: total.toFixed(2),
       paidAmount: total.toFixed(2),
       paymentMethod,
-      referenceDoctor: referenceDoctor && referenceDoctor !== "none" ? referenceDoctor : null,
+      referenceDoctor: referenceDoctor?.trim() || null,
       paymentDate: paymentDate || null,
       status: "paid",
     });
@@ -825,7 +825,7 @@ export default function BillingPage() {
                       </div>
                       <div className="p-3 border-l">
                         <p className="text-[10px] uppercase text-amber-600 dark:text-amber-400 font-semibold tracking-wide mb-1">Details</p>
-                        {referenceDoctor && referenceDoctor !== "none" && (
+                        {referenceDoctor?.trim() && (
                           <p className="text-[11px]"><span className="text-muted-foreground">Ref Doctor:</span> <span className="font-medium">{referenceDoctor}</span></p>
                         )}
                         <p className="text-[11px]"><span className="text-muted-foreground">Payment:</span> <span className="font-medium">{getPaymentLabel(paymentMethod)}</span></p>
@@ -965,15 +965,20 @@ export default function BillingPage() {
                       <Stethoscope className="h-4 w-4 text-violet-500" />
                       <Label className="text-sm font-semibold">Doctor / Refer Name</Label>
                     </div>
-                    <SearchableSelect
+                    <Input
+                      list="create-bill-doctor-list"
                       value={referenceDoctor}
-                      onValueChange={setReferenceDoctor}
-                      placeholder="Select doctor"
-                      searchPlaceholder="Search doctor..."
-                      emptyText="No doctor found."
-                      data-testid="select-reference-doctor"
-                      options={doctorOptions}
+                      onChange={(e) => setReferenceDoctor(e.target.value)}
+                      placeholder="Select or type doctor / refer name..."
+                      className="w-full"
+                      data-testid="input-reference-doctor"
                     />
+                    <datalist id="create-bill-doctor-list">
+                      <option value="" />
+                      {doctorOptions.filter(o => o.value !== "none").map((o) => (
+                        <option key={o.value} value={o.value} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
 
@@ -1669,16 +1674,20 @@ export default function BillingPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label>{t("dashboard.doctor")}</Label>
-                  <SearchableSelect
-                    value={editDoctor || "none"}
-                    onValueChange={(v) => setEditDoctor(v === "none" ? "" : v)}
-                    placeholder="None"
-                    searchPlaceholder="Search doctor..."
-                    emptyText="No doctor found."
+                  <Label>Doctor / Refer Name</Label>
+                  <Input
+                    list="edit-bill-doctor-list"
+                    value={editDoctor}
+                    onChange={(e) => setEditDoctor(e.target.value)}
+                    placeholder="Select or type doctor / refer name..."
+                    className="w-full"
                     data-testid="edit-bill-doctor"
-                    options={doctorOptions}
                   />
+                  <datalist id="edit-bill-doctor-list">
+                    {doctorOptions.filter(o => o.value !== "none").map((o) => (
+                      <option key={o.value} value={o.value} />
+                    ))}
+                  </datalist>
                 </div>
                 <Button
                   className="w-full"
