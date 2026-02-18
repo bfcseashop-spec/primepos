@@ -11,6 +11,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
+import { billNoMatches } from "@/lib/bill-utils";
 import { TestTubes, CheckCircle2, Clock, Beaker, Barcode, Printer } from "lucide-react";
 import JsBarcode from "jsbarcode";
 
@@ -92,8 +93,8 @@ export default function SampleCollectionsPage() {
         return;
       }
     }
-    // Invoice: filter by bill
-    const bill = bills.find((b: { billNo: string }) => (b.billNo || "").toLowerCase() === v.toLowerCase());
+    // Invoice: filter by bill (IAR-0017 matches IAR00017, etc.)
+    const bill = bills.find((b: { billNo: string }) => billNoMatches(v, b.billNo || ""));
     if (bill) {
       const byBill = samples.filter((s: SampleCollection) => s.billId === bill.id);
       setSearchTerm(v);
@@ -184,7 +185,7 @@ export default function SampleCollectionsPage() {
   };
 
   const filtered = samples.filter((s) => {
-    const bill = bills.find((b: { billNo: string }) => (b.billNo || "").toLowerCase() === searchTerm.toLowerCase());
+    const bill = bills.find((b: { billNo: string }) => billNoMatches(searchTerm, b.billNo || ""));
     const lab = labTests.find((t: { testCode: string }) => (t.testCode || "").toLowerCase() === searchTerm.toLowerCase());
     const matchInvoice = !bill || s.billId === bill.id;
     const matchLab = !lab || s.labTestId === lab.id;

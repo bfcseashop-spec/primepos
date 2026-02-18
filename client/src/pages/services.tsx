@@ -20,7 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, downloadFile } from "@/lib/queryClient";
 import {
-  Plus, Search, MoreVertical, Eye, Pencil, Trash2, ImagePlus, X,
+  Plus, Search, MoreVertical, Eye, Pencil, Trash2, ImagePlus, X, Check,
   FolderPlus, Activity, CheckCircle2, XCircle, DollarSign, Layers,
   RefreshCw, Grid3X3, List, Stethoscope, Tag, FileText, FolderTree,
   Download, Upload, FileSpreadsheet, FileDown, Syringe,
@@ -920,6 +920,9 @@ export default function ServicesPage() {
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [categories, setCategories] = useState<string[]>(getServiceCategories());
   const [newCategory, setNewCategory] = useState("");
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editingCategoryValue, setEditingCategoryValue] = useState("");
+  const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<{ open: boolean; category?: string }>({ open: false });
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleteBulkConfirm, setDeleteBulkConfirm] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -1164,6 +1167,54 @@ export default function ServicesPage() {
   const allCategoriesForForm = Array.from(new Set([...categories, ...uniqueCategories, ...services.map(s => s.category).filter(Boolean)])).sort();
   const categoriesToShowInModal = Array.from(new Set([...categories, ...uniqueCategories])).sort();
   const totalValue = services.reduce((sum, s) => sum + parseFloat(s.price || "0"), 0);
+
+  const servicesUsingCategory = (cat: string) => services.filter(s => parseCategories(s.category).includes(cat));
+  const handleRenameCategory = async (oldName: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) {
+      setEditingCategory(null);
+      return;
+    }
+    if (categoriesToShowInModal.includes(trimmed)) {
+      toast({ title: t("common.categoryExists"), variant: "destructive" });
+      return;
+    }
+    const updatedCats = categories.map(c => c === oldName ? trimmed : c).sort();
+    setCategories(updatedCats);
+    saveServiceCategories(updatedCats);
+    const toUpdate = services.filter(s => parseCategories(s.category).includes(oldName));
+    for (const svc of toUpdate) {
+      const cats = parseCategories(svc.category);
+      const updated = cats.map(c => c === oldName ? trimmed : c).join(", ");
+      await apiRequest("PATCH", `/api/services/${svc.id}`, { category: updated });
+    }
+    if (toUpdate.length > 0) queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+    setEditingCategory(null);
+    toast({ title: t("common.saved") || "Category updated" });
+  };
+  const handleDeleteCategory = (cat: string) => {
+    const usedBy = servicesUsingCategory(cat);
+    if (usedBy.length > 0) {
+      const fallback = "Other";
+      const updatedCats = categories.filter(c => c !== cat);
+      setCategories(updatedCats);
+      saveServiceCategories(updatedCats);
+      Promise.all(usedBy.map(svc => {
+        const cats = parseCategories(svc.category).filter(c => c !== cat);
+        const newCat = cats.length > 0 ? cats.join(", ") : fallback;
+        return apiRequest("PATCH", `/api/services/${svc.id}`, { category: newCat });
+      })).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+        toast({ title: t("common.categoryRemoved"), description: usedBy.length > 0 ? `${usedBy.length} service(s) updated` : undefined });
+      });
+    } else {
+      const updated = categories.filter(c => c !== cat);
+      setCategories(updated);
+      saveServiceCategories(updated);
+      toast({ title: t("common.categoryRemoved") });
+    }
+    setDeleteCategoryConfirm({ open: false });
+  };
 
   const getAvatarGradient = (id: number) => avatarGradients[id % avatarGradients.length];
   const getCatColor = (cat: string) => categoryColors[cat] || defaultCategoryColor;
@@ -1695,7 +1746,7 @@ export default function ServicesPage() {
         description={t("services.subtitle")}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-            <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+            <Dialog open={categoryDialogOpen} onOpenChange={(open) => { setCategoryDialogOpen(open); if (!open) { setEditingCategory(null); setDeleteCategoryConfirm({ open: false }); } }}>
               <DialogTrigger asChild>
                 <Button variant="outline" data-testid="button-category-manage">
                   <FolderPlus className="h-4 w-4 mr-1" /> {t("common.category")}
@@ -1748,36 +1799,75 @@ export default function ServicesPage() {
                   <div className="max-h-60 overflow-y-auto space-y-1">
                     {categoriesToShowInModal.map(cat => {
                       const cc = getCatColor(cat);
-                      const canRemove = categories.includes(cat) && !DEFAULT_SERVICE_CATEGORIES.includes(cat);
+                      const usedBy = servicesUsingCategory(cat);
+                      const isEditing = editingCategory === cat;
                       return (
                         <div key={cat} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md hover-elevate">
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-block h-2 w-2 rounded-full ${cc.dot}`} />
-                            <span className="text-sm">{cat}</span>
-                            {uniqueCategories.includes(cat) && !categories.includes(cat) && (
-                              <span className="text-[10px] text-muted-foreground">(used by services)</span>
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${cc.dot}`} />
+                            {isEditing ? (
+                              <Input
+                                value={editingCategoryValue}
+                                onChange={e => setEditingCategoryValue(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === "Enter") handleRenameCategory(cat, editingCategoryValue);
+                                  if (e.key === "Escape") { setEditingCategory(null); setEditingCategoryValue(""); }
+                                }}
+                                className="h-8 text-sm flex-1"
+                                data-testid={`input-edit-category-${cat}`}
+                                autoFocus
+                              />
+                            ) : (
+                              <>
+                                <span className="text-sm truncate">{cat}</span>
+                                {usedBy.length > 0 && (
+                                  <span className="text-[10px] text-muted-foreground shrink-0">({usedBy.length} services)</span>
+                                )}
+                              </>
                             )}
                           </div>
-                          {canRemove && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                const updated = categories.filter(c => c !== cat);
-                                setCategories(updated);
-                                saveServiceCategories(updated);
-                                toast({ title: t("common.categoryRemoved") });
-                              }}
-                              data-testid={`button-remove-category-${cat}`}
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            {isEditing ? (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRenameCategory(cat, editingCategoryValue)} data-testid={`button-save-category-${cat}`}>
+                                  <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingCategory(null); setEditingCategoryValue(""); }} data-testid={`button-cancel-edit-category-${cat}`}>
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingCategory(cat); setEditingCategoryValue(cat); }} title={t("common.edit")} data-testid={`button-edit-category-${cat}`}>
+                                  <Pencil className="h-3.5 w-3.5 text-amber-500" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteCategoryConfirm({ open: true, category: cat })} title={t("common.delete")} data-testid={`button-delete-category-${cat}`}>
+                                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
+                <ConfirmDialog
+                  open={deleteCategoryConfirm.open}
+                  onOpenChange={(open) => setDeleteCategoryConfirm({ open })}
+                  title={t("common.delete") + " category"}
+                  description={
+                    deleteCategoryConfirm.category
+                      ? servicesUsingCategory(deleteCategoryConfirm.category).length > 0
+                        ? `"${deleteCategoryConfirm.category}" is used by ${servicesUsingCategory(deleteCategoryConfirm.category).length} service(s). They will be updated to use "Other".`
+                        : `Remove "${deleteCategoryConfirm.category}" from categories?`
+                      : ""
+                  }
+                  confirmLabel={t("common.delete")}
+                  cancelLabel={t("common.cancel")}
+                  variant="destructive"
+                  onConfirm={() => deleteCategoryConfirm.category && handleDeleteCategory(deleteCategoryConfirm.category)}
+                />
               </DialogContent>
             </Dialog>
             <DropdownMenu>

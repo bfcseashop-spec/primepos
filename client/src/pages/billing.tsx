@@ -20,6 +20,7 @@ import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCar
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
+import { billNoMatches } from "@/lib/bill-utils";
 import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings, Package as PackageType, Doctor } from "@shared/schema";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -657,7 +658,7 @@ export default function BillingPage() {
   const handleBarcodeSearch = (v: string) => {
     const val = v?.trim() ?? "";
     if (!val) return;
-    const bill = bills.find((b: any) => (b.billNo || "").toLowerCase() === val.toLowerCase());
+    const bill = bills.find((b: any) => billNoMatches(val, b.billNo || ""));
     if (bill) {
       setSearchTerm(val);
       setViewBill(bill);
@@ -676,7 +677,7 @@ export default function BillingPage() {
   useGlobalBarcodeScanner(handleBarcodeSearch);
 
   const filteredBills = dateFilteredBills.filter((b: any) =>
-    b.billNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (b.billNo && billNoMatches(searchTerm, b.billNo)) ||
     b.patientName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 

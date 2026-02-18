@@ -23,6 +23,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, Barcode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User, Clock, XCircle, AlertTriangle, Loader2, ChevronDown, ClipboardList } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
+import { billNoMatches } from "@/lib/bill-utils";
 import JsBarcode from "jsbarcode";
 import type { LabTest, Patient, ClinicSettings } from "@shared/schema";
 
@@ -720,8 +721,8 @@ export default function LabTestsPage() {
     const v = value?.trim() ?? "";
     if (!v) return;
     setInvoiceFilter("");
-    // Invoice barcode: BILL-xxx, INV-xxx, etc.
-    const bill = bills.find(b => (b.billNo || "").toLowerCase() === v.toLowerCase());
+    // Invoice barcode: BILL-xxx, INV-xxx, IAR-0017, etc.
+    const bill = bills.find(b => billNoMatches(v, b.billNo || ""));
     if (bill) {
       const byBill = labTests.filter((t: LabTestWithPatient & { billId?: number | null }) => t.billId === bill.id);
       setSearchTerm("");
@@ -786,7 +787,7 @@ export default function LabTestsPage() {
 
   const filtered = labTests.filter(t => {
     const matchInvoice = !invoiceFilter || (() => {
-      const bill = bills.find(b => (b.billNo || "").toLowerCase() === invoiceFilter.toLowerCase());
+      const bill = bills.find(b => billNoMatches(invoiceFilter, b.billNo || ""));
       return bill && (t as LabTestWithPatient & { billId?: number | null }).billId === bill.id;
     })();
     const matchSearch = searchTerm === "" ||
