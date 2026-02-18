@@ -364,11 +364,11 @@ export default function BillingPage() {
                 <div style="margin-bottom:${isCompact ? "3px" : "4px"};"><strong>Patient Name:</strong> ${patient?.name || "-"}</div>
                 ${patient?.patientId ? `<div style="margin-bottom:${isCompact ? "3px" : "4px"};"><strong>UHID:</strong> ${patient.patientId}</div>` : ""}
                 <div style="margin-bottom:${isCompact ? "3px" : "4px"};"><strong>Age/Gender:</strong> ${patient?.age != null ? patient.age : (ageFromDob(patient?.dateOfBirth) ?? "-")} / ${capitalizeGender(patient?.gender)}</div>
-                <div><strong>Dr. Name:</strong> ${bill.referenceDoctor || "-"}</div>
+                <div><strong>Referrer Name:</strong> ${bill.referenceDoctor || "-"}</div>
               </td>
               <td style="width:50%;vertical-align:top;padding:${isCompact ? "4px 0 4px 10px" : "6px 0 6px 12px"};border-left:1px solid ${border};">
                 <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:${isCompact ? "3px" : "4px"};">
-                  <div><strong>Invoice No #:</strong> ${billNoShort}</div>
+                  <div><strong>${billNoShort}</strong></div>
                   ${billNoBarcode ? `<div id="invoice-barcode" style="flex-shrink:0;max-height:${barcodeSize}px;overflow:hidden;"></div>` : ""}
                 </div>
                 <div><strong>Date:</strong> ${formattedDate}</div>
@@ -1464,7 +1464,7 @@ export default function BillingPage() {
                       {patient?.gender && <p className="text-muted-foreground text-xs mt-0.5">Gender: {patient.gender}{patient?.age != null ? `, Age: ${patient.age}` : ""}</p>}
                     </div>
                     <div className="text-right">
-                      <p className="text-base font-extrabold text-teal-600 dark:text-teal-400 mb-1.5">Dr. Name :</p>
+                      <p className="text-base font-extrabold text-teal-600 dark:text-teal-400 mb-1.5">Referrer Name:</p>
                       <p className="font-bold text-sm">{viewBill.referenceDoctor || "-"}</p>
                     </div>
                   </div>

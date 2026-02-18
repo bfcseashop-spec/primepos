@@ -208,7 +208,7 @@ function App() {
                 <AppSidebar currentUser={currentUser} />
                 <div className="flex flex-col flex-1 overflow-hidden">
                   <LayoutHeader />
-                  <main className="flex-1 overflow-hidden">
+                  <main className="flex-1 min-h-0 overflow-hidden flex flex-col">
                     <Router currentUser={currentUser} />
                   </main>
                 </div>

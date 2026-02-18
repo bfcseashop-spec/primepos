@@ -283,7 +283,7 @@ export default function SampleCollectionsPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-4 overflow-auto p-4 md:p-6">
+    <div className="flex flex-1 flex-col min-h-0 gap-4 overflow-auto p-4 md:p-6">
       <PageHeader
         title="Sample Collection"
         description="Manage sample collection for lab tests. Mark samples as collected to allow tests to proceed."
