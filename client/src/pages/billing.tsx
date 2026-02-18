@@ -21,6 +21,7 @@ import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
 import { billNoMatches } from "@/lib/bill-utils";
+import { capitalizeGender } from "@/lib/utils";
 import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings, Package as PackageType, Doctor } from "@shared/schema";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -356,21 +357,25 @@ export default function BillingPage() {
             </div>
           </div>
 
-          <!-- INVOICE META + BARCODE (compact barcode) -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:${isCompact ? "4px" : "6px"};width:100%;">
-            <div style="font-size:${isCompact ? "9px" : "10px"};line-height:1.5;">
-              <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${isCompact ? "8px" : "9px"};">Invoice No #:</span> <span style="font-weight:700;font-size:${isCompact ? "10px" : "11px"};">${billNoShort}</span></div>
-              <div><span style="color:${teal};font-weight:700;text-transform:uppercase;font-size:${isCompact ? "8px" : "9px"};">Date:</span> <span style="font-weight:600;">${formattedDate}</span></div>
-            </div>
-            ${billNoBarcode ? `<div style="text-align:right;max-width:${isCompact ? "90px" : "110px"};"><div style="color:${teal};font-weight:700;font-size:${isCompact ? "7px" : "8px"};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1px;">invoice code:</div><div id="invoice-barcode" style="max-height:${barcodeSize}px;overflow:hidden;"></div><div style="font-size:${isCompact ? "7px" : "8px"};font-weight:600;color:${muted};margin-top:1px;">${billNoShort}</div></div>` : ""}
-          </div>
-
-          <!-- PATIENT DETAILS -->
-          <table style="width:100%;margin-bottom:${isCompact ? "3px" : "5px"};border-collapse:collapse;font-size:${isCompact ? "10px" : "11px"};">
-            <tr><td style="padding:${isCompact ? "1px 0" : "2px 0"};text-align:left;"><strong>Patient Name:</strong> ${patient?.name || "-"}${patient?.patientId ? ` (${patient.patientId})` : ""}</td></tr>
-            <tr><td style="padding:${isCompact ? "1px 0" : "2px 0"};text-align:left;"><strong>Age:</strong> ${patient?.age != null ? patient.age : (ageFromDob(patient?.dateOfBirth) ?? "-")} &nbsp;&nbsp; <strong>Gender:</strong> ${patient?.gender || "-"}</td></tr>
+          <!-- TWO-COLUMN: Patient info (left) | Invoice info (right) - like lab report -->
+          <table style="width:100%;margin-bottom:${isCompact ? "5px" : "8px"};font-size:${isCompact ? "10px" : "11px"};border-collapse:collapse;">
+            <tr>
+              <td style="width:50%;vertical-align:top;padding:${isCompact ? "4px 10px 4px 0" : "6px 12px 6px 0"};">
+                <div style="margin-bottom:${isCompact ? "3px" : "4px"};"><strong>Patient Name:</strong> ${patient?.name || "-"}</div>
+                ${patient?.patientId ? `<div style="margin-bottom:${isCompact ? "3px" : "4px"};"><strong>UHID:</strong> ${patient.patientId}</div>` : ""}
+                <div style="margin-bottom:${isCompact ? "3px" : "4px"};"><strong>Age/Gender:</strong> ${patient?.age != null ? patient.age : (ageFromDob(patient?.dateOfBirth) ?? "-")} / ${capitalizeGender(patient?.gender)}</div>
+                <div><strong>Dr. Name:</strong> ${bill.referenceDoctor || "-"}</div>
+              </td>
+              <td style="width:50%;vertical-align:top;padding:${isCompact ? "4px 0 4px 10px" : "6px 0 6px 12px"};border-left:1px solid ${border};">
+                <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:${isCompact ? "3px" : "4px"};">
+                  <div><strong>Invoice No #:</strong> ${billNoShort}</div>
+                  ${billNoBarcode ? `<div id="invoice-barcode" style="flex-shrink:0;max-height:${barcodeSize}px;overflow:hidden;"></div>` : ""}
+                </div>
+                <div><strong>Date:</strong> ${formattedDate}</div>
+                ${billNoBarcode ? `<div style="font-size:${isCompact ? "7px" : "8px"};color:${muted};margin-top:2px;">invoice code: ${billNoShort}</div>` : ""}
+              </td>
+            </tr>
           </table>
-          <div style="margin-bottom:${isCompact ? "4px" : "6px"};font-size:${isCompact ? "10px" : "11px"};"><strong>Dr. Name:</strong> ${bill.referenceDoctor || "-"}</div>
 
           <!-- ITEMS TABLE -->
           <table style="width:100%;margin-bottom:${isCompact ? "5px" : "8px"};">

@@ -24,6 +24,7 @@ import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, Barcode, FlaskConica
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { billNoMatches } from "@/lib/bill-utils";
+import { capitalizeGender } from "@/lib/utils";
 import JsBarcode from "jsbarcode";
 import type { LabTest, Patient, ClinicSettings } from "@shared/schema";
 
@@ -451,7 +452,7 @@ export default function LabTestsPage() {
     const rowExt = row as unknown as { patientAge?: number; patientGender?: string };
     const patientAgeGender = [
       rowExt.patientAge != null ? `${rowExt.patientAge}Y` : "",
-      rowExt.patientGender ? escapeHtml(rowExt.patientGender) : "",
+      rowExt.patientGender ? capitalizeGender(rowExt.patientGender) : "",
     ].filter(Boolean).join(" / ") || "-";
 
     const teal = "#0d9488";
