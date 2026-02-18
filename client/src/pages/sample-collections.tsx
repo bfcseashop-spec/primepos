@@ -6,11 +6,12 @@ import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { TestTubes, CheckCircle2, Clock, Search, Beaker, Barcode, Printer } from "lucide-react";
+import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
+import { TestTubes, CheckCircle2, Clock, Beaker, Barcode, Printer } from "lucide-react";
 import JsBarcode from "jsbarcode";
 
 type SampleCollection = {
@@ -59,10 +60,62 @@ export default function SampleCollectionsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [markingId, setMarkingId] = useState<number | null>(null);
   const [barcodeSample, setBarcodeSample] = useState<SampleCollection | null>(null);
+  const [viewSample, setViewSample] = useState<SampleCollection | null>(null);
 
   const { data: samples = [], isLoading } = useQuery<SampleCollection[]>({
     queryKey: ["/api/sample-collections"],
   });
+
+  const { data: bills = [] } = useQuery<{ id: number; billNo: string }[]>({
+    queryKey: ["/api/bills"],
+  });
+
+  const { data: labTests = [] } = useQuery<{ id: number; testCode: string }[]>({
+    queryKey: ["/api/lab-tests"],
+  });
+
+  const handleBarcodeSearch = async (value: string) => {
+    const v = value?.trim() ?? "";
+    if (!v) return;
+    // Sample barcode: SC5 or plain 5
+    const scMatch = v.match(/^SC(\d+)$/i);
+    const sampleId = scMatch ? parseInt(scMatch[1], 10) : (/^\d+$/.test(v) ? parseInt(v, 10) : null);
+    if (sampleId != null) {
+      try {
+        const res = await apiRequest("GET", `/api/sample-collections/${sampleId}`);
+        const s = await res.json();
+        setSearchTerm("");
+        setViewSample(s);
+        return;
+      } catch {
+        toast({ title: "Sample not found", variant: "destructive" });
+        return;
+      }
+    }
+    // Invoice: filter by bill
+    const bill = bills.find((b: { billNo: string }) => (b.billNo || "").toLowerCase() === v.toLowerCase());
+    if (bill) {
+      const byBill = samples.filter((s: SampleCollection) => s.billId === bill.id);
+      setSearchTerm(v);
+      if (byBill.length === 1) setViewSample(byBill[0]);
+      return;
+    }
+    // Lab test code: LAB-0008
+    const labMatch = v.match(/^LAB-TEST\|([^|]+)\|/);
+    const testCode = labMatch ? labMatch[1] : (v.includes("|") ? "" : v);
+    if (testCode) {
+      const lt = labTests.find((t: { testCode: string }) => (t.testCode || "").toLowerCase() === testCode.toLowerCase());
+      if (lt) {
+        const byLab = samples.filter((s: SampleCollection) => s.labTestId === lt.id);
+        setSearchTerm(testCode);
+        if (byLab.length === 1) setViewSample(byLab[0]);
+        return;
+      }
+    }
+    setSearchTerm(v);
+  };
+
+  useGlobalBarcodeScanner(handleBarcodeSearch);
 
   const markCollectedMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -131,12 +184,19 @@ export default function SampleCollectionsPage() {
   };
 
   const filtered = samples.filter((s) => {
+    const bill = bills.find((b: { billNo: string }) => (b.billNo || "").toLowerCase() === searchTerm.toLowerCase());
+    const lab = labTests.find((t: { testCode: string }) => (t.testCode || "").toLowerCase() === searchTerm.toLowerCase());
+    const matchInvoice = !bill || s.billId === bill.id;
+    const matchLab = !lab || s.labTestId === lab.id;
     const matchSearch =
+      !searchTerm ||
       (s.testName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (s.patientName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.patientIdCode || "").toLowerCase().includes(searchTerm.toLowerCase());
+      (s.patientIdCode || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (bill != null && s.billId === bill.id) ||
+      (lab != null && s.labTestId === lab.id);
     const matchStatus = statusFilter === "all" || s.status === statusFilter;
-    return matchSearch && matchStatus;
+    return matchInvoice && matchLab && matchSearch && matchStatus;
   });
 
   const pendingCount = samples.filter((s) => s.status === "pending").length;
@@ -188,11 +248,11 @@ export default function SampleCollectionsPage() {
     {
       header: "Actions",
       accessor: (row: SampleCollection) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setBarcodeSample(row)}
+            onClick={(e) => { e.stopPropagation(); setBarcodeSample(row); }}
             data-testid={`button-barcode-${row.id}`}
           >
             <Barcode className="h-4 w-4 mr-1.5" />
@@ -202,7 +262,7 @@ export default function SampleCollectionsPage() {
             <Button
               size="sm"
               variant="default"
-              onClick={() => markCollected(row.id)}
+              onClick={(e) => { e.stopPropagation(); markCollected(row.id); }}
               disabled={markingId === row.id}
               data-testid={`button-collect-${row.id}`}
             >
@@ -263,12 +323,11 @@ export default function SampleCollectionsPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <div className="relative flex-1 sm:max-w-xs">
-                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search by test or patient..."
+                <SearchInputWithBarcode
+                  placeholder="Search / Scan barcode (SC5, invoice, lab)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
+                  onSearch={handleBarcodeSearch}
                   data-testid="input-search-samples"
                 />
               </div>
@@ -290,9 +349,60 @@ export default function SampleCollectionsPage() {
             data={filtered}
             isLoading={isLoading}
             emptyMessage="No sample collections yet. They are created when a bill includes lab tests that require sample collection."
+            onRowClick={(row) => setViewSample(row)}
           />
         </CardContent>
       </Card>
+
+      {viewSample && (
+        <Dialog open={!!viewSample} onOpenChange={(open) => { if (!open) setViewSample(null); }}>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md">
+            <DialogHeader>
+              <DialogTitle>Sample Collection</DialogTitle>
+              <DialogDescription>View sample collection details</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <p className="text-xs text-muted-foreground font-medium mb-1">Test</p>
+                <p className="font-semibold">{viewSample.testName}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium mb-1">Patient</p>
+                <p className="font-medium">{viewSample.patientName || "-"}</p>
+                {viewSample.patientIdCode && <p className="text-sm text-muted-foreground">ID: {viewSample.patientIdCode}</p>}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium mb-1">Sample Type</p>
+                <Badge variant="outline">{viewSample.sampleType}</Badge>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium mb-1">Status</p>
+                {viewSample.status === "collected" ? (
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">Collected</Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20">Pending</Badge>
+                )}
+              </div>
+              {viewSample.collectedAt && (
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium mb-1">Collected At</p>
+                  <p className="text-sm">{new Date(viewSample.collectedAt).toLocaleString()}</p>
+                </div>
+              )}
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" onClick={() => { setBarcodeSample(viewSample); setViewSample(null); }}>
+                  <Barcode className="h-4 w-4 mr-2" /> Print Barcode
+                </Button>
+                {viewSample.status === "pending" && (
+                  <Button onClick={() => { markCollected(viewSample.id); setViewSample(null); }}>
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> Mark Collected
+                  </Button>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {barcodeSample && (
         <Dialog open={!!barcodeSample} onOpenChange={(open) => { if (!open) setBarcodeSample(null); }}>

@@ -808,6 +808,7 @@ export class DatabaseStorage implements IStorage {
       description: labTests.description,
       turnaroundTime: labTests.turnaroundTime,
       patientId: labTests.patientId,
+      billId: labTests.billId,
       serviceId: labTests.serviceId,
       reportFileUrl: labTests.reportFileUrl,
       reportFileName: labTests.reportFileName,

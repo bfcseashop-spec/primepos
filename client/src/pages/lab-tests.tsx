@@ -22,6 +22,7 @@ import { usePermissions, useAuth } from "@/contexts/auth-context";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, Barcode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User, Clock, XCircle, AlertTriangle, Loader2, ChevronDown, ClipboardList } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import JsBarcode from "jsbarcode";
 import type { LabTest, Patient, ClinicSettings } from "@shared/schema";
 
@@ -288,6 +289,7 @@ export default function LabTestsPage() {
   const [inputResultsTest, setInputResultsTest] = useState<LabTestWithPatient | null>(null);
   const [inputResultsValues, setInputResultsValues] = useState<Record<string, string>>({});
   const [searchTerm, setSearchTerm] = useState("");
+  const [invoiceFilter, setInvoiceFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [form, setForm] = useState(defaultForm);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -305,6 +307,10 @@ export default function LabTestsPage() {
 
   const { data: labTests = [], isLoading } = useQuery<LabTestWithPatient[]>({
     queryKey: ["/api/lab-tests"],
+  });
+
+  const { data: bills = [] } = useQuery<{ id: number; billNo: string }[]>({
+    queryKey: ["/api/bills"],
   });
 
   const { data: patients = [] } = useQuery<Patient[]>({
@@ -713,15 +719,31 @@ export default function LabTestsPage() {
   const handleBarcodeSearch = async (value: string) => {
     const v = value?.trim() ?? "";
     if (!v) return;
-    // Barcode scan only opens view modal — no auto-print.
+    setInvoiceFilter("");
+    // Invoice barcode: BILL-xxx, INV-xxx, etc.
+    const bill = bills.find(b => (b.billNo || "").toLowerCase() === v.toLowerCase());
+    if (bill) {
+      const byBill = labTests.filter((t: LabTestWithPatient & { billId?: number | null }) => t.billId === bill.id);
+      setSearchTerm("");
+      setInvoiceFilter(v);
+      if (byBill.length === 1) setViewTest(byBill[0]);
+      else if (byBill.length === 0) toast({ title: t("labTests.noLabTests"), variant: "destructive" });
+      return;
+    }
+    // Patient barcode: PAT-725586 or patientId
+    const pat = patients.find(p => (p.patientId || "").toLowerCase() === v.toLowerCase());
+    if (pat) {
+      const byPatient = labTests.filter(t => t.patientId === pat.id);
+      setSearchTerm(v);
+      setInvoiceFilter("");
+      if (byPatient.length === 1) setViewTest(byPatient[0]);
+      return;
+    }
     // Sample collection barcode: SC5 or plain 5 (from small sticker)
     let sampleId: number | null = null;
     const scMatch = v.match(/^SC(\d+)$/i);
-    if (scMatch) {
-      sampleId = parseInt(scMatch[1], 10);
-    } else if (/^\d+$/.test(v)) {
-      sampleId = parseInt(v, 10);
-    }
+    if (scMatch) sampleId = parseInt(scMatch[1], 10);
+    else if (/^\d+$/.test(v)) sampleId = parseInt(v, 10);
     if (sampleId != null) {
       try {
         const scRes = await apiRequest("GET", `/api/sample-collections/${sampleId}`);
@@ -734,6 +756,7 @@ export default function LabTestsPage() {
         const res = await apiRequest("GET", `/api/lab-tests/${labTestId}`);
         const test = await res.json();
         setSearchTerm("");
+        setInvoiceFilter("");
         setViewTest(test);
         return;
       } catch {
@@ -741,13 +764,14 @@ export default function LabTestsPage() {
         return;
       }
     }
-    // LAB-TEST|testCode|testName|category|price
+    // Lab barcode: LAB-0008 or LAB-TEST|...
     const labMatch = v.match(/^LAB-TEST\|([^|]+)\|/);
     const testCode = labMatch ? labMatch[1] : (v.includes("|") ? "" : v);
     if (testCode) {
       const found = labTests.find(t => (t.testCode || "").toLowerCase() === testCode.toLowerCase());
       if (found) {
         setSearchTerm("");
+        setInvoiceFilter("");
         setViewTest(found);
         return;
       }
@@ -755,19 +779,27 @@ export default function LabTestsPage() {
       return;
     }
     setSearchTerm(v);
+    setInvoiceFilter("");
   };
 
+  useGlobalBarcodeScanner(handleBarcodeSearch);
+
   const filtered = labTests.filter(t => {
+    const matchInvoice = !invoiceFilter || (() => {
+      const bill = bills.find(b => (b.billNo || "").toLowerCase() === invoiceFilter.toLowerCase());
+      return bill && (t as LabTestWithPatient & { billId?: number | null }).billId === bill.id;
+    })();
     const matchSearch = searchTerm === "" ||
       t.testName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.sampleType.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (t.testCode && t.testCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (t.patientName && t.patientName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (t.referrerName && t.referrerName.toLowerCase().includes(searchTerm.toLowerCase()));
+      (t.referrerName && t.referrerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      ((t as { patientPatientId?: string }).patientPatientId && (t as { patientPatientId: string }).patientPatientId.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchCategory = categoryFilter === "all" || t.category.includes(categoryFilter);
     const matchDate = isDateInRange(t.createdAt?.toString().slice(0, 10), dateRange);
-    return matchSearch && matchCategory && matchDate;
+    return matchInvoice && matchSearch && matchCategory && matchDate;
   });
 
   const processingCount = filtered.filter(t => t.status === "processing").length;
@@ -834,7 +866,7 @@ export default function LabTestsPage() {
           updateMutation.mutate({ id: row.id, data: { status: val } });
         }}
       >
-        <SelectTrigger className="h-8 w-[140px] text-xs" data-testid={`select-status-${row.id}`}>
+        <SelectTrigger className="h-8 w-[140px] text-xs" data-testid={`select-status-${row.id}`} onClick={(e) => e.stopPropagation()}>
           <SelectValue>{getStatusBadge(row.status)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -864,7 +896,7 @@ export default function LabTestsPage() {
     { header: t("common.actions"), accessor: (row: LabTestWithPatient) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" data-testid={`button-actions-${row.id}`}>
+          <Button variant="ghost" size="icon" data-testid={`button-actions-${row.id}`} onClick={(e) => e.stopPropagation()}>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -1432,8 +1464,8 @@ export default function LabTestsPage() {
                 <SearchInputWithBarcode
                   placeholder={t("labTests.searchTests") + " / " + (t("labTests.barcode") || "Scan barcode")}
                   className="h-8 text-sm"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={invoiceFilter || searchTerm}
+                  onChange={(e) => { const v = e.target.value; setInvoiceFilter(""); setSearchTerm(v); }}
                   onSearch={handleBarcodeSearch}
                   data-testid="input-search-lab-tests"
                 />
@@ -1449,7 +1481,7 @@ export default function LabTestsPage() {
                 </Button>
               </div>
             )}
-            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={t("labTests.noLabTests")} selectedIds={canDelete ? selectedIds : undefined} onSelectionChange={canDelete ? setSelectedIds : undefined} />
+            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={t("labTests.noLabTests")} selectedIds={canDelete ? selectedIds : undefined} onSelectionChange={canDelete ? setSelectedIds : undefined} onRowClick={(row) => setViewTest(row)} />
           </CardContent>
         </Card>
       </div>

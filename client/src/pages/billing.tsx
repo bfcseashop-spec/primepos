@@ -18,6 +18,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag, Package, RotateCcw } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
 import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings, Package as PackageType, Doctor } from "@shared/schema";
 
@@ -652,6 +653,27 @@ export default function BillingPage() {
     const billDateStr = b.paymentDate || (b.createdAt ? new Date(b.createdAt).toISOString().split("T")[0] : null);
     return isDateInRange(billDateStr, dateRange);
   });
+
+  const handleBarcodeSearch = (v: string) => {
+    const val = v?.trim() ?? "";
+    if (!val) return;
+    const bill = bills.find((b: any) => (b.billNo || "").toLowerCase() === val.toLowerCase());
+    if (bill) {
+      setSearchTerm(val);
+      setViewBill(bill);
+      return;
+    }
+    const pat = patients.find(p => (p.patientId || "").toLowerCase() === val.toLowerCase());
+    if (pat) {
+      setSearchTerm(pat.name || val);
+      const byPatient = dateFilteredBills.filter((b: any) => b.patientId === pat.id);
+      if (byPatient.length === 1) setViewBill(byPatient[0]);
+      return;
+    }
+    setSearchTerm(val);
+  };
+
+  useGlobalBarcodeScanner(handleBarcodeSearch);
 
   const filteredBills = dateFilteredBills.filter((b: any) =>
     b.billNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1360,11 +1382,11 @@ export default function BillingPage() {
             </div>
             <div className="w-64">
               <SearchInputWithBarcode
-                placeholder={t("common.search")}
+                placeholder={t("common.search") + " / Scan invoice or patient"}
                 className="h-8 text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onSearch={(v) => setSearchTerm(v)}
+                onSearch={handleBarcodeSearch}
                 data-testid="input-search-bills"
               />
             </div>
