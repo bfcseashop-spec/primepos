@@ -614,7 +614,7 @@ export default function LabTestsPage() {
               <tr style="border-bottom:1px solid ${border};">
                 <td style="padding:${padSm};font-size:${fSm}px;font-weight:600;color:${accent};">${escapeHtml(r.parameter)}</td>
                 <td style="padding:${padSm};font-size:${fResult}px;font-weight:700;color:${resultColor};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(r.result || "-")}</td>
-                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${escapeHtml(r.unit || "-")}</td>
+                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${formatSupSub(r.unit || "-")}</td>
                 <td style="padding:${padSm};font-size:${fSm}px;color:${muted};line-height:1.5;">${formatNormalRange(r.normalRange)}</td>
               </tr>`;
             };
@@ -1268,11 +1268,12 @@ export default function LabTestsPage() {
                                 const normalRange = paramsByName.has(r.parameter) ? paramsByName.get(r.parameter)! : (r.normalRange || "—");
                                 const outOfRange = isResultOutOfRange(r.result, normalRange, vTest.patientGender, vTest.patientAge);
                                 const rangeFormatted = (normalRange || "—").split(/\r?\n|,\s*,/).map(l => formatSupSub(l.trim())).filter(Boolean).join("<br/>") || "—";
+                                const unitFormatted = (r.unit || "—") ? formatSupSub(r.unit || "—") : "—";
                                 rows.push(
                                   <tr key={`${cat}-${i}-${r.parameter}`} className="border-t">
                                     <td className="p-2">{r.parameter}</td>
                                     <td className={`p-2 font-medium ${outOfRange ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>{r.result}</td>
-                                    <td className="p-2 text-muted-foreground">{r.unit || "—"}</td>
+                                    <td className="p-2 text-muted-foreground" dangerouslySetInnerHTML={{ __html: unitFormatted }} />
                                     <td className="p-2 text-muted-foreground" dangerouslySetInnerHTML={{ __html: rangeFormatted }} />
                                   </tr>
                                 );
@@ -1468,7 +1469,10 @@ export default function LabTestsPage() {
                                   <Input value={value} onChange={e => setInputResultsValues(prev => ({ ...prev, [p.parameter]: e.target.value }))} placeholder="Enter result" className={`h-9 min-w-[140px] ${outOfRange ? "border-red-500 text-red-600 dark:text-red-400" : ""}`} />
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-muted-foreground">{p.unit || "—"}</td>
+                              <td
+                                className="px-4 py-3 text-muted-foreground"
+                                dangerouslySetInnerHTML={{ __html: (p.unit || "—") ? formatSupSub(p.unit || "—") : "—" }}
+                              />
                               <td className="px-4 py-3 text-muted-foreground" dangerouslySetInnerHTML={{ __html: (p.normalRange || "—").split(/\r?\n|,\s*,/).map(l => formatSupSub(l.trim())).filter(Boolean).join("<br/>") || "—" }} />
                             </tr>
                           );
