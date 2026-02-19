@@ -555,7 +555,6 @@ export default function LabTestsPage() {
                 <div style="margin-bottom:6px;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}</div>
                 ${(row as unknown as { patientPatientId?: string }).patientPatientId ? `<div style="margin-bottom:6px;"><strong>UHID:</strong> ${escapeHtml(String((row as unknown as { patientPatientId: string }).patientPatientId))}</div>` : ""}
                 <div style="margin-bottom:6px;"><strong>Age/Gender:</strong> ${patientAgeGender}</div>
-                ${row.referrerName ? `<div style="margin-bottom:6px;"><strong>Referred By:</strong> ${escapeHtml(row.referrerName)}</div>` : ""}
                 <div><strong>Sample Type:</strong> ${escapeHtml(row.sampleType || "-")}</div>
               </td>
               <td style="width:50%;vertical-align:top;padding:8px 0 8px 14px;border-left:1px solid ${border};">
@@ -563,7 +562,8 @@ export default function LabTestsPage() {
                   <div><strong>Lab No:</strong> ${escapeHtml(row.testCode)}</div>
                   ${testCodeBarcode ? `<div id="lab-report-barcode" style="flex-shrink:0;"></div>` : ""}
                 </div>
-                <div><strong>Report Date:</strong> ${reportDateStr}</div>
+                <div style="margin-bottom:6px;"><strong>Report Date:</strong> ${reportDateStr}</div>
+                ${row.referrerName ? `<div><strong>Referred By:</strong> ${escapeHtml(row.referrerName)}</div>` : ""}
               </td>
             </tr>
           </table>
