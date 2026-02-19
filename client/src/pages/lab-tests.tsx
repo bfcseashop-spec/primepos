@@ -146,7 +146,7 @@ function LabTestBarcodePreview({ test, onClose, t }: { test: LabTestWithPatient;
 function isResultOutOfRange(result: string, normalRange: string): boolean {
   if (!result?.trim() || !normalRange?.trim()) return false;
   const r = result.trim();
-  const nr = normalRange.replace(/\r?\n/g, ",").trim();
+  const nr = normalRange.replace(/\r?\n/g, ",").replace(/,\s*,/g, ",").trim();
   const num = parseFloat(r.replace(/[^\d.\-]/g, ""));
   if (Number.isNaN(num)) {
     const opts = nr.split(/[,;\/]|\bor\b/i).map((s) => s.trim().toLowerCase()).filter(Boolean);
@@ -460,14 +460,14 @@ export default function LabTestsPage() {
     const muted = "#475569";
     const border = "#e2e8f0";
 
-    const bodyPad = "12px 16px";
+    const bodyPad = "14px 20px";
     const maxW = "100%";
-    const fBase = 11;
-    const fSm = 10;
-    const fPatient = 11;
-    const fResult = 12;
-    const pad = "6px 8px";
-    const padSm = "4px 6px";
+    const fBase = 12;
+    const fSm = 11;
+    const fPatient = 12;
+    const fResult = 14;
+    const pad = "8px 10px";
+    const padSm = "6px 8px";
 
     const testCodeBarcode = (row.testCode || "").replace(/[^A-Za-z0-9\-]/g, "") || row.testCode || "";
 
@@ -483,7 +483,7 @@ export default function LabTestsPage() {
       <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; width: 100%; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.3; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${accent}; padding: 0; width: 100%; max-width: ${maxW}; margin: 0 auto; font-size: ${fBase}px; line-height: 1.4; }
         table { border-collapse: collapse; width: 100%; }
         @media print { @page { size: ${labPageSize}; margin: 10mm; } html, body { min-height: 100%; margin: 0; padding: 0; width: 100% !important; max-width: 100% !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
         .lab-print-page { min-height: 100vh; display: flex; flex-direction: column; width: 100%; }
@@ -495,25 +495,25 @@ export default function LabTestsPage() {
 
           <div class="lab-print-body">
           <!-- HEADER: Clinic name, address, contact -->
-          <div style="margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${border};">
-            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:40px;margin-bottom:4px;" />` : ""}
-            <div style="font-size:16px;font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.03em;">${escapeHtml(clinicNameDisplay)}</div>
-            ${clinicAddress ? `<div style="font-size:${fSm}px;color:${muted};margin-top:2px;">${escapeHtml(clinicAddress)}</div>` : ""}
-            ${clinicPhone || clinicEmail || clinicWebsite ? `<div style="font-size:9px;color:${muted};margin-top:2px;">${[clinicPhone, clinicEmail, clinicWebsite].filter(Boolean).join(" · ")}</div>` : ""}
+          <div style="margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid ${border};">
+            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:48px;margin-bottom:6px;" />` : ""}
+            <div style="font-size:18px;font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.03em;">${escapeHtml(clinicNameDisplay)}</div>
+            ${clinicAddress ? `<div style="font-size:${fSm}px;color:${muted};margin-top:4px;">${escapeHtml(clinicAddress)}</div>` : ""}
+            ${clinicPhone || clinicEmail || clinicWebsite ? `<div style="font-size:${fSm - 1}px;color:${muted};margin-top:4px;">${[clinicPhone, clinicEmail, clinicWebsite].filter(Boolean).join(" · ")}</div>` : ""}
           </div>
 
           <!-- TWO-COLUMN: Patient info (left) | Lab info (right) -->
-          <table style="width:100%;margin-bottom:12px;font-size:${fPatient}px;border-collapse:collapse;">
+          <table style="width:100%;margin-bottom:14px;font-size:${fPatient}px;border-collapse:collapse;">
             <tr>
-              <td style="width:50%;vertical-align:top;padding:6px 12px 6px 0;">
-                <div style="margin-bottom:4px;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}</div>
-                ${(row as unknown as { patientPatientId?: string }).patientPatientId ? `<div style="margin-bottom:4px;"><strong>UHID:</strong> ${escapeHtml(String((row as unknown as { patientPatientId: string }).patientPatientId))}</div>` : ""}
-                <div style="margin-bottom:4px;"><strong>Age/Gender:</strong> ${patientAgeGender}</div>
-                ${row.referrerName ? `<div style="margin-bottom:4px;"><strong>Referred By:</strong> ${escapeHtml(row.referrerName)}</div>` : ""}
+              <td style="width:50%;vertical-align:top;padding:8px 14px 8px 0;">
+                <div style="margin-bottom:6px;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}</div>
+                ${(row as unknown as { patientPatientId?: string }).patientPatientId ? `<div style="margin-bottom:6px;"><strong>UHID:</strong> ${escapeHtml(String((row as unknown as { patientPatientId: string }).patientPatientId))}</div>` : ""}
+                <div style="margin-bottom:6px;"><strong>Age/Gender:</strong> ${patientAgeGender}</div>
+                ${row.referrerName ? `<div style="margin-bottom:6px;"><strong>Referred By:</strong> ${escapeHtml(row.referrerName)}</div>` : ""}
                 <div><strong>Sample Type:</strong> ${escapeHtml(row.sampleType || "-")}</div>
               </td>
-              <td style="width:50%;vertical-align:top;padding:6px 0 6px 12px;border-left:1px solid ${border};">
-                <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px;">
+              <td style="width:50%;vertical-align:top;padding:8px 0 8px 14px;border-left:1px solid ${border};">
+                <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;">
                   <div><strong>Lab No:</strong> ${escapeHtml(row.testCode)}</div>
                   ${testCodeBarcode ? `<div id="lab-report-barcode" style="flex-shrink:0;"></div>` : ""}
                 </div>
@@ -523,7 +523,7 @@ export default function LabTestsPage() {
           </table>
 
           <!-- SECTION TITLE -->
-          <div style="font-size:13px;font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:8px;">${escapeHtml(row.testName)}</div>
+          <div style="font-size:15px;font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:10px;">${escapeHtml(row.testName)}</div>
 
           ${reportResults.length > 0 ? (() => {
             type R = { parameter: string; result: string; unit: string; normalRange: string; category?: string };
@@ -536,7 +536,8 @@ export default function LabTestsPage() {
             const cats = Object.keys(byCat).sort((a, b) => (a === "\x00" ? -1 : b === "\x00" ? 1 : a.localeCompare(b)));
             const formatNormalRange = (s: string) => {
               const raw = String(s || "").trim();
-              const lines = raw.split(/\r?\n|\r/).map(l => l.trim()).filter(Boolean);
+              // Split by newlines OR double comma (,,) — each segment becomes a line
+              const lines = raw.split(/\r?\n|\r|,\s*,/).map(l => l.trim()).filter(Boolean);
               if (lines.length === 0) return escapeHtml("-");
               return lines.map(l => `<span style="display:block;">${escapeHtml(l)}</span>`).join("");
             };
@@ -548,26 +549,26 @@ export default function LabTestsPage() {
                 <td style="padding:${padSm};font-size:${fSm}px;font-weight:600;color:${accent};">${escapeHtml(r.parameter)}</td>
                 <td style="padding:${padSm};font-size:${fResult}px;font-weight:700;color:${resultColor};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(r.result || "-")}</td>
                 <td style="padding:${padSm};font-size:${fSm}px;color:${muted};">${escapeHtml(r.unit || "-")}</td>
-                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};line-height:1.4;">${formatNormalRange(r.normalRange)}</td>
+                <td style="padding:${padSm};font-size:${fSm}px;color:${muted};line-height:1.5;">${formatNormalRange(r.normalRange)}</td>
               </tr>`;
             };
             let tbody = "";
             for (const cat of cats) {
               const items = byCat[cat] || [];
               if (cat !== "\x00") {
-                tbody += `<tr style="background:${teal}20;border-bottom:1px solid ${border};"><td colspan="4" style="padding:${padSm};font-size:${fSm}px;font-weight:700;color:${teal};text-transform:uppercase;">${escapeHtml(cat)}</td></tr>`;
+                tbody += `<tr style="background:${teal}20;border-bottom:1px solid ${border};"><td colspan="4" style="padding:${pad};font-size:${fSm}px;font-weight:700;color:${teal};text-transform:uppercase;">${escapeHtml(cat)}</td></tr>`;
               }
               tbody += items.map(rowHtml).join("");
             }
             return `
           <!-- RESULTS TABLE -->
-          <table style="width:100%;margin-bottom:12px;">
+          <table style="width:100%;margin-bottom:14px;">
             <thead>
               <tr style="background:${teal};-webkit-print-color-adjust:exact;print-color-adjust:exact;">
-                <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Test Name</th>
-                <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Result</th>
-                <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Unit</th>
-                <th style="padding:${pad};text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Normal/Reference Ranges</th>
+                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Test Name</th>
+                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Result</th>
+                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Unit</th>
+                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Normal/Reference Ranges</th>
               </tr>
             </thead>
             <tbody>
@@ -582,14 +583,14 @@ export default function LabTestsPage() {
           <div style="width:100%;">
 
           <!-- END OF REPORT -->
-          <div style="text-align:center;margin:12px 0;font-size:11px;font-weight:700;color:${teal};">*** End Of Report ***</div>
+          <div style="text-align:center;margin:14px 0;font-size:12px;font-weight:700;color:${teal};">*** End Of Report ***</div>
 
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;padding-top:8px;border-top:1px solid ${border};">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;padding-top:10px;border-top:1px solid ${border};">
             <div style="font-size:${fSm}px;">
               ${row.labTechnologist?.fullName ? `<div><strong>Verified By:</strong> ${escapeHtml(row.labTechnologist.fullName)}</div>` : ""}
-              ${row.createdAt ? `<div style="margin-top:2px;"><strong>Verified At:</strong> ${reportDateStr}</div>` : ""}
-              <div style="margin-top:4px;"><strong>Printed By:</strong> ${escapeHtml(printedBy)}</div>
-              <div style="margin-top:2px;"><strong>Printed At:</strong> ${printedAtStr}</div>
+              ${row.createdAt ? `<div style="margin-top:4px;"><strong>Verified At:</strong> ${reportDateStr}</div>` : ""}
+              <div style="margin-top:6px;"><strong>Printed By:</strong> ${escapeHtml(printedBy)}</div>
+              <div style="margin-top:4px;"><strong>Printed At:</strong> ${printedAtStr}</div>
             </div>
             ${row.labTechnologist && row.labTechnologist.fullName ? (() => {
               const tech = row.labTechnologist!;
@@ -597,17 +598,18 @@ export default function LabTestsPage() {
               const sigHref = printSig && tech.signatureUrl ? (tech.signatureUrl.startsWith("http") ? tech.signatureUrl : `${typeof window !== "undefined" ? window.location.origin : ""}${tech.signatureUrl.startsWith("/") ? tech.signatureUrl : "/" + tech.signatureUrl}`) : "";
               const name = escapeHtml(tech.fullName);
               const qualRaw = tech.qualification || "";
-              const qual = qualRaw ? qualRaw.split(",").map(s => escapeHtml(s.trim())).filter(Boolean).join("<br/>") : "";
+              // Split by double comma (,,) — each segment becomes a line; single commas stay in text (e.g. "Prime Clinic, Sihanouk")
+              const qual = qualRaw ? qualRaw.split(/,\s*,/).map(s => escapeHtml(s.trim())).filter(Boolean).join("<br/>") : "";
               return `
-            <div style="text-align:right;font-size:${fSm}px;line-height:1.35;">
-              ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:36px;max-width:80px;object-contain;display:block;margin-left:auto;margin-bottom:2px;" onerror="this.style.display='none'" />` : ""}
+            <div style="text-align:right;font-size:${fSm}px;line-height:1.4;">
+              ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:44px;max-width:96px;object-contain;display:block;margin-left:auto;margin-bottom:4px;" onerror="this.style.display='none'" />` : ""}
               <div style="font-weight:700;color:${accent};">${name}</div>
               ${qual ? `<div style="color:${muted};">${qual}</div>` : ""}
             </div>`;
             })() : ""}
           </div>
 
-          <div style="text-align:center;margin-top:8px;padding-top:6px;border-top:1px solid ${border};font-size:${fSm}px;color:${muted};">
+          <div style="text-align:center;margin-top:10px;padding-top:8px;border-top:1px solid ${border};font-size:${fSm}px;color:${muted};">
             Thank you for choosing ${escapeHtml(clinicNameDisplay)}!${clinicEmail ? ` · ${escapeHtml(clinicEmail)}` : ""}
           </div>
           </div>
@@ -624,7 +626,7 @@ export default function LabTestsPage() {
               if (el && barcodeVal && typeof JsBarcode !== "undefined") {
                 var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
                 el.appendChild(svg);
-                JsBarcode(svg, barcodeVal, { format: "CODE128", width: 2, height: 50, displayValue: false, margin: 4, lineColor: "#000000", background: "#ffffff" });
+                JsBarcode(svg, barcodeVal, { format: "CODE128", width: 2, height: 56, displayValue: false, margin: 4, lineColor: "#000000", background: "#ffffff" });
               }
             } catch (e) {}
             setTimeout(function() { window.print(); }, 150);

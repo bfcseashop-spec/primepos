@@ -612,8 +612,8 @@ export default function StaffPage() {
             </div>
             <div>
               <Label htmlFor="createQualification">Qualification (for Lab Technologist)</Label>
-              <Input id="createQualification" name="qualification" placeholder="e.g. B.Sc in Lab Medicine (RU) BD, Medical Technologist (LAB)" data-testid="input-user-qualification" />
-              <p className="text-xs text-muted-foreground mt-1">Shown on printed lab test reports when this user is selected as lab technologist. Add signature in Edit User after creation.</p>
+              <Input id="createQualification" name="qualification" placeholder="e.g. B.Sc in Lab Medicine (RU) BD,, Medical Technologist (LAB)" data-testid="input-user-qualification" />
+              <p className="text-xs text-muted-foreground mt-1">Shown on printed lab test reports when this user is selected as lab technologist. Use double comma (,,) to separate lines. Add signature in Edit User after creation.</p>
             </div>
             <Button type="submit" className="w-full" disabled={createStaffMutation.isPending} data-testid="button-submit-user">
               {createStaffMutation.isPending ? "Creating..." : "Create User"}
@@ -638,7 +638,7 @@ export default function StaffPage() {
                 <div><span className="text-muted-foreground">Role</span><p className="font-medium">{selectedUser.roleName || "No Role"}</p></div>
                 {(selectedUser.qualification || selectedUser.signatureUrl) && (
                   <>
-                    {selectedUser.qualification && <div><span className="text-muted-foreground">Qualification (Lab Tech)</span><p className="font-medium">{selectedUser.qualification}</p></div>}
+                    {selectedUser.qualification && <div><span className="text-muted-foreground">Qualification (Lab Tech)</span><p className="font-medium whitespace-pre-line">{(selectedUser.qualification || "").split(/,\s*,/).map(s => s.trim()).filter(Boolean).join("\n")}</p></div>}
                     {selectedUser.signatureUrl && <div><span className="text-muted-foreground">Signature</span><p><img src={selectedUser.signatureUrl} alt="Signature" className="h-8 object-contain border rounded" /></p></div>}
                   </>
                 )}
@@ -676,7 +676,7 @@ export default function StaffPage() {
               </div>
               <div>
                 <Label htmlFor="editQualification">Qualification (for Lab Technologist)</Label>
-                <Input id="editQualification" name="qualification" defaultValue={selectedUser.qualification || ""} placeholder="e.g. B.Sc in Lab Medicine (RU) BD" data-testid="input-edit-user-qualification" />
+                <Input id="editQualification" name="qualification" defaultValue={selectedUser.qualification || ""} placeholder="e.g. B.Sc in Lab Medicine (RU) BD,, Medical Technologist (LAB)" data-testid="input-edit-user-qualification" />
               </div>
               <div>
                 <Label>Signature (for Lab Technologist)</Label>
