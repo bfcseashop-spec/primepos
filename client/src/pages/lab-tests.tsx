@@ -601,8 +601,8 @@ export default function LabTestsPage() {
               // Split by double comma (,,) — each segment becomes a line; single commas stay in text (e.g. "Prime Clinic, Sihanouk")
               const qual = qualRaw ? qualRaw.split(/,\s*,/).map(s => escapeHtml(s.trim())).filter(Boolean).join("<br/>") : "";
               return `
-            <div style="text-align:right;font-size:${fSm}px;line-height:1.4;">
-              ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:44px;max-width:96px;object-contain;display:block;margin-left:auto;margin-bottom:4px;" onerror="this.style.display='none'" />` : ""}
+            <div style="text-align:center;font-size:${fSm}px;line-height:1.4;">
+              ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:44px;max-width:96px;object-contain;display:block;margin:0 auto 4px;" onerror="this.style.display='none'" />` : ""}
               <div style="font-weight:700;color:${accent};">${name}</div>
               ${qual ? `<div style="color:${muted};">${qual}</div>` : ""}
             </div>`;
