@@ -27,6 +27,14 @@ Backups are stored in `backups/` with timestamped names:
 - `08-15-2026-23-30-primepos.tar.gz` - Code snapshot (excludes node_modules, dist, .git)
 - `08-15-2026-23-30-primepos.sql` - Database dump (PostgreSQL)
 
+## Session persistence across deployments
+
+To keep users logged in after deployment, ensure **`SESSION_SECRET`** is set in `.env` and stays the same across deploys. If it changes, all sessions are invalidated and users must log in again. Example:
+
+```
+SESSION_SECRET=your-stable-secret-at-least-32-chars
+```
+
 ## Requirements
 
 - `tar` - for code backup (built-in on Linux)

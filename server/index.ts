@@ -49,7 +49,7 @@ app.use(
       createTableIfMissing: true,
       tableName: "session",
     }),
-    secret: process.env.SESSION_SECRET || "clinicpos-fallback-secret-change-me",
+    secret: process.env.SESSION_SECRET || "clinicpos-fallback-secret-change-me", // Use stable SESSION_SECRET in production to keep sessions across deployments
     resave: false,
     saveUninitialized: false,
     name: "connect.sid",

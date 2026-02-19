@@ -87,7 +87,8 @@ function App() {
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    fetch("/api/auth/me", { credentials: "include" })
+    const checkAuth = () => fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+    checkAuth()
       .then(async (res) => {
         if (!res.ok) throw new Error("Not authenticated");
         return safeJsonRes(res);
@@ -115,18 +116,26 @@ function App() {
           setCurrentUser(restored);
           setAuthChecked(true);
           try {
-            const recheck = await fetch("/api/auth/me", { credentials: "include" });
+            const recheck = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
             if (!recheck.ok) {
-              setCurrentUser(null);
-              localStorage.removeItem("clinicpos_user");
-              queryClient.clear();
+              await new Promise(r => setTimeout(r, 1500));
+              const retry = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+              if (!retry.ok) {
+                setCurrentUser(null);
+                localStorage.removeItem("clinicpos_user");
+                queryClient.clear();
+              } else {
+                const user = await safeJsonRes(retry);
+                setCurrentUser(user);
+                localStorage.setItem("clinicpos_user", JSON.stringify(user));
+              }
             } else {
               const user = await safeJsonRes(recheck);
               setCurrentUser(user);
               localStorage.setItem("clinicpos_user", JSON.stringify(user));
             }
           } catch {
-            // Network or HTML response: keep restored user; next API call will fail if API unreachable
+            // Keep restored user; next API call will fail if unreachable
           }
         } else {
           setCurrentUser(null);

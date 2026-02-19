@@ -343,6 +343,7 @@ export const labTests = pgTable("lab_tests", {
   turnaroundTime: text("turnaround_time"),
   patientId: integer("patient_id").references(() => patients.id),
   serviceId: integer("service_id").references(() => services.id),
+  serviceIds: jsonb("service_ids").$type<number[] | null>(), // When set: one lab request for multiple services (bill)
   billId: integer("bill_id").references(() => bills.id),
   sampleCollectionRequired: boolean("sample_collection_required").notNull().default(false),
   reportFileUrl: text("report_file_url"),

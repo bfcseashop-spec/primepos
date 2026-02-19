@@ -365,14 +365,30 @@ export default function LabTestsPage() {
     queryKey: ["/api/patients"],
   });
 
-  const { data: inputResultsService } = useQuery<{ reportParameters?: Array<{ parameter: string; unit: string; normalRange: string; resultType?: "manual" | "dropdown"; dropdownItems?: string[] }> }>({
-    queryKey: inputResultsTest?.serviceId ? [`/api/services/${inputResultsTest.serviceId}`] : ["__skip"],
-    enabled: !!inputResultsTest?.serviceId,
+  const inputServiceIds = (inputResultsTest as { serviceId?: number; serviceIds?: number[] })?.serviceIds?.length
+    ? (inputResultsTest as { serviceIds: number[] }).serviceIds
+    : inputResultsTest?.serviceId
+      ? [(inputResultsTest as { serviceId: number }).serviceId]
+      : [];
+  const { data: inputResultsService } = useQuery<{ reportParameters?: Array<{ parameter: string; unit: string; normalRange: string; resultType?: "manual" | "dropdown"; dropdownItems?: string[]; category?: string }> }>({
+    queryKey: inputServiceIds.length ? (inputServiceIds.length > 1 ? ["/api/services/params-batch", inputServiceIds.join(",")] : [`/api/services/${inputServiceIds[0]}`]) : ["__skip"],
+    enabled: inputServiceIds.length > 0,
+    ...(inputServiceIds.length > 1
+      ? { queryFn: () => fetch(`/api/services/params-batch?ids=${inputServiceIds.join(",")}`, { credentials: "include" }).then(r => r.json()) }
+      : {}),
   });
 
+  const viewServiceIds = (viewTest as { serviceId?: number; serviceIds?: number[] })?.serviceIds?.length
+    ? (viewTest as { serviceIds: number[] }).serviceIds
+    : viewTest?.serviceId
+      ? [(viewTest as { serviceId: number }).serviceId]
+      : [];
   const { data: viewService } = useQuery<{ reportParameters?: Array<{ parameter: string; normalRange: string }> }>({
-    queryKey: viewTest?.serviceId ? [`/api/services/${viewTest.serviceId}`] : ["__skip"],
-    enabled: !!viewTest?.serviceId,
+    queryKey: viewServiceIds.length ? (viewServiceIds.length > 1 ? ["/api/services/params-batch", viewServiceIds.join(",")] : [`/api/services/${viewServiceIds[0]}`]) : ["__skip"],
+    enabled: viewServiceIds.length > 0,
+    ...(viewServiceIds.length > 1
+      ? { queryFn: () => fetch(`/api/services/params-batch?ids=${viewServiceIds.join(",")}`, { credentials: "include" }).then(r => r.json()) }
+      : {}),
   });
 
   const { data: settings } = useQuery<ClinicSettings>({
@@ -473,12 +489,19 @@ export default function LabTestsPage() {
     const printWindow = window.open("", "_blank", "width=794,height=1123");
     if (!printWindow) return;
     let reportResults = (row.reportResults || []).map(r => ({ ...r }));
-    if (row.serviceId) {
+    const rowServiceIds = (row as { serviceIds?: number[] }).serviceIds?.length
+      ? (row as { serviceIds: number[] }).serviceIds
+      : row.serviceId
+        ? [row.serviceId]
+        : [];
+    if (rowServiceIds.length > 0) {
       try {
-        const svc = await queryClient.fetchQuery<{ reportParameters?: Array<{ parameter: string; normalRange: string }> }>({
-          queryKey: [`/api/services/${row.serviceId}`],
-        });
-        const paramsByName = new Map((svc?.reportParameters || []).map(p => [p.parameter, p.normalRange || ""]));
+        const url = rowServiceIds.length > 1
+          ? `/api/services/params-batch?ids=${rowServiceIds.join(",")}`
+          : `/api/services/${rowServiceIds[0]}`;
+        const res = await fetch(url.startsWith("http") ? url : `${typeof window !== "undefined" ? window.location.origin : ""}${url}`, { credentials: "include" });
+        const svc = res.ok ? await res.json() : null;
+        const paramsByName = new Map((svc?.reportParameters || []).map((p: { parameter: string; normalRange: string }) => [p.parameter, p.normalRange || ""]));
         reportResults = reportResults.map(r => ({
           ...r,
           normalRange: paramsByName.has(r.parameter) ? paramsByName.get(r.parameter)! : r.normalRange,
@@ -567,9 +590,6 @@ export default function LabTestsPage() {
               </td>
             </tr>
           </table>
-
-          <!-- SECTION TITLE -->
-          <div style="font-size:15px;font-weight:700;color:${teal};text-transform:uppercase;margin-bottom:10px;">${escapeHtml(row.testName)}</div>
 
           ${reportResults.length > 0 ? (() => {
             type R = { parameter: string; result: string; unit: string; normalRange: string; category?: string };
@@ -1224,22 +1244,41 @@ export default function LabTestsPage() {
                         </thead>
                         <tbody>
                           {(() => {
-                            const reportResults = (viewTest as LabTestWithPatient & { reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string }>; patientAge?: number; patientGender?: string }).reportResults;
+                            const reportResults = (viewTest as LabTestWithPatient & { reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string; category?: string }>; patientAge?: number; patientGender?: string }).reportResults;
                             const vTest = viewTest as { patientAge?: number; patientGender?: string };
-                            const paramsByName = new Map((viewService?.reportParameters || []).map(p => [p.parameter, p.normalRange || ""]));
-                            return reportResults.map((r, i) => {
-                              const normalRange = paramsByName.has(r.parameter) ? paramsByName.get(r.parameter)! : (r.normalRange || "—");
-                              const outOfRange = isResultOutOfRange(r.result, normalRange, vTest.patientGender, vTest.patientAge);
-                              const rangeFormatted = (normalRange || "—").split(/\r?\n|,\s*,/).map(l => formatSupSub(l.trim())).filter(Boolean).join("<br/>") || "—";
-                              return (
-                            <tr key={i} className="border-t">
-                              <td className="p-2">{r.parameter}</td>
-                              <td className={`p-2 font-medium ${outOfRange ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>{r.result}</td>
-                              <td className="p-2 text-muted-foreground">{r.unit || "—"}</td>
-                              <td className="p-2 text-muted-foreground" dangerouslySetInnerHTML={{ __html: rangeFormatted }} />
-                            </tr>
-                            );
+                            const paramsByName = new Map((viewService?.reportParameters || []).map((p: { parameter: string; normalRange: string }) => [p.parameter, p.normalRange || ""]));
+                            const byCat = reportResults.reduce<Record<string, typeof reportResults>>((acc, r) => {
+                              const cat = r.category || "\x00";
+                              if (!acc[cat]) acc[cat] = [];
+                              acc[cat].push(r);
+                              return acc;
+                            }, {});
+                            const cats = Object.keys(byCat).sort((a, b) => (a === "\x00" ? -1 : b === "\x00" ? 1 : a.localeCompare(b)));
+                            const rows: React.ReactNode[] = [];
+                            cats.forEach((cat) => {
+                              const items = byCat[cat] || [];
+                              if (cat !== "\x00") {
+                                rows.push(
+                                  <tr key={`cat-${cat}`} className="bg-muted/30 border-t">
+                                    <td colSpan={4} className="p-2 font-semibold text-teal-600 dark:text-teal-400">{cat}</td>
+                                  </tr>
+                                );
+                              }
+                              items.forEach((r, i) => {
+                                const normalRange = paramsByName.has(r.parameter) ? paramsByName.get(r.parameter)! : (r.normalRange || "—");
+                                const outOfRange = isResultOutOfRange(r.result, normalRange, vTest.patientGender, vTest.patientAge);
+                                const rangeFormatted = (normalRange || "—").split(/\r?\n|,\s*,/).map(l => formatSupSub(l.trim())).filter(Boolean).join("<br/>") || "—";
+                                rows.push(
+                                  <tr key={`${cat}-${i}-${r.parameter}`} className="border-t">
+                                    <td className="p-2">{r.parameter}</td>
+                                    <td className={`p-2 font-medium ${outOfRange ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>{r.result}</td>
+                                    <td className="p-2 text-muted-foreground">{r.unit || "—"}</td>
+                                    <td className="p-2 text-muted-foreground" dangerouslySetInnerHTML={{ __html: rangeFormatted }} />
+                                  </tr>
+                                );
+                              });
                             });
+                            return rows;
                           })()}
                         </tbody>
                       </table>

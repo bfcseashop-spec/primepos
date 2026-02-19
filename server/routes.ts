@@ -632,37 +632,45 @@ export async function registerRoutes(
       const patientId = Number(data.patientId);
       const referrerName = (data.referenceDoctor as string) || null;
       const allServices = await storage.getServices();
+      const labItems: Array<{ serv: any; item: any }> = [];
       for (const item of items) {
         if (item?.type === "service" && (item.serviceId != null || item.name)) {
           const serv = item.serviceId != null
             ? allServices.find(s => s.id === Number(item.serviceId))
             : allServices.find(s => s.name === item.name);
-          if (serv && (serv as any).isLabTest) {
-            const code = await storage.getNextLabTestCode();
-            const sampleRequired = Boolean((serv as any).sampleCollectionRequired);
-            const labTest = await storage.createLabTest({
-              testCode: code,
-              testName: serv.name,
-              category: serv.category,
-              sampleType: (serv as any).sampleType || "Blood",
-              price: String(serv.price),
+          if (serv && (serv as any).isLabTest) labItems.push({ serv, item });
+        }
+      }
+      if (labItems.length > 0) {
+        const code = await storage.getNextLabTestCode();
+        const first = labItems[0].serv;
+        const anySampleRequired = labItems.some(({ serv }) => (serv as any).sampleCollectionRequired);
+        const serviceIds = labItems.map(({ serv }) => serv.id);
+        const labTest = await storage.createLabTest({
+          testCode: code,
+          testName: labItems.length === 1 ? first.name : "Lab Panel",
+          category: first.category,
+          sampleType: (first as any).sampleType || "Blood",
+          price: String(labItems.reduce((s, { serv }) => s + Number(serv.price || 0), 0)),
+          patientId,
+          serviceId: first.id,
+          serviceIds: labItems.length > 1 ? serviceIds : null,
+          billId: bill.id,
+          sampleCollectionRequired: anySampleRequired,
+          referrerName,
+          status: anySampleRequired ? "awaiting_sample" : "processing",
+        });
+        for (const { serv } of labItems) {
+          const sampleRequired = Boolean((serv as any).sampleCollectionRequired);
+          if (sampleRequired) {
+            await storage.createSampleCollection({
+              labTestId: labTest.id,
               patientId,
-              serviceId: serv.id,
               billId: bill.id,
-              sampleCollectionRequired: sampleRequired,
-              referrerName,
-              status: sampleRequired ? "awaiting_sample" : "processing",
+              testName: serv.name,
+              sampleType: (serv as any).sampleType || "Blood",
+              status: "pending",
             });
-            if (sampleRequired) {
-              await storage.createSampleCollection({
-                labTestId: labTest.id,
-                patientId,
-                billId: bill.id,
-                testName: serv.name,
-                sampleType: (serv as any).sampleType || "Blood",
-                status: "pending",
-              });
-            }
           }
         }
       }
@@ -816,6 +824,58 @@ export async function registerRoutes(
     try {
       const result = await storage.getServices();
       res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/services/params-batch", async (req, res) => {
+    try {
+      const idsParam = req.query.ids as string;
+      const ids = idsParam ? idsParam.split(",").map((x) => Number(x.trim())).filter((n) => !Number.isNaN(n)) : [];
+      if (ids.length === 0) return res.json({ reportParameters: [], reportParametersByCategory: [] });
+      const allParams: Array<{ parameter: string; unit: string; normalRange: string; resultType?: string; dropdownItems?: string[]; category?: string }> = [];
+      const seen = new Set<string>();
+      for (const id of ids) {
+        const svc = await storage.getService(id);
+        const params = (svc as any)?.reportParameters;
+        if (Array.isArray(params)) {
+          for (const p of params) {
+            if (p?.parameter && !seen.has(p.parameter)) {
+              seen.add(p.parameter);
+              allParams.push({
+                parameter: p.parameter,
+                unit: p.unit || "",
+                normalRange: p.normalRange || "",
+                resultType: p.resultType,
+                dropdownItems: p.dropdownItems,
+                category: p.category || "Other",
+              });
+            }
+          }
+        }
+      }
+      const byCategory = allParams.reduce<Record<string, typeof allParams>>((acc, p) => {
+        const cat = p.category || "\x00";
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(p);
+        return acc;
+      }, {});
+      const categoryOrder = Object.keys(byCategory).sort((a, b) =>
+        a === "\x00" ? -1 : b === "\x00" ? 1 : a.localeCompare(b));
+      const reportParametersByCategory = categoryOrder.map((category) => ({
+        category: category === "\x00" ? "Other" : category,
+        parameters: byCategory[category],
+      }));
+      res.json({
+        reportParameters: allParams.sort((a, b) => {
+          const ca = a.category || "\x00";
+          const cb = b.category || "\x00";
+          if (ca !== cb) return categoryOrder.indexOf(ca) - categoryOrder.indexOf(cb);
+          return (a.parameter || "").localeCompare(b.parameter || "");
+        }),
+        reportParametersByCategory,
+      });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
