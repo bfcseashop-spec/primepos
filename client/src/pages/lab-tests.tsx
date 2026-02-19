@@ -585,8 +585,8 @@ export default function LabTestsPage() {
           <!-- END OF REPORT -->
           <div style="text-align:center;margin:14px 0;font-size:12px;font-weight:700;color:${teal};">*** End Of Report ***</div>
 
-          <div style="padding-top:10px;border-top:1px solid ${border};">
-            <div style="font-size:${fSm}px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-top:10px;border-top:1px solid ${border};">
+            <div style="font-size:${fSm}px;flex:0 0 auto;min-width:180px;">
               ${row.labTechnologist?.fullName ? `<div><strong>Verified By:</strong> ${escapeHtml(row.labTechnologist.fullName)}</div>` : ""}
               ${row.createdAt ? `<div style="margin-top:4px;"><strong>Verified At:</strong> ${reportDateStr}</div>` : ""}
               <div style="margin-top:6px;"><strong>Printed By:</strong> ${escapeHtml(printedBy)}</div>
@@ -601,12 +601,13 @@ export default function LabTestsPage() {
               // Split by double comma (,,) — each segment becomes a line; single commas stay in text (e.g. "Prime Clinic, Sihanouk")
               const qual = qualRaw ? qualRaw.split(/,\s*,/).map(s => escapeHtml(s.trim())).filter(Boolean).join("<br/>") : "";
               return `
-            <div style="text-align:center;font-size:${fSm}px;line-height:1.4;">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-width:0;font-size:${fSm}px;line-height:1.4;">
               ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:44px;max-width:96px;object-contain;display:block;margin:0 auto 4px;" onerror="this.style.display='none'" />` : ""}
-              <div style="font-weight:700;color:${accent};">${name}</div>
-              ${qual ? `<div style="color:${muted};">${qual}</div>` : ""}
+              <div style="font-weight:700;color:${accent};text-align:center;">${name}</div>
+              ${qual ? `<div style="color:${muted};text-align:center;">${qual}</div>` : ""}
             </div>`;
             })() : ""}
+            <div style="flex:0 0 auto;min-width:180px;"></div>
           </div>
 
           <div style="text-align:center;margin-top:10px;padding-top:8px;border-top:1px solid ${border};font-size:${fSm}px;color:${muted};">
