@@ -638,7 +638,7 @@ export default function StaffPage() {
                 <div><span className="text-muted-foreground">Role</span><p className="font-medium">{selectedUser.roleName || "No Role"}</p></div>
                 {(selectedUser.qualification || selectedUser.signatureUrl) && (
                   <>
-                    {selectedUser.qualification && <div><span className="text-muted-foreground">Qualification (Lab Tech)</span><p className="font-medium whitespace-pre-line">{(selectedUser.qualification || "").split(/,\s*,/).map(s => s.trim()).filter(Boolean).join("\n")}</p></div>}
+                    {selectedUser.qualification && <div><span className="text-muted-foreground">Qualification (Lab Tech)</span><p className="font-medium whitespace-pre-line">{(selectedUser.qualification || "").split(/,\s*,/).map((s: string) => s.trim()).filter(Boolean).join("\n")}</p></div>}
                     {selectedUser.signatureUrl && <div><span className="text-muted-foreground">Signature</span><p><img src={selectedUser.signatureUrl} alt="Signature" className="h-8 object-contain border rounded" /></p></div>}
                   </>
                 )}

@@ -754,7 +754,7 @@ export async function registerRoutes(
         byIndex.set(r.itemIndex, cur + r.quantity);
       }
 
-      for (const [itemIndex, qty] of byIndex) {
+      for (const [itemIndex, qty] of Array.from(byIndex)) {
         if (itemIndex >= items.length) return res.status(400).json({ message: `Invalid item index ${itemIndex}` });
         const item = items[itemIndex];
         if (item?.type !== "medicine" || item.medicineId == null) return res.status(400).json({ message: "Can only return medicine items" });
@@ -1483,6 +1483,7 @@ export async function registerRoutes(
     sellingPriceLocal: z.string().optional(),
     sellingPriceForeigner: z.string().optional(),
     stockCount: z.number().optional(),
+    totalStock: z.number().optional(),
     stockAlert: z.number().optional(),
     quantity: z.number().optional(),
     unitPrice: z.string().optional(),

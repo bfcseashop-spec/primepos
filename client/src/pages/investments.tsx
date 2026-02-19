@@ -15,7 +15,7 @@ import {
   Plus, DollarSign, X, Tag, Trash2, Eye, Pencil, Printer,
   MoreHorizontal, Users, Wallet, AlertTriangle, CheckCircle2, CreditCard,
   TrendingUp, ArrowDownRight, ArrowUpRight, CircleDollarSign, PiggyBank, Receipt, ChevronUp,
-  Upload, ImageIcon, Download, FileSpreadsheet
+  Upload, ImageIcon, Download, FileSpreadsheet, LayoutList, LayoutGrid, Search
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -83,6 +83,8 @@ export default function InvestmentsPage() {
   const [contributionForm, setContributionForm] = useState({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", images: [] as string[], note: "" });
   const [uploadingSlip, setUploadingSlip] = useState(false);
   const [contributionFilter, setContributionFilter] = useState("all");
+  const [contributionSearch, setContributionSearch] = useState("");
+  const [contributionViewMode, setContributionViewMode] = useState<"list" | "grid">("list");
   const [editContribution, setEditContribution] = useState<Contribution | null>(null);
   const [viewContribution, setViewContribution] = useState<Contribution | null>(null);
   const [deleteContributionConfirm, setDeleteContributionConfirm] = useState<number | null>(null);
@@ -545,8 +547,21 @@ export default function InvestmentsPage() {
     if (contributionFilter !== "all") {
       list = list.filter(c => c.investorName === contributionFilter);
     }
+    if (contributionSearch.trim()) {
+      const q = contributionSearch.trim().toLowerCase();
+      list = list.filter(c => {
+        const inv = investments.find(i => i.id === c.investmentId);
+        return (
+          (c.investorName || "").toLowerCase().includes(q) ||
+          (inv?.title || "").toLowerCase().includes(q) ||
+          (c.category || "").toLowerCase().includes(q) ||
+          (c.note || "").toLowerCase().includes(q) ||
+          String(c.amount || "").includes(q)
+        );
+      });
+    }
     return list;
-  }, [allContributions, filtered, contributionFilter]);
+  }, [allContributions, filtered, contributionFilter, contributionSearch, investments]);
 
   const allInvestorNames = useMemo(() => {
     const names = new Set<string>();
@@ -1118,8 +1133,18 @@ export default function InvestmentsPage() {
               <p className="text-xs text-muted-foreground mt-0.5">Payment history for all investments</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[180px] max-w-[240px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by investor, investment, category, note..."
+                  value={contributionSearch}
+                  onChange={(e) => setContributionSearch(e.target.value)}
+                  className="pl-8 h-9"
+                  data-testid="input-contribution-search"
+                />
+              </div>
               <Select value={contributionFilter} onValueChange={setContributionFilter}>
-                <SelectTrigger className="w-[180px]" data-testid="select-contribution-filter">
+                <SelectTrigger className="w-[160px]" data-testid="select-contribution-filter">
                   <SelectValue placeholder="Filter by investor" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1129,6 +1154,30 @@ export default function InvestmentsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <div className="flex rounded-md border bg-muted/30 p-0.5">
+                <Button
+                  type="button"
+                  variant={contributionViewMode === "list" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => setContributionViewMode("list")}
+                  title="List view"
+                  data-testid="button-contribution-view-list"
+                >
+                  <LayoutList className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant={contributionViewMode === "grid" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => setContributionViewMode("grid")}
+                  title="Grid view"
+                  data-testid="button-contribution-view-grid"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+              </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button size="sm" variant="outline" data-testid="button-export-contributions">
@@ -1157,8 +1206,10 @@ export default function InvestmentsPage() {
           </CardHeader>
           <CardContent className="p-0">
             {filteredContributions.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground text-center">No contributions recorded yet</p>
-            ) : (
+              <p className="p-4 text-sm text-muted-foreground text-center">
+                {contributionSearch || contributionFilter !== "all" ? "No contributions match your search or filter" : "No contributions recorded yet"}
+              </p>
+            ) : contributionViewMode === "list" ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -1217,6 +1268,52 @@ export default function InvestmentsPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            ) : (
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {filteredContributions.map((c) => {
+                  const inv = investments.find(i => i.id === c.investmentId);
+                  return (
+                    <Card key={c.id} className="overflow-hidden" data-testid={`card-contribution-${c.id}`}>
+                      <CardHeader className="p-3 pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <CardTitle className="text-sm font-semibold truncate">{inv?.title || `#${c.investmentId}`}</CardTitle>
+                            <p className="text-xs text-muted-foreground mt-0.5">{c.investorName}</p>
+                          </div>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => setViewContribution(c)} data-testid={`button-contribution-view-${c.id}`}>
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="Edit" onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editImages: c.images || [], _editNote: c.note || "" } as any)} data-testid={`button-contribution-edit-${c.id}`}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" title="Delete" onClick={() => setDeleteContributionConfirm(c.id)} data-testid={`button-contribution-delete-${c.id}`}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-3 pt-0 space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">{c.date}</span>
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">${fmt(Number(c.amount))}</span>
+                        </div>
+                        {c.category && (
+                          <Badge variant="secondary" className="text-xs">{c.category}</Badge>
+                        )}
+                        {c.note && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">{c.note}</p>
+                        )}
+                        {((c.images && c.images.length > 0) || c.paymentSlip) && (
+                          <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs">
+                            <ImageIcon className="h-3 w-3" /> {(c.images?.length || 0) + (c.paymentSlip ? 1 : 0)} slip(s)
+                          </span>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </CardContent>

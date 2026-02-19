@@ -504,7 +504,7 @@ export default function LabTestsPage() {
         const paramsByName = new Map((svc?.reportParameters || []).map((p: { parameter: string; normalRange: string }) => [p.parameter, p.normalRange || ""]));
         reportResults = reportResults.map(r => ({
           ...r,
-          normalRange: paramsByName.has(r.parameter) ? paramsByName.get(r.parameter)! : r.normalRange,
+          normalRange: String(paramsByName.has(r.parameter) ? paramsByName.get(r.parameter) : r.normalRange ?? ""),
         }));
       } catch {
         /* use existing reportResults */
@@ -866,7 +866,7 @@ export default function LabTestsPage() {
       (t.testCode && t.testCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (t.patientName && t.patientName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (t.referrerName && t.referrerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      ((t as { patientPatientId?: string }).patientPatientId && (t as { patientPatientId: string }).patientPatientId.toLowerCase().includes(searchTerm.toLowerCase()));
+      ((t as { patientPatientId?: string }).patientPatientId?.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchCategory = categoryFilter === "all" || t.category.includes(categoryFilter);
     const matchDate = isDateInRange(t.createdAt?.toString().slice(0, 10), dateRange);
     return matchInvoice && matchSearch && matchCategory && matchDate;

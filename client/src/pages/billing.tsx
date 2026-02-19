@@ -276,7 +276,7 @@ export default function BillingPage() {
     const standaloneItems = rawItems.filter((i: any) => i?.type !== "medicine" && (i?.packageId == null && i?.packageName == null));
     const printItems: { name: string; quantity: number; unitPrice: number; total: number }[] = [
       ...standaloneItems.map((i: any) => ({ name: i.name, quantity: Number(i.quantity) || 1, unitPrice: Number(i.unitPrice) || 0, total: Number(i.total) || 0 })),
-      ...[...packageGroups.values()].map((g) => ({ name: g.name, quantity: 1, unitPrice: g.total, total: g.total })),
+      ...Array.from(packageGroups.values()).map((g) => ({ name: g.name, quantity: 1, unitPrice: g.total, total: g.total })),
       ...(medicationTotal > 0 ? [{ name: "Medication", quantity: 1, unitPrice: medicationTotal, total: medicationTotal }] : []),
     ];
 
