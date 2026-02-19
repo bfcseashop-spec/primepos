@@ -41,7 +41,7 @@ export function SearchableSelect({
   const instanceId = useId();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [position, setPosition] = useState<{ top: number; left: number; width: number; inDialog?: boolean }>({ top: 0, left: 0, width: 0 });
+  const [position, setPosition] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -73,23 +73,11 @@ export function SearchableSelect({
     const el = containerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const dialog = el.closest("[role=\"dialog\"]") as HTMLElement | null;
-    if (dialog) {
-      const dialogRect = dialog.getBoundingClientRect();
-      setPosition({
-        top: openAbove ? rect.top - dialogRect.top - 4 : rect.bottom - dialogRect.top + 4,
-        left: rect.left - dialogRect.left,
-        width: rect.width,
-        inDialog: true,
-      });
-    } else {
-      setPosition({
-        top: openAbove ? rect.top - 4 : rect.bottom + 4,
-        left: rect.left,
-        width: rect.width,
-        inDialog: false,
-      });
-    }
+    setPosition({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+    });
   };
 
   useEffect(() => {
@@ -164,19 +152,15 @@ export function SearchableSelect({
       </Button>
 
       {open && typeof document !== "undefined" && (() => {
-        // Portal into the dialog content when inside a dialog so the focus trap includes the dropdown (search + scroll work)
-        const portalTarget = (containerRef.current?.closest("[role=\"dialog\"]") as HTMLElement) ?? document.body;
-        const isInDialog = portalTarget !== document.body;
-        // When inside a dialog, position:fixed is relative to the dialog's transform, so use position:absolute + dialog-relative coords
+        const rect = containerRef.current?.getBoundingClientRect();
         const dropdownStyle: React.CSSProperties = {
-          position: (isInDialog ? "absolute" : "fixed") as "absolute" | "fixed",
-          top: position.top,
-          left: position.left,
+          position: "fixed",
+          ...(openAbove && rect
+            ? { bottom: window.innerHeight - rect.top + 4, left: rect.left }
+            : { top: position.top, left: position.left }),
           width: Math.max(position.width, 200),
           minWidth: 200,
-          ...(openAbove && { transform: "translateY(-100%)" }),
-          // Ensure dropdown paints above dialog footer/buttons (same stacking context when portaled into dialog)
-          zIndex: isInDialog ? 2147483647 : 99999,
+          zIndex: 2147483647,
         };
         return createPortal(
         <div
@@ -221,7 +205,7 @@ export function SearchableSelect({
             )}
           </div>
         </div>,
-        portalTarget
+        document.body
       );
       })()}
     </div>

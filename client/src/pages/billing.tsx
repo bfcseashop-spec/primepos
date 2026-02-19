@@ -649,7 +649,7 @@ export default function BillingPage() {
       total: total.toFixed(2),
       paidAmount: total.toFixed(2),
       paymentMethod,
-      referenceDoctor: referenceDoctor?.trim() || null,
+      referenceDoctor: (referenceDoctor?.trim() && referenceDoctor !== "none") ? referenceDoctor.trim() : null,
       paymentDate: paymentDate || null,
       status: "paid",
     });
@@ -970,20 +970,15 @@ export default function BillingPage() {
                       <Stethoscope className="h-4 w-4 text-violet-500" />
                       <Label className="text-sm font-semibold">Doctor / Refer Name</Label>
                     </div>
-                    <Input
-                      list="create-bill-doctor-list"
-                      value={referenceDoctor}
-                      onChange={(e) => setReferenceDoctor(e.target.value)}
+                    <SearchableSelect
+                      value={referenceDoctor === "" ? undefined : referenceDoctor}
+                      onValueChange={(v) => setReferenceDoctor(v || "")}
                       placeholder="Select or type doctor / refer name..."
-                      className="w-full"
-                      data-testid="input-reference-doctor"
+                      searchPlaceholder="Search doctor..."
+                      emptyText="No doctor found. Add doctors in Doctor Management."
+                      options={doctorOptions}
+                      data-testid="select-reference-doctor"
                     />
-                    <datalist id="create-bill-doctor-list">
-                      <option value="" />
-                      {doctorOptions.filter(o => o.value !== "none").map((o) => (
-                        <option key={o.value} value={o.value} />
-                      ))}
-                    </datalist>
                   </div>
                 </div>
 
@@ -1680,19 +1675,20 @@ export default function BillingPage() {
                 </div>
                 <div>
                   <Label>Doctor / Refer Name</Label>
-                  <Input
-                    list="edit-bill-doctor-list"
-                    value={editDoctor}
-                    onChange={(e) => setEditDoctor(e.target.value)}
+                  <SearchableSelect
+                    value={editDoctor === "" ? undefined : editDoctor}
+                    onValueChange={(v) => setEditBill({ ...editBill, _editDoctor: v || "" })}
                     placeholder="Select or type doctor / refer name..."
-                    className="w-full"
+                    searchPlaceholder="Search doctor..."
+                    emptyText="No doctor found."
+                    options={[
+                      ...doctorOptions,
+                      ...(editDoctor && !doctorOptions.some(o => o.value === editDoctor)
+                        ? [{ value: editDoctor, label: editDoctor }]
+                        : []),
+                    ]}
                     data-testid="edit-bill-doctor"
                   />
-                  <datalist id="edit-bill-doctor-list">
-                    {doctorOptions.filter(o => o.value !== "none").map((o) => (
-                      <option key={o.value} value={o.value} />
-                    ))}
-                  </datalist>
                 </div>
                 <Button
                   className="w-full"
