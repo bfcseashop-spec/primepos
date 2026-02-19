@@ -165,6 +165,7 @@ export function SearchableSelect({
         return createPortal(
         <div
           ref={dropdownRef}
+          data-searchable-select-dropdown
           className="rounded-md border bg-popover text-popover-foreground shadow-md"
           style={dropdownStyle}
           onMouseDown={(e) => e.stopPropagation()}

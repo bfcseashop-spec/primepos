@@ -37,10 +37,14 @@ export function cleanupDialogScrollLock() {
   })
 }
 
+function isSearchableSelectDropdown(target: EventTarget | null): boolean {
+  return !!(target as HTMLElement)?.closest?.("[data-searchable-select-dropdown]");
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, onCloseAutoFocus, ...props }, ref) => (
+>(({ className, children, onCloseAutoFocus, onPointerDownOutside, onInteractOutside, onFocusOutside, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -53,6 +57,18 @@ const DialogContent = React.forwardRef<
         e.preventDefault()
         cleanupDialogScrollLock()
         onCloseAutoFocus?.(e)
+      }}
+      onPointerDownOutside={(e) => {
+        if (isSearchableSelectDropdown(e.target)) e.preventDefault();
+        onPointerDownOutside?.(e);
+      }}
+      onInteractOutside={(e) => {
+        if (isSearchableSelectDropdown(e.target)) e.preventDefault();
+        onInteractOutside?.(e);
+      }}
+      onFocusOutside={(e) => {
+        if (isSearchableSelectDropdown(e.target)) e.preventDefault();
+        onFocusOutside?.(e);
       }}
       {...props}
     >
