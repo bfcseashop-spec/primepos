@@ -501,10 +501,12 @@ export default function LabTestsPage() {
           : `/api/services/${rowServiceIds[0]}`;
         const res = await fetch(url.startsWith("http") ? url : `${typeof window !== "undefined" ? window.location.origin : ""}${url}`, { credentials: "include" });
         const svc = res.ok ? await res.json() : null;
-        const paramsByName = new Map((svc?.reportParameters || []).map((p: { parameter: string; normalRange: string }) => [p.parameter, p.normalRange || ""]));
+        const paramsByName = new Map<string, string>((svc?.reportParameters || []).map((p: { parameter: string; normalRange: string }) => [p.parameter, p.normalRange || ""]));
+        const unitsByName = new Map<string, string>((svc?.reportParameters || []).map((p: { parameter: string; unit?: string }) => [p.parameter, p.unit || ""]));
         reportResults = reportResults.map(r => ({
           ...r,
           normalRange: String(paramsByName.has(r.parameter) ? paramsByName.get(r.parameter) : r.normalRange ?? ""),
+          unit: unitsByName.has(r.parameter) ? unitsByName.get(r.parameter)! : r.unit,
         }));
       } catch {
         /* use existing reportResults */
@@ -1247,6 +1249,7 @@ export default function LabTestsPage() {
                             const reportResults = (viewTest as LabTestWithPatient & { reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string; category?: string }>; patientAge?: number; patientGender?: string }).reportResults;
                             const vTest = viewTest as { patientAge?: number; patientGender?: string };
                             const paramsByName = new Map((viewService?.reportParameters || []).map((p: { parameter: string; normalRange: string }) => [p.parameter, p.normalRange || ""]));
+                            const unitsByName = new Map((viewService?.reportParameters || []).map((p: { parameter: string; unit?: string }) => [p.parameter, p.unit || ""]));
                             const byCat = reportResults.reduce<Record<string, typeof reportResults>>((acc, r) => {
                               const cat = r.category || "\x00";
                               if (!acc[cat]) acc[cat] = [];
@@ -1268,7 +1271,8 @@ export default function LabTestsPage() {
                                 const normalRange = paramsByName.has(r.parameter) ? paramsByName.get(r.parameter)! : (r.normalRange || "—");
                                 const outOfRange = isResultOutOfRange(r.result, normalRange, vTest.patientGender, vTest.patientAge);
                                 const rangeFormatted = (normalRange || "—").split(/\r?\n|,\s*,/).map(l => formatSupSub(l.trim())).filter(Boolean).join("<br/>") || "—";
-                                const unitFormatted = (r.unit || "—") ? formatSupSub(r.unit || "—") : "—";
+                                const unitRaw = unitsByName.has(r.parameter) ? unitsByName.get(r.parameter)! : (r.unit || "—");
+                                const unitFormatted = unitRaw ? formatSupSub(unitRaw) : "—";
                                 rows.push(
                                   <tr key={`${cat}-${i}-${r.parameter}`} className="border-t">
                                     <td className="p-2">{r.parameter}</td>

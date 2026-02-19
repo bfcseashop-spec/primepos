@@ -1415,7 +1415,30 @@ export default function ServicesPage() {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-muted-foreground">Unit</Label>
+                            <div className="flex items-center gap-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground">Unit</Label>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-5 w-5 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                                    title="Unit format help"
+                                  >
+                                    <HelpCircle className="h-3.5 w-3.5" aria-label="Unit format help" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-72 sm:w-80 p-4 text-sm" align="start">
+                                  <p className="font-medium mb-2">Unit format examples</p>
+                                  <ul className="space-y-2 text-muted-foreground">
+                                    <li><strong className="text-foreground">Superscript:</strong> Use <code className="bg-muted px-1 rounded">^2</code> or <code className="bg-muted px-1 rounded">^3</code> — e.g. <code className="bg-muted px-1 rounded">10^9/mm^3</code> displays as 10⁹/mm³</li>
+                                    <li><strong className="text-foreground">Subscript:</strong> Use <code className="bg-muted px-1 rounded">_2</code> — e.g. <code className="bg-muted px-1 rounded">H_2O</code> displays as H₂O</li>
+                                    <li><strong className="text-foreground">Plain units:</strong> You can still use normal text like <code className="bg-muted px-1 rounded">mg/dL</code>, <code className="bg-muted px-1 rounded">g/dL</code>, etc.</li>
+                                  </ul>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
                             <Input placeholder="e.g. mg/dL" value={p.unit} onChange={e => {
                               const arr = [...(form.reportParameters || [])];
                               arr[i] = { ...arr[i], unit: e.target.value };
