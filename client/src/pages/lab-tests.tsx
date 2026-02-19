@@ -142,11 +142,57 @@ function LabTestBarcodePreview({ test, onClose, t }: { test: LabTestWithPatient;
   );
 }
 
+/** Escape HTML for safe display. */
+function escapeHtml(s: string): string {
+  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/** Format text with superscript (^2 → ²) and subscript (_2) for Normal/Reference ranges. */
+function formatSupSub(text: string): string {
+  const parts: string[] = [];
+  const re = /\^(\d+)|_(\d+)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    parts.push(escapeHtml(text.slice(last, m.index)));
+    parts.push(m[1] ? `<sup>${m[1]}</sup>` : `<sub>${m[2]}</sub>`);
+    last = re.lastIndex;
+  }
+  parts.push(escapeHtml(text.slice(last)));
+  return parts.join("");
+}
+
+/** Select the applicable range line based on patient gender/age. Returns single line or full range if no match. */
+function selectRelevantRange(normalRange: string, patientGender?: string | null, patientAge?: number | null): string {
+  const raw = String(normalRange || "").trim();
+  const lines = raw.split(/\r?\n|\r|,\s*,/).map(l => l.trim()).filter(Boolean);
+  if (lines.length <= 1) return raw;
+  const gender = (patientGender || "").toLowerCase();
+  const isFemale = /female|f\b|^f\s*\(/.test(gender);
+  const isMale = /male|m\b|^m\s*\(/.test(gender);
+  const age = patientAge ?? 0;
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    if (isFemale && (/^f\s*\(|^f\s*:|\(f\)|female/i.test(lower) || /^f\b/.test(lower))) return line;
+    if (isMale && (/^m\s*\(|^m\s*:|\(m\)|male/i.test(lower) || /^m\b/.test(lower))) return line;
+  }
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    if (/newborn|neonate|0\s*-\s*1\s*day|1\s*-\s*[27]\s*day/.test(lower) && age <= 0.04) return line;
+    if (/child|children|1\s*-\s*12\s*month|infant/.test(lower) && age >= 0.08 && age < 1) return line;
+    if (/child|children|1\s*-\s*12\s*years?/.test(lower) && age >= 1 && age < 12) return line;
+    if (/adult|>?\s*12\s*y|>\s*12/.test(lower) && age >= 12) return line;
+    if (/adult|>?\s*18\s*y/.test(lower) && age >= 18) return line;
+  }
+  return raw;
+}
+
 /** Check if a numeric result is outside the normal/reference range. Returns true if out of range. Supports multiple ranges (e.g. "70-99, 4.0-5.6"), <X, >X, and categorical values. */
-function isResultOutOfRange(result: string, normalRange: string): boolean {
-  if (!result?.trim() || !normalRange?.trim()) return false;
+function isResultOutOfRange(result: string, normalRange: string, patientGender?: string | null, patientAge?: number | null): boolean {
+  const rangeToUse = selectRelevantRange(normalRange, patientGender, patientAge);
+  if (!result?.trim() || !rangeToUse?.trim()) return false;
   const r = result.trim();
-  const nr = normalRange.replace(/\r?\n/g, ",").replace(/,\s*,/g, ",").trim();
+  const nr = rangeToUse.replace(/\r?\n/g, ",").replace(/,\s*,/g, ",").trim();
   const num = parseFloat(r.replace(/[^\d.\-]/g, ""));
   if (Number.isNaN(num)) {
     const opts = nr.split(/[,;\/]|\bor\b/i).map((s) => s.trim().toLowerCase()).filter(Boolean);
@@ -536,13 +582,13 @@ export default function LabTestsPage() {
             const cats = Object.keys(byCat).sort((a, b) => (a === "\x00" ? -1 : b === "\x00" ? 1 : a.localeCompare(b)));
             const formatNormalRange = (s: string) => {
               const raw = String(s || "").trim();
-              // Split by newlines OR double comma (,,) — each segment becomes a line
+              // Split by newlines OR double comma (,,) — each segment becomes a line; support ^2 ^3 for superscript, _2 for subscript
               const lines = raw.split(/\r?\n|\r|,\s*,/).map(l => l.trim()).filter(Boolean);
               if (lines.length === 0) return escapeHtml("-");
-              return lines.map(l => `<span style="display:block;">${escapeHtml(l)}</span>`).join("");
+              return lines.map(l => `<span style="display:block;">${formatSupSub(l)}</span>`).join("");
             };
             const rowHtml = (r: R) => {
-              const outOfRange = isResultOutOfRange(r.result, r.normalRange);
+              const outOfRange = isResultOutOfRange(r.result, r.normalRange, rowExt.patientGender, rowExt.patientAge);
               const resultColor = outOfRange ? "#dc2626" : "#059669";
               return `
               <tr style="border-bottom:1px solid ${border};">
@@ -1178,17 +1224,19 @@ export default function LabTestsPage() {
                         </thead>
                         <tbody>
                           {(() => {
-                            const reportResults = (viewTest as LabTestWithPatient & { reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults;
+                            const reportResults = (viewTest as LabTestWithPatient & { reportResults: Array<{ parameter: string; result: string; unit: string; normalRange: string }>; patientAge?: number; patientGender?: string }).reportResults;
+                            const vTest = viewTest as { patientAge?: number; patientGender?: string };
                             const paramsByName = new Map((viewService?.reportParameters || []).map(p => [p.parameter, p.normalRange || ""]));
                             return reportResults.map((r, i) => {
                               const normalRange = paramsByName.has(r.parameter) ? paramsByName.get(r.parameter)! : (r.normalRange || "—");
-                              const outOfRange = isResultOutOfRange(r.result, normalRange);
+                              const outOfRange = isResultOutOfRange(r.result, normalRange, vTest.patientGender, vTest.patientAge);
+                              const rangeFormatted = (normalRange || "—").split(/\r?\n|,\s*,/).map(l => formatSupSub(l.trim())).filter(Boolean).join("<br/>") || "—";
                               return (
                             <tr key={i} className="border-t">
                               <td className="p-2">{r.parameter}</td>
                               <td className={`p-2 font-medium ${outOfRange ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>{r.result}</td>
                               <td className="p-2 text-muted-foreground">{r.unit || "—"}</td>
-                              <td className="p-2 text-muted-foreground whitespace-pre-line">{normalRange || "—"}</td>
+                              <td className="p-2 text-muted-foreground" dangerouslySetInnerHTML={{ __html: rangeFormatted }} />
                             </tr>
                             );
                             });
@@ -1357,9 +1405,10 @@ export default function LabTestsPage() {
                             );
                           }
                           const { p } = x;
-                          const existing = (inputResultsTest as LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }> }).reportResults?.find(r => r.parameter === p.parameter);
+                          const existing = (inputResultsTest as LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }>; patientAge?: number; patientGender?: string }).reportResults?.find(r => r.parameter === p.parameter);
                           const value = inputResultsValues[p.parameter] ?? existing?.result ?? "";
-                          const outOfRange = !!value && isResultOutOfRange(value, p.normalRange);
+                          const inTest = inputResultsTest as { patientAge?: number; patientGender?: string };
+                          const outOfRange = !!value && isResultOutOfRange(value, p.normalRange || "", inTest.patientGender, inTest.patientAge);
                           const isDropdown = p.resultType === "dropdown" || (p as { unitType?: string }).unitType === "select";
                           const items = Array.from(new Set([...(p.dropdownItems || []).filter(Boolean), ...(value && !(p.dropdownItems || []).includes(value) ? [value] : [])]));
                           return (
@@ -1381,7 +1430,7 @@ export default function LabTestsPage() {
                                 )}
                               </td>
                               <td className="px-4 py-3 text-muted-foreground">{p.unit || "—"}</td>
-                              <td className="px-4 py-3 text-muted-foreground whitespace-pre-line">{p.normalRange || "—"}</td>
+                              <td className="px-4 py-3 text-muted-foreground" dangerouslySetInnerHTML={{ __html: (p.normalRange || "—").split(/\r?\n|,\s*,/).map(l => formatSupSub(l.trim())).filter(Boolean).join("<br/>") || "—" }} />
                             </tr>
                           );
                         })}

@@ -23,9 +23,10 @@ import {
   Plus, Search, MoreVertical, Eye, Pencil, Trash2, ImagePlus, X, Check,
   FolderPlus, Activity, CheckCircle2, XCircle, DollarSign, Layers,
   RefreshCw, Grid3X3, List, Stethoscope, Tag, FileText, FolderTree,
-  Download, Upload, FileSpreadsheet, FileDown, Syringe,
+  Download, Upload, FileSpreadsheet, FileDown, Syringe, HelpCircle,
 } from "lucide-react";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { Service, Injection } from "@shared/schema";
 
@@ -1422,7 +1423,28 @@ export default function ServicesPage() {
                             }} className="h-9" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-muted-foreground">Normal/Reference Ranges</Label>
+                            <div className="flex items-center gap-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground">Normal/Reference Ranges</Label>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button type="button" variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-full text-muted-foreground hover:text-foreground">
+                                    <HelpCircle className="h-3.5 w-3.5" aria-label="Format help" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 sm:w-96 p-4 text-sm" align="start">
+                                  <p className="font-medium mb-2">Format examples and tips</p>
+                                  <ul className="space-y-2 text-muted-foreground">
+                                    <li><strong className="text-foreground">One range per line</strong> — each line appears separately on the printed report.</li>
+                                    <li><strong className="text-foreground">Superscript:</strong> Use <code className="bg-muted px-1 rounded">^2</code> or <code className="bg-muted px-1 rounded">^3</code> — e.g. <code className="bg-muted px-1 rounded">mg/dl^2</code> displays as mg/dl²</li>
+                                    <li><strong className="text-foreground">Subscript:</strong> Use <code className="bg-muted px-1 rounded">_2</code> — e.g. <code className="bg-muted px-1 rounded">H_2O</code> displays as H₂O</li>
+                                    <li><strong className="text-foreground">Gender-specific:</strong> Prefix with <code className="bg-muted px-1 rounded">F</code> (Female) or <code className="bg-muted px-1 rounded">M</code> (Male) — e.g. <code className="bg-muted px-1 rounded">F (0.5-1.2) mg/dl</code>, <code className="bg-muted px-1 rounded">M (0.6-1.4) mg/dl</code></li>
+                                    <li><strong className="text-foreground">Age-specific:</strong> e.g. <code className="bg-muted px-1 rounded">Adult &gt;12 Y: 0.3-1.2</code>, <code className="bg-muted px-1 rounded">Newborn (0-1 day) &lt;6</code></li>
+                                    <li><strong className="text-foreground">Operators:</strong> <code className="bg-muted px-1 rounded">&lt;140</code>, <code className="bg-muted px-1 rounded">&gt;5</code> for thresholds</li>
+                                    <li><strong className="text-foreground">Result colors:</strong> In-range results print in green, out-of-range in red (based on patient gender/age when applicable).</li>
+                                  </ul>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
                             <div className="flex gap-2">
                               <div className="flex-1 min-h-[36px] rounded-md border bg-muted/30 px-3 py-2 text-sm flex items-center gap-1 flex-wrap">
                                 {(p.normalRange || "").split(/\r?\n/).filter(Boolean).length > 0 ? (
@@ -2258,10 +2280,31 @@ export default function ServicesPage() {
       <Dialog open={rangesModalParamIndex !== null} onOpenChange={(open) => { if (!open) setRangesModalParamIndex(null); }}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Manage Normal/Reference Ranges</DialogTitle>
+            <div className="flex items-center gap-2">
+              <DialogTitle>Manage Normal/Reference Ranges</DialogTitle>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground">
+                    <HelpCircle className="h-4 w-4" aria-label="Help" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 sm:w-96 p-4 text-sm" align="start">
+                  <p className="font-medium mb-2">Format examples and tips</p>
+                  <ul className="space-y-2 text-muted-foreground">
+                    <li><strong className="text-foreground">One range per line</strong> — each line appears separately on the printed report.</li>
+                    <li><strong className="text-foreground">Superscript:</strong> Use <code className="bg-muted px-1 rounded">^2</code> or <code className="bg-muted px-1 rounded">^3</code> — e.g. <code className="bg-muted px-1 rounded">mg/dl^2</code> displays as mg/dl²</li>
+                    <li><strong className="text-foreground">Subscript:</strong> Use <code className="bg-muted px-1 rounded">_2</code> — e.g. <code className="bg-muted px-1 rounded">H_2O</code> displays as H₂O</li>
+                    <li><strong className="text-foreground">Gender-specific:</strong> Prefix with <code className="bg-muted px-1 rounded">F</code> (Female) or <code className="bg-muted px-1 rounded">M</code> (Male) — e.g. <code className="bg-muted px-1 rounded">F (0.5-1.2) mg/dl</code>, <code className="bg-muted px-1 rounded">M (0.6-1.4) mg/dl</code></li>
+                    <li><strong className="text-foreground">Age-specific:</strong> e.g. <code className="bg-muted px-1 rounded">Adult &gt;12 Y: 0.3-1.2</code>, <code className="bg-muted px-1 rounded">Newborn (0-1 day) &lt;6</code></li>
+                    <li><strong className="text-foreground">Operators:</strong> <code className="bg-muted px-1 rounded">&lt;140</code>, <code className="bg-muted px-1 rounded">&gt;5</code> for thresholds</li>
+                    <li><strong className="text-foreground">Result colors:</strong> In-range results print in green, out-of-range in red (based on patient gender/age when applicable).</li>
+                  </ul>
+                </PopoverContent>
+              </Popover>
+            </div>
             <DialogDescription>
               {rangesModalParamIndex !== null && form.reportParameters?.[rangesModalParamIndex] && (
-                <>Add or edit reference ranges for <strong>{form.reportParameters[rangesModalParamIndex].parameter || "this parameter"}</strong>. One range per line on the printed report. Out-of-range results will print in red.</>
+                <>Add or edit reference ranges for <strong>{form.reportParameters[rangesModalParamIndex].parameter || "this parameter"}</strong>.</>
               )}
             </DialogDescription>
           </DialogHeader>
@@ -2270,7 +2313,7 @@ export default function ServicesPage() {
               {(rangesModalRanges.length === 0 ? [""] : rangesModalRanges).map((r, j) => (
                 <div key={j} className="flex gap-2">
                   <Input
-                    placeholder="e.g. 70-99 mg/dL, Fasting: <140 mg/dL"
+                    placeholder="e.g. F (0.5-1.2) mg/dl^2, M (0.6-1.4) mg/dl"
                     value={r}
                     onChange={e => {
                       const arr = [...rangesModalRanges];
