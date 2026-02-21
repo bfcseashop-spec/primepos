@@ -15,7 +15,7 @@ import {
   Plus, DollarSign, X, Tag, Trash2, Eye, Pencil, Printer,
   MoreHorizontal, Users, Wallet, AlertTriangle, CheckCircle2, CreditCard,
   TrendingUp, ArrowDownRight, ArrowUpRight, CircleDollarSign, PiggyBank, Receipt, ChevronUp,
-  Upload, ImageIcon, Download, FileSpreadsheet, LayoutList, LayoutGrid, Search
+  Upload, ImageIcon, Download, FileSpreadsheet, LayoutList, LayoutGrid, Search, Calendar, CalendarDays
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -84,6 +84,9 @@ export default function InvestmentsPage() {
   const [uploadingSlip, setUploadingSlip] = useState(false);
   const [contributionFilter, setContributionFilter] = useState("all");
   const [contributionSearch, setContributionSearch] = useState("");
+  const [contributionFromDate, setContributionFromDate] = useState("");
+  const [contributionToDate, setContributionToDate] = useState("");
+  const [contributionMonth, setContributionMonth] = useState("");
   const [contributionViewMode, setContributionViewMode] = useState<"list" | "grid">("list");
   const [editContribution, setEditContribution] = useState<Contribution | null>(null);
   const [viewContribution, setViewContribution] = useState<Contribution | null>(null);
@@ -109,7 +112,18 @@ export default function InvestmentsPage() {
 
   const { data: investorsList = [] } = useQuery<Investor[]>({ queryKey: ["/api/investors"] });
   const { data: investments = [], isLoading } = useQuery<Investment[]>({ queryKey: ["/api/investments"] });
-  const { data: allContributions = [] } = useQuery<Contribution[]>({ queryKey: ["/api/contributions"] });
+  const { data: allContributions = [] } = useQuery<Contribution[]>({
+    queryKey: ["/api/contributions", contributionFromDate || null, contributionToDate || null],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (contributionFromDate) params.set("fromDate", contributionFromDate);
+      if (contributionToDate) params.set("toDate", contributionToDate);
+      const url = `/api/contributions${params.toString() ? "?" + params.toString() : ""}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text() || res.statusText);
+      return res.json();
+    },
+  });
 
   useEffect(() => {
     localStorage.setItem("investment_categories", JSON.stringify(categories));
@@ -562,6 +576,35 @@ export default function InvestmentsPage() {
     }
     return list;
   }, [allContributions, filtered, contributionFilter, contributionSearch, investments]);
+
+  const contributionMonthOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = [{ value: "", label: "All months" }];
+    const now = new Date();
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const value = `${y}-${String(m + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      options.push({ value, label });
+    }
+    return options;
+  }, []);
+
+  const handleContributionMonthChange = (value: string) => {
+    setContributionMonth(value);
+    if (!value) {
+      setContributionFromDate("");
+      setContributionToDate("");
+      return;
+    }
+    const [y, m] = value.split("-").map(Number);
+    const first = `${y}-${String(m).padStart(2, "0")}-01`;
+    const lastDay = new Date(y, m, 0).getDate();
+    const last = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    setContributionFromDate(first);
+    setContributionToDate(last);
+  };
 
   const allInvestorNames = useMemo(() => {
     const names = new Set<string>();
@@ -1133,6 +1176,49 @@ export default function InvestmentsPage() {
               <p className="text-xs text-muted-foreground mt-0.5">Payment history for all investments</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap border-r pr-2 mr-1">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Filter by Month</span>
+                </div>
+                <Select value={contributionMonth || ""} onValueChange={handleContributionMonthChange}>
+                  <SelectTrigger className="w-[130px] h-9" data-testid="select-contribution-month">
+                    <SelectValue placeholder="All months" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contributionMonthOptions.map((opt) => (
+                      <SelectItem key={opt.value || "all"} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-1.5">
+                  <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Filter by Date</span>
+                </div>
+                <Input
+                  type="date"
+                  className="h-9 w-[130px]"
+                  value={contributionFromDate}
+                  onChange={(e) => {
+                    setContributionFromDate(e.target.value);
+                    setContributionMonth("");
+                  }}
+                  placeholder="From"
+                  data-testid="input-contribution-from-date"
+                />
+                <span className="text-muted-foreground text-xs">–</span>
+                <Input
+                  type="date"
+                  className="h-9 w-[130px]"
+                  value={contributionToDate}
+                  onChange={(e) => {
+                    setContributionToDate(e.target.value);
+                    setContributionMonth("");
+                  }}
+                  placeholder="To"
+                  data-testid="input-contribution-to-date"
+                />
+              </div>
               <div className="relative flex-1 min-w-[180px] max-w-[240px]">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -1207,7 +1293,9 @@ export default function InvestmentsPage() {
           <CardContent className="p-0">
             {filteredContributions.length === 0 ? (
               <p className="p-4 text-sm text-muted-foreground text-center">
-                {contributionSearch || contributionFilter !== "all" ? "No contributions match your search or filter" : "No contributions recorded yet"}
+                {contributionSearch || contributionFilter !== "all" || contributionFromDate || contributionToDate
+                  ? "No contributions match your search or filter"
+                  : "No contributions recorded yet"}
               </p>
             ) : contributionViewMode === "list" ? (
               <div className="overflow-x-auto">

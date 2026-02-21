@@ -1991,7 +1991,9 @@ export async function registerRoutes(
   app.get("/api/contributions", async (req, res) => {
     try {
       const investmentId = req.query.investmentId ? Number(req.query.investmentId) : undefined;
-      const result = await storage.getContributions(investmentId);
+      const fromDate = typeof req.query.fromDate === "string" && req.query.fromDate ? req.query.fromDate : undefined;
+      const toDate = typeof req.query.toDate === "string" && req.query.toDate ? req.query.toDate : undefined;
+      const result = await storage.getContributions(investmentId, fromDate, toDate);
       res.json(result);
     } catch (err: any) {
       res.status(500).json({ message: err.message });

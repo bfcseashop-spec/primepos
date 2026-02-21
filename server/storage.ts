@@ -123,7 +123,7 @@ export interface IStorage {
   deleteInvestment(id: number): Promise<void>;
   bulkDeleteInvestments(ids: number[]): Promise<void>;
 
-  getContributions(investmentId?: number): Promise<Contribution[]>;
+  getContributions(investmentId?: number, fromDate?: string, toDate?: string): Promise<Contribution[]>;
   createContribution(data: InsertContribution): Promise<Contribution>;
   updateContribution(id: number, data: Partial<InsertContribution>): Promise<Contribution | undefined>;
   deleteContribution(id: number): Promise<void>;
@@ -595,9 +595,13 @@ export class DatabaseStorage implements IStorage {
     await db.delete(investments).where(inArray(investments.id, ids));
   }
 
-  async getContributions(investmentId?: number): Promise<Contribution[]> {
-    if (investmentId != null) {
-      return db.select().from(contributions).where(eq(contributions.investmentId, investmentId)).orderBy(desc(contributions.date));
+  async getContributions(investmentId?: number, fromDate?: string, toDate?: string): Promise<Contribution[]> {
+    const conditions = [];
+    if (investmentId != null) conditions.push(eq(contributions.investmentId, investmentId));
+    if (fromDate) conditions.push(gte(contributions.date, fromDate));
+    if (toDate) conditions.push(lte(contributions.date, toDate));
+    if (conditions.length > 0) {
+      return db.select().from(contributions).where(and(...conditions)).orderBy(desc(contributions.date));
     }
     return db.select().from(contributions).orderBy(desc(contributions.date));
   }
