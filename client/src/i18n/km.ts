@@ -478,6 +478,8 @@ export const km = {
     firstName: "ឈ្មោះ",
     lastName: "នាមត្រកូល",
     dateOfBirth: "ថ្ងៃខែឆ្នាំកំណើត",
+    age: "អាយុ",
+    ageYears: "{count} ឆ្នាំ",
     gender: "ភេទ",
     male: "ប្រុស",
     female: "ស្រី",

@@ -23,10 +23,36 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, User as UserIcon, Phone, Mail, MapPin, Droplets, Calendar, AlertTriangle, FileText, Heart, Users, UserCheck, Activity, Clock, Stethoscope } from "lucide-react";
+import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, User as UserIcon, Phone, Mail, MapPin, Droplets, Calendar, AlertTriangle, FileText, Heart, Users, UserCheck, Activity, Clock, Stethoscope, Calendar as CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { useLocation } from "wouter";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { Patient } from "@shared/schema";
+
+function dateToYMD(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatDateDisplay(value: string): string {
+  if (!value) return "";
+  const [y, m, d] = value.split("-").map(Number);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return value;
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function ageFromDob(dob: string | null | undefined): number | null {
+  if (!dob || dob.length < 10) return null;
+  const birth = new Date(dob + "T12:00:00");
+  if (isNaN(birth.getTime())) return null;
+  const today = new Date();
+  if (birth > today) return null;
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age >= 0 ? age : null;
+}
 
 export default function OpdPage() {
   const { t } = useTranslation();
@@ -102,9 +128,10 @@ export default function OpdPage() {
   const handleSaveEdit = () => {
     if (!editPatient) return;
     const name = [editForm.firstName, editForm.lastName].filter(Boolean).join(" ") || editPatient.name;
+    const age = editForm.dateOfBirth ? ageFromDob(editForm.dateOfBirth) : null;
     updatePatientMutation.mutate({
       id: editPatient.id,
-      data: { ...editForm, name },
+      data: { ...editForm, name, age: age != null ? age : undefined },
     });
   };
 
@@ -744,7 +771,31 @@ export default function OpdPage() {
                 </div>
                 <div>
                   <Label>{t("registerPatient.dateOfBirth")}</Label>
-                  <Input type="date" value={editForm.dateOfBirth} onChange={(e) => setEditForm(f => ({ ...f, dateOfBirth: e.target.value }))} data-testid="input-edit-dob" />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal h-10"
+                        data-testid="input-edit-dob"
+                      >
+                        <CalendarIcon className="h-4 w-4 mr-2 shrink-0 text-muted-foreground" />
+                        {editForm.dateOfBirth ? formatDateDisplay(editForm.dateOfBirth) : "mm/dd/yyyy"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarUI
+                        mode="single"
+                        selected={editForm.dateOfBirth ? new Date(editForm.dateOfBirth + "T12:00:00") : undefined}
+                        onSelect={(d) => d && setEditForm(f => ({ ...f, dateOfBirth: dateToYMD(d) }))}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {editForm.dateOfBirth && ageFromDob(editForm.dateOfBirth) != null && (
+                    <p className="text-sm text-muted-foreground mt-1.5" data-testid="text-edit-age">
+                      {t("registerPatient.age")}: {t("registerPatient.ageYears", { count: ageFromDob(editForm.dateOfBirth)! })}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label>{t("registerPatient.bloodType")}</Label>

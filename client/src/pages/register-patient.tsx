@@ -10,8 +10,35 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Upload, Camera, Link as LinkIcon, UserCircle, User, Phone, Heart, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Upload, Camera, Link as LinkIcon, UserCircle, User, Phone, Heart, AlertTriangle, Calendar as CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { useLocation } from "wouter";
+
+function dateToYMD(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatDateDisplay(value: string): string {
+  if (!value) return "";
+  const [y, m, d] = value.split("-").map(Number);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return value;
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+/** Compute age in years from YYYY-MM-DD. Returns null if invalid or future. */
+function ageFromDob(dob: string | null | undefined): number | null {
+  if (!dob || dob.length < 10) return null;
+  const birth = new Date(dob + "T12:00:00");
+  if (isNaN(birth.getTime())) return null;
+  const today = new Date();
+  if (birth > today) return null;
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age >= 0 ? age : null;
+}
 
 export default function RegisterPatientPage() {
   const { t } = useTranslation();
@@ -111,6 +138,7 @@ export default function RegisterPatientPage() {
     }
 
     const name = `${form.firstName.trim()} ${form.lastName.trim()}`;
+    const age = form.dateOfBirth ? ageFromDob(form.dateOfBirth) : null;
     createMutation.mutate({
       patientId: `PAT-${String(Date.now()).slice(-6)}`,
       name,
@@ -119,6 +147,7 @@ export default function RegisterPatientPage() {
       email: form.email || null,
       phone: form.phone || null,
       dateOfBirth: form.dateOfBirth || null,
+      age: age != null ? age : null,
       gender: form.gender || null,
       bloodGroup: form.bloodGroup || null,
       address: form.address || null,
@@ -225,7 +254,32 @@ export default function RegisterPatientPage() {
               </div>
               <div>
                 <Label htmlFor="dob">{t("registerPatient.dateOfBirth")}</Label>
-                <Input id="dob" type="date" value={form.dateOfBirth} onChange={e => update("dateOfBirth", e.target.value)} data-testid="input-dob" />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="dob"
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal h-10"
+                      data-testid="input-dob"
+                    >
+                      <CalendarIcon className="h-4 w-4 mr-2 shrink-0 text-muted-foreground" />
+                      {form.dateOfBirth ? formatDateDisplay(form.dateOfBirth) : "mm/dd/yyyy"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarUI
+                      mode="single"
+                      selected={form.dateOfBirth ? new Date(form.dateOfBirth + "T12:00:00") : undefined}
+                      onSelect={(d) => d && update("dateOfBirth", dateToYMD(d))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                {form.dateOfBirth && ageFromDob(form.dateOfBirth) != null && (
+                  <p className="text-sm text-muted-foreground mt-1.5" data-testid="text-age">
+                    {t("registerPatient.age")}: {t("registerPatient.ageYears", { count: ageFromDob(form.dateOfBirth)! })}
+                  </p>
+                )}
               </div>
               <div>
                 <Label>{t("registerPatient.gender")}</Label>

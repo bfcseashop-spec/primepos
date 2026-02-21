@@ -478,6 +478,8 @@ export const zh = {
     firstName: "名",
     lastName: "姓",
     dateOfBirth: "出生日期",
+    age: "年龄",
+    ageYears: "{count} 岁",
     gender: "性别",
     male: "男",
     female: "女",

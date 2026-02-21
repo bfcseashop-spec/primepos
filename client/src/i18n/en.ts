@@ -608,6 +608,8 @@ export const en = {
     firstName: "First Name",
     lastName: "Last Name",
     dateOfBirth: "Date of Birth",
+    age: "Age",
+    ageYears: "{count} years old",
     gender: "Gender",
     male: "Male",
     female: "Female",
