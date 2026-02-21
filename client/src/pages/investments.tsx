@@ -18,6 +18,8 @@ import {
   Upload, ImageIcon, Download, FileSpreadsheet, LayoutList, LayoutGrid, Search, Calendar, CalendarDays
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { Investment, InvestmentInvestor, Investor, Contribution } from "@shared/schema";
@@ -57,6 +59,18 @@ function loadCategories(): string[] {
 
 function fmt(n: number): string {
   return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function dateToYMD(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatDateDisplay(value: string): string {
+  if (!value) return "";
+  const [y, m, d] = value.split("-").map(Number);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return value;
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default function InvestmentsPage() {
@@ -1196,29 +1210,57 @@ export default function InvestmentsPage() {
                   <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Filter by Date</span>
                 </div>
-                <Input
-                  type="date"
-                  className="h-9 w-[130px]"
-                  value={contributionFromDate}
-                  onChange={(e) => {
-                    setContributionFromDate(e.target.value);
-                    setContributionMonth("");
-                  }}
-                  placeholder="From"
-                  data-testid="input-contribution-from-date"
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="h-9 w-[130px] justify-start text-left font-normal"
+                      data-testid="input-contribution-from-date"
+                    >
+                      <Calendar className="h-3.5 w-3.5 mr-1.5 shrink-0 text-muted-foreground" />
+                      {contributionFromDate ? formatDateDisplay(contributionFromDate) : "From"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarUI
+                      mode="single"
+                      selected={contributionFromDate ? new Date(contributionFromDate + "T12:00:00") : undefined}
+                      onSelect={(d) => {
+                        if (d) {
+                          setContributionFromDate(dateToYMD(d));
+                          setContributionMonth("");
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
                 <span className="text-muted-foreground text-xs">–</span>
-                <Input
-                  type="date"
-                  className="h-9 w-[130px]"
-                  value={contributionToDate}
-                  onChange={(e) => {
-                    setContributionToDate(e.target.value);
-                    setContributionMonth("");
-                  }}
-                  placeholder="To"
-                  data-testid="input-contribution-to-date"
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="h-9 w-[130px] justify-start text-left font-normal"
+                      data-testid="input-contribution-to-date"
+                    >
+                      <Calendar className="h-3.5 w-3.5 mr-1.5 shrink-0 text-muted-foreground" />
+                      {contributionToDate ? formatDateDisplay(contributionToDate) : "To"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarUI
+                      mode="single"
+                      selected={contributionToDate ? new Date(contributionToDate + "T12:00:00") : undefined}
+                      onSelect={(d) => {
+                        if (d) {
+                          setContributionToDate(dateToYMD(d));
+                          setContributionMonth("");
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="relative flex-1 min-w-[180px] max-w-[240px]">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
