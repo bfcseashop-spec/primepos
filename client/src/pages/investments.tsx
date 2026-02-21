@@ -578,7 +578,7 @@ export default function InvestmentsPage() {
   }, [allContributions, filtered, contributionFilter, contributionSearch, investments]);
 
   const contributionMonthOptions = useMemo(() => {
-    const options: { value: string; label: string }[] = [{ value: "", label: "All months" }];
+    const options: { value: string; label: string }[] = [{ value: "all", label: "All months" }];
     const now = new Date();
     for (let i = 0; i < 24; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -592,12 +592,13 @@ export default function InvestmentsPage() {
   }, []);
 
   const handleContributionMonthChange = (value: string) => {
-    setContributionMonth(value);
-    if (!value) {
+    if (value === "all") {
+      setContributionMonth("");
       setContributionFromDate("");
       setContributionToDate("");
       return;
     }
+    setContributionMonth(value);
     const [y, m] = value.split("-").map(Number);
     const first = `${y}-${String(m).padStart(2, "0")}-01`;
     const lastDay = new Date(y, m, 0).getDate();
@@ -1181,13 +1182,13 @@ export default function InvestmentsPage() {
                   <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Filter by Month</span>
                 </div>
-                <Select value={contributionMonth || ""} onValueChange={handleContributionMonthChange}>
+                <Select value={contributionMonth || "all"} onValueChange={handleContributionMonthChange}>
                   <SelectTrigger className="w-[130px] h-9" data-testid="select-contribution-month">
                     <SelectValue placeholder="All months" />
                   </SelectTrigger>
                   <SelectContent>
                     {contributionMonthOptions.map((opt) => (
-                      <SelectItem key={opt.value || "all"} value={opt.value}>{opt.label}</SelectItem>
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
