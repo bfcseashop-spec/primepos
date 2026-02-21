@@ -40,6 +40,19 @@ function ageFromDob(dob: string | null | undefined): number | null {
   return age >= 0 ? age : null;
 }
 
+type AgeUnit = "days" | "weeks" | "months" | "years";
+
+/** Compute DOB (YYYY-MM-DD) from age value and unit (today minus age). */
+function dobFromAge(value: number, unit: AgeUnit): string {
+  const today = new Date();
+  const d = new Date(today);
+  if (unit === "years") d.setFullYear(today.getFullYear() - value);
+  else if (unit === "months") d.setMonth(today.getMonth() - value);
+  else if (unit === "weeks") d.setDate(today.getDate() - value * 7);
+  else d.setDate(today.getDate() - value); // days
+  return dateToYMD(d);
+}
+
 export default function RegisterPatientPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -49,6 +62,10 @@ export default function RegisterPatientPage() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [uploading, setUploading] = useState(false);
+
+  const [ageDobMode, setAgeDobMode] = useState<"dob" | "age">("dob");
+  const [ageInputValue, setAgeInputValue] = useState("");
+  const [ageInputUnit, setAgeInputUnit] = useState<AgeUnit>("years");
 
   const [form, setForm] = useState({
     firstName: "",
@@ -253,32 +270,112 @@ export default function RegisterPatientPage() {
                 <Input id="phone" placeholder="+855 XX XXX XXX" value={form.phone} onChange={e => update("phone", e.target.value)} data-testid="input-phone" />
               </div>
               <div>
-                <Label htmlFor="dob">{t("registerPatient.dateOfBirth")}</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="dob"
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal h-10"
-                      data-testid="input-dob"
-                    >
-                      <CalendarIcon className="h-4 w-4 mr-2 shrink-0 text-muted-foreground" />
-                      {form.dateOfBirth ? formatDateDisplay(form.dateOfBirth) : "mm/dd/yyyy"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarUI
-                      mode="single"
-                      selected={form.dateOfBirth ? new Date(form.dateOfBirth + "T12:00:00") : undefined}
-                      onSelect={(d) => d && update("dateOfBirth", dateToYMD(d))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                {form.dateOfBirth && ageFromDob(form.dateOfBirth) != null && (
-                  <p className="text-sm text-muted-foreground mt-1.5" data-testid="text-age">
-                    {t("registerPatient.age")}: {t("registerPatient.ageYears", { count: ageFromDob(form.dateOfBirth)! })}
-                  </p>
+                <Label>{t("registerPatient.dateOfBirth")} / {t("registerPatient.age")}</Label>
+                <div className="flex gap-1 p-0.5 rounded-md border bg-muted/30 mb-2">
+                  <Button
+                    type="button"
+                    variant={ageDobMode === "dob" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="flex-1 h-8 text-xs"
+                    onClick={() => {
+                      setAgeDobMode("dob");
+                      if (form.dateOfBirth && ageFromDob(form.dateOfBirth) != null) {
+                        setAgeInputValue(String(ageFromDob(form.dateOfBirth)));
+                        setAgeInputUnit("years");
+                      }
+                    }}
+                    data-testid="switch-dob-mode"
+                  >
+                    {t("registerPatient.inputModeDob")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={ageDobMode === "age" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="flex-1 h-8 text-xs"
+                    onClick={() => {
+                      setAgeDobMode("age");
+                      if (form.dateOfBirth && ageFromDob(form.dateOfBirth) != null) {
+                        setAgeInputValue(String(ageFromDob(form.dateOfBirth)));
+                        setAgeInputUnit("years");
+                      }
+                    }}
+                    data-testid="switch-age-mode"
+                  >
+                    {t("registerPatient.inputModeAge")}
+                  </Button>
+                </div>
+                {ageDobMode === "dob" ? (
+                  <>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="dob"
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal h-10"
+                          data-testid="input-dob"
+                        >
+                          <CalendarIcon className="h-4 w-4 mr-2 shrink-0 text-muted-foreground" />
+                          {form.dateOfBirth ? formatDateDisplay(form.dateOfBirth) : "mm/dd/yyyy"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarUI
+                          mode="single"
+                          selected={form.dateOfBirth ? new Date(form.dateOfBirth + "T12:00:00") : undefined}
+                          onSelect={(d) => d && update("dateOfBirth", dateToYMD(d))}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {form.dateOfBirth && ageFromDob(form.dateOfBirth) != null && (
+                      <p className="text-sm text-muted-foreground mt-1.5" data-testid="text-age">
+                        {t("registerPatient.age")}: {t("registerPatient.ageYears", { count: ageFromDob(form.dateOfBirth)! })}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={ageInputValue}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setAgeInputValue(v);
+                          const n = parseInt(v, 10);
+                          if (!isNaN(n) && n >= 0) update("dateOfBirth", dobFromAge(n, ageInputUnit));
+                        }}
+                        className="h-10 flex-1"
+                        data-testid="input-age-value"
+                      />
+                      <Select
+                        value={ageInputUnit}
+                        onValueChange={(v: AgeUnit) => {
+                          setAgeInputUnit(v);
+                          const n = parseInt(ageInputValue, 10);
+                          if (!isNaN(n) && n >= 0) update("dateOfBirth", dobFromAge(n, v));
+                        }}
+                      >
+                        <SelectTrigger className="h-10 w-[120px]" data-testid="select-age-unit">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="days">{t("registerPatient.ageUnitDays")}</SelectItem>
+                          <SelectItem value="weeks">{t("registerPatient.ageUnitWeeks")}</SelectItem>
+                          <SelectItem value="months">{t("registerPatient.ageUnitMonths")}</SelectItem>
+                          <SelectItem value="years">{t("registerPatient.ageUnitYears")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {form.dateOfBirth && (
+                      <p className="text-sm text-muted-foreground mt-1.5" data-testid="text-dob-from-age">
+                        {t("registerPatient.dateOfBirth")}: {formatDateDisplay(form.dateOfBirth)}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
               <div>

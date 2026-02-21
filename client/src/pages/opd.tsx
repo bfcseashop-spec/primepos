@@ -54,6 +54,18 @@ function ageFromDob(dob: string | null | undefined): number | null {
   return age >= 0 ? age : null;
 }
 
+type AgeUnit = "days" | "weeks" | "months" | "years";
+
+function dobFromAge(value: number, unit: AgeUnit): string {
+  const today = new Date();
+  const d = new Date(today);
+  if (unit === "years") d.setFullYear(today.getFullYear() - value);
+  else if (unit === "months") d.setMonth(today.getMonth() - value);
+  else if (unit === "weeks") d.setDate(today.getDate() - value * 7);
+  else d.setDate(today.getDate() - value);
+  return dateToYMD(d);
+}
+
 export default function OpdPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -67,6 +79,9 @@ export default function OpdPage() {
   const [editPatient, setEditPatient] = useState<Patient | null>(null);
   const [deletePatient, setDeletePatient] = useState<Patient | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const [editAgeDobMode, setEditAgeDobMode] = useState<"dob" | "age">("dob");
+  const [editAgeInputValue, setEditAgeInputValue] = useState("");
+  const [editAgeInputUnit, setEditAgeInputUnit] = useState<AgeUnit>("years");
 
   const { data: patients = [], isLoading: patientsLoading } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
@@ -106,12 +121,14 @@ export default function OpdPage() {
   });
 
   const openEditPatient = (patient: Patient) => {
+    const dob = patient.dateOfBirth || "";
+    const ageY = ageFromDob(dob);
     setEditForm({
       firstName: patient.firstName || "",
       lastName: patient.lastName || "",
       email: patient.email || "",
       phone: patient.phone || "",
-      dateOfBirth: patient.dateOfBirth || "",
+      dateOfBirth: dob,
       gender: patient.gender || "",
       bloodGroup: patient.bloodGroup || "",
       address: patient.address || "",
@@ -122,6 +139,9 @@ export default function OpdPage() {
       medicalHistory: patient.medicalHistory || "",
       allergies: patient.allergies || "",
     });
+    setEditAgeDobMode("dob");
+    setEditAgeInputValue(ageY != null ? String(ageY) : "");
+    setEditAgeInputUnit("years");
     setEditPatient(patient);
   };
 
@@ -770,31 +790,111 @@ export default function OpdPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label>{t("registerPatient.dateOfBirth")}</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal h-10"
-                        data-testid="input-edit-dob"
-                      >
-                        <CalendarIcon className="h-4 w-4 mr-2 shrink-0 text-muted-foreground" />
-                        {editForm.dateOfBirth ? formatDateDisplay(editForm.dateOfBirth) : "mm/dd/yyyy"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarUI
-                        mode="single"
-                        selected={editForm.dateOfBirth ? new Date(editForm.dateOfBirth + "T12:00:00") : undefined}
-                        onSelect={(d) => d && setEditForm(f => ({ ...f, dateOfBirth: dateToYMD(d) }))}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  {editForm.dateOfBirth && ageFromDob(editForm.dateOfBirth) != null && (
-                    <p className="text-sm text-muted-foreground mt-1.5" data-testid="text-edit-age">
-                      {t("registerPatient.age")}: {t("registerPatient.ageYears", { count: ageFromDob(editForm.dateOfBirth)! })}
-                    </p>
+                  <Label>{t("registerPatient.dateOfBirth")} / {t("registerPatient.age")}</Label>
+                  <div className="flex gap-1 p-0.5 rounded-md border bg-muted/30 mb-2">
+                    <Button
+                      type="button"
+                      variant={editAgeDobMode === "dob" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="flex-1 h-8 text-xs"
+                      onClick={() => {
+                        setEditAgeDobMode("dob");
+                        if (editForm.dateOfBirth && ageFromDob(editForm.dateOfBirth) != null) {
+                          setEditAgeInputValue(String(ageFromDob(editForm.dateOfBirth)));
+                          setEditAgeInputUnit("years");
+                        }
+                      }}
+                      data-testid="edit-switch-dob-mode"
+                    >
+                      {t("registerPatient.inputModeDob")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={editAgeDobMode === "age" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="flex-1 h-8 text-xs"
+                      onClick={() => {
+                        setEditAgeDobMode("age");
+                        if (editForm.dateOfBirth && ageFromDob(editForm.dateOfBirth) != null) {
+                          setEditAgeInputValue(String(ageFromDob(editForm.dateOfBirth)));
+                          setEditAgeInputUnit("years");
+                        }
+                      }}
+                      data-testid="edit-switch-age-mode"
+                    >
+                      {t("registerPatient.inputModeAge")}
+                    </Button>
+                  </div>
+                  {editAgeDobMode === "dob" ? (
+                    <>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal h-10"
+                            data-testid="input-edit-dob"
+                          >
+                            <CalendarIcon className="h-4 w-4 mr-2 shrink-0 text-muted-foreground" />
+                            {editForm.dateOfBirth ? formatDateDisplay(editForm.dateOfBirth) : "mm/dd/yyyy"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarUI
+                            mode="single"
+                            selected={editForm.dateOfBirth ? new Date(editForm.dateOfBirth + "T12:00:00") : undefined}
+                            onSelect={(d) => d && setEditForm(f => ({ ...f, dateOfBirth: dateToYMD(d) }))}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      {editForm.dateOfBirth && ageFromDob(editForm.dateOfBirth) != null && (
+                        <p className="text-sm text-muted-foreground mt-1.5" data-testid="text-edit-age">
+                          {t("registerPatient.age")}: {t("registerPatient.ageYears", { count: ageFromDob(editForm.dateOfBirth)! })}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="0"
+                          value={editAgeInputValue}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setEditAgeInputValue(v);
+                            const n = parseInt(v, 10);
+                            if (!isNaN(n) && n >= 0) setEditForm(f => ({ ...f, dateOfBirth: dobFromAge(n, editAgeInputUnit) }));
+                          }}
+                          className="h-10 flex-1"
+                          data-testid="input-edit-age-value"
+                        />
+                        <Select
+                          value={editAgeInputUnit}
+                          onValueChange={(v: AgeUnit) => {
+                            setEditAgeInputUnit(v);
+                            const n = parseInt(editAgeInputValue, 10);
+                            if (!isNaN(n) && n >= 0) setEditForm(f => ({ ...f, dateOfBirth: dobFromAge(n, v) }));
+                          }}
+                        >
+                          <SelectTrigger className="h-10 w-[120px]" data-testid="select-edit-age-unit">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="days">{t("registerPatient.ageUnitDays")}</SelectItem>
+                            <SelectItem value="weeks">{t("registerPatient.ageUnitWeeks")}</SelectItem>
+                            <SelectItem value="months">{t("registerPatient.ageUnitMonths")}</SelectItem>
+                            <SelectItem value="years">{t("registerPatient.ageUnitYears")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {editForm.dateOfBirth && (
+                        <p className="text-sm text-muted-foreground mt-1.5" data-testid="text-edit-dob-from-age">
+                          {t("registerPatient.dateOfBirth")}: {formatDateDisplay(editForm.dateOfBirth)}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
                 <div>
