@@ -89,6 +89,7 @@ echo "[5/7] npm run build"
 npm run build
 
 # --- 6. DB push ---
+# Session table is in schema so it is not dropped; sessions persist if SESSION_SECRET is set in .env (see .env.example).
 echo "[6/7] npm run db:push (--force for non-interactive)"
 npx drizzle-kit push --force
 

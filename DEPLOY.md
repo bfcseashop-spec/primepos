@@ -29,11 +29,15 @@ Backups are stored in `backups/` with timestamped names:
 
 ## Session persistence across deployments
 
-To keep users logged in after deployment, ensure **`SESSION_SECRET`** is set in `.env` and stays the same across deploys. If it changes, all sessions are invalidated and users must log in again. Example:
+To keep users logged in after deployment:
 
-```
-SESSION_SECRET=your-stable-secret-at-least-32-chars
-```
+1. **Set `SESSION_SECRET` in `.env`** on the server and **never change it**. If it is missing or changes, all sessions are invalidated and users must log in again. Example in `/var/www/primepos/.env`:
+
+   ```
+   SESSION_SECRET=your-stable-secret-at-least-32-chars
+   ```
+
+2. The **session table** is included in the app schema so `npm run db:push` does not drop it during deploy. Sessions are stored in PostgreSQL; as long as `SESSION_SECRET` is stable, logins survive restarts and deployments.
 
 ## Requirements
 

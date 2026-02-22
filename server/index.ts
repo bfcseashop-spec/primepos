@@ -42,6 +42,12 @@ app.use(express.urlencoded({ extended: false }));
 const PgStore = connectPgSimple(session);
 
 const isProduction = process.env.NODE_ENV === "production";
+const sessionSecret = process.env.SESSION_SECRET || "clinicpos-fallback-secret-change-me";
+if (isProduction && !process.env.SESSION_SECRET) {
+  console.warn(
+    "[session] SESSION_SECRET is not set in .env. Set it to a fixed value (e.g. a long random string) and keep it unchanged so login sessions survive deployments and restarts."
+  );
+}
 app.use(
   session({
     store: new PgStore({
@@ -49,7 +55,7 @@ app.use(
       createTableIfMissing: true,
       tableName: "session",
     }),
-    secret: process.env.SESSION_SECRET || "clinicpos-fallback-secret-change-me", // Use stable SESSION_SECRET in production to keep sessions across deployments
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     name: "connect.sid",

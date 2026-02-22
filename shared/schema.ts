@@ -599,6 +599,18 @@ export const insertMedicinePurchaseSchema = createInsertSchema(medicinePurchases
 export type InsertMedicinePurchase = z.infer<typeof insertMedicinePurchaseSchema>;
 export type MedicinePurchase = typeof medicinePurchases.$inferSelect;
 
+/**
+ * Session table used by connect-pg-simple. Included in schema so drizzle-kit push
+ * does not drop it during deployment. The app manages it via express-session.
+ * If the table already exists with "sess" as type json, run once:
+ *   ALTER TABLE session ALTER COLUMN sess TYPE jsonb USING sess::jsonb;
+ */
+export const session = pgTable("session", {
+  sid: varchar("sid", { length: 255 }).primaryKey(),
+  sess: jsonb("sess").notNull(),
+  expire: timestamp("expire", { withTimezone: true }).notNull(),
+});
+
 export const permissionModules = [
   "dashboard", "opd", "billing", "services", "medicines",
   "expenses", "bank", "investments", "staff", "integrations", "settings", "reports"
