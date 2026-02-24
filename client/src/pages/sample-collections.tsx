@@ -154,27 +154,35 @@ export default function SampleCollectionsPage() {
       <html><head><title>Sample ${barcodeValue}</title>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
       <style>
-        @page { size: 40mm 25mm landscape; margin: 1mm; }
-        @media print { html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-        body { font-family: Arial, sans-serif; margin: 0; padding: 1mm; display: flex; justify-content: center; align-items: center; min-height: 23mm; }
-        .sticker { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; text-align: center; }
-        .sticker .barcode-wrap { margin-bottom: 0.5mm; }
-        .sticker .barcode-wrap svg { display: block; max-width: 100%; }
-        .sticker .id { font-family: monospace; font-size: 5pt; font-weight: bold; margin-bottom: 0.5mm; }
-        .sticker .test-name { font-size: 5pt; font-weight: bold; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sticker .patient-name { font-size: 4pt; color: #333; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: 1.5in 1in; margin: 0.03in; }
+        @media print {
+          html, body { margin: 0; padding: 0; width: 1.5in !important; height: 1in !important; overflow: hidden; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .page-wrap { width: 1.5in !important; height: 1in !important; min-height: 0 !important; page-break-after: avoid; }
+        }
+        html, body { margin: 0; padding: 0; width: 1.5in; height: 1in; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .page-wrap { display: flex; align-items: center; justify-content: center; width: 1.5in; height: 1in; padding: 0.03in; }
+        .sticker { border: 1px dashed #000; width: 100%; height: 100%; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0.02in; flex: 1; box-sizing: border-box; }
+        .sticker .barcode-wrap { margin-bottom: 0.02in; }
+        .sticker .barcode-wrap svg { display: block; max-width: 100%; max-height: 0.45in; }
+        .sticker .barcode-wrap svg path, .sticker .barcode-wrap svg line { stroke: #000 !important; fill: #000 !important; }
+        .sticker .id { font-family: monospace; font-size: 5pt; font-weight: bold; color: #000; margin-bottom: 0.01in; }
+        .sticker .test-name { font-size: 5pt; font-weight: bold; line-height: 1.1; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .patient-name { font-size: 4pt; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       </style></head><body>
-      <div class="sticker">
-        <div class="barcode-wrap"><svg id="barcode"></svg></div>
-        <div class="id">${barcodeValue}</div>
-        <div class="test-name">${testName}</div>
-        <div class="patient-name">${patientName}</div>
+      <div class="page-wrap">
+        <div class="sticker">
+          <div class="barcode-wrap"><svg id="barcode"></svg></div>
+          <div class="id">${barcodeValue}</div>
+          <div class="test-name">${testName}</div>
+          <div class="patient-name">${patientName}</div>
+        </div>
       </div>
       <script>
         window.addEventListener('load', function() {
           try {
-            JsBarcode("#barcode", "${barcodeValue}", { format: "CODE128", width: 1, height: 25, displayValue: false, margin: 4 });
-          } catch (e) { document.getElementById("barcode").innerHTML = "<text>Barcode error</text>"; }
+            JsBarcode("#barcode", "${barcodeValue}", { format: "CODE128", width: 1, height: 22, displayValue: false, margin: 2, lineColor: "#000000" });
+          } catch (e) { document.getElementById("barcode").innerHTML = "<text fill=\"#000\">Barcode error</text>"; }
           setTimeout(function() { window.print(); window.close(); }, 150);
         });
       <\/script>
