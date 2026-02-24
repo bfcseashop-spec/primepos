@@ -147,12 +147,28 @@ export default function SampleCollectionsPage() {
     const barcodeValue = "SC" + sample.id;
     const testName = (sample.testName || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const patientName = (sample.patientName || "-").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // Generate scannable CODE128 barcode in main window so it is present in print HTML (no CDN/timing in popup)
+    let barcodeSvgHtml = "";
+    try {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      JsBarcode(svg, barcodeValue, {
+        format: "CODE128",
+        width: 1,
+        height: 22,
+        displayValue: false,
+        margin: 2,
+        lineColor: "#000000",
+        background: "#ffffff",
+      });
+      barcodeSvgHtml = svg.outerHTML;
+    } catch (e) {
+      barcodeSvgHtml = `<svg xmlns="http://www.w3.org/2000/svg"><text x="0" y="12" fill="#000" font-size="8">${barcodeValue}</text></svg>`;
+    }
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
     printWindow.document.write(`
       <!DOCTYPE html>
       <html><head><title>Sample ${barcodeValue}</title>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         @page { size: 1.5in 1in; margin: 0.03in; }
@@ -172,20 +188,13 @@ export default function SampleCollectionsPage() {
       </style></head><body>
       <div class="page-wrap">
         <div class="sticker">
-          <div class="barcode-wrap"><svg id="barcode"></svg></div>
+          <div class="barcode-wrap">${barcodeSvgHtml}</div>
           <div class="id">${barcodeValue}</div>
           <div class="test-name">${testName}</div>
           <div class="patient-name">${patientName}</div>
         </div>
       </div>
-      <script>
-        window.addEventListener('load', function() {
-          try {
-            JsBarcode("#barcode", "${barcodeValue}", { format: "CODE128", width: 1, height: 22, displayValue: false, margin: 2, lineColor: "#000000" });
-          } catch (e) { document.getElementById("barcode").innerHTML = "<text fill=\"#000\">Barcode error</text>"; }
-          setTimeout(function() { window.print(); window.close(); }, 150);
-        });
-      <\/script>
+      <script>setTimeout(function(){ window.print(); window.close(); }, 100);<\/script>
       </body></html>
     `);
     printWindow.document.close();
