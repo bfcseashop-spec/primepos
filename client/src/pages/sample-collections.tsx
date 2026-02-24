@@ -171,14 +171,14 @@ export default function SampleCollectionsPage() {
       <html><head><title>Sample ${barcodeValue}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @page { size: 1.5in 1in; margin: 0.03in; }
+        @page { size: 1.5in 1in; margin: 0; }
         @media print {
-          html, body { margin: 0; padding: 0; width: 1.5in !important; height: 1in !important; overflow: hidden; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .page-wrap { width: 1.5in !important; height: 1in !important; min-height: 0 !important; page-break-after: avoid; }
+          html, body { margin: 0 !important; padding: 0 !important; width: 1.5in !important; height: 1in !important; max-height: 1in !important; overflow: hidden !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .page-wrap { width: 1.5in !important; height: 1in !important; max-height: 1in !important; min-height: 0 !important; margin: 0 !important; padding: 0.03in !important; page-break-after: avoid !important; page-break-inside: avoid !important; overflow: hidden !important; }
         }
-        html, body { margin: 0; padding: 0; width: 1.5in; height: 1in; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .page-wrap { display: flex; align-items: center; justify-content: center; width: 1.5in; height: 1in; padding: 0.03in; }
-        .sticker { border: 1px dashed #000; width: 100%; height: 100%; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0.02in; flex: 1; box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; width: 1.5in; height: 1in; max-height: 1in; overflow: hidden; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .page-wrap { display: flex; align-items: center; justify-content: center; width: 1.5in; height: 1in; max-height: 1in; padding: 0.03in; overflow: hidden; }
+        .sticker { border: 1px dashed #000; width: 100%; height: 100%; max-height: 100%; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0.02in; box-sizing: border-box; overflow: hidden; flex: 1 1 0; }
         .sticker .barcode-wrap { margin-bottom: 0.02in; }
         .sticker .barcode-wrap svg { display: block; max-width: 100%; max-height: 0.45in; }
         .sticker .barcode-wrap svg path, .sticker .barcode-wrap svg line { stroke: #000 !important; fill: #000 !important; }
