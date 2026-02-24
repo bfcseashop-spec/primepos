@@ -96,16 +96,22 @@ export function printPrescription(
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      body { font-family: 'Segoe UI', system-ui, sans-serif; color: ${accent}; padding: 12px; font-size: 11px; line-height: 1.5; }
-      @media print { @page { size: ${pageSize}; margin: 10mm; } body { padding: 0; } }
+      body { font-family: 'Segoe UI', system-ui, sans-serif; color: ${accent}; font-size: 11px; line-height: 1.5; width: 100%; min-height: 100vh; display: flex; flex-direction: column; }
+      .rx-print-page { flex: 1; display: flex; flex-direction: column; width: 100%; min-height: 100%; }
+      .rx-print-body { flex: 1; width: 100%; }
+      .rx-print-footer { margin-top: auto; width: 100%; }
+      @media print { @page { size: ${pageSize}; margin: 10mm; } html, body { min-height: 100vh; margin: 0; padding: 0; width: 100% !important; } .rx-print-page { min-height: 100vh; } }
       table { border-collapse: collapse; width: 100%; }
     </style></head><body>
-    <div style="max-width:100%;">
-      <div style="text-align:center;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid ${border};">
-        ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:40px;margin-bottom:4px;" />` : ""}
-        <div style="font-size:18px;font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.05em;">${escapeHtml(clinicName)}</div>
-        <div style="font-size:9px;color:${muted};">${escapeHtml(clinicAddress)} ${clinicPhone ? " | " + clinicPhone : ""} ${clinicEmail ? " | " + clinicEmail : ""}</div>
+    <div class="rx-print-page" style="width:100%;padding:0 12px;">
+      <!-- Full A4 top header -->
+      <div style="width:100%;text-align:center;padding:12px 0 14px;margin-bottom:10px;border-bottom:2px solid ${border};">
+        ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:44px;margin-bottom:6px;display:block;margin-left:auto;margin-right:auto;" />` : ""}
+        <div style="font-size:20px;font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.05em;">${escapeHtml(clinicName)}</div>
+        <div style="font-size:10px;color:${muted};margin-top:6px;line-height:1.5;">${escapeHtml(clinicAddress)}</div>
+        <div style="font-size:10px;color:${muted};margin-top:2px;">${clinicPhone ? "UHD: " + escapeHtml(clinicPhone) : ""}${clinicPhone && clinicEmail ? " | " : ""}${clinicEmail ? "CLINIC: " + escapeHtml(clinicEmail) : ""}</div>
       </div>
+      <div class="rx-print-body">
       <div style="font-size:14px;font-weight:700;color:${teal};margin-bottom:10px;text-transform:uppercase;">Prescription</div>
       <table style="margin-bottom:10px;font-size:10px;">
         <tr><td style="padding:2px 8px 2px 0;font-weight:600;">Patient:</td><td>${escapeHtml(patient?.name || "-")}</td></tr>
@@ -131,8 +137,11 @@ export function printPrescription(
         <tbody>${linesRows}</tbody>
       </table>
       ${notes ? `<div style="margin-top:8px;padding:8px;background:#f8fafc;border-radius:6px;"><strong>Notes:</strong> ${escapeHtml(notes)}</div>` : ""}
-      <div style="text-align:center;margin-top:16px;padding-top:8px;border-top:2px solid ${border};font-size:9px;color:${muted};">
-        Thank you for choosing ${escapeHtml(clinicName)}. This is a computer-generated prescription.
+      </div>
+      <!-- Full A4 bottom footer -->
+      <div class="rx-print-footer" style="width:100%;text-align:center;margin-top:auto;padding-top:14px;padding-bottom:12px;border-top:2px solid ${border};">
+        <div style="font-size:11px;font-weight:600;color:${teal};">Thank you for trusting ${escapeHtml(clinicName)}. Your well-being is our greatest priority.</div>
+        ${clinicEmail ? `<div style="font-size:9px;color:${muted};margin-top:4px;">${escapeHtml(clinicEmail)}</div>` : ""}
       </div>
     </div>
     <script>

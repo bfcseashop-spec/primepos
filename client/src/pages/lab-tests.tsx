@@ -531,14 +531,14 @@ export default function LabTestsPage() {
     const muted = "#475569";
     const border = "#e2e8f0";
 
-    const bodyPad = "14px 20px";
+    const bodyPad = "10px 16px";
     const maxW = "100%";
-    const fBase = 12;
-    const fSm = 11;
-    const fPatient = 12;
-    const fResult = 14;
-    const pad = "8px 10px";
-    const padSm = "6px 8px";
+    const fBase = 10;
+    const fSm = 9;
+    const fPatient = 10;
+    const fResult = 11;
+    const pad = "5px 8px";
+    const padSm = "4px 6px";
 
     const testCodeBarcode = (row.testCode || "").replace(/[^A-Za-z0-9\-]/g, "") || row.testCode || "";
 
@@ -565,29 +565,29 @@ export default function LabTestsPage() {
         <div class="lab-print-page" style="padding:${bodyPad};">
 
           <div class="lab-print-body">
-          <!-- HEADER: Clinic name, address, contact -->
-          <div style="margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid ${border};">
-            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:48px;margin-bottom:6px;" />` : ""}
-            <div style="font-size:18px;font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.03em;">${escapeHtml(clinicNameDisplay)}</div>
-            ${clinicAddress ? `<div style="font-size:${fSm}px;color:${muted};margin-top:4px;">${escapeHtml(clinicAddress)}</div>` : ""}
-            ${clinicPhone || clinicEmail || clinicWebsite ? `<div style="font-size:${fSm - 1}px;color:${muted};margin-top:4px;">${[clinicPhone, clinicEmail, clinicWebsite].filter(Boolean).join(" · ")}</div>` : ""}
+          <!-- HEADER: Clinic name, address, contact (centered like prescriptions) -->
+          <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid ${border};">
+            ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:36px;margin-bottom:4px;display:block;margin-left:auto;margin-right:auto;" />` : ""}
+            <div style="font-size:14px;font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.03em;">${escapeHtml(clinicNameDisplay)}</div>
+            ${clinicAddress ? `<div style="font-size:${fSm}px;color:${muted};margin-top:2px;">${escapeHtml(clinicAddress)}</div>` : ""}
+            ${clinicPhone || clinicEmail || clinicWebsite ? `<div style="font-size:${fSm}px;color:${muted};margin-top:2px;">${[clinicPhone, clinicEmail, clinicWebsite].filter(Boolean).join(" · ")}</div>` : ""}
           </div>
 
           <!-- TWO-COLUMN: Patient info (left) | Lab info (right) -->
-          <table style="width:100%;margin-bottom:14px;font-size:${fPatient}px;border-collapse:collapse;">
+          <table style="width:100%;margin-bottom:8px;font-size:${fPatient}px;border-collapse:collapse;">
             <tr>
-              <td style="width:50%;vertical-align:top;padding:8px 14px 8px 0;">
-                <div style="margin-bottom:6px;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}</div>
-                ${(row as unknown as { patientPatientId?: string }).patientPatientId ? `<div style="margin-bottom:6px;"><strong>UHID:</strong> ${escapeHtml(String((row as unknown as { patientPatientId: string }).patientPatientId))}</div>` : ""}
-                <div style="margin-bottom:6px;"><strong>Age/Gender:</strong> ${patientAgeGender}</div>
+              <td style="width:50%;vertical-align:top;padding:4px 10px 4px 0;">
+                <div style="margin-bottom:3px;"><strong>Patient Name:</strong> ${escapeHtml(row.patientName || "-")}</div>
+                ${(row as unknown as { patientPatientId?: string }).patientPatientId ? `<div style="margin-bottom:3px;"><strong>UHID:</strong> ${escapeHtml(String((row as unknown as { patientPatientId: string }).patientPatientId))}</div>` : ""}
+                <div style="margin-bottom:3px;"><strong>Age/Gender:</strong> ${patientAgeGender}</div>
                 <div><strong>Sample Type:</strong> ${escapeHtml(row.sampleType || "-")}</div>
               </td>
-              <td style="width:50%;vertical-align:top;padding:8px 0 8px 14px;border-left:1px solid ${border};">
-                <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;">
+              <td style="width:50%;vertical-align:top;padding:4px 0 4px 10px;border-left:1px solid ${border};">
+                <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:3px;">
                   <div><strong>Lab No:</strong> ${escapeHtml(row.testCode)}</div>
                   ${testCodeBarcode ? `<div id="lab-report-barcode" style="flex-shrink:0;"></div>` : ""}
                 </div>
-                <div style="margin-bottom:6px;"><strong>Report Date:</strong> ${reportDateStr}</div>
+                <div style="margin-bottom:3px;"><strong>Report Date:</strong> ${reportDateStr}</div>
                 ${row.referrerName ? `<div><strong>Referred By:</strong> ${escapeHtml(row.referrerName)}</div>` : ""}
               </td>
             </tr>
@@ -630,13 +630,13 @@ export default function LabTestsPage() {
             }
             return `
           <!-- RESULTS TABLE -->
-          <table style="width:100%;margin-bottom:14px;">
+          <table style="width:100%;margin-bottom:8px;">
             <thead>
               <tr style="background:${teal};-webkit-print-color-adjust:exact;print-color-adjust:exact;">
-                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Test Name</th>
-                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Result</th>
-                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Unit</th>
-                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.06em;color:#fff;font-weight:700;">Normal/Reference Ranges</th>
+                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.05em;color:#fff;font-weight:700;">Test Name</th>
+                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.05em;color:#fff;font-weight:700;">Result</th>
+                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.05em;color:#fff;font-weight:700;">Unit</th>
+                <th style="padding:${pad};text-align:left;font-size:${fSm}px;text-transform:uppercase;letter-spacing:0.05em;color:#fff;font-weight:700;">Normal/Reference Ranges</th>
               </tr>
             </thead>
             <tbody>
@@ -651,14 +651,14 @@ export default function LabTestsPage() {
           <div style="width:100%;">
 
           <!-- END OF REPORT -->
-          <div style="text-align:center;margin:14px 0;font-size:12px;font-weight:700;color:${teal};">*** End Of Report ***</div>
+          <div style="text-align:center;margin:8px 0;font-size:${fBase}px;font-weight:700;color:${teal};">*** End Of Report ***</div>
 
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;padding-top:10px;border-top:1px solid ${border};">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;padding-top:6px;border-top:1px solid ${border};">
             <div style="font-size:${fSm}px;">
               ${row.labTechnologist?.fullName ? `<div><strong>Verified By:</strong> ${escapeHtml(row.labTechnologist.fullName)}</div>` : ""}
-              ${row.createdAt ? `<div style="margin-top:4px;"><strong>Verified At:</strong> ${reportDateStr}</div>` : ""}
-              <div style="margin-top:6px;"><strong>Printed By:</strong> ${escapeHtml(printedBy)}</div>
-              <div style="margin-top:4px;"><strong>Printed At:</strong> ${printedAtStr}</div>
+              ${row.createdAt ? `<div style="margin-top:2px;"><strong>Verified At:</strong> ${reportDateStr}</div>` : ""}
+              <div style="margin-top:3px;"><strong>Printed By:</strong> ${escapeHtml(printedBy)}</div>
+              <div style="margin-top:2px;"><strong>Printed At:</strong> ${printedAtStr}</div>
             </div>
             ${row.labTechnologist && row.labTechnologist.fullName ? (() => {
               const tech = row.labTechnologist!;
@@ -669,16 +669,16 @@ export default function LabTestsPage() {
               // Split by double comma (,,) — each segment becomes a line; single commas stay in text (e.g. "Prime Clinic, Sihanouk")
               const qual = qualRaw ? qualRaw.split(/,\s*,/).map(s => escapeHtml(s.trim())).filter(Boolean).join("<br/>") : "";
               return `
-            <div style="text-align:center;font-size:${fSm}px;line-height:1.4;">
-              ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:44px;max-width:96px;object-contain;display:block;margin:0 auto 4px;" onerror="this.style.display='none'" />` : ""}
+            <div style="text-align:center;font-size:${fSm}px;line-height:1.3;">
+              ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:36px;max-width:80px;object-contain;display:block;margin:0 auto 2px;" onerror="this.style.display='none'" />` : ""}
               <div style="font-weight:700;color:${accent};">${name}</div>
               ${qual ? `<div style="color:${muted};">${qual}</div>` : ""}
             </div>`;
             })() : ""}
           </div>
 
-          <div style="text-align:center;margin-top:10px;padding-top:8px;border-top:1px solid ${border};font-size:${fSm}px;color:${muted};">
-            Thank you for choosing ${escapeHtml(clinicNameDisplay)}!${clinicEmail ? ` · ${escapeHtml(clinicEmail)}` : ""}
+          <div style="text-align:center;margin-top:6px;padding-top:6px;border-top:1px solid ${border};font-size:${fSm}px;color:${muted};">
+            Thank you for choosing ${escapeHtml(clinicNameDisplay)}${clinicEmail ? ` | ${escapeHtml(clinicEmail)}` : ""}
           </div>
           </div>
 
