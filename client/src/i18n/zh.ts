@@ -61,6 +61,7 @@ export const zh = {
     dashboard: "仪表盘",
     makePayment: "收银台 (POS)",
     opdManagement: "门诊管理",
+    prescriptions: "处方",
     appointments: "预约管理",
     services: "服务项目",
     packages: "套餐",

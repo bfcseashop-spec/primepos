@@ -23,12 +23,15 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, User as UserIcon, Phone, Mail, MapPin, Droplets, Calendar, AlertTriangle, FileText, Heart, Users, UserCheck, Activity, Clock, Stethoscope, Calendar as CalendarIcon } from "lucide-react";
+import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, User as UserIcon, Phone, Mail, MapPin, Droplets, Calendar, AlertTriangle, FileText, Heart, Users, UserCheck, Activity, Clock, Stethoscope, Calendar as CalendarIcon, Pill, Printer, Plus, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { useLocation } from "wouter";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { printPrescription } from "@/lib/prescription-print";
 import type { Patient } from "@shared/schema";
+
+export type PrescriptionLine = { medicineId?: number; name: string; dosage?: string; duration?: string; frequency?: string; instructions?: string };
 
 function dateToYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -82,6 +85,13 @@ export default function OpdPage() {
   const [editAgeDobMode, setEditAgeDobMode] = useState<"dob" | "age">("dob");
   const [editAgeInputValue, setEditAgeInputValue] = useState("");
   const [editAgeInputUnit, setEditAgeInputUnit] = useState<AgeUnit>("years");
+  const [consultationPatient, setConsultationPatient] = useState<Patient | null>(null);
+  const [consultDoctor, setConsultDoctor] = useState("");
+  const [consultSymptoms, setConsultSymptoms] = useState("");
+  const [consultDiagnosis, setConsultDiagnosis] = useState("");
+  const [consultPrescriptionLines, setConsultPrescriptionLines] = useState<PrescriptionLine[]>([]);
+  const [consultNotes, setConsultNotes] = useState("");
+  const [consultBarcodeInput, setConsultBarcodeInput] = useState("");
 
   const { data: patients = [], isLoading: patientsLoading } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
@@ -90,6 +100,9 @@ export default function OpdPage() {
   const { data: visits = [] } = useQuery<any[]>({
     queryKey: ["/api/opd-visits"],
   });
+
+  const { data: doctors = [] } = useQuery<any[]>({ queryKey: ["/api/doctors"] });
+  const { data: settings } = useQuery<any>({ queryKey: ["/api/settings"] });
 
   const deletePatientMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -170,6 +183,86 @@ export default function OpdPage() {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
+
+  const createVisitMutation = useMutation({
+    mutationFn: async (payload: { visitId: string; patientId: number; doctorName: string; symptoms: string; diagnosis: string; prescription: string; notes: string }) => {
+      const res = await apiRequest("POST", "/api/opd-visits", payload);
+      return res.json();
+    },
+    onSuccess: (visit: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
+      const patient = consultationPatient;
+      setConsultationPatient(null);
+      setConsultDoctor("");
+      setConsultSymptoms("");
+      setConsultDiagnosis("");
+      setConsultPrescriptionLines([]);
+      setConsultNotes("");
+      toast({ title: "Prescription saved" });
+      if (patient && settings) {
+        printPrescription(
+          { visitId: visit.visitId, doctorName: visit.doctorName, visitDate: visit.visitDate, prescription: visit.prescription, diagnosis: visit.diagnosis, symptoms: visit.symptoms },
+          patient,
+          settings
+        );
+      }
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const openConsultation = (patient: Patient) => {
+    setConsultationPatient(patient);
+    setConsultDoctor("");
+    setConsultSymptoms("");
+    setConsultDiagnosis("");
+    setConsultPrescriptionLines([]);
+    setConsultNotes("");
+    setConsultBarcodeInput("");
+  };
+
+  const handleConsultationSave = async () => {
+    if (!consultationPatient) return;
+    const doctorName = consultDoctor.trim() || (doctors as any[])[0]?.name || "";
+    const prescriptionPayload = JSON.stringify({
+      lines: consultPrescriptionLines.map((l) => ({ medicineId: l.medicineId, name: l.name, dosage: l.dosage || "", duration: l.duration || "", frequency: l.frequency || "", instructions: l.instructions || "" })),
+      notes: consultNotes,
+    });
+    const resNextId = await fetch("/api/opd-visits/next-id", { credentials: "include" });
+    if (!resNextId.ok) {
+      toast({ title: "Error", description: "Could not get visit ID", variant: "destructive" });
+      return;
+    }
+    const { visitId } = await resNextId.json();
+    createVisitMutation.mutate({
+      visitId,
+      patientId: consultationPatient.id,
+      doctorName,
+      symptoms: consultSymptoms,
+      diagnosis: consultDiagnosis,
+      prescription: prescriptionPayload,
+      notes: consultNotes,
+    });
+  };
+
+  const handlePrescriptionBarcodeSearch = async (code: string) => {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    try {
+      const res = await apiRequest("GET", `/api/medicines/lookup?code=${encodeURIComponent(trimmed)}`);
+      const med = await res.json();
+      if (med && med.name) {
+        setConsultPrescriptionLines((prev) => [...prev, { medicineId: med.id, name: med.name, dosage: "", duration: "", frequency: "", instructions: "" }]);
+        setConsultBarcodeInput("");
+        toast({ title: "Medicine added", description: med.name });
+      } else {
+        toast({ title: "Not found", description: "No medicine for this code", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Lookup failed", variant: "destructive" });
+    }
+  };
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
@@ -308,6 +401,9 @@ export default function OpdPage() {
         </Button>
         <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openAppointmentDialog(row); }} data-testid={`button-add-appointment-list-${row.id}`}>
           <CalendarPlus className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openConsultation(row); }} data-testid={`button-prescription-list-${row.id}`}>
+          <FileText className="h-4 w-4 text-teal-500 dark:text-teal-400" />
         </Button>
       </div>
     )},
@@ -578,6 +674,15 @@ export default function OpdPage() {
                         >
                           <CalendarPlus className="h-3.5 w-3.5 mr-1 text-emerald-500 dark:text-emerald-400" /> {t("opd.addAppointment")}
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => openConsultation(patient)}
+                          data-testid={`button-prescription-${patient.id}`}
+                        >
+                          <FileText className="h-3.5 w-3.5 mr-1 text-teal-500 dark:text-teal-400" /> Prescription
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -737,11 +842,95 @@ export default function OpdPage() {
                 </>
               )}
               <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => { setViewPatient(null); openConsultation(viewPatient); }} data-testid="button-view-prescription">
+                  <FileText className="h-4 w-4 mr-1 text-teal-500" /> Prescription
+                </Button>
                 <Button variant="outline" onClick={() => { setViewPatient(null); openEditPatient(viewPatient); }} data-testid="button-view-to-edit">
                   <Pencil className="h-4 w-4 mr-1 text-amber-500" /> {t("common.edit")}
                 </Button>
                 <Button variant="outline" onClick={() => setViewPatient(null)} data-testid="button-close-view">
                   {t("common.close")}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Consultation / Prescription dialog */}
+      <Dialog open={!!consultationPatient} onOpenChange={(open) => { if (!open) setConsultationPatient(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pill className="h-5 w-5 text-teal-500" /> Write prescription
+            </DialogTitle>
+            <DialogDescription>
+              {consultationPatient && getDisplayName(consultationPatient)} #{consultationPatient?.patientId}
+            </DialogDescription>
+          </DialogHeader>
+          {consultationPatient && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Doctor</Label>
+                  <Select value={consultDoctor} onValueChange={setConsultDoctor}>
+                    <SelectTrigger><SelectValue placeholder="Select doctor" /></SelectTrigger>
+                    <SelectContent>
+                      {(doctors as any[]).map((d) => (
+                        <SelectItem key={d.id} value={d.name || ""}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label>Symptoms</Label>
+                <Textarea value={consultSymptoms} onChange={(e) => setConsultSymptoms(e.target.value)} placeholder="Chief complaints..." rows={2} className="resize-none" />
+              </div>
+              <div>
+                <Label>Diagnosis</Label>
+                <Textarea value={consultDiagnosis} onChange={(e) => setConsultDiagnosis(e.target.value)} placeholder="Diagnosis..." rows={2} className="resize-none" />
+              </div>
+              <div>
+                <Label className="flex items-center gap-2">Prescription — scan barcode or add manually</Label>
+                <div className="flex gap-2 mb-2">
+                  <SearchInputWithBarcode
+                    placeholder="Scan or enter medicine code..."
+                    value={consultBarcodeInput}
+                    onChange={(e) => setConsultBarcodeInput(e.target.value)}
+                    onSearch={handlePrescriptionBarcodeSearch}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={() => setConsultPrescriptionLines((p) => [...p, { name: "", dosage: "", duration: "", frequency: "", instructions: "" }])}>
+                    <Plus className="h-4 w-4 mr-1" /> Add line
+                  </Button>
+                </div>
+                <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
+                  {consultPrescriptionLines.map((line, idx) => (
+                    <div key={idx} className="p-2 grid grid-cols-12 gap-1 items-center text-sm">
+                      <input placeholder="Medicine" value={line.name} onChange={(e) => setConsultPrescriptionLines((p) => p.map((l, i) => i === idx ? { ...l, name: e.target.value } : l))} className="col-span-3 border rounded px-2 py-1" />
+                      <input placeholder="Dosage" value={line.dosage || ""} onChange={(e) => setConsultPrescriptionLines((p) => p.map((l, i) => i === idx ? { ...l, dosage: e.target.value } : l))} className="col-span-2 border rounded px-2 py-1" />
+                      <input placeholder="Duration" value={line.duration || ""} onChange={(e) => setConsultPrescriptionLines((p) => p.map((l, i) => i === idx ? { ...l, duration: e.target.value } : l))} className="col-span-2 border rounded px-2 py-1" />
+                      <input placeholder="Frequency" value={line.frequency || ""} onChange={(e) => setConsultPrescriptionLines((p) => p.map((l, i) => i === idx ? { ...l, frequency: e.target.value } : l))} className="col-span-2 border rounded px-2 py-1" />
+                      <input placeholder="Instructions" value={line.instructions || ""} onChange={(e) => setConsultPrescriptionLines((p) => p.map((l, i) => i === idx ? { ...l, instructions: e.target.value } : l))} className="col-span-2 border rounded px-2 py-1" />
+                      <Button type="button" variant="ghost" size="icon" className="col-span-1 h-8 w-8" onClick={() => setConsultPrescriptionLines((p) => p.filter((_, i) => i !== idx))}>
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  ))}
+                  {consultPrescriptionLines.length === 0 && (
+                    <div className="p-4 text-center text-muted-foreground text-sm">No medicines added. Scan barcode or add line.</div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label>Notes</Label>
+                <Textarea value={consultNotes} onChange={(e) => setConsultNotes(e.target.value)} placeholder="Additional notes..." rows={2} className="resize-none" />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setConsultationPatient(null)}>Cancel</Button>
+                <Button onClick={handleConsultationSave} disabled={createVisitMutation.isPending} className="bg-teal-600 hover:bg-teal-700">
+                  <Printer className="h-4 w-4 mr-1" /> Save &amp; print
                 </Button>
               </div>
             </div>

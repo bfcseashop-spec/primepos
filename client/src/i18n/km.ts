@@ -61,6 +61,7 @@ export const km = {
     dashboard: "ផ្ទាំងគ្រប់គ្រង",
     makePayment: "ធ្វើការបង់ប្រាក់ (POS)",
     opdManagement: "គ្រប់គ្រង OPD",
+    prescriptions: "វេជ្ជបញ្ជា",
     appointments: "ការណាត់ជួប",
     services: "សេវាកម្ម",
     packages: "កញ្ចប់",

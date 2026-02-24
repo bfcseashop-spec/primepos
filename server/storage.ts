@@ -1,4 +1,4 @@
-import { eq, desc, sql, and, gte, lte, count, sum, inArray, ilike } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lte, count, sum, inArray, ilike, isNotNull } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, roles, patients, services, injections, medicines, opdVisits, bills,
@@ -88,7 +88,9 @@ export interface IStorage {
   deleteMedicinePurchase(id: number): Promise<void>;
 
   getOpdVisits(): Promise<any[]>;
+  getOpdVisitsFiltered(filters: { fromDate?: string; toDate?: string; doctorName?: string; patientId?: number; hasPrescription?: boolean }): Promise<any[]>;
   getOpdVisit(id: number): Promise<OpdVisit | undefined>;
+  getNextVisitId(): Promise<string>;
   createOpdVisit(visit: InsertOpdVisit): Promise<OpdVisit>;
   updateOpdVisit(id: number, data: Partial<InsertOpdVisit>): Promise<OpdVisit | undefined>;
 
@@ -439,6 +441,52 @@ export class DatabaseStorage implements IStorage {
       patientName: patients.name,
     }).from(opdVisits).leftJoin(patients, eq(opdVisits.patientId, patients.id)).orderBy(desc(opdVisits.visitDate));
     return result;
+  }
+
+  async getOpdVisitsFiltered(filters: { fromDate?: string; toDate?: string; doctorName?: string; patientId?: number; hasPrescription?: boolean }): Promise<any[]> {
+    const conds: ReturnType<typeof eq>[] = [];
+    if (filters.fromDate) {
+      conds.push(gte(opdVisits.visitDate, new Date(filters.fromDate + "T00:00:00")));
+    }
+    if (filters.toDate) {
+      conds.push(lte(opdVisits.visitDate, new Date(filters.toDate + "T23:59:59.999")));
+    }
+    if (filters.doctorName && filters.doctorName.trim() !== "") {
+      conds.push(eq(opdVisits.doctorName, filters.doctorName.trim()));
+    }
+    if (filters.patientId != null) {
+      conds.push(eq(opdVisits.patientId, filters.patientId));
+    }
+    if (filters.hasPrescription === true) {
+      conds.push(isNotNull(opdVisits.prescription));
+    }
+    const baseQuery = db.select({
+      id: opdVisits.id,
+      visitId: opdVisits.visitId,
+      patientId: opdVisits.patientId,
+      doctorName: opdVisits.doctorName,
+      symptoms: opdVisits.symptoms,
+      diagnosis: opdVisits.diagnosis,
+      prescription: opdVisits.prescription,
+      notes: opdVisits.notes,
+      status: opdVisits.status,
+      visitDate: opdVisits.visitDate,
+      patientName: patients.name,
+    }).from(opdVisits).leftJoin(patients, eq(opdVisits.patientId, patients.id));
+    const result = conds.length > 0
+      ? await baseQuery.where(and(...conds)).orderBy(desc(opdVisits.visitDate))
+      : await baseQuery.orderBy(desc(opdVisits.visitDate));
+    return result;
+  }
+
+  async getNextVisitId(): Promise<string> {
+    const rows = await db.select({ visitId: opdVisits.visitId }).from(opdVisits);
+    let maxNum = 0;
+    for (const r of rows) {
+      const m = (r.visitId || "").match(/^VIS-(\d+)$/i);
+      if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
+    }
+    return `VIS-${String(maxNum + 1).padStart(3, "0")}`;
   }
 
   async getOpdVisit(id: number): Promise<OpdVisit | undefined> {

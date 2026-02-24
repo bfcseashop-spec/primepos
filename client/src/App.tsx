@@ -30,6 +30,7 @@ import SampleCollectionsPage from "@/pages/sample-collections";
 import RegisterPatientPage from "@/pages/register-patient";
 import AppointmentsPage from "@/pages/appointments";
 import DoctorManagementPage from "@/pages/doctor-management";
+import PrescriptionsPage from "@/pages/prescriptions";
 import SalaryPage from "@/pages/salary";
 import AuthenticationPage from "@/pages/authentication";
 import SignInPage from "@/pages/sign-in";
@@ -73,6 +74,7 @@ function Router({ currentUser }: { currentUser: any }) {
       <Route path="/reports" component={ReportsPage} />
       <Route path="/appointments" component={AppointmentsPage} />
       <Route path="/doctors" component={DoctorManagementPage} />
+      <Route path="/prescriptions" component={PrescriptionsPage} />
       <Route path="/salary" component={SalaryPage} />
       <Route path="/authentication" component={AuthenticationPage} />
       <Route path="/settings" component={SettingsPage} />

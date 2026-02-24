@@ -5,7 +5,7 @@ import {
   Receipt, Landmark, TrendingUp, UserCog, Settings,
   Cable, BarChart3, Activity, FlaskConical, CalendarCheck,
   UserRound, DollarSign, Shield, Heart, LogOut, ShoppingBag,
-  TestTubes
+  TestTubes,
 } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import {
@@ -29,6 +29,7 @@ const mainItems = [
   { i18nKey: "sidebar.dashboard", url: "/", icon: LayoutDashboard, iconColor: "text-blue-500" },
   { i18nKey: "sidebar.makePayment", url: "/billing", icon: FileText, iconColor: "text-amber-500" },
   { i18nKey: "sidebar.opdManagement", url: "/opd", icon: Stethoscope, iconColor: "text-emerald-500" },
+  { i18nKey: "sidebar.prescriptions", url: "/prescriptions", icon: FileText, iconColor: "text-teal-500" },
   { i18nKey: "sidebar.appointments", url: "/appointments", icon: CalendarCheck, iconColor: "text-violet-500" },
   { i18nKey: "sidebar.services", url: "/services", icon: Activity, iconColor: "text-pink-500" },
   { i18nKey: "sidebar.packages", url: "/packages", icon: ShoppingBag, iconColor: "text-fuchsia-500" },

@@ -566,10 +566,29 @@ export async function registerRoutes(
   });
 
   // OPD Visits
-  app.get("/api/opd-visits", async (_req, res) => {
+  app.get("/api/opd-visits/next-id", async (_req, res) => {
     try {
-      const result = await storage.getOpdVisits();
-      res.json(result);
+      const visitId = await storage.getNextVisitId();
+      res.json({ visitId });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/opd-visits", async (req, res) => {
+    try {
+      const fromDate = req.query.fromDate as string | undefined;
+      const toDate = req.query.toDate as string | undefined;
+      const doctorName = req.query.doctorName as string | undefined;
+      const patientId = req.query.patientId != null ? Number(req.query.patientId) : undefined;
+      const hasPrescription = req.query.hasPrescription === "true" || req.query.hasPrescription === "1";
+      if (fromDate || toDate || (doctorName != null && doctorName.trim() !== "") || patientId != null || hasPrescription) {
+        const result = await storage.getOpdVisitsFiltered({ fromDate, toDate, doctorName, patientId, hasPrescription: hasPrescription || undefined });
+        res.json(result);
+      } else {
+        const result = await storage.getOpdVisits();
+        res.json(result);
+      }
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -587,7 +606,7 @@ export async function registerRoutes(
 
   app.patch("/api/opd-visits/:id", async (req, res) => {
     try {
-      const updateSchema = z.object({ status: z.string().optional(), diagnosis: z.string().optional(), prescription: z.string().optional(), notes: z.string().optional() });
+      const updateSchema = z.object({ status: z.string().optional(), symptoms: z.string().optional(), diagnosis: z.string().optional(), prescription: z.string().optional(), notes: z.string().optional(), doctorName: z.string().optional() });
       const data = validateBody(updateSchema, req.body);
       const visit = await storage.updateOpdVisit(Number(req.params.id), data);
       if (!visit) return res.status(404).json({ message: "Visit not found" });
@@ -2452,6 +2471,27 @@ export async function registerRoutes(
     try {
       const data = await storage.getTopServices();
       res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/reports/prescription-stats", async (req, res) => {
+    try {
+      const fromDate = req.query.fromDate as string | undefined;
+      const toDate = req.query.toDate as string | undefined;
+      const doctorName = req.query.doctorName as string | undefined;
+      const visits = await storage.getOpdVisitsFiltered({ fromDate, toDate, doctorName, hasPrescription: true });
+      const byDoctor = new Map<string, number>();
+      for (const v of visits) {
+        const name = v.doctorName || "Unassigned";
+        byDoctor.set(name, (byDoctor.get(name) || 0) + 1);
+      }
+      res.json({
+        total: visits.length,
+        byDoctor: Array.from(byDoctor.entries()).map(([doctorName, count]) => ({ doctorName, count })).sort((a, b) => b.count - a.count),
+        recentVisits: visits.slice(0, 10),
+      });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

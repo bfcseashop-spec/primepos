@@ -107,6 +107,7 @@ export const NAV_TO_MODULE: Record<string, PermissionModuleKey> = {
   "/": "dashboard",
   "/billing": "make_payment",
   "/opd": "opd",
+  "/prescriptions": "opd",
   "/appointments": "appointments",
   "/services": "services",
   "/packages": "services",

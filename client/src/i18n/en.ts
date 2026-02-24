@@ -94,6 +94,7 @@ export const en = {
     dashboard: "Dashboard",
     makePayment: "Make Payment (POS)",
     opdManagement: "OPD Management",
+    prescriptions: "Prescriptions",
     appointments: "Appointments",
     services: "Services",
     packages: "Packages",
