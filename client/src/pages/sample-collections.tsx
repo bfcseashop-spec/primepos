@@ -153,10 +153,10 @@ export default function SampleCollectionsPage() {
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       JsBarcode(svg, barcodeValue, {
         format: "CODE128",
-        width: 1,
-        height: 22,
+        width: 1.2,
+        height: 32,
         displayValue: false,
-        margin: 2,
+        margin: 3,
         lineColor: "#000000",
         background: "#ffffff",
       });
@@ -178,13 +178,13 @@ export default function SampleCollectionsPage() {
         }
         html, body { margin: 0; padding: 0; width: 1.5in; height: 1in; max-height: 1in; overflow: hidden; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .page-wrap { display: flex; align-items: center; justify-content: center; width: 1.5in; height: 1in; max-height: 1in; padding: 0.03in; overflow: hidden; }
-        .sticker { border: 1px dashed #000; width: 100%; height: 100%; max-height: 100%; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0.02in; box-sizing: border-box; overflow: hidden; flex: 1 1 0; }
-        .sticker .barcode-wrap { margin-bottom: 0.02in; }
-        .sticker .barcode-wrap svg { display: block; max-width: 100%; max-height: 0.45in; }
+        .sticker { border: 1px dashed #888; width: 100%; height: 100%; max-height: 100%; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0.02in; box-sizing: border-box; overflow: hidden; flex: 1 1 0; }
+        .sticker .barcode-wrap { margin-bottom: 0.03in; }
+        .sticker .barcode-wrap svg { display: block; max-width: 100%; max-height: 0.58in; }
         .sticker .barcode-wrap svg path, .sticker .barcode-wrap svg line { stroke: #000 !important; fill: #000 !important; }
-        .sticker .id { font-family: monospace; font-size: 5pt; font-weight: bold; color: #000; margin-bottom: 0.01in; }
-        .sticker .test-name { font-size: 5pt; font-weight: bold; line-height: 1.1; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sticker .patient-name { font-size: 4pt; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .id { font-family: monospace; font-size: 8pt; font-weight: bold; color: #000; margin-bottom: 0.02in; }
+        .sticker .test-name { font-size: 8pt; font-weight: bold; line-height: 1.15; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .patient-name { font-size: 6pt; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       </style></head><body>
       <div class="page-wrap">
         <div class="sticker">
