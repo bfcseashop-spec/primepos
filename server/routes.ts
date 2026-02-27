@@ -15,6 +15,8 @@ import {
   insertSalaryProfileSchema, insertSalaryLoanSchema, insertLoanInstallmentSchema,
   insertPayrollRunSchema, insertPayslipSchema,
 } from "@shared/schema";
+import { pushNotification } from "./websocket";
+import type { NotificationPayload } from "@shared/notifications";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
 import multer from "multer";
@@ -599,6 +601,22 @@ export async function registerRoutes(
       const data = validateBody(insertOpdVisitSchema, req.body);
       const visit = await storage.createOpdVisit(data);
       res.status(201).json(visit);
+
+      try {
+        const payload: NotificationPayload = {
+          id: `visit-${visit.id}-${Date.now()}`,
+          type: "visit_created",
+          title: "New OPD Visit",
+          message: `Visit ${visit.visitId} created${visit.doctorName ? ` for Dr. ${visit.doctorName}` : ""}.`,
+          audience: visit.doctorName ? "doctor" : "staff",
+          doctorName: visit.doctorName || undefined,
+          createdAt: new Date().toISOString(),
+          data: { visitId: visit.id, visitCode: visit.visitId, doctorName: visit.doctorName || null },
+        };
+        pushNotification(payload);
+      } catch {
+        // Notification errors should not break the main request.
+      }
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }
@@ -692,6 +710,23 @@ export async function registerRoutes(
             });
           }
         }
+
+        // Notify lab technologists and the referring doctor (if any) about new lab work.
+        try {
+          const payload: NotificationPayload = {
+            id: `lab-${labTest.id}-${Date.now()}`,
+            type: "lab_test_created",
+            title: "New Lab Request",
+            message: `Lab test ${labTest.testCode} – ${labTest.testName}`,
+            audience: labTest.referrerName ? "doctor" : "lab_technologist",
+            doctorName: labTest.referrerName || undefined,
+            createdAt: new Date().toISOString(),
+            data: { labTestId: labTest.id, testCode: labTest.testCode, referrerName: labTest.referrerName || null },
+          };
+          pushNotification(payload);
+        } catch {
+          // Ignore notification errors.
+        }
       }
 
       for (const [medIdStr, totalQty] of Object.entries(medQtyMap)) {
@@ -710,6 +745,25 @@ export async function registerRoutes(
         }
       }
       res.status(201).json(bill);
+
+      // Pharmacist notification when a bill includes medicines.
+      try {
+        const hasMedicines = Object.keys(medQtyMap).length > 0;
+        if (hasMedicines) {
+          const payload: NotificationPayload = {
+            id: `bill-${bill.id}-${Date.now()}`,
+            type: "bill_with_medicines_created",
+            title: "New Pharmacy Bill",
+            message: `Bill ${bill.billNo} includes medicine items.`,
+            audience: "pharmacist",
+            createdAt: new Date().toISOString(),
+            data: { billId: bill.id, billNo: bill.billNo },
+          };
+          pushNotification(payload);
+        }
+      } catch {
+        // Ignore notification errors.
+      }
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }
@@ -2533,6 +2587,23 @@ export async function registerRoutes(
       const data = validateBody(insertLabTestSchema, req.body);
       const test = await storage.createLabTest(data);
       res.status(201).json(test);
+
+      // Direct lab-test creation (not via bill) — notify lab and optionally doctor.
+      try {
+        const payload: NotificationPayload = {
+          id: `lab-${test.id}-${Date.now()}`,
+          type: "lab_test_created",
+          title: "New Lab Request",
+          message: `Lab test ${test.testCode} – ${test.testName}`,
+          audience: test.referrerName ? "doctor" : "lab_technologist",
+          doctorName: test.referrerName || undefined,
+          createdAt: new Date().toISOString(),
+          data: { labTestId: test.id, testCode: test.testCode, referrerName: test.referrerName || null },
+        };
+        pushNotification(payload);
+      } catch {
+        // Ignore notification errors.
+      }
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }
@@ -2666,6 +2737,22 @@ export async function registerRoutes(
       if (!sc) return res.status(404).json({ message: "Sample collection not found" });
       if (sc.status === "collected" && sc.labTestId) {
         await storage.updateLabTest(sc.labTestId, { status: "processing" });
+
+        // Notify lab team that a sample has been collected and processing can start.
+        try {
+          const payload: NotificationPayload = {
+            id: `sample-${sc.id}-${Date.now()}`,
+            type: "sample_collection_created",
+            title: "Sample Collected",
+            message: `Sample collected for test ${sc.testName}.`,
+            audience: "lab_technologist",
+            createdAt: new Date().toISOString(),
+            data: { sampleCollectionId: sc.id, labTestId: sc.labTestId },
+          };
+          pushNotification(payload);
+        } catch {
+          // Ignore notification errors.
+        }
       }
       res.json(sc);
     } catch (err: any) {
@@ -2688,6 +2775,23 @@ export async function registerRoutes(
       const data = validateBody(insertAppointmentSchema, req.body);
       const appointment = await storage.createAppointment(data);
       res.status(201).json(appointment);
+
+      // Receptionist + doctor-specific notification for new appointments.
+      try {
+        const payload: NotificationPayload = {
+          id: `appt-${appointment.id}-${Date.now()}`,
+          type: "appointment_created",
+          title: "New Appointment",
+          message: `Appointment scheduled${appointment.doctorName ? ` with Dr. ${appointment.doctorName}` : ""} on ${appointment.appointmentDate || ""}.`,
+          audience: appointment.doctorName ? "doctor" : "receptionist",
+          doctorName: appointment.doctorName || undefined,
+          createdAt: new Date().toISOString(),
+          data: { appointmentId: appointment.id, doctorName: appointment.doctorName || null },
+        };
+        pushNotification(payload);
+      } catch {
+        // Ignore notification errors.
+      }
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }

@@ -36,6 +36,7 @@ import AuthenticationPage from "@/pages/authentication";
 import SignInPage from "@/pages/sign-in";
 import { canView, NAV_TO_MODULE } from "@shared/permissions";
 import { AuthProvider } from "@/contexts/auth-context";
+import { NotificationProvider } from "@/contexts/notification-context";
 
 function RouteGuard({ currentUser, children }: { currentUser: any; children: React.ReactNode }) {
   const [location] = useLocation();
@@ -213,18 +214,20 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
             <AuthProvider user={currentUser}>
-            <SidebarProvider style={sidebarStyle as React.CSSProperties}>
-              <DocumentHeadFromSettings />
-              <div className="flex h-screen w-full">
-                <AppSidebar currentUser={currentUser} />
-                <div className="flex flex-col flex-1 overflow-hidden">
-                  <LayoutHeader />
-                  <main className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                    <Router currentUser={currentUser} />
-                  </main>
+            <NotificationProvider user={currentUser}>
+              <SidebarProvider style={sidebarStyle as React.CSSProperties}>
+                <DocumentHeadFromSettings />
+                <div className="flex h-screen w-full">
+                  <AppSidebar currentUser={currentUser} />
+                  <div className="flex flex-col flex-1 overflow-hidden">
+                    <LayoutHeader />
+                    <main className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                      <Router currentUser={currentUser} />
+                    </main>
+                  </div>
                 </div>
-              </div>
-            </SidebarProvider>
+              </SidebarProvider>
+            </NotificationProvider>
             </AuthProvider>
             <Toaster />
           </TooltipProvider>

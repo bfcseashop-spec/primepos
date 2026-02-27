@@ -17,10 +17,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Clock, ShoppingCart, Activity, Globe, User, LogOut } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, ShoppingCart, Activity, Globe, User, LogOut, Bell } from "lucide-react";
 import { enUS, km, zhCN } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { useTranslation, LANGUAGES } from "@/i18n";
+import { useNotifications } from "@/contexts/notification-context";
 
 const LOCALE_MAP: Record<string, string> = { en: "en-US", km: "km-KH", zh: "zh-CN" };
 const DAY_PICKER_LOCALE_MAP: Record<string, typeof enUS> = { en: enUS, km, zh: zhCN };
@@ -260,6 +261,66 @@ function ProfileMenu() {
   );
 }
 
+function NotificationsBell() {
+  const { notifications, unreadCount, markAllRead } = useNotifications();
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  const handleOpenChange = (value: boolean) => {
+    setOpen(value);
+    if (value) {
+      markAllRead();
+    }
+  };
+
+  const hasNotifications = notifications.length > 0;
+  const latest = notifications.slice(0, 8);
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
+          <Bell className="h-4 w-4" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] px-1.5 py-0.5">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0" sideOffset={8}>
+        <div className="border-b px-3 py-2 flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("common.notifications") ?? "Notifications"}
+          </span>
+          {hasNotifications && (
+            <span className="text-[10px] text-muted-foreground">
+              {unreadCount} unread
+            </span>
+          )}
+        </div>
+        <div className="max-h-80 overflow-auto">
+          {hasNotifications ? (
+            latest.map((n) => (
+              <div key={n.id} className="px-3 py-2 border-b last:border-b-0 hover:bg-muted/60">
+                <div className="text-xs font-semibold truncate">{n.title}</div>
+                <div className="text-xs text-muted-foreground truncate">{n.message}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  {new Date(n.createdAt).toLocaleTimeString()}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="px-3 py-4 text-xs text-muted-foreground text-center">
+              {t("common.noNotifications") ?? "No notifications yet."}
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function LayoutHeader() {
   const [, setLocation] = useLocation();
   const { t } = useTranslation();
@@ -288,6 +349,7 @@ export function LayoutHeader() {
           <span className="hidden sm:inline">{t("header.makePayment")}</span>
           <span className="sm:hidden">{t("header.pos")}</span>
         </Button>
+        <NotificationsBell />
         <LanguageSwitcher />
         <ThemeToggle />
         <ProfileMenu />
