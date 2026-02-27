@@ -248,9 +248,13 @@ export async function registerRoutes(
       req.session.email = user.email || "";
       req.session.roleId = user.roleId;
       let roleName = "User";
+      let permissions: Record<string, Record<string, boolean>> = {};
       if (user.roleId) {
         const role = await storage.getRole(user.roleId);
-        if (role) roleName = role.name;
+        if (role) {
+          roleName = role.name;
+          permissions = mergePermissions(role.permissions);
+        }
       }
       req.session.save((err) => {
         if (err) {
@@ -261,7 +265,15 @@ export async function registerRoutes(
               : err?.message || "Session error",
           });
         }
-        res.json({ id: user.id, username: user.username, fullName: user.fullName, email: user.email, roleId: user.roleId, role: roleName });
+        res.json({
+          id: user.id,
+          username: user.username,
+          fullName: user.fullName,
+          email: user.email,
+          roleId: user.roleId,
+          role: roleName,
+          permissions,
+        });
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
