@@ -17,6 +17,34 @@ export function NotificationProvider({ user, children }: { user: AuthUser; child
   const [notifications, setNotifications] = useState<ClientNotification[]>([]);
   const { toast } = useToast();
 
+  const loadNotifications = () => {
+    if (!user) return;
+    fetch("/api/notifications?limit=50", { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) return [];
+        return await res.json();
+      })
+      .then((items: any[]) => {
+        if (!Array.isArray(items)) return;
+        setNotifications(
+          items.map((n) => ({
+            id: String(n.id),
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            audience: n.audience,
+            doctorName: n.doctorName ?? undefined,
+            createdAt: n.createdAt,
+            data: n.data ?? undefined,
+            read: !!n.isRead,
+          })),
+        );
+      })
+      .catch(() => {
+        // ignore
+      });
+  };
+
   useEffect(() => {
     if (!user) return;
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
@@ -43,16 +71,34 @@ export function NotificationProvider({ user, children }: { user: AuthUser; child
         const msg = JSON.parse(event.data);
         if (msg?.type === "notification" && msg.payload) {
           const payload = msg.payload as NotificationPayload;
-          setNotifications((prev) => [
-            { ...payload, read: false },
-            ...prev,
-          ].slice(0, 50));
 
           // Show a toast for new notifications.
           toast({
             title: payload.title,
             description: payload.message,
           });
+
+          // Play a short notification sound (best-effort).
+          try {
+            const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+            if (AudioCtx) {
+              const ctx = new AudioCtx();
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = "sine";
+              osc.frequency.value = 880;
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              gain.gain.setValueAtTime(0.15, ctx.currentTime);
+              osc.start();
+              osc.stop(ctx.currentTime + 0.15);
+            }
+          } catch {
+            // ignore audio errors
+          }
+
+          // Refresh list from server so persisted notifications stay in sync.
+          loadNotifications();
         }
       } catch {
         // Ignore malformed messages.
@@ -72,8 +118,25 @@ export function NotificationProvider({ user, children }: { user: AuthUser; child
     };
   }, [user]);
 
+  useEffect(() => {
+    loadNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    if (!user) return;
+    fetch("/api/notifications/mark-read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ all: true }),
+    })
+      .then(() => {
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      })
+      .catch(() => {
+        // ignore
+      });
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;

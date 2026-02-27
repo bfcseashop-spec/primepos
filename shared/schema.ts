@@ -263,6 +263,23 @@ export const insertInvestmentSchema = createInsertSchema(investments).omit({ id:
 export type InsertInvestment = z.infer<typeof insertInvestmentSchema>;
 export type Investment = typeof investments.$inferSelect;
 
+export const userNotifications = pgTable("user_notifications", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  audience: text("audience").notNull(),
+  doctorName: text("doctor_name"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  data: jsonb("data").$type<Record<string, unknown> | null>(),
+});
+
+export const insertUserNotificationSchema = createInsertSchema(userNotifications).omit({ id: true, createdAt: true, isRead: true } as any);
+export type InsertUserNotification = z.infer<typeof insertUserNotificationSchema>;
+export type UserNotification = typeof userNotifications.$inferSelect;
+
 export const contributions = pgTable("contributions", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   investmentId: integer("investment_id").references(() => investments.id).notNull(),

@@ -31,6 +31,7 @@ import {
   type InsertActivityLog, type ActivityLog,
   packages, type InsertPackage, type Package,
   medicinePurchases, type InsertMedicinePurchase, type MedicinePurchase,
+  userNotifications, type UserNotification,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -211,6 +212,17 @@ export interface IStorage {
   getMonthlyRevenue(): Promise<any[]>;
   getExpensesByCategory(): Promise<any[]>;
   getTopServices(): Promise<any[]>;
+  getUserNotifications(userId: number, limit?: number): Promise<UserNotification[]>;
+  createUserNotification(data: {
+    userId: number;
+    type: string;
+    title: string;
+    message: string;
+    audience: string;
+    doctorName?: string | null;
+    data?: Record<string, unknown> | null;
+  }): Promise<UserNotification>;
+  markUserNotificationsRead(userId: number, ids?: number[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -835,6 +847,51 @@ export class DatabaseStorage implements IStorage {
       revenue: sql<number>`CAST(${services.price} AS numeric)`,
     }).from(services).where(eq(services.isActive, true)).orderBy(desc(services.price)).limit(10);
     return result;
+  }
+
+  async getUserNotifications(userId: number, limit = 50): Promise<UserNotification[]> {
+    return db
+      .select()
+      .from(userNotifications)
+      .where(eq(userNotifications.userId, userId))
+      .orderBy(desc(userNotifications.createdAt))
+      .limit(limit);
+  }
+
+  async createUserNotification(data: {
+    userId: number;
+    type: string;
+    title: string;
+    message: string;
+    audience: string;
+    doctorName?: string | null;
+    data?: Record<string, unknown> | null;
+  }): Promise<UserNotification> {
+    const insertData: typeof userNotifications.$inferInsert = {
+      userId: data.userId,
+      type: data.type,
+      title: data.title,
+      message: data.message,
+      audience: data.audience,
+      doctorName: data.doctorName ?? null,
+      data: (data as any).data ?? null,
+    };
+    const [created] = await db.insert(userNotifications).values(insertData).returning();
+    return created;
+  }
+
+  async markUserNotificationsRead(userId: number, ids?: number[]): Promise<void> {
+    if (ids && ids.length > 0) {
+      await db
+        .update(userNotifications)
+        .set({ isRead: true })
+        .where(and(eq(userNotifications.userId, userId), inArray(userNotifications.id, ids)));
+    } else {
+      await db
+        .update(userNotifications)
+        .set({ isRead: true })
+        .where(eq(userNotifications.userId, userId));
+    }
   }
 
   /** Calculate age in years from date of birth string (YYYY-MM-DD). Returns null if invalid. */

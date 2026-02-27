@@ -219,6 +219,67 @@ export async function registerRoutes(
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  function isAdminRole(role?: string | null): boolean {
+    if (!role) return false;
+    const r = role.toLowerCase();
+    return r === "admin" || r.includes("super admin");
+  }
+
+  function shouldDeliverToUser(
+    user: { roleName?: string | null; fullName?: string | null },
+    payload: NotificationPayload
+  ): boolean {
+    if (isAdminRole(user.roleName)) return true;
+    const role = (user.roleName || "").toLowerCase();
+    const full = (user.fullName || "").toLowerCase();
+
+    switch (payload.audience) {
+      case "all":
+        return true;
+      case "doctor":
+        if (!role.includes("doctor")) return false;
+        if (!payload.doctorName) return true;
+        return full.includes(payload.doctorName.toLowerCase());
+      case "pharmacist":
+        return role.includes("pharmacist");
+      case "receptionist":
+        return role.includes("receptionist") || role.includes("front desk");
+      case "lab_technologist":
+        return role.includes("lab") || role.includes("technologist");
+      case "manager":
+        return role.includes("manager");
+      case "staff":
+        return !!user.roleName;
+      case "admin":
+        return isAdminRole(user.roleName);
+      default:
+        return false;
+    }
+  }
+
+  async function persistNotificationForAudience(payload: NotificationPayload): Promise<void> {
+    try {
+      const users = await storage.getUsers();
+      const recipients = users.filter((u) => shouldDeliverToUser({ roleName: u.roleName, fullName: u.fullName }, payload));
+      if (recipients.length === 0) return;
+      await Promise.all(
+        recipients.map((u) =>
+          storage.createUserNotification({
+            userId: u.id,
+            type: payload.type,
+            title: payload.title,
+            message: payload.message,
+            audience: payload.audience,
+            doctorName: payload.doctorName ?? null,
+            data: payload.data ?? null,
+          }),
+        ),
+      );
+    } catch (err) {
+      console.error("Failed to persist notification", err);
+    }
+  }
+
   // Authentication routes (no auth required)
   app.post("/api/auth/login", async (req, res) => {
     try {
@@ -626,6 +687,7 @@ export async function registerRoutes(
           data: { visitId: visit.id, visitCode: visit.visitId, doctorName: visit.doctorName || null },
         };
         pushNotification(payload);
+        void persistNotificationForAudience(payload);
       } catch {
         // Notification errors should not break the main request.
       }
@@ -736,6 +798,7 @@ export async function registerRoutes(
             data: { labTestId: labTest.id, testCode: labTest.testCode, referrerName: labTest.referrerName || null },
           };
           pushNotification(payload);
+          void persistNotificationForAudience(payload);
         } catch {
           // Ignore notification errors.
         }
@@ -772,6 +835,7 @@ export async function registerRoutes(
             data: { billId: bill.id, billNo: bill.billNo },
           };
           pushNotification(payload);
+          void persistNotificationForAudience(payload);
         }
       } catch {
         // Ignore notification errors.
@@ -2613,6 +2677,7 @@ export async function registerRoutes(
           data: { labTestId: test.id, testCode: test.testCode, referrerName: test.referrerName || null },
         };
         pushNotification(payload);
+        void persistNotificationForAudience(payload);
       } catch {
         // Ignore notification errors.
       }
@@ -2762,6 +2827,7 @@ export async function registerRoutes(
             data: { sampleCollectionId: sc.id, labTestId: sc.labTestId },
           };
           pushNotification(payload);
+          void persistNotificationForAudience(payload);
         } catch {
           // Ignore notification errors.
         }
@@ -2801,6 +2867,7 @@ export async function registerRoutes(
           data: { appointmentId: appointment.id, doctorName: appointment.doctorName || null },
         };
         pushNotification(payload);
+        void persistNotificationForAudience(payload);
       } catch {
         // Ignore notification errors.
       }
@@ -2838,6 +2905,39 @@ export async function registerRoutes(
       res.json({ success: true, deleted: ids.length });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
+    }
+  });
+
+  // User notifications
+  app.get("/api/notifications", async (req, res) => {
+    try {
+      if (!req.session || !req.session.userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const limitParam = req.query.limit as string | undefined;
+      const limit = limitParam ? Math.max(1, Math.min(100, parseInt(limitParam, 10) || 50)) : 50;
+      const items = await storage.getUserNotifications(req.session.userId, limit);
+      res.json(items);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/notifications/mark-read", async (req, res) => {
+    try {
+      if (!req.session || !req.session.userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const schema = z.object({
+        ids: z.array(z.number()).optional(),
+        all: z.boolean().optional(),
+      });
+      const body = validateBody(schema, req.body);
+      const ids = body.all ? undefined : body.ids;
+      await storage.markUserNotificationsRead(req.session.userId, ids);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
     }
   });
 
