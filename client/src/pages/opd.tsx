@@ -23,7 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, User as UserIcon, Phone, Mail, MapPin, Droplets, Calendar, AlertTriangle, FileText, Heart, Users, UserCheck, Activity, Clock, Stethoscope, Calendar as CalendarIcon, Pill, Printer, Plus, X } from "lucide-react";
+import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, User as UserIcon, Phone, Mail, MapPin, Droplets, Calendar, AlertTriangle, FileText, Heart, Users, UserCheck, Activity, Clock, Stethoscope, Calendar as CalendarIcon, Pill, Printer, Plus, X, CalendarCheck } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { useLocation } from "wouter";
@@ -77,6 +77,8 @@ export default function OpdPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
+  const [appointmentDepartment, setAppointmentDepartment] = useState("");
+  const [appointmentDoctorName, setAppointmentDoctorName] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [viewPatient, setViewPatient] = useState<Patient | null>(null);
   const [editPatient, setEditPatient] = useState<Patient | null>(null);
@@ -1170,16 +1172,23 @@ export default function OpdPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={appointmentDialogOpen} onOpenChange={(open) => { setAppointmentDialogOpen(open); if (!open) setSelectedPatient(null); }}>
+      <Dialog open={appointmentDialogOpen} onOpenChange={(open) => { setAppointmentDialogOpen(open); if (!open) { setSelectedPatient(null); setAppointmentDepartment(""); setAppointmentDoctorName(""); } }}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle data-testid="text-appointment-dialog-title">{t("appointments.newAppointment")}</DialogTitle>
-            <DialogDescription className="sr-only">Schedule a new appointment for this patient</DialogDescription>
+            <DialogTitle data-testid="text-appointment-dialog-title" className="flex items-center gap-2">
+              <CalendarCheck className="h-5 w-5 text-blue-500" />
+              {t("appointments.newAppointment")}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Schedule a new appointment with rich patient and doctor details.
+            </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateAppointment} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>{t("billing.selectPatient")}</Label>
+          <form onSubmit={handleCreateAppointment} className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">
+                  {t("billing.selectPatient")} <span className="text-destructive">*</span>
+                </Label>
                 <Select
                   name="patientId"
                   value={selectedPatient ? String(selectedPatient.id) : ""}
@@ -1189,20 +1198,27 @@ export default function OpdPage() {
                   }}
                 >
                   <SelectTrigger data-testid="select-appointment-patient">
-                    <SelectValue placeholder="Select" />
+                    <SelectValue placeholder={t("billing.selectPatient")} />
                   </SelectTrigger>
                   <SelectContent>
                     {patients.map(p => (
-                      <SelectItem key={p.id} value={String(p.id)}>{getDisplayName(p)}</SelectItem>
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {getDisplayName(p)}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedPatient && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {selectedPatient.patientId} · {selectedPatient.gender || "-"} · {selectedPatient.age ? `${selectedPatient.age}y` : t("common.ageUnknown")}
+                  </p>
+                )}
               </div>
-              <div>
-                <Label>{t("opd.patientType")}</Label>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">{t("opd.patientType")}</Label>
                 <Select name="patientType" defaultValue={selectedPatient?.patientType || "Out Patient"}>
                   <SelectTrigger data-testid="select-appointment-patient-type">
-                    <SelectValue placeholder="Select" />
+                    <SelectValue placeholder={t("opd.patientType")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Out Patient">Out Patient</SelectItem>
@@ -1213,12 +1229,23 @@ export default function OpdPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>{t("appointments.department")} <span className="text-destructive">*</span></Label>
-                <Select name="department" required>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">
+                  {t("appointments.department")} <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  name="department"
+                  required
+                  value={appointmentDepartment}
+                  onValueChange={(val) => {
+                    setAppointmentDepartment(val);
+                    // Clear doctor selection when department changes
+                    setAppointmentDoctorName("");
+                  }}
+                >
                   <SelectTrigger data-testid="select-appointment-department">
-                    <SelectValue placeholder="Select" />
+                    <SelectValue placeholder={t("appointments.department")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="General Medicine">General Medicine</SelectItem>
@@ -1236,20 +1263,33 @@ export default function OpdPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>{t("dashboard.doctor")} <span className="text-destructive">*</span></Label>
-                <Select name="doctorName" required>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">
+                  {t("dashboard.doctor")} <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  name="doctorName"
+                  required
+                  value={appointmentDoctorName}
+                  onValueChange={(val) => setAppointmentDoctorName(val)}
+                >
                   <SelectTrigger data-testid="select-appointment-doctor">
-                    <SelectValue placeholder="Select" />
+                    <SelectValue placeholder={t("dashboard.doctor")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Dr. Sarah Mitchell">Dr. Sarah Mitchell</SelectItem>
-                    <SelectItem value="Dr. Michael Jones">Dr. Michael Jones</SelectItem>
-                    <SelectItem value="Dr. Emily Chen">Dr. Emily Chen</SelectItem>
-                    <SelectItem value="Dr. James Wilson">Dr. James Wilson</SelectItem>
-                    <SelectItem value="Dr. Lisa Park">Dr. Lisa Park</SelectItem>
+                    {doctors
+                      .filter((doc: any) => !appointmentDepartment || !doc.department || doc.department === appointmentDepartment)
+                      .map((doc: any) => (
+                        <SelectItem key={doc.id} value={doc.name}>
+                          {doc.name}
+                          {doc.specialization ? ` · ${doc.specialization}` : ""}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  {t("appointments.selectDoctorHint") ?? "Filtered by selected department when available."}
+                </p>
               </div>
             </div>
 

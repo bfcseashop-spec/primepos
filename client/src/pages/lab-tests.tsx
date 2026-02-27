@@ -64,7 +64,7 @@ function LabTestBarcodePreview({ test, onClose, t }: { test: LabTestWithPatient;
         JsBarcode(svgRef.current, barcodeValue, {
           format: "CODE128",
           width: 2,
-          height: 60,
+          height: 28,
           displayValue: true,
           margin: 8,
           lineColor: "#000000",
@@ -100,7 +100,7 @@ function LabTestBarcodePreview({ test, onClose, t }: { test: LabTestWithPatient;
       <script>
         window.addEventListener('load', function() {
           try {
-            JsBarcode("#barcode", "${val}", { format: "CODE128", width: 2, height: 40, displayValue: false, margin: 4, lineColor: "#000000", background: "#ffffff" });
+            JsBarcode("#barcode", "${val}", { format: "CODE128", width: 2, height: 24, displayValue: false, margin: 4, lineColor: "#000000", background: "#ffffff" });
           } catch (e) { document.getElementById("barcode").innerHTML = "<text x='10' y='20' fill='black'>Barcode error</text>"; }
           setTimeout(function() { window.print(); }, 200);
         });
@@ -694,7 +694,7 @@ export default function LabTestsPage() {
               if (el && barcodeVal && typeof JsBarcode !== "undefined") {
                 var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
                 el.appendChild(svg);
-                JsBarcode(svg, barcodeVal, { format: "CODE128", width: 1.5, height: 40, displayValue: false, margin: 2, lineColor: "#000000", background: "#ffffff" });
+                JsBarcode(svg, barcodeVal, { format: "CODE128", width: 1.5, height: 24, displayValue: false, margin: 2, lineColor: "#000000", background: "#ffffff" });
               }
             } catch (e) {}
             setTimeout(function() { window.print(); }, 150);

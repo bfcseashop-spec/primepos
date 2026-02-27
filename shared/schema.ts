@@ -98,6 +98,7 @@ export const medicines = pgTable("medicines", {
   category: text("category"),
   manufacturer: text("manufacturer"),
   batchNo: text("batch_no"),
+  boxNo: text("box_no"),
   expiryDate: date("expiry_date"),
   unit: text("unit").notNull().default("Box"),
   unitCount: integer("unit_count").notNull().default(1),

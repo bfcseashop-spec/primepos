@@ -1622,6 +1622,7 @@ export async function registerRoutes(
     category: z.string().nullable().optional(),
     manufacturer: z.string().nullable().optional(),
     batchNo: z.string().nullable().optional(),
+    boxNo: z.string().nullable().optional(),
     expiryDate: z.string().nullable().optional(),
     unit: z.string().optional(),
     unitCount: z.number().optional(),

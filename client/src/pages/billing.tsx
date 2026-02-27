@@ -313,7 +313,7 @@ export default function BillingPage() {
     const logoHref = settings?.logo
       ? (settings.logo.startsWith("http") ? settings.logo : `${typeof window !== "undefined" ? window.location.origin : ""}${settings.logo.startsWith("/") ? settings.logo : "/" + settings.logo}`)
       : "";
-    const barcodeSize = isCompact ? 22 : 28;
+    const barcodeSize = isCompact ? 16 : 22;
     const totalDue = Number(bill.total) || 0;
     const paidAmt = Number(bill.paidAmount) || 0;
     const amountOwed = Math.max(0, totalDue - paidAmt);

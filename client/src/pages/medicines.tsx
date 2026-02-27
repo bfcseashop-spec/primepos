@@ -44,7 +44,7 @@ const UNIT_TYPES = [
 
 const defaultForm = {
   name: "", category: "", manufacturer: "",
-  batchNo: "", expiryDate: "", unit: "Box",
+  batchNo: "", boxNo: "", expiryDate: "", unit: "Box",
   totalPcs: 1, purchasePrice: 0, salesPrice: 0,
   stockAvailable: 0,
   stockAlert: 10, imageUrl: "",
@@ -289,6 +289,7 @@ export default function MedicinesPage() {
       category: form.category || null,
       manufacturer: form.manufacturer || null,
       batchNo: form.batchNo || null,
+      boxNo: form.boxNo || null,
       expiryDate: form.expiryDate || null,
       unit: form.unit,
       unitCount: 1,
@@ -324,6 +325,7 @@ export default function MedicinesPage() {
       category: med.category || "",
       manufacturer: med.manufacturer || "",
       batchNo: med.batchNo || "",
+      boxNo: (med as any).boxNo || "",
       expiryDate: med.expiryDate || "",
       unit: med.unit || "Box",
       totalPcs,
@@ -352,7 +354,8 @@ export default function MedicinesPage() {
       m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (m.category?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
       (m.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (m.batchNo?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+      (m.batchNo?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      ((m as any).boxNo?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
 
     const matchesCategory = categoryFilter === "all" || m.category === categoryFilter;
 
@@ -496,6 +499,11 @@ export default function MedicinesPage() {
         <span className="font-bold text-sm text-foreground">{row.name}</span>
         {row.manufacturer && <span className="text-[10px] text-muted-foreground">{row.manufacturer}</span>}
       </div>
+    )},
+    { header: "Box No.", accessor: (row: Medicine) => (
+      <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
+        {(row as any).boxNo || "-"}
+      </span>
     )},
     { header: "Category", accessor: (row: Medicine) => (
       <Badge variant="outline" className="text-[11px] no-default-hover-elevate no-default-active-elevate bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800">
@@ -831,6 +839,10 @@ export default function MedicinesPage() {
           <div>
             <Label htmlFor="batchNo">{t("medicines.batchNo")}</Label>
             <Input id="batchNo" value={form.batchNo} onChange={e => setForm(f => ({ ...f, batchNo: e.target.value }))} placeholder="Optional" data-testid="input-medicine-batch" />
+          </div>
+          <div>
+            <Label htmlFor="boxNo">Box No.</Label>
+            <Input id="boxNo" value={form.boxNo} onChange={e => setForm(f => ({ ...f, boxNo: e.target.value }))} placeholder="Rack / Box number" data-testid="input-medicine-boxno" />
           </div>
           <div>
             <Label htmlFor="stockAlert">Stock Alert</Label>
