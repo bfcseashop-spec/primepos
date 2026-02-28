@@ -2839,6 +2839,15 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/sample-collections/:id", async (req, res) => {
+    try {
+      await storage.deleteSampleCollection(Number(req.params.id));
+      res.json({ message: "Deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Appointments
   app.get("/api/appointments", async (_req, res) => {
     try {

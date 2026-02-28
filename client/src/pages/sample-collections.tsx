@@ -9,10 +9,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { billNoMatches } from "@/lib/bill-utils";
-import { TestTubes, CheckCircle2, Clock, Beaker, Barcode, Printer } from "lucide-react";
+import { TestTubes, CheckCircle2, Clock, Beaker, Barcode, Printer, Eye, Pencil, Trash2 } from "lucide-react";
 import JsBarcode from "jsbarcode";
 
 type SampleCollection = {
@@ -62,6 +66,9 @@ export default function SampleCollectionsPage() {
   const [markingId, setMarkingId] = useState<number | null>(null);
   const [barcodeSample, setBarcodeSample] = useState<SampleCollection | null>(null);
   const [viewSample, setViewSample] = useState<SampleCollection | null>(null);
+  const [editSample, setEditSample] = useState<SampleCollection | null>(null);
+  const [editForm, setEditForm] = useState<{ status: string; notes: string; collectedBy: string }>({ status: "pending", notes: "", collectedBy: "" });
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; sample: SampleCollection | null }>({ open: false, sample: null });
 
   const { data: samples = [], isLoading } = useQuery<SampleCollection[]>({
     queryKey: ["/api/sample-collections"],
@@ -141,6 +148,51 @@ export default function SampleCollectionsPage() {
   const markCollected = (id: number) => {
     setMarkingId(id);
     markCollectedMutation.mutate(id);
+  };
+
+  const updateSampleMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: { status?: string; notes?: string; collectedBy?: string } }) => {
+      const payload: Record<string, unknown> = {};
+      if (data.status !== undefined) payload.status = data.status;
+      if (data.notes !== undefined) payload.notes = data.notes || null;
+      if (data.collectedBy !== undefined) payload.collectedBy = data.collectedBy || null;
+      if (data.status === "collected") payload.collectedAt = new Date().toISOString();
+      const res = await apiRequest("PATCH", `/api/sample-collections/${id}`, payload);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sample-collections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      setEditSample(null);
+      toast({ title: "Sample collection updated" });
+    },
+    onError: (err: Error) => {
+      toast({ title: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteSampleMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/sample-collections/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sample-collections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      setDeleteConfirm({ open: false, sample: null });
+      toast({ title: "Sample collection deleted" });
+    },
+    onError: (err: Error) => {
+      toast({ title: err.message, variant: "destructive" });
+    },
+  });
+
+  const openEdit = (row: SampleCollection) => {
+    setEditSample(row);
+    setEditForm({
+      status: row.status,
+      notes: row.notes ?? "",
+      collectedBy: row.collectedBy ?? "",
+    });
   };
 
   const printBarcode = (sample: SampleCollection) => {
@@ -266,7 +318,25 @@ export default function SampleCollectionsPage() {
     {
       header: "Actions",
       accessor: (row: SampleCollection) => (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={(e) => { e.stopPropagation(); setViewSample(row); }}
+            data-testid={`button-view-${row.id}`}
+          >
+            <Eye className="h-4 w-4 mr-1.5" />
+            View
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={(e) => { e.stopPropagation(); openEdit(row); }}
+            data-testid={`button-edit-${row.id}`}
+          >
+            <Pencil className="h-4 w-4 mr-1.5" />
+            Edit
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -294,6 +364,16 @@ export default function SampleCollectionsPage() {
               )}
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, sample: row }); }}
+            data-testid={`button-delete-${row.id}`}
+          >
+            <Trash2 className="h-4 w-4 mr-1.5" />
+            Delete
+          </Button>
         </div>
       ),
     },
@@ -411,6 +491,9 @@ export default function SampleCollectionsPage() {
                 <Button variant="outline" onClick={() => { setBarcodeSample(viewSample); setViewSample(null); }}>
                   <Barcode className="h-4 w-4 mr-2" /> Print Barcode
                 </Button>
+                <Button variant="outline" onClick={() => { openEdit(viewSample); setViewSample(null); }}>
+                  <Pencil className="h-4 w-4 mr-2" /> Edit
+                </Button>
                 {viewSample.status === "pending" && (
                   <Button onClick={() => { markCollected(viewSample.id); setViewSample(null); }}>
                     <CheckCircle2 className="h-4 w-4 mr-2" /> Mark Collected
@@ -421,6 +504,81 @@ export default function SampleCollectionsPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {editSample && (
+        <Dialog open={!!editSample} onOpenChange={(open) => { if (!open) setEditSample(null); }}>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Sample Collection</DialogTitle>
+              <DialogDescription>Update status, notes, or collected by for this sample.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <Label htmlFor="edit-status">Status</Label>
+                <select
+                  id="edit-status"
+                  value={editForm.status}
+                  onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
+                  className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="collected">Collected</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="edit-collectedBy">Collected By</Label>
+                <Input
+                  id="edit-collectedBy"
+                  value={editForm.collectedBy}
+                  onChange={(e) => setEditForm((f) => ({ ...f, collectedBy: e.target.value }))}
+                  placeholder="Name of collector"
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-notes">Notes</Label>
+                <Textarea
+                  id="edit-notes"
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                  placeholder="Optional notes"
+                  className="mt-1.5 min-h-[80px]"
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  onClick={() => {
+                    updateSampleMutation.mutate({
+                      id: editSample.id,
+                      data: {
+                        status: editForm.status,
+                        notes: editForm.notes || undefined,
+                        collectedBy: editForm.collectedBy || undefined,
+                      },
+                    });
+                  }}
+                  disabled={updateSampleMutation.isPending}
+                >
+                  {updateSampleMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+                <Button variant="outline" onClick={() => setEditSample(null)}>Cancel</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm((c) => ({ ...c, open }))}
+        title="Delete sample collection"
+        description={deleteConfirm.sample ? `Delete sample collection for "${deleteConfirm.sample.testName}"? This cannot be undone.` : "Delete this sample collection?"}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => { if (deleteConfirm.sample) deleteSampleMutation.mutate(deleteConfirm.sample.id); }}
+      />
 
       {barcodeSample && (
         <Dialog open={!!barcodeSample} onOpenChange={(open) => { if (!open) setBarcodeSample(null); }}>
