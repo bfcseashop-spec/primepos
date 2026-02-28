@@ -12,11 +12,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { billNoMatches } from "@/lib/bill-utils";
-import { TestTubes, CheckCircle2, Clock, Beaker, Barcode, Printer, Eye, Pencil, Trash2 } from "lucide-react";
+import { TestTubes, CheckCircle2, Clock, Beaker, Barcode, Printer, Eye, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import JsBarcode from "jsbarcode";
 
 type SampleCollection = {
@@ -318,63 +319,41 @@ export default function SampleCollectionsPage() {
     {
       header: "Actions",
       accessor: (row: SampleCollection) => (
-        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={(e) => { e.stopPropagation(); setViewSample(row); }}
-            data-testid={`button-view-${row.id}`}
-          >
-            <Eye className="h-4 w-4 mr-1.5" />
-            View
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={(e) => { e.stopPropagation(); openEdit(row); }}
-            data-testid={`button-edit-${row.id}`}
-          >
-            <Pencil className="h-4 w-4 mr-1.5" />
-            Edit
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={(e) => { e.stopPropagation(); setBarcodeSample(row); }}
-            data-testid={`button-barcode-${row.id}`}
-          >
-            <Barcode className="h-4 w-4 mr-1.5" />
-            Print Barcode
-          </Button>
-          {row.status === "pending" && (
-            <Button
-              size="sm"
-              variant="default"
-              onClick={(e) => { e.stopPropagation(); markCollected(row.id); }}
-              disabled={markingId === row.id}
-              data-testid={`button-collect-${row.id}`}
-            >
-              {markingId === row.id ? (
-                "Marking..."
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                  Mark Collected
-                </>
-              )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" data-testid={`button-actions-${row.id}`} onClick={(e) => e.stopPropagation()}>
+              <MoreHorizontal className="h-4 w-4" />
             </Button>
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, sample: row }); }}
-            data-testid={`button-delete-${row.id}`}
-          >
-            <Trash2 className="h-4 w-4 mr-1.5" />
-            Delete
-          </Button>
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewSample(row); }} className="gap-2" data-testid={`action-view-${row.id}`}>
+              <Eye className="h-4 w-4 text-blue-500" /> View
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="gap-2" data-testid={`action-edit-${row.id}`}>
+              <Pencil className="h-4 w-4 text-amber-500" /> Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBarcodeSample(row); }} className="gap-2" data-testid={`action-barcode-${row.id}`}>
+              <Barcode className="h-4 w-4 text-purple-500" /> Print Barcode
+            </DropdownMenuItem>
+            {row.status === "pending" && (
+              <DropdownMenuItem
+                onClick={(e) => { e.stopPropagation(); markCollected(row.id); }}
+                disabled={markingId === row.id}
+                className="gap-2"
+                data-testid={`action-collect-${row.id}`}
+              >
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" /> {markingId === row.id ? "Marking..." : "Mark Collected"}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, sample: row }); }}
+              className="text-red-600 gap-2"
+              data-testid={`action-delete-${row.id}`}
+            >
+              <Trash2 className="h-4 w-4" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     },
   ];
