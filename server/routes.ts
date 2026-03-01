@@ -721,7 +721,14 @@ export async function registerRoutes(
   app.post("/api/bills", async (req, res) => {
     try {
       const data = validateBody(insertBillSchema, req.body) as Record<string, unknown>;
+      const isDraft = data.status === "draft";
       const items = Array.isArray(data.items) ? data.items : [];
+
+      // Server-generated bill number to avoid duplicate key
+      const settings = await storage.getSettings();
+      const prefix = (settings?.invoicePrefix || "INV").replace(/\s/g, "").slice(0, 4) || "INV";
+      data.billNo = await storage.getNextBillNo(prefix);
+
       const medQtyMap: Record<number, number> = {};
       for (const item of items) {
         if (item?.type === "medicine" && item.medicineId != null && typeof item.quantity === "number" && item.quantity > 0) {
@@ -729,12 +736,14 @@ export async function registerRoutes(
           medQtyMap[medId] = (medQtyMap[medId] || 0) + item.quantity;
         }
       }
-      for (const [medIdStr, totalQty] of Object.entries(medQtyMap)) {
-        const med = await storage.getMedicine(Number(medIdStr));
-        if (med) {
-          const available = Number(med.stockCount ?? 0);
-          if (totalQty > available) {
-            throw new Error(`Not enough stock for "${med.name}". Available: ${available}, requested: ${totalQty}`);
+      if (!isDraft) {
+        for (const [medIdStr, totalQty] of Object.entries(medQtyMap)) {
+          const med = await storage.getMedicine(Number(medIdStr));
+          if (med) {
+            const available = Number(med.stockCount ?? 0);
+            if (totalQty > available) {
+              throw new Error(`Not enough stock for "${med.name}". Available: ${available}, requested: ${totalQty}`);
+            }
           }
         }
       }
@@ -742,6 +751,7 @@ export async function registerRoutes(
 
       const patientId = Number(data.patientId);
       const referrerName = (data.referenceDoctor as string) || null;
+      if (!isDraft) {
       const allServices = await storage.getServices();
       const labItems: Array<{ serv: any; item: any }> = [];
       for (const item of items) {
@@ -818,6 +828,7 @@ export async function registerRoutes(
             reason: `Bill ${bill.billNo} – sold ${totalQty} pc`,
           });
         }
+      }
       }
       res.status(201).json(bill);
 

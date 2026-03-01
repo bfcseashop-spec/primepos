@@ -156,6 +156,7 @@ export default function BillingPage() {
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; icon: typeof CheckCircle2 }> = {
       paid: { variant: "default", label: t("billing.paid"), icon: CheckCircle2 },
+      draft: { variant: "secondary", label: "Draft", icon: FileText },
       partial: { variant: "secondary", label: t("billing.partial"), icon: Clock },
       pending: { variant: "outline", label: t("billing.pending"), icon: Clock },
       cancelled: { variant: "destructive", label: t("billing.cancelled"), icon: X },
@@ -182,7 +183,9 @@ export default function BillingPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
       queryClient.invalidateQueries({ queryKey: ["/api/sample-collections"] });
 
-      if (billAction === "print") {
+      if (bill.status === "draft") {
+        toast({ title: "Draft saved" });
+      } else if (billAction === "print") {
         printReceipt(bill);
         toast({ title: "Bill created and receipt printed" });
       } else if (billAction === "payment") {
@@ -263,20 +266,22 @@ export default function BillingPage() {
     const rawItems = Array.isArray(bill.items) ? bill.items : [];
     const medicineItems = rawItems.filter((i: any) => i?.type === "medicine");
     const medicationTotal = medicineItems.reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
-    const packageItems = rawItems.filter((i: any) => i?.packageId != null && i?.packageName);
-    const packageGroups = new Map<number, { name: string; total: number }>();
+    const packageItems = rawItems.filter((i: any) => i?.packageId != null || i?.packageName);
+    const packageGroups = new Map<number, { name: string; total: number; itemCount: number }>();
     for (const i of packageItems) {
-      const id = Number(i.packageId);
+      const id = Number(i.packageId) || 0;
       const name = i.packageName || "Package";
       const total = Number(i.total) || 0;
       const cur = packageGroups.get(id);
-      if (cur) cur.total += total;
-      else packageGroups.set(id, { name, total });
+      if (cur) {
+        cur.total += total;
+        cur.itemCount += 1;
+      } else packageGroups.set(id, { name, total, itemCount: 1 });
     }
     const standaloneItems = rawItems.filter((i: any) => i?.type !== "medicine" && (i?.packageId == null && i?.packageName == null));
     const printItems: { name: string; quantity: number; unitPrice: number; total: number }[] = [
       ...standaloneItems.map((i: any) => ({ name: i.name, quantity: Number(i.quantity) || 1, unitPrice: Number(i.unitPrice) || 0, total: Number(i.total) || 0 })),
-      ...Array.from(packageGroups.values()).map((g) => ({ name: g.name, quantity: 1, unitPrice: g.total, total: g.total })),
+      ...Array.from(packageGroups.values()).map((g) => ({ name: g.itemCount > 1 ? `${g.name} (${g.itemCount} items)` : g.name, quantity: 1, unitPrice: g.total, total: g.total })),
       ...(medicationTotal > 0 ? [{ name: "Medication", quantity: 1, unitPrice: medicationTotal, total: medicationTotal }] : []),
     ];
 
@@ -635,11 +640,8 @@ export default function BillingPage() {
       toast({ title: "Please select a patient and add items", variant: "destructive" });
       return;
     }
-    const prefix = (settings?.invoicePrefix || "INV").replace(/\s/g, "").slice(0, 4) || "INV";
-      const nextNum = (bills?.length ?? 0) + 1;
-      const shortBillNo = `${prefix}${String(nextNum).padStart(5, "0")}`;
-      createBillMutation.mutate({
-      billNo: shortBillNo,
+    createBillMutation.mutate({
+      billNo: "_",
       patientId: Number(selectedPatient),
       items: billItems,
       subtotal: subtotal.toFixed(2),
@@ -652,6 +654,28 @@ export default function BillingPage() {
       referenceDoctor: referenceDoctor?.trim() || null,
       paymentDate: paymentDate || null,
       status: "paid",
+    });
+  };
+
+  const handleSaveDraft = () => {
+    if (!selectedPatient || billItems.length === 0) {
+      toast({ title: "Please select a patient and add items", variant: "destructive" });
+      return;
+    }
+    createBillMutation.mutate({
+      billNo: "_",
+      patientId: Number(selectedPatient),
+      items: billItems,
+      subtotal: subtotal.toFixed(2),
+      discount: discountAmount.toFixed(2),
+      discountType,
+      tax: "0.00",
+      total: total.toFixed(2),
+      paidAmount: "0.00",
+      paymentMethod,
+      referenceDoctor: referenceDoctor?.trim() || null,
+      paymentDate: paymentDate || null,
+      status: "draft",
     });
   };
 
@@ -837,7 +861,7 @@ export default function BillingPage() {
                       </div>
                     </div>
 
-                    {/* Items Table */}
+                    {/* Items Table (all items as-is) */}
                     <div className="mb-4 rounded-md overflow-hidden border">
                       <div className="grid grid-cols-[36px,1fr,70px,46px,80px] bg-gradient-to-r from-blue-600 to-violet-600 text-white text-[11px] font-semibold">
                         <span className="p-2 text-center">#</span>
@@ -931,7 +955,7 @@ export default function BillingPage() {
                   <div className="flex items-center gap-2">
                     <Hash className="h-4 w-4 text-blue-500" />
                     <span className="text-sm font-medium text-muted-foreground">Invoice</span>
-                    <Badge variant="outline" className="font-mono text-xs">{(settings?.invoicePrefix || "INV").replace(/\s/g, "").slice(0, 4) || "INV"}{String((bills?.length || 0) + 1).padStart(5, "0")}</Badge>
+                    <Badge variant="outline" className="font-mono text-xs">Auto</Badge>
                   </div>
                   <div className="flex items-center gap-2">
                     <CalendarDays className="h-4 w-4 text-muted-foreground" />
@@ -1266,7 +1290,7 @@ export default function BillingPage() {
                   </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <Button
                     onClick={() => { setBillAction("create"); handleCreateBill(); }}
                     disabled={createBillMutation.isPending}
@@ -1275,6 +1299,15 @@ export default function BillingPage() {
                   >
                     <FileText className="h-4 w-4 mr-1.5" />
                     {createBillMutation.isPending && billAction === "create" ? t("common.creating") : t("billing.createBill")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => { handleSaveDraft(); }}
+                    disabled={createBillMutation.isPending}
+                    data-testid="button-save-draft"
+                  >
+                    <FileText className="h-4 w-4 mr-1.5" />
+                    {createBillMutation.isPending ? t("common.loading") : "Save as Draft"}
                   </Button>
                   <Button
                     onClick={() => {

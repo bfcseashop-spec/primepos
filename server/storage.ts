@@ -1,4 +1,4 @@
-import { eq, desc, sql, and, gte, lte, count, sum, inArray, ilike, isNotNull } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lte, count, sum, inArray, ilike, isNotNull, like } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, roles, patients, services, injections, medicines, opdVisits, bills,
@@ -97,6 +97,7 @@ export interface IStorage {
 
   getBills(): Promise<any[]>;
   getBill(id: number): Promise<Bill | undefined>;
+  getNextBillNo(prefix: string): Promise<string>;
   createBill(bill: InsertBill): Promise<Bill>;
   updateBill(id: number, data: Partial<InsertBill>): Promise<Bill | undefined>;
   deleteBill(id: number): Promise<void>;
@@ -543,6 +544,19 @@ export class DatabaseStorage implements IStorage {
   async getBill(id: number): Promise<Bill | undefined> {
     const [bill] = await db.select().from(bills).where(eq(bills.id, id));
     return bill;
+  }
+
+  async getNextBillNo(prefix: string): Promise<string> {
+    const safePrefix = (prefix || "INV").replace(/\s/g, "").slice(0, 4) || "INV";
+    const pattern = safePrefix + "%";
+    const [row] = await db
+      .select({
+        next: sql<number>`COALESCE(MAX(CAST(SUBSTRING(${bills.billNo} FROM '[0-9]+$') AS INTEGER)), 0) + 1`,
+      })
+      .from(bills)
+      .where(like(bills.billNo, pattern));
+    const nextNum = Number((row as { next: number })?.next) || 1;
+    return safePrefix + String(nextNum).padStart(5, "0");
   }
 
   async createBill(bill: InsertBill): Promise<Bill> {
