@@ -105,60 +105,108 @@ export default function HrmPage() {
         description="Track staff timesheet, today activity, and weekly attendance."
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)]">
+        <Card className="relative overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-blue-500" />
+                <Clock className="h-5 w-5 text-sky-400" />
                 Timesheet
               </CardTitle>
               <CardDescription>
                 {today
-                  ? `Date: ${format(new Date(today.date), "dd MMM yyyy")}`
-                  : "No record for today yet"}
+                  ? `Punch in at ${
+                      today.checkInTime ? formatTime(today.checkInTime) : "Not checked in"
+                    }`
+                  : "Not checked in"}
               </CardDescription>
             </div>
+            <div className="text-xs text-muted-foreground">
+              {today
+                ? format(new Date(today.date), "dd MMM yyyy")
+                : format(new Date(), "dd MMM yyyy")}
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                  Status
-                </p>
+          <CardContent className="space-y-6">
+            <div className="flex flex-col items-center justify-center">
+              <div className="relative flex items-center justify-center h-40 w-40 rounded-full border-4 border-sky-500/60 bg-slate-900/40 shadow-[0_0_40px_rgba(56,189,248,0.45)]">
+                <div className="flex flex-col items-center justify-center gap-1">
+                  <span className="text-xs uppercase tracking-wide text-slate-400">
+                    Work Hours
+                  </span>
+                  <span className="text-3xl font-bold text-white">
+                    {today ? minutesToHours(today.workingMinutes) : "0.00"}
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    Target: {(MINUTES_PER_DAY / 60).toFixed(1)} hrs
+                  </span>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-sm">
                 {today?.status === "present" ? (
-                  <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-                    <CheckCircle2 className="h-3 w-3 mr-1" /> Present
+                  <Badge className="bg-emerald-500/10 text-emerald-300 border-emerald-500/40">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Present
                   </Badge>
                 ) : (
-                  <Badge variant="outline">
-                    <Clock className="h-3 w-3 mr-1" /> Not checked in
+                  <Badge variant="outline" className="border-slate-600 text-slate-200">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Not checked in
                   </Badge>
                 )}
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                  Worked Hours
-                </p>
-                <p className="text-2xl font-bold">
-                  {today ? minutesToHours(today.workingMinutes) : "0.00"}
-                </p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground">Check-in</p>
-                <p className="font-medium">{formatTime(today?.checkInTime)}</p>
+              <div className="rounded-lg border border-slate-700/60 bg-slate-900/40 p-3">
+                <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                  Check-in
+                </p>
+                <p className="mt-1 text-base font-semibold text-white">
+                  {formatTime(today?.checkInTime)}
+                </p>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Check-out</p>
-                <p className="font-medium">{formatTime(today?.checkOutTime)}</p>
+              <div className="rounded-lg border border-slate-700/60 bg-slate-900/40 p-3">
+                <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                  Check-out
+                </p>
+                <p className="mt-1 text-base font-semibold text-white">
+                  {formatTime(today?.checkOutTime)}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-xs md:text-sm">
+              <div className="rounded-lg border border-slate-700/60 bg-slate-900/60 p-3 flex flex-col gap-1">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                  Break
+                </span>
+                <span className="text-base font-semibold text-white">
+                  0.0 hrs
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Break tracking can be added later
+                </span>
+              </div>
+              <div className="rounded-lg border border-slate-700/60 bg-slate-900/60 p-3 flex flex-col gap-1">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                  Overtime
+                </span>
+                <span className="text-base font-semibold text-emerald-400">
+                  {today && today.workingMinutes > MINUTES_PER_DAY
+                    ? ((today.workingMinutes - MINUTES_PER_DAY) / 60).toFixed(1)
+                    : "0.0"}{" "}
+                  hrs
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Calculated over {MINUTES_PER_DAY / 60} hrs/day
+                </span>
               </div>
             </div>
 
             <Button
-              className="w-full"
+              className="w-full mt-2"
+              size="lg"
               onClick={handlePunch}
               disabled={checkInMutation.isPending || checkOutMutation.isPending || isLoading}
             >
@@ -215,10 +263,13 @@ export default function HrmPage() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-sky-500" />
-              This Week&apos;s Attendance
+              Attendance List
             </CardTitle>
-            <CardDescription>Recent 7 days attendance summary.</CardDescription>
+            <CardDescription>
+              This week&apos;s attendance overview.
+            </CardDescription>
           </div>
+          <div className="text-xs text-muted-foreground">This week</div>
         </CardHeader>
         <CardContent>
           <div className="w-full overflow-x-auto">
@@ -227,23 +278,32 @@ export default function HrmPage() {
                 <tr className="border-b bg-muted/40">
                   <th className="py-2 px-2 text-left">Date</th>
                   <th className="py-2 px-2 text-left">Status</th>
-                  <th className="py-2 px-2 text-center">Check-in</th>
-                  <th className="py-2 px-2 text-center">Check-out</th>
-                  <th className="py-2 px-2 text-right">Worked (hrs)</th>
+                  <th className="py-2 px-2 text-center">Shift Start</th>
+                  <th className="py-2 px-2 text-center">Shift End</th>
+                  <th className="py-2 px-2 text-center">Punch In</th>
+                  <th className="py-2 px-2 text-center">Punch Out</th>
+                  <th className="py-2 px-2 text-right">Production (hrs)</th>
+                  <th className="py-2 px-2 text-right">Break (hrs)</th>
                   <th className="py-2 px-2 text-right">Overtime (hrs)</th>
                 </tr>
               </thead>
               <tbody>
                 {(summary?.recent ?? []).length === 0 ? (
                   <tr>
-                    <td className="py-4 px-2 text-center text-muted-foreground" colSpan={6}>
+                    <td
+                      className="py-4 px-2 text-center text-muted-foreground"
+                      colSpan={9}
+                    >
                       No attendance records yet.
                     </td>
                   </tr>
                 ) : (
                   (summary!.recent as HrmDay[]).map((d) => {
                     const workedHrs = d.workingMinutes / 60;
-                    const overtimeMinutes = Math.max(0, d.workingMinutes - MINUTES_PER_DAY);
+                    const overtimeMinutes = Math.max(
+                      0,
+                      d.workingMinutes - MINUTES_PER_DAY,
+                    );
                     return (
                       <tr key={d.date} className="border-b last:border-b-0">
                         <td className="py-2 px-2">
@@ -255,13 +315,18 @@ export default function HrmPage() {
                               Present
                             </Badge>
                           ) : d.status === "absent" ? (
-                            <Badge variant="outline" className="text-red-600 border-red-500/40">
+                            <Badge
+                              variant="outline"
+                              className="text-red-600 border-red-500/40"
+                            >
                               Absent
                             </Badge>
                           ) : (
                             <Badge variant="outline">Scheduled</Badge>
                           )}
                         </td>
+                        <td className="py-2 px-2 text-center">10:30</td>
+                        <td className="py-2 px-2 text-center">22:30</td>
                         <td className="py-2 px-2 text-center">
                           {formatTime(d.checkInTime)}
                         </td>
@@ -269,10 +334,13 @@ export default function HrmPage() {
                           {formatTime(d.checkOutTime)}
                         </td>
                         <td className="py-2 px-2 text-right">
-                          {workedHrs.toFixed(2)}
+                          {workedHrs.toFixed(1)}
                         </td>
+                        <td className="py-2 px-2 text-right">0.0</td>
                         <td className="py-2 px-2 text-right">
-                          {overtimeMinutes > 0 ? (overtimeMinutes / 60).toFixed(2) : "-"}
+                          {overtimeMinutes > 0
+                            ? (overtimeMinutes / 60).toFixed(1)
+                            : "0.0"}
                         </td>
                       </tr>
                     );
