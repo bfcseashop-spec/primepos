@@ -20,7 +20,6 @@ export const PERMISSION_MODULES = [
   { key: "bank_transactions", label: "Bank Transactions" },
   { key: "investments", label: "Investments" },
   { key: "salary", label: "Salary" },
-  { key: "hrm", label: "HRM / Attendance" },
   { key: "user_role", label: "User & Role" },
   { key: "authentication", label: "Authentication" },
   { key: "integrations", label: "Integrations" },
@@ -121,7 +120,8 @@ export const NAV_TO_MODULE: Record<string, PermissionModuleKey> = {
   "/bank": "bank_transactions",
   "/investments": "investments",
   "/salary": "salary",
-  "/hrm": "hrm",
+  // HRM page uses dashboard permissions so all logged-in users can see it
+  "/hrm": "dashboard",
   "/staff": "user_role",
   "/authentication": "authentication",
   "/integrations": "integrations",
