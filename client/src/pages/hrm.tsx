@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { Clock, CheckCircle2, Activity, CalendarDays } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 type HrmDay = {
   date: string;
@@ -21,13 +22,33 @@ type HrmSummary = {
   recent: HrmDay[];
 };
 
+type HrmAdminRow = {
+  id: number;
+  userId: number;
+  userName: string;
+  fullName: string | null;
+  date: string;
+  status: "scheduled" | "present" | "absent";
+  checkInTime?: string | null;
+  checkOutTime?: string | null;
+  workingMinutes: number;
+};
+
 const MINUTES_PER_DAY = 8 * 60;
 
 export default function HrmPage() {
   const { toast } = useToast();
+  const auth = useAuth();
+  const isAdminLike =
+    !!auth?.role && auth.role.toLowerCase().includes("admin");
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/hrm/attendance/summary"],
+  });
+
+  const { data: adminData } = useQuery({
+    queryKey: ["/api/hrm/attendance/all"],
+    enabled: isAdminLike,
   });
 
   const checkInMutation = useMutation({
@@ -61,6 +82,8 @@ export default function HrmPage() {
   const summary = (data ?? null) as HrmSummary | null;
   const today = summary?.today ?? null;
   const isPunchedIn = !!today?.checkInTime && !today?.checkOutTime;
+
+  const adminRows = ((adminData as { recent?: HrmAdminRow[] } | undefined)?.recent ?? []) as HrmAdminRow[];
 
   const handlePunch = () => {
     if (isPunchedIn) {
@@ -260,6 +283,109 @@ export default function HrmPage() {
           </div>
         </CardContent>
       </Card>
+
+      {isAdminLike && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-indigo-500" />
+                All Staff Attendance (Last 7 days)
+              </CardTitle>
+              <CardDescription>
+                Overview of all users&apos; attendance for admins and super admins.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    <th className="py-2 px-2 text-left">Staff</th>
+                    <th className="py-2 px-2 text-left">Date</th>
+                    <th className="py-2 px-2 text-left">Status</th>
+                    <th className="py-2 px-2 text-center">Check-in</th>
+                    <th className="py-2 px-2 text-center">Check-out</th>
+                    <th className="py-2 px-2 text-right">Worked (hrs)</th>
+                    <th className="py-2 px-2 text-right">Overtime (hrs)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminRows.length === 0 ? (
+                    <tr>
+                      <td
+                        className="py-4 px-2 text-center text-muted-foreground"
+                        colSpan={7}
+                      >
+                        No attendance records yet for any staff.
+                      </td>
+                    </tr>
+                  ) : (
+                    adminRows.map((r) => {
+                      const workedHrs = r.workingMinutes / 60;
+                      const overtimeMinutes = Math.max(
+                        0,
+                        r.workingMinutes - MINUTES_PER_DAY,
+                      );
+                      const displayName =
+                        r.fullName && r.fullName.trim().length > 0
+                          ? r.fullName
+                          : r.userName;
+                      return (
+                        <tr
+                          key={`${r.userId}-${r.date}`}
+                          className="border-b last:border-b-0"
+                        >
+                          <td className="py-2 px-2">
+                            <span className="font-medium">{displayName}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {r.userName}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2">
+                            {format(new Date(r.date), "dd MMM yyyy")}
+                          </td>
+                          <td className="py-2 px-2">
+                            {r.status === "present" ? (
+                              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                                Present
+                              </Badge>
+                            ) : r.status === "absent" ? (
+                              <Badge
+                                variant="outline"
+                                className="text-red-600 border-red-500/40"
+                              >
+                                Absent
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">Scheduled</Badge>
+                            )}
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            {formatTime(r.checkInTime)}
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            {formatTime(r.checkOutTime)}
+                          </td>
+                          <td className="py-2 px-2 text-right">
+                            {workedHrs.toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-right">
+                            {overtimeMinutes > 0
+                              ? (overtimeMinutes / 60).toFixed(2)
+                              : "-"}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

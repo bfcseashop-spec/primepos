@@ -219,7 +219,225 @@ export async function registerRoutes(
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  // --- HRM / Attendance (per clinic user) ---
+  // --- HRM / Attendance (per clinic user + ADMS device integration) ---
+
+  function isAdminLikeRoleName(roleName: string | null | undefined): boolean {
+    if (!roleName) return false;
+    const lower = roleName.toLowerCase();
+    return lower.includes("admin");
+  }
+
+  // Minimal ADMS/ZKTeco integration: auto check-in/out from devices.
+  // We support common ZKTeco ATTLOG formats and map device PIN -> PrimePOS user.
+  app.use("/iclock/*", express.text({ type: "*/*" }));
+  app.use("/iclock/*", express.urlencoded({ extended: true }));
+
+  const handleAdmsAttendance = async (req: express.Request, res: express.Response) => {
+    const tableTypeRaw = (req.query as any).table;
+    const tableType = typeof tableTypeRaw === "string" ? tableTypeRaw.toUpperCase() : "";
+
+    // For non-attendance tables (device options, logs, etc.) just acknowledge.
+    if (tableType && tableType !== "ATTLOG") {
+      res.setHeader("Content-Type", "text/plain");
+      return res.send("OK");
+    }
+
+    try {
+      // Read raw body as text
+      let bodyText = "";
+      if (typeof req.body === "string") {
+        bodyText = req.body;
+      } else if (Buffer.isBuffer(req.body)) {
+        bodyText = req.body.toString("utf8");
+      } else if ((req as any).rawBody && typeof (req as any).rawBody === "string") {
+        bodyText = (req as any).rawBody;
+      } else {
+        bodyText = String(req.body ?? "");
+      }
+
+      const lines = bodyText
+        .split(/\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0);
+
+      if (lines.length === 0) {
+        res.setHeader("Content-Type", "text/plain");
+        return res.send("OK");
+      }
+
+      const users = await storage.getUsers();
+
+      const parseRecords = () => {
+        const records: Array<{ pin: string; time: string; status: string }> = [];
+        for (const line of lines) {
+          let pin = "";
+          let time = "";
+          let status = "0";
+
+          // Tab-separated: PIN \t Time \t Status ...
+          if (line.includes("\t")) {
+            const parts = line
+              .split("\t")
+              .map((p) => p.trim())
+              .filter((p) => p.length > 0);
+            if (parts.length >= 2) {
+              pin = parts[0];
+              time = parts[1];
+              status = parts[2] ?? "0";
+            }
+          } else if (line.match(/^\d+\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}/)) {
+            // Space-separated: PIN  YYYY-MM-DD HH:mm:ss  Status ...
+            const parts = line
+              .split(/\s{2,}/)
+              .map((p) => p.trim())
+              .filter((p) => p.length > 0);
+            if (parts.length >= 2) {
+              pin = parts[0];
+              if (
+                parts[1]?.match(/^\d{4}-\d{2}-\d{2}$/) &&
+                parts[2]?.match(/^\d{2}:\d{2}:\d{2}$/)
+              ) {
+                time = `${parts[1]} ${parts[2]}`;
+                status = parts[3] ?? "0";
+              } else {
+                time = parts[1];
+                status = parts[2] ?? "0";
+              }
+            }
+          } else {
+            // Comma-separated key=value: PIN=...,Time=...,Status=...
+            const parts = line.split(",");
+            for (const part of parts) {
+              const m = part.match(/(\w+)=(.+)/);
+              if (!m) continue;
+              const key = m[1].trim().toLowerCase();
+              const value = m[2].trim();
+              if (key === "pin" || key === "uid" || key === "userid") pin = value;
+              else if (key === "time" || key === "timestamp") time = value;
+              else if (key === "status") status = value;
+            }
+          }
+
+          if (pin && time) {
+            records.push({ pin, time, status });
+          }
+        }
+        return records;
+      };
+
+      const records = parseRecords();
+      if (records.length === 0) {
+        res.setHeader("Content-Type", "text/plain");
+        return res.send("OK");
+      }
+
+      for (const rec of records) {
+        const pinStr = String(rec.pin).trim();
+
+        const user = users.find((u: any) => {
+          const idStr = String(u.id).trim();
+          const usernameStr = String(u.username ?? "").trim();
+          if (idStr === pinStr) return true;
+          if (usernameStr === pinStr) return true;
+          const idNum = parseInt(idStr, 10);
+          const pinNum = parseInt(pinStr, 10);
+          if (!Number.isNaN(idNum) && !Number.isNaN(pinNum) && idNum === pinNum) return true;
+          return false;
+        });
+
+        if (!user) {
+          continue;
+        }
+
+        let deviceTime: Date | null = null;
+        const t = rec.time;
+        try {
+          if (t.includes("-") && t.includes(" ")) {
+            deviceTime = new Date(t);
+          } else if (t.length === 14 && /^\d+$/.test(t)) {
+            const year = t.substring(0, 4);
+            const month = t.substring(4, 6);
+            const day = t.substring(6, 8);
+            const hour = t.substring(8, 10);
+            const minute = t.substring(10, 12);
+            const second = t.substring(12, 14);
+            deviceTime = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
+          } else if (/^\d+$/.test(t)) {
+            deviceTime = new Date(parseInt(t, 10) * 1000);
+          }
+        } catch {
+          deviceTime = null;
+        }
+
+        const recordTime = deviceTime ?? new Date();
+        const recordDate = new Date(recordTime);
+        recordDate.setHours(0, 0, 0, 0);
+
+        const isCheckIn =
+          rec.status === "0" || rec.status === "CheckIn" || rec.status === "CHECKIN";
+        const isCheckOut =
+          rec.status === "1" || rec.status === "CheckOut" || rec.status === "CHECKOUT";
+
+        if (!isCheckIn && !isCheckOut) continue;
+
+        const existing = await storage.getTodayHrmAttendance(user.id, recordTime);
+
+        if (existing) {
+          if (isCheckIn) {
+            if (!existing.checkInTime) {
+              await storage.updateHrmAttendance(existing.id, {
+                checkInTime: recordTime,
+                status: "present",
+              });
+            }
+          } else if (isCheckOut && !existing.checkOutTime) {
+            const checkIn = existing.checkInTime ?? recordTime;
+            const minutes = Math.max(
+              0,
+              Math.round((recordTime.getTime() - checkIn.getTime()) / 60000),
+            );
+            await storage.updateHrmAttendance(existing.id, {
+              checkOutTime: recordTime,
+              workingMinutes: minutes,
+              status: existing.status ?? "present",
+            });
+          }
+        } else {
+          if (isCheckIn) {
+            await storage.createHrmAttendance({
+              userId: user.id,
+              date: recordDate,
+              checkInTime: recordTime,
+              status: "present",
+              workingMinutes: 0,
+              notes: null,
+            } as any);
+          } else if (isCheckOut) {
+            await storage.createHrmAttendance({
+              userId: user.id,
+              date: recordDate,
+              checkOutTime: recordTime,
+              status: "present",
+              workingMinutes: 0,
+              notes: null,
+            } as any);
+          }
+        }
+      }
+
+      res.setHeader("Content-Type", "text/plain");
+      return res.send("OK");
+    } catch (err: any) {
+      console.error("ADMS attendance error:", err);
+      res.status(500).json({ message: err?.message || "ADMS attendance error" });
+    }
+  };
+
+  // Common ADMS endpoints some ZKTeco firmwares use
+  app.post("/iclock/cdata", handleAdmsAttendance);
+  app.post("/api/adms/attendance", handleAdmsAttendance);
+  app.post("/adms/attendance", handleAdmsAttendance);
+
   app.get("/api/hrm/attendance/summary", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId;
@@ -259,6 +477,41 @@ export async function registerRoutes(
       res.json({ today: resultToday, recent });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/hrm/attendance/all", requireAuth, async (req, res) => {
+    try {
+      const roleId = req.session.roleId;
+      let roleName: string | null = null;
+      if (roleId) {
+        const role = await storage.getRole(roleId);
+        roleName = role?.name ?? null;
+      }
+      if (!isAdminLikeRoleName(roleName)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const today = new Date();
+      const from = new Date(today);
+      from.setDate(from.getDate() - 6);
+
+      const records = await storage.getHrmAttendanceForAll(from, today);
+      res.json({
+        recent: records.map((r) => ({
+          id: r.id,
+          userId: r.userId,
+          userName: r.userName,
+          fullName: r.fullName,
+          date: (r.date as unknown as string)?.slice(0, 10),
+          status: r.status,
+          checkInTime: r.checkInTime,
+          checkOutTime: r.checkOutTime,
+          workingMinutes: r.workingMinutes ?? 0,
+        })),
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to load HRM attendance for all users" });
     }
   });
 

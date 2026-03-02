@@ -164,6 +164,14 @@ export interface IStorage {
 
   // HRM attendance (per clinic user)
   getHrmAttendanceForUser(userId: number, fromDate: Date, toDate: Date): Promise<HrmAttendance[]>;
+  getHrmAttendanceForAll(fromDate: Date, toDate: Date): Promise<
+    Array<
+      HrmAttendance & {
+        userName: string;
+        fullName: string | null;
+      }
+    >
+  >;
   getTodayHrmAttendance(userId: number, date: Date): Promise<HrmAttendance | undefined>;
   createHrmAttendance(rec: InsertHrmAttendance): Promise<HrmAttendance>;
   updateHrmAttendance(id: number, data: Partial<InsertHrmAttendance>): Promise<HrmAttendance | undefined>;
@@ -1159,6 +1167,42 @@ export class DatabaseStorage implements IStorage {
         ),
       )
       .orderBy(desc(hrmAttendance.date));
+  }
+
+  async getHrmAttendanceForAll(fromDate: Date, toDate: Date): Promise<
+    Array<
+      HrmAttendance & {
+        userName: string;
+        fullName: string | null;
+      }
+    >
+  > {
+    const fromStr = fromDate.toISOString().slice(0, 10);
+    const toStr = toDate.toISOString().slice(0, 10);
+    const rows = await db
+      .select({
+        id: hrmAttendance.id,
+        userId: hrmAttendance.userId,
+        date: hrmAttendance.date,
+        checkInTime: hrmAttendance.checkInTime,
+        checkOutTime: hrmAttendance.checkOutTime,
+        workingMinutes: hrmAttendance.workingMinutes,
+        status: hrmAttendance.status,
+        notes: hrmAttendance.notes,
+        createdAt: hrmAttendance.createdAt,
+        userName: users.username,
+        fullName: users.fullName,
+      })
+      .from(hrmAttendance)
+      .leftJoin(users, eq(hrmAttendance.userId, users.id))
+      .where(and(gte(hrmAttendance.date, fromStr), lte(hrmAttendance.date, toStr)))
+      .orderBy(desc(hrmAttendance.date), users.fullName ?? users.username);
+    return rows as Array<
+      HrmAttendance & {
+        userName: string;
+        fullName: string | null;
+      }
+    >;
   }
 
   async getTodayHrmAttendance(userId: number, date: Date): Promise<HrmAttendance | undefined> {
