@@ -153,6 +153,7 @@ export interface IStorage {
   createSampleCollection(s: InsertSampleCollection): Promise<SampleCollection>;
   updateSampleCollection(id: number, data: Partial<InsertSampleCollection>): Promise<SampleCollection | undefined>;
   deleteSampleCollection(id: number): Promise<void>;
+  bulkDeleteSampleCollections(ids: number[]): Promise<void>;
 
   getAppointments(): Promise<any[]>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
@@ -1100,6 +1101,11 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSampleCollection(id: number): Promise<void> {
     await db.delete(sampleCollections).where(eq(sampleCollections.id, id));
+  }
+
+  async bulkDeleteSampleCollections(ids: number[]): Promise<void> {
+    if (!ids.length) return;
+    await db.delete(sampleCollections).where(inArray(sampleCollections.id, ids));
   }
 
   async getAppointments(): Promise<any[]> {

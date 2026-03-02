@@ -70,6 +70,8 @@ export default function SampleCollectionsPage() {
   const [editSample, setEditSample] = useState<SampleCollection | null>(null);
   const [editForm, setEditForm] = useState<{ status: string; notes: string; collectedBy: string }>({ status: "pending", notes: "", collectedBy: "" });
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; sample: SampleCollection | null }>({ open: false, sample: null });
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleteBulkConfirm, setDeleteBulkConfirm] = useState(false);
 
   const { data: samples = [], isLoading } = useQuery<SampleCollection[]>({
     queryKey: ["/api/sample-collections"],
@@ -181,6 +183,22 @@ export default function SampleCollectionsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
       setDeleteConfirm({ open: false, sample: null });
       toast({ title: "Sample collection deleted" });
+    },
+    onError: (err: Error) => {
+      toast({ title: err.message, variant: "destructive" });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await apiRequest("POST", "/api/sample-collections/bulk-delete", { ids });
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sample-collections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      setSelectedIds(new Set());
+      setDeleteBulkConfirm(false);
+      toast({ title: `${ids.length} sample collection(s) deleted` });
     },
     onError: (err: Error) => {
       toast({ title: err.message, variant: "destructive" });
@@ -358,6 +376,11 @@ export default function SampleCollectionsPage() {
     },
   ];
 
+  const handleBulkDelete = () => {
+    if (!selectedIds.size) return;
+    setDeleteBulkConfirm(true);
+  };
+
   return (
     <div className="flex flex-1 flex-col min-h-0 gap-4 overflow-auto p-4 md:p-6">
       <PageHeader
@@ -421,11 +444,28 @@ export default function SampleCollectionsPage() {
             </div>
           </div>
 
+          {selectedIds.size > 0 && (
+            <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border-b rounded-md mb-3">
+              <span className="text-sm font-medium">{selectedIds.size} selected</span>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteMutation.isPending}
+                data-testid="button-bulk-delete-sample-collections"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> {bulkDeleteMutation.isPending ? "Deleting..." : "Delete Selected"}
+              </Button>
+            </div>
+          )}
+
           <DataTable
             columns={columns}
             data={filtered}
             isLoading={isLoading}
             emptyMessage="No sample collections yet. They are created when a bill includes lab tests that require sample collection."
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
             onRowClick={(row) => setViewSample(row)}
           />
         </CardContent>
@@ -557,6 +597,17 @@ export default function SampleCollectionsPage() {
         cancelLabel="Cancel"
         variant="destructive"
         onConfirm={() => { if (deleteConfirm.sample) deleteSampleMutation.mutate(deleteConfirm.sample.id); }}
+      />
+
+      <ConfirmDialog
+        open={deleteBulkConfirm}
+        onOpenChange={setDeleteBulkConfirm}
+        title="Delete sample collections"
+        description={`Delete ${selectedIds.size} selected sample collection(s)? This cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
       />
 
       {barcodeSample && (

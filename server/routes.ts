@@ -2859,6 +2859,19 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/sample-collections/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      await storage.bulkDeleteSampleCollections(ids.map((id: any) => Number(id)).filter((n: any) => !Number.isNaN(n)));
+      res.json({ success: true, deleted: ids.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Appointments
   app.get("/api/appointments", async (_req, res) => {
     try {
