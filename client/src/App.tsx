@@ -46,7 +46,11 @@ function RouteGuard({ currentUser, children }: { currentUser: any; children: Rea
   const pathname = location.split("?")[0];
   const pathKey = "/" + (pathname.split("/")[1] || "");
   const moduleKey = NAV_TO_MODULE[pathKey];
-  const hasAccess = moduleKey == null || canView(permissions, moduleKey, roleName);
+  // HRM should be visible for all logged-in users regardless of role.
+  const hasAccess =
+    pathKey === "/hrm"
+      ? true
+      : moduleKey == null || canView(permissions, moduleKey, roleName);
   if (!hasAccess) return <Redirect to="/" replace />;
   return <>{children}</>;
 }

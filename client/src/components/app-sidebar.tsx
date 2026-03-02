@@ -103,8 +103,12 @@ export function AppSidebar({ currentUser }: { currentUser: any }) {
   const roleName = currentUser?.role;
   const visibleUrls = new Set(
     [...mainItems, ...financeItems, ...systemItems]
-      .filter((item) => canView(permissions, NAV_TO_MODULE[item.url] ?? "dashboard", roleName))
-      .map((item) => item.url)
+      .filter((item) => {
+        // HRM should be visible to all logged-in users
+        if (item.url === "/hrm") return !!currentUser;
+        return canView(permissions, NAV_TO_MODULE[item.url] ?? "dashboard", roleName);
+      })
+      .map((item) => item.url),
   );
 
   const isActive = (url: string) => {
