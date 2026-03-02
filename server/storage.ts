@@ -32,6 +32,7 @@ import {
   packages, type InsertPackage, type Package,
   medicinePurchases, type InsertMedicinePurchase, type MedicinePurchase,
   userNotifications, type UserNotification,
+  hrmAttendance, type InsertHrmAttendance, type HrmAttendance,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -160,6 +161,12 @@ export interface IStorage {
   updateAppointment(id: number, data: Partial<InsertAppointment>): Promise<Appointment | undefined>;
   deleteAppointment(id: number): Promise<void>;
   bulkDeleteAppointments(ids: number[]): Promise<void>;
+
+  // HRM attendance (per clinic user)
+  getHrmAttendanceForUser(userId: number, fromDate: Date, toDate: Date): Promise<HrmAttendance[]>;
+  getTodayHrmAttendance(userId: number, date: Date): Promise<HrmAttendance | undefined>;
+  createHrmAttendance(rec: InsertHrmAttendance): Promise<HrmAttendance>;
+  updateHrmAttendance(id: number, data: Partial<InsertHrmAttendance>): Promise<HrmAttendance | undefined>;
 
   getDoctors(): Promise<Doctor[]>;
   getDoctor(id: number): Promise<Doctor | undefined>;
@@ -1134,6 +1141,48 @@ export class DatabaseStorage implements IStorage {
 
   async bulkDeleteAppointments(ids: number[]): Promise<void> {
     await db.delete(appointments).where(inArray(appointments.id, ids));
+  }
+
+  // --- HRM attendance ---
+
+  async getHrmAttendanceForUser(userId: number, fromDate: Date, toDate: Date): Promise<HrmAttendance[]> {
+    const fromStr = fromDate.toISOString().slice(0, 10);
+    const toStr = toDate.toISOString().slice(0, 10);
+    return db
+      .select()
+      .from(hrmAttendance)
+      .where(
+        and(
+          eq(hrmAttendance.userId, userId),
+          gte(hrmAttendance.date, fromStr),
+          lte(hrmAttendance.date, toStr),
+        ),
+      )
+      .orderBy(desc(hrmAttendance.date));
+  }
+
+  async getTodayHrmAttendance(userId: number, date: Date): Promise<HrmAttendance | undefined> {
+    const dateStr = date.toISOString().slice(0, 10);
+    const [row] = await db
+      .select()
+      .from(hrmAttendance)
+      .where(
+        and(
+          eq(hrmAttendance.userId, userId),
+          eq(hrmAttendance.date, dateStr),
+        ),
+      );
+    return row;
+  }
+
+  async createHrmAttendance(rec: InsertHrmAttendance): Promise<HrmAttendance> {
+    const [created] = await db.insert(hrmAttendance).values(rec as typeof hrmAttendance.$inferInsert).returning();
+    return created;
+  }
+
+  async updateHrmAttendance(id: number, data: Partial<InsertHrmAttendance>): Promise<HrmAttendance | undefined> {
+    const [updated] = await db.update(hrmAttendance).set(data).where(eq(hrmAttendance.id, id)).returning();
+    return updated;
   }
 
   async getDoctors(): Promise<Doctor[]> {

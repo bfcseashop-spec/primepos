@@ -32,6 +32,7 @@ import AppointmentsPage from "@/pages/appointments";
 import DoctorManagementPage from "@/pages/doctor-management";
 import PrescriptionsPage from "@/pages/prescriptions";
 import SalaryPage from "@/pages/salary";
+import HrmPage from "@/pages/hrm";
 import AuthenticationPage from "@/pages/authentication";
 import SignInPage from "@/pages/sign-in";
 import { canView, NAV_TO_MODULE } from "@shared/permissions";
@@ -77,6 +78,7 @@ function Router({ currentUser }: { currentUser: any }) {
       <Route path="/doctors" component={DoctorManagementPage} />
       <Route path="/prescriptions" component={PrescriptionsPage} />
       <Route path="/salary" component={SalaryPage} />
+      <Route path="/hrm" component={HrmPage} />
       <Route path="/authentication" component={AuthenticationPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route component={NotFound} />

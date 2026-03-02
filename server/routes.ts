@@ -219,6 +219,111 @@ export async function registerRoutes(
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // --- HRM / Attendance (per clinic user) ---
+  app.get("/api/hrm/attendance/summary", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const today = new Date();
+      const from = new Date(today);
+      from.setDate(from.getDate() - 6);
+      const records = await storage.getHrmAttendanceForUser(Number(userId), from, today);
+      const byDate = new Map<string, any>();
+      for (const r of records) {
+        const raw = r.date as unknown as string;
+        const dateKey = raw.slice(0, 10);
+        byDate.set(dateKey, r);
+      }
+      const todayKey = today.toISOString().slice(0, 10);
+      const todayRec = byDate.get(todayKey) ?? null;
+      const resultToday = todayRec && {
+        date: todayRec.date,
+        status: todayRec.status as any,
+        checkInTime: todayRec.checkInTime,
+        checkOutTime: todayRec.checkOutTime,
+        workingMinutes: todayRec.workingMinutes ?? 0,
+      };
+      const recent: any[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        const rec = byDate.get(key);
+        recent.push({
+          date: d.toISOString(),
+          status: (rec?.status ?? "scheduled") as any,
+          checkInTime: rec?.checkInTime ?? null,
+          checkOutTime: rec?.checkOutTime ?? null,
+          workingMinutes: rec?.workingMinutes ?? 0,
+        });
+      }
+      res.json({ today: resultToday, recent });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/hrm/attendance/check-in", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const today = new Date();
+      const existing = await storage.getTodayHrmAttendance(Number(userId), today);
+      if (existing?.checkInTime) {
+        return res.status(400).json({ message: "Already checked in today" });
+      }
+      const recordData = existing
+        ? { checkInTime: new Date(), status: "present" as const }
+        : {
+            userId,
+            date: today,
+            checkInTime: new Date(),
+            status: "present" as const,
+            workingMinutes: 0,
+          };
+      const rec = existing
+        ? await storage.updateHrmAttendance(existing.id, recordData)
+        : await storage.createHrmAttendance(recordData as any);
+      res.json({
+        date: rec!.date,
+        status: rec!.status,
+        checkInTime: rec!.checkInTime,
+        checkOutTime: rec!.checkOutTime,
+        workingMinutes: rec!.workingMinutes ?? 0,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/hrm/attendance/check-out", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const today = new Date();
+      const existing = await storage.getTodayHrmAttendance(Number(userId), today);
+      if (!existing || !existing.checkInTime) {
+        return res.status(400).json({ message: "No check-in found for today" });
+      }
+      if (existing.checkOutTime) {
+        return res.status(400).json({ message: "Already checked out today" });
+      }
+      const now = new Date();
+      const diffMs = now.getTime() - new Date(existing.checkInTime).getTime();
+      const workingMinutes = Math.max(0, Math.round(diffMs / (1000 * 60)));
+      const rec = await storage.updateHrmAttendance(existing.id, {
+        checkOutTime: now,
+        workingMinutes,
+      });
+      res.json({
+        date: rec!.date,
+        status: rec!.status,
+        checkInTime: rec!.checkInTime,
+        checkOutTime: rec!.checkOutTime,
+        workingMinutes: rec!.workingMinutes ?? workingMinutes,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   function isAdminRole(role?: string | null): boolean {
     if (!role) return false;
     const r = role.toLowerCase();

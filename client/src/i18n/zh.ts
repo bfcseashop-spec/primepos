@@ -59,6 +59,7 @@ export const zh = {
     finance: "财务管理",
     system: "系统管理",
     dashboard: "仪表盘",
+    hrm: "人事考勤",
     makePayment: "收银台 (POS)",
     opdManagement: "门诊管理",
     prescriptions: "处方",

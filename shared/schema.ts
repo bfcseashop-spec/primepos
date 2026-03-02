@@ -174,6 +174,24 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({ i
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Appointment = typeof appointments.$inferSelect;
 
+// --- HRM / Attendance ---
+
+export const hrmAttendance = pgTable("hrm_attendance", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  date: date("date").notNull(),
+  checkInTime: timestamp("check_in_time"),
+  checkOutTime: timestamp("check_out_time"),
+  workingMinutes: integer("working_minutes").notNull().default(0),
+  status: text("status").notNull().default("scheduled"), // scheduled, present, absent
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertHrmAttendanceSchema = createInsertSchema(hrmAttendance).omit({ id: true, createdAt: true } as any);
+export type InsertHrmAttendance = z.infer<typeof insertHrmAttendanceSchema>;
+export type HrmAttendance = typeof hrmAttendance.$inferSelect;
+
 export const bills = pgTable("bills", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   billNo: text("bill_no").notNull().unique(),

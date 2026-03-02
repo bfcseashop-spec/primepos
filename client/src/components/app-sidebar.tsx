@@ -27,6 +27,7 @@ import { Separator } from "@/components/ui/separator";
 
 const mainItems = [
   { i18nKey: "sidebar.dashboard", url: "/", icon: LayoutDashboard, iconColor: "text-blue-500" },
+  { i18nKey: "sidebar.hrm", url: "/hrm", icon: Activity, iconColor: "text-indigo-500" },
   { i18nKey: "sidebar.makePayment", url: "/billing", icon: FileText, iconColor: "text-amber-500" },
   { i18nKey: "sidebar.opdManagement", url: "/opd", icon: Stethoscope, iconColor: "text-emerald-500" },
   { i18nKey: "sidebar.prescriptions", url: "/prescriptions", icon: FileText, iconColor: "text-teal-500" },
