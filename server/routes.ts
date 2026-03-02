@@ -229,8 +229,10 @@ export async function registerRoutes(
 
   // Minimal ADMS/ZKTeco integration: auto check-in/out from devices.
   // We support common ZKTeco ATTLOG formats and map device PIN -> PrimePOS user.
-  app.use("/iclock/*", express.text({ type: "*/*" }));
-  app.use("/iclock/*", express.urlencoded({ extended: true }));
+  // Note: In Express 5, wildcard segments must use :param(*) rather than bare *.
+  // Using the base "/iclock" prefix here ensures all /iclock/... paths are matched.
+  app.use("/iclock", express.text({ type: "*/*" }));
+  app.use("/iclock", express.urlencoded({ extended: true }));
 
   const handleAdmsAttendance = async (req: express.Request, res: express.Response) => {
     const tableTypeRaw = (req.query as any).table;
