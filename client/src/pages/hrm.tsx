@@ -1,9 +1,11 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { Clock, CheckCircle2, Activity, CalendarDays } from "lucide-react";
@@ -15,6 +17,11 @@ type HrmDay = {
   checkInTime?: string | null;
   checkOutTime?: string | null;
   workingMinutes: number;
+};
+
+type HrmHistoryDay = HrmDay & {
+  id?: number;
+  notes?: string | null;
 };
 
 type HrmSummary = {
@@ -36,11 +43,105 @@ type HrmAdminRow = {
 
 const MINUTES_PER_DAY = 8 * 60;
 
+function HistoryTable() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["/api/hrm/attendance/history"],
+  });
+
+  const rows = (data ?? []) as HrmHistoryDay[];
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b bg-muted/40">
+            <th className="py-2 px-2 text-left">Date</th>
+            <th className="py-2 px-2 text-left">Status</th>
+            <th className="py-2 px-2 text-center">Check-in</th>
+            <th className="py-2 px-2 text-center">Check-out</th>
+            <th className="py-2 px-2 text-right">Worked (hrs)</th>
+            <th className="py-2 px-2 text-right">Overtime (hrs)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {isLoading ? (
+            <tr>
+              <td
+                className="py-4 px-2 text-center text-muted-foreground"
+                colSpan={6}
+              >
+                Loading history...
+              </td>
+            </tr>
+          ) : rows.length === 0 ? (
+            <tr>
+              <td
+                className="py-4 px-2 text-center text-muted-foreground"
+                colSpan={6}
+              >
+                No attendance history found.
+              </td>
+            </tr>
+          ) : (
+            rows.map((d) => {
+              const workedHrs = (d.workingMinutes ?? 0) / 60;
+              const overtimeMinutes = Math.max(
+                0,
+                (d.workingMinutes ?? 0) - MINUTES_PER_DAY,
+              );
+              return (
+                <tr key={d.id ?? d.date} className="border-b last:border-b-0">
+                  <td className="py-2 px-2">
+                    {format(new Date(d.date), "dd MMM yyyy")}
+                  </td>
+                  <td className="py-2 px-2">
+                    {d.status === "present" ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                        Present
+                      </Badge>
+                    ) : d.status === "absent" ? (
+                      <Badge
+                        variant="outline"
+                        className="text-red-600 border-red-500/40"
+                      >
+                        Absent
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">Scheduled</Badge>
+                    )}
+                  </td>
+                  <td className="py-2 px-2 text-center">
+                    {d.checkInTime ? format(new Date(d.checkInTime), "hh:mm a") : "-"}
+                  </td>
+                  <td className="py-2 px-2 text-center">
+                    {d.checkOutTime
+                      ? format(new Date(d.checkOutTime), "hh:mm a")
+                      : "-"}
+                  </td>
+                  <td className="py-2 px-2 text-right">
+                    {workedHrs.toFixed(2)}
+                  </td>
+                  <td className="py-2 px-2 text-right">
+                    {overtimeMinutes > 0
+                      ? (overtimeMinutes / 60).toFixed(2)
+                      : "-"}
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function HrmPage() {
   const { toast } = useToast();
   const auth = useAuth();
   const isAdminLike =
     !!auth?.role && auth.role.toLowerCase().includes("admin");
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/hrm/attendance/summary"],
@@ -49,6 +150,11 @@ export default function HrmPage() {
   const { data: adminData } = useQuery({
     queryKey: ["/api/hrm/attendance/all"],
     enabled: isAdminLike,
+  });
+
+  const { data: salaryProfilesData } = useQuery({
+    queryKey: ["/api/salary-profiles"],
+    enabled: !!auth,
   });
 
   const checkInMutation = useMutation({
@@ -84,6 +190,33 @@ export default function HrmPage() {
   const isPunchedIn = !!today?.checkInTime && !today?.checkOutTime;
 
   const adminRows = ((adminData as { recent?: HrmAdminRow[] } | undefined)?.recent ?? []) as HrmAdminRow[];
+  const recentDays = (summary?.recent ?? []) as HrmDay[];
+
+  const totalWorkedMinutes = recentDays.reduce((sum, d) => sum + (d.workingMinutes ?? 0), 0);
+  const totalWorkedHours = totalWorkedMinutes / 60;
+  const daysPresent = recentDays.filter((d) => d.status === "present").length;
+  const daysAbsent = recentDays.filter((d) => d.status === "absent").length;
+  const daysScheduled = recentDays.filter((d) => d.status === "scheduled").length;
+  const totalOvertimeMinutes = recentDays.reduce(
+    (sum, d) => sum + Math.max(0, d.workingMinutes - MINUTES_PER_DAY),
+    0,
+  );
+  const totalOvertimeHours = totalOvertimeMinutes / 60;
+
+  const salaryProfiles = (salaryProfilesData ?? []) as any[];
+  const activeProfile =
+    auth &&
+    salaryProfiles.find(
+      (p) =>
+        (p.staffId && String(p.staffId).trim() === String(auth.id)) ||
+        (p.staffName && String(p.staffName).trim() === String(auth.fullName).trim()),
+    );
+  const baseSalary = activeProfile ? Number(activeProfile.baseSalary) || 0 : 0;
+  const standardMonthlyHours = 160; // 8h * 5d * 4w
+  const hourlyRate = baseSalary > 0 ? baseSalary / standardMonthlyHours : 0;
+  const expectedRegularPay = hourlyRate * totalWorkedHours;
+  const expectedOvertimePay = hourlyRate * 1.5 * totalOvertimeHours;
+  const expectedWeeklyPay = expectedRegularPay + expectedOvertimePay;
 
   const handlePunch = () => {
     if (isPunchedIn) {
@@ -269,7 +402,19 @@ export default function HrmPage() {
               This week&apos;s attendance overview.
             </CardDescription>
           </div>
-          <div className="text-xs text-muted-foreground">This week</div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground hidden sm:inline-block">
+              This week
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-[11px] h-7 px-2"
+              onClick={() => setHistoryOpen(true)}
+            >
+              View history
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="w-full overflow-x-auto">
@@ -349,6 +494,131 @@ export default function HrmPage() {
               </tbody>
             </table>
           </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-4xl w-[calc(100%-2rem)]">
+          <DialogHeader>
+            <DialogTitle>Attendance history (last 30 days)</DialogTitle>
+          </DialogHeader>
+          <HistoryTable />
+        </DialogContent>
+      </Dialog>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-violet-500" />
+            Weekly Summary
+          </CardTitle>
+          <CardDescription>
+            Overview of this week&apos;s presence and work hours.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-4 text-sm">
+            <div className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-3 flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                Present Days
+              </span>
+              <span className="text-xl font-bold text-emerald-400">
+                {daysPresent}
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Out of {recentDays.length || 7} scheduled days
+              </span>
+            </div>
+            <div className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-3 flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                Absent Days
+              </span>
+              <span className="text-xl font-bold text-red-400">
+                {daysAbsent}
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Marked as absent or no punch
+              </span>
+            </div>
+            <div className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-3 flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                Total Worked
+              </span>
+              <span className="text-xl font-bold text-sky-400">
+                {totalWorkedHours.toFixed(1)} hrs
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Sum of all worked hours this week
+              </span>
+            </div>
+            <div className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-3 flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                Overtime
+              </span>
+              <span className="text-xl font-bold text-amber-400">
+                {totalOvertimeHours.toFixed(1)} hrs
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Above {(MINUTES_PER_DAY / 60).toFixed(1)} hrs/day
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-emerald-500" />
+            Expected Salary & Deductions
+          </CardTitle>
+          <CardDescription>
+            Estimated weekly earnings based on your salary profile and attendance.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {baseSalary <= 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No salary profile is linked to your account yet. Ask an administrator to
+              create a salary profile to see expected salary details here.
+            </p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-3 text-sm">
+              <div className="rounded-lg border border-slate-700/60 bg-slate-900/60 p-4 flex flex-col gap-1">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                  Base Salary (monthly)
+                </span>
+                <span className="text-xl font-bold text-white">
+                  ${baseSalary.toFixed(2)}
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Approx. hourly rate: ${hourlyRate.toFixed(2)}/hr
+                </span>
+              </div>
+              <div className="rounded-lg border border-slate-700/60 bg-slate-900/60 p-4 flex flex-col gap-1">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                  This Week&apos;s Work
+                </span>
+                <span className="text-xl font-bold text-sky-400">
+                  ${expectedRegularPay.toFixed(2)}
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  {totalWorkedHours.toFixed(1)} hrs at normal rate
+                </span>
+              </div>
+              <div className="rounded-lg border border-slate-700/60 bg-slate-900/60 p-4 flex flex-col gap-1">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                  Overtime & Total
+                </span>
+                <span className="text-xl font-bold text-emerald-400">
+                  ${expectedWeeklyPay.toFixed(2)}
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Includes ${expectedOvertimePay.toFixed(2)} overtime ({totalOvertimeHours.toFixed(1)} hrs)
+                </span>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

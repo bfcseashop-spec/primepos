@@ -482,6 +482,45 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/hrm/attendance/history", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const today = new Date();
+      const to =
+        typeof req.query.to === "string"
+          ? new Date(`${req.query.to}T23:59:59.999Z`)
+          : today;
+      const from =
+        typeof req.query.from === "string"
+          ? new Date(`${req.query.from}T00:00:00.000Z`)
+          : new Date(to.getTime() - 29 * 24 * 60 * 60 * 1000);
+
+      const records = await storage.getHrmAttendanceForUser(
+        Number(userId),
+        from,
+        to,
+      );
+
+      res.json(
+        records.map((r) => ({
+          id: r.id,
+          date: (r.date as unknown as string)?.slice(0, 10),
+          status: r.status,
+          checkInTime: r.checkInTime,
+          checkOutTime: r.checkOutTime,
+          workingMinutes: r.workingMinutes ?? 0,
+          notes: r.notes ?? null,
+        })),
+      );
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to load history" });
+    }
+  });
+
   app.get("/api/hrm/attendance/all", requireAuth, async (req, res) => {
     try {
       const roleId = req.session.roleId;
