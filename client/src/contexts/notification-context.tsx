@@ -78,21 +78,12 @@ export function NotificationProvider({ user, children }: { user: AuthUser; child
             description: payload.message,
           });
 
-          // Play a short notification sound (best-effort).
+          // Play notification sound from bundled audio file (best-effort).
           try {
-            const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-            if (AudioCtx) {
-              const ctx = new AudioCtx();
-              const osc = ctx.createOscillator();
-              const gain = ctx.createGain();
-              osc.type = "sine";
-              osc.frequency.value = 880;
-              osc.connect(gain);
-              gain.connect(ctx.destination);
-              gain.gain.setValueAtTime(0.15, ctx.currentTime);
-              osc.start();
-              osc.stop(ctx.currentTime + 0.15);
-            }
+            const audio = new Audio("/sound.mp3");
+            audio.volume = 0.6;
+            // Autoplay may be blocked by the browser; ignore errors.
+            void audio.play().catch(() => {});
           } catch {
             // ignore audio errors
           }
