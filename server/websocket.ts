@@ -2,6 +2,21 @@ import type { Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import type { NotificationPayload } from "@shared/notifications";
 
+export type PatientMonitorReadingPayload = {
+  id: number;
+  deviceId: number;
+  patientId?: number | null;
+  visitId?: number | null;
+  heartRate?: number | null;
+  spo2?: number | null;
+  sbp?: number | null;
+  dbp?: number | null;
+  temperature?: string | null;
+  respiratoryRate?: number | null;
+  recordedAt: string;
+  device?: { id: number; name: string; deviceModel: string; deviceSerial?: string | null; deviceIdentifier: string };
+};
+
 type ClientMeta = {
   ws: WebSocket;
   userId?: number;
@@ -59,6 +74,34 @@ export function pushNotification(payload: NotificationPayload): void {
     } catch {
       // Ignore send errors, connection cleanup happens on close/error.
     }
+  });
+}
+
+const monitorClients = new Set<WebSocket>();
+
+export function broadcastPatientMonitorReading(payload: PatientMonitorReadingPayload): void {
+  const json = JSON.stringify({ type: "vitals", payload });
+  monitorClients.forEach((ws) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(json);
+      } catch {
+        // ignore
+      }
+    }
+  });
+}
+
+export function setupPatientMonitorWebSocket(server: Server): void {
+  const wss = new WebSocketServer({
+    server,
+    path: "/ws/patient-monitor",
+  });
+
+  wss.on("connection", (ws) => {
+    monitorClients.add(ws);
+    ws.on("close", () => monitorClients.delete(ws));
+    ws.on("error", () => monitorClients.delete(ws));
   });
 }
 

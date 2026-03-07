@@ -33,6 +33,9 @@ import {
   medicinePurchases, type InsertMedicinePurchase, type MedicinePurchase,
   userNotifications, type UserNotification,
   hrmAttendance, type InsertHrmAttendance, type HrmAttendance,
+  patientMonitorDevices, patientMonitorReadings,
+  type InsertPatientMonitorDevice, type PatientMonitorDevice,
+  type InsertPatientMonitorReading, type PatientMonitorReading,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -241,6 +244,15 @@ export interface IStorage {
     data?: Record<string, unknown> | null;
   }): Promise<UserNotification>;
   markUserNotificationsRead(userId: number, ids?: number[]): Promise<void>;
+
+  getPatientMonitorDevices(): Promise<PatientMonitorDevice[]>;
+  getPatientMonitorDevice(id: number): Promise<PatientMonitorDevice | undefined>;
+  getPatientMonitorDeviceByIdentifier(deviceIdentifier: string): Promise<PatientMonitorDevice | undefined>;
+  createPatientMonitorDevice(device: InsertPatientMonitorDevice): Promise<PatientMonitorDevice>;
+  updatePatientMonitorDevice(id: number, data: Partial<InsertPatientMonitorDevice>): Promise<PatientMonitorDevice | undefined>;
+  createPatientMonitorReading(reading: InsertPatientMonitorReading): Promise<PatientMonitorReading>;
+  getPatientMonitorReadings(filters: { deviceId?: number; patientId?: number; visitId?: number; limit?: number }): Promise<any[]>;
+  getLatestPatientMonitorReadings(deviceIds?: number[]): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1421,6 +1433,77 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMedicinePurchase(id: number): Promise<void> {
     await db.delete(medicinePurchases).where(eq(medicinePurchases.id, id));
+  }
+
+  async getPatientMonitorDevices(): Promise<PatientMonitorDevice[]> {
+    return db.select().from(patientMonitorDevices).where(eq(patientMonitorDevices.isActive, true)).orderBy(desc(patientMonitorDevices.lastReadingAt));
+  }
+
+  async getPatientMonitorDevice(id: number): Promise<PatientMonitorDevice | undefined> {
+    const [row] = await db.select().from(patientMonitorDevices).where(eq(patientMonitorDevices.id, id));
+    return row;
+  }
+
+  async getPatientMonitorDeviceByIdentifier(deviceIdentifier: string): Promise<PatientMonitorDevice | undefined> {
+    const [row] = await db.select().from(patientMonitorDevices).where(eq(patientMonitorDevices.deviceIdentifier, deviceIdentifier));
+    return row;
+  }
+
+  async createPatientMonitorDevice(device: InsertPatientMonitorDevice): Promise<PatientMonitorDevice> {
+    const [created] = await db.insert(patientMonitorDevices).values(device as typeof patientMonitorDevices.$inferInsert).returning();
+    return created;
+  }
+
+  async updatePatientMonitorDevice(id: number, data: Partial<InsertPatientMonitorDevice>): Promise<PatientMonitorDevice | undefined> {
+    const [updated] = await db.update(patientMonitorDevices).set(data).where(eq(patientMonitorDevices.id, id)).returning();
+    return updated;
+  }
+
+  async createPatientMonitorReading(reading: InsertPatientMonitorReading): Promise<PatientMonitorReading> {
+    const [created] = await db.insert(patientMonitorReadings).values(reading as typeof patientMonitorReadings.$inferInsert).returning();
+    return created;
+  }
+
+  async getPatientMonitorReadings(filters: { deviceId?: number; patientId?: number; visitId?: number; limit?: number }): Promise<any[]> {
+    const limit = Math.min(filters.limit ?? 100, 500);
+    const conds: ReturnType<typeof eq>[] = [];
+    if (filters.deviceId != null) conds.push(eq(patientMonitorReadings.deviceId, filters.deviceId));
+    if (filters.patientId != null) conds.push(eq(patientMonitorReadings.patientId, filters.patientId));
+    if (filters.visitId != null) conds.push(eq(patientMonitorReadings.visitId, filters.visitId));
+    const baseQuery = db.select({
+      id: patientMonitorReadings.id,
+      deviceId: patientMonitorReadings.deviceId,
+      patientId: patientMonitorReadings.patientId,
+      visitId: patientMonitorReadings.visitId,
+      heartRate: patientMonitorReadings.heartRate,
+      spo2: patientMonitorReadings.spo2,
+      sbp: patientMonitorReadings.sbp,
+      dbp: patientMonitorReadings.dbp,
+      temperature: patientMonitorReadings.temperature,
+      respiratoryRate: patientMonitorReadings.respiratoryRate,
+      recordedAt: patientMonitorReadings.recordedAt,
+    }).from(patientMonitorReadings).orderBy(desc(patientMonitorReadings.recordedAt)).limit(limit);
+    if (conds.length > 0) {
+      return baseQuery.where(and(...conds));
+    }
+    return baseQuery;
+  }
+
+  async getLatestPatientMonitorReadings(deviceIds?: number[]): Promise<any[]> {
+    const devices = deviceIds && deviceIds.length > 0
+      ? await db.select().from(patientMonitorDevices).where(inArray(patientMonitorDevices.id, deviceIds))
+      : await db.select().from(patientMonitorDevices).where(eq(patientMonitorDevices.isActive, true));
+    const results: any[] = [];
+    for (const dev of devices) {
+      const [latest] = await db.select().from(patientMonitorReadings)
+        .where(eq(patientMonitorReadings.deviceId, dev.id))
+        .orderBy(desc(patientMonitorReadings.recordedAt))
+        .limit(1);
+      if (latest) {
+        results.push({ ...latest, device: dev });
+      }
+    }
+    return results;
   }
 }
 

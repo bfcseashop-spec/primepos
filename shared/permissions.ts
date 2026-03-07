@@ -122,6 +122,7 @@ export const NAV_TO_MODULE: Record<string, PermissionModuleKey> = {
   "/salary": "salary",
   // HRM page uses dashboard permissions so all logged-in users can see it
   "/hrm": "dashboard",
+  "/patient-monitor": "opd",
   "/staff": "user_role",
   "/authentication": "authentication",
   "/integrations": "integrations",

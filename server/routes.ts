@@ -15,7 +15,7 @@ import {
   insertSalaryProfileSchema, insertSalaryLoanSchema, insertLoanInstallmentSchema,
   insertPayrollRunSchema, insertPayslipSchema,
 } from "@shared/schema";
-import { pushNotification } from "./websocket";
+import { pushNotification, broadcastPatientMonitorReading } from "./websocket";
 import type { NotificationPayload } from "@shared/notifications";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -935,6 +935,69 @@ export async function registerRoutes(
     }
   });
 
+  // Patient Monitor ingest (no auth — device/gateway posts here)
+  const ingestVitalsSchema = z.object({
+    deviceIdentifier: z.string().min(1),
+    deviceModel: z.string().optional().default("Smart View-Pro 12B"),
+    deviceSerial: z.string().optional(),
+    patientId: z.number().optional().nullable(),
+    visitId: z.number().optional().nullable(),
+    heartRate: z.number().optional().nullable(),
+    spo2: z.number().optional().nullable(),
+    sbp: z.number().optional().nullable(),
+    dbp: z.number().optional().nullable(),
+    temperature: z.union([z.number(), z.string()]).optional().nullable(),
+    respiratoryRate: z.number().optional().nullable(),
+    rawPayload: z.record(z.unknown()).optional().nullable(),
+  });
+  app.post("/api/patient-monitor/ingest", async (req, res) => {
+    try {
+      const body = validateBody(ingestVitalsSchema, req.body);
+      let device = await storage.getPatientMonitorDeviceByIdentifier(body.deviceIdentifier);
+      if (!device) {
+        device = await storage.createPatientMonitorDevice({
+          name: "Patient Monitor",
+          deviceModel: body.deviceModel ?? "Smart View-Pro 12B",
+          deviceSerial: body.deviceSerial ?? null,
+          deviceIdentifier: body.deviceIdentifier,
+          isActive: true,
+        });
+      }
+      const tempVal = body.temperature != null ? String(body.temperature) : null;
+      const reading = await storage.createPatientMonitorReading({
+        deviceId: device.id,
+        patientId: body.patientId ?? null,
+        visitId: body.visitId ?? null,
+        heartRate: body.heartRate ?? null,
+        spo2: body.spo2 ?? null,
+        sbp: body.sbp ?? null,
+        dbp: body.dbp ?? null,
+        temperature: tempVal,
+        respiratoryRate: body.respiratoryRate ?? null,
+        rawPayload: body.rawPayload ?? null,
+      });
+      await storage.updatePatientMonitorDevice(device.id, { lastReadingAt: new Date() });
+      const payload = {
+        id: reading.id,
+        deviceId: reading.deviceId,
+        patientId: reading.patientId,
+        visitId: reading.visitId,
+        heartRate: reading.heartRate,
+        spo2: reading.spo2,
+        sbp: reading.sbp,
+        dbp: reading.dbp,
+        temperature: reading.temperature,
+        respiratoryRate: reading.respiratoryRate,
+        recordedAt: reading.recordedAt?.toISOString?.() ?? new Date().toISOString(),
+        device: { id: device.id, name: device.name, deviceModel: device.deviceModel, deviceSerial: device.deviceSerial, deviceIdentifier: device.deviceIdentifier },
+      };
+      broadcastPatientMonitorReading(payload);
+      res.status(201).json(payload);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
   // Protect all other API routes (auth + permission check)
   const requirePermission = createRequirePermission(storage);
   app.use("/api", requireAuth, requirePermission);
@@ -1104,6 +1167,50 @@ export async function registerRoutes(
       res.json(visit);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
+    }
+  });
+
+  // Patient Monitor (GET endpoints require auth + opd view)
+  const PATIENT_MONITOR_ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
+  app.get("/api/patient-monitor/devices", async (_req, res) => {
+    try {
+      const list = await storage.getPatientMonitorDevices();
+      const now = Date.now();
+      const withStatus = list.map((d) => {
+        const last = d.lastReadingAt ? new Date(d.lastReadingAt).getTime() : 0;
+        const isOnline = last > 0 && now - last < PATIENT_MONITOR_ONLINE_THRESHOLD_MS;
+        return { ...d, isOnline, lastReadingAt: d.lastReadingAt };
+      });
+      res.json(withStatus);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/patient-monitor/latest", async (req, res) => {
+    try {
+      const deviceIds = req.query.deviceId != null ? [Number(req.query.deviceId)] : undefined;
+      if (req.query.deviceId != null && isNaN(Number(req.query.deviceId))) {
+        return res.status(400).json({ message: "Invalid deviceId" });
+      }
+      const list = await storage.getLatestPatientMonitorReadings(deviceIds);
+      res.json(list);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/patient-monitor/readings", async (req, res) => {
+    try {
+      const deviceId = req.query.deviceId != null ? Number(req.query.deviceId) : undefined;
+      const patientId = req.query.patientId != null ? Number(req.query.patientId) : undefined;
+      const visitId = req.query.visitId != null ? Number(req.query.visitId) : undefined;
+      const limit = req.query.limit != null ? Math.min(Number(req.query.limit), 500) : 100;
+      const list = await storage.getPatientMonitorReadings({ deviceId, patientId, visitId, limit });
+      res.json(list);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
     }
   });
 

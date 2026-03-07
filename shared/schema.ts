@@ -635,6 +635,42 @@ export const insertMedicinePurchaseSchema = createInsertSchema(medicinePurchases
 export type InsertMedicinePurchase = z.infer<typeof insertMedicinePurchaseSchema>;
 export type MedicinePurchase = typeof medicinePurchases.$inferSelect;
 
+// --- Patient Monitor (e.g. MEDEX Smart View-Pro 12B) real-time vitals ---
+
+export const patientMonitorDevices = pgTable("patient_monitor_devices", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name: text("name").notNull().default("Patient Monitor"),
+  deviceModel: text("device_model").notNull(),
+  deviceSerial: text("device_serial"),
+  deviceIdentifier: text("device_identifier").notNull().unique(),
+  isActive: boolean("is_active").notNull().default(true),
+  lastReadingAt: timestamp("last_reading_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const patientMonitorReadings = pgTable("patient_monitor_readings", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  deviceId: integer("device_id").references(() => patientMonitorDevices.id).notNull(),
+  patientId: integer("patient_id").references(() => patients.id),
+  visitId: integer("visit_id").references(() => opdVisits.id),
+  heartRate: integer("heart_rate"),
+  spo2: integer("spo2"),
+  sbp: integer("sbp"),
+  dbp: integer("dbp"),
+  temperature: numeric("temperature", { precision: 5, scale: 2 }),
+  respiratoryRate: integer("respiratory_rate"),
+  rawPayload: jsonb("raw_payload").$type<Record<string, unknown> | null>(),
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+});
+
+export const insertPatientMonitorDeviceSchema = createInsertSchema(patientMonitorDevices).omit({ id: true, createdAt: true } as any);
+export type InsertPatientMonitorDevice = z.infer<typeof insertPatientMonitorDeviceSchema>;
+export type PatientMonitorDevice = typeof patientMonitorDevices.$inferSelect;
+
+export const insertPatientMonitorReadingSchema = createInsertSchema(patientMonitorReadings).omit({ id: true } as any);
+export type InsertPatientMonitorReading = z.infer<typeof insertPatientMonitorReadingSchema>;
+export type PatientMonitorReading = typeof patientMonitorReadings.$inferSelect;
+
 /**
  * Session table used by connect-pg-simple. Included in schema so drizzle-kit push
  * does not drop it during deployment. The app manages it via express-session.

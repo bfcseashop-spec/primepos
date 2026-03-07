@@ -37,6 +37,7 @@ const ROUTE_TO_MODULE: RouteRule[] = [
   { prefix: "/api/reports", module: "reports" },
   { prefix: "/api/settings", module: "settings" },
   { prefix: "/api/activity-logs", module: "settings" },
+  { prefix: "/api/patient-monitor", module: "opd" },
 ];
 
 function methodToAction(method: string): "view" | "add" | "edit" | "delete" {
@@ -55,7 +56,7 @@ function resolveModule(path: string): string | null {
   return null;
 }
 
-const SKIP_PREFIXES = ["/api/auth", "/api/public", "/api/health"];
+const SKIP_PREFIXES = ["/api/auth", "/api/public", "/api/health", "/api/patient-monitor/ingest"];
 
 function shouldSkipPermissionCheck(path: string): boolean {
   return SKIP_PREFIXES.some((p) => path.startsWith(p));
