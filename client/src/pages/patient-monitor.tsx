@@ -110,7 +110,7 @@ export default function PatientMonitorPage() {
     }
   }, []);
 
-  // WebSocket for real-time vitals (connects to pos.primepos.com when deployed)
+  // WebSocket for real-time vitals (connects to pos.primeclinic24.com when deployed)
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const wsUrl = protocol + "://" + window.location.host + "/ws/patient-monitor";
