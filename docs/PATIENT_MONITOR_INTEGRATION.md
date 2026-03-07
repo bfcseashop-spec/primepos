@@ -84,13 +84,48 @@ Use this base URL for PrimePOS: **https://pos.primeclinic24.com**
 
 ---
 
-## Connecting the MEDEX device
+## MEDEX Smart View-Pro 12B: Device configuration
 
-The Smart View-Pro 12B uses Ethernet. Typical options:
+The Smart View-Pro 12 (Smart View-Pro 12B) pushes data to a **Central Monitoring System (CMS)** or **HL7-compliant server**. PrimePOS does not speak HL7 directly; it accepts **HTTP JSON** at `/api/patient-monitor/ingest`. So you either point the monitor at an **HL7 gateway** (e.g. **monitor-gateway**) that converts HL7 → HTTP and forwards to PrimePOS, or use a vendor CMS that can push to our ingest URL.
 
-1. **HL7 / TCP**: If the monitor sends HL7 over TCP, run a small bridge (e.g. Node/Python) that listens for HL7 messages, parses vitals, and POSTs to `POST /api/patient-monitor/ingest`.
-2. **Vendor gateway**: If MEDEX provides a PC or cloud gateway that can forward data via HTTP, configure it to POST to the ingest URL above.
-3. **Manual / test**: Use curl or Postman to POST the JSON body above to `http://<primepos-host>/api/patient-monitor/ingest` to verify the pipeline and see data on the Patient Monitor page.
+### 1. Network configuration (on the monitor)
+
+- **Connection**: Use **Wired (RJ45)** or **Wireless** as per your setup.
+- **Access**: Main Menu → **Network Settings** or **System Maintenance**. (Some options may need a service password; common defaults on similar units are `3333` or `0000` — check the unit or manual.)
+- **IP settings** (recommended: **Static** for stable data pushing):
+  - **IP Address**: Unique address on your LAN.
+  - **Subnet Mask** and **Gateway**: Same as your hospital/clinic network.
+
+### 2. CMS / HL7 server settings (on the monitor)
+
+- **Menu**: **CMS Setup** or **Server Settings**.
+- **Server IP Address**: Set to the **IP of the machine that receives HL7** from the monitor:
+  - If you run **monitor-gateway** on the same network as the monitor, use that machine’s IP.
+  - If the gateway runs on your VPS, use the VPS **public IP** only if the monitor can reach it (e.g. over VPN or exposed port); otherwise run the gateway on-site and point the monitor to the on-site server IP.
+- **Port**: Must match the HL7 listener (e.g. **8000**, **8080**, or your gateway’s HL7 port). Our ingest is HTTP only; the gateway listens on this port for HL7 and forwards to PrimePOS.
+
+So: **on the MEDEX device**, you configure **Server IP** = gateway (or CMS) IP and **Port** = gateway HL7 port. The gateway then sends data to **https://pos.primeclinic24.com/api/patient-monitor/ingest**.
+
+### 3. Data management (on the monitor)
+
+- **Data Storage / Automatic Export**: Enable pushing of NIBP and alarm events to the server as per the device menu.
+- **Patient Management**: Enter patient demographics on the device when possible so the gateway can associate pushed data with the correct patient in PrimePOS (e.g. by MRN or name).
+
+### 4. Troubleshooting
+
+- **Monitoring / Network**: In the device’s **General Properties**, ensure **Monitoring** or **Network** is **enabled** (ticked).
+- **Cable**: Confirm the RJ45 cable is firmly connected to the monitor’s Ethernet port.
+- **Gateway**: Ensure **monitor-gateway** (or your HL7→HTTP bridge) is running, bound to the IP/port you entered on the monitor, and configured to POST to `https://pos.primeclinic24.com/api/patient-monitor/ingest`. Check gateway logs if the device shows connected but PrimePOS shows no data.
+
+---
+
+## Connecting the MEDEX device to PrimePOS
+
+The Smart View-Pro 12B typically sends **HL7 over TCP** to the IP:port you set in CMS/Server Settings. PrimePOS accepts **HTTP JSON** at `/api/patient-monitor/ingest`. Use one of these approaches:
+
+1. **HL7 gateway (recommended)**: Run an HL7 listener (e.g. **monitor-gateway**) on a server the monitor can reach. Configure the MEDEX **Server IP** and **Port** to that listener. The gateway parses HL7, maps vitals to our JSON format, and POSTs to `https://pos.primeclinic24.com/api/patient-monitor/ingest`.
+2. **Vendor CMS**: If MEDEX or a third party provides a CMS that can send HTTP to an external URL, point it to `https://pos.primeclinic24.com/api/patient-monitor/ingest` with the JSON body format above.
+3. **Manual / test**: Use curl or Postman to POST the JSON example to `https://pos.primeclinic24.com/api/patient-monitor/ingest` to verify the pipeline; the device will not connect to this URL directly.
 
 ## Database
 
