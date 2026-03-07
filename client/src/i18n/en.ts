@@ -90,6 +90,7 @@ export const en = {
   sidebar: {
     main: "Main",
     finance: "Finance",
+    devices: "Devices",
     system: "System",
     dashboard: "Dashboard",
     hrm: "HRM / Attendance",

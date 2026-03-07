@@ -57,6 +57,7 @@ export const zh = {
   sidebar: {
     main: "主要功能",
     finance: "财务管理",
+    devices: "设备",
     system: "系统管理",
     dashboard: "仪表盘",
     hrm: "人事考勤",

@@ -5,7 +5,7 @@ import {
   Receipt, Landmark, TrendingUp, UserCog, Settings,
   Cable, BarChart3, Activity, FlaskConical, CalendarCheck,
   UserRound, DollarSign, Shield, Heart, LogOut, ShoppingBag,
-  TestTubes, Monitor,
+  TestTubes, Monitor, ChevronDown,
 } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import {
@@ -20,6 +20,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { canView, NAV_TO_MODULE } from "@shared/permissions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,6 @@ const mainItems = [
   { i18nKey: "sidebar.hrm", url: "/hrm", icon: Activity, iconColor: "text-indigo-500" },
   { i18nKey: "sidebar.makePayment", url: "/billing", icon: FileText, iconColor: "text-amber-500" },
   { i18nKey: "sidebar.opdManagement", url: "/opd", icon: Stethoscope, iconColor: "text-emerald-500" },
-  { i18nKey: "sidebar.patientMonitor", url: "/patient-monitor", icon: Monitor, iconColor: "text-rose-500" },
   { i18nKey: "sidebar.prescriptions", url: "/prescriptions", icon: FileText, iconColor: "text-teal-500" },
   { i18nKey: "sidebar.appointments", url: "/appointments", icon: CalendarCheck, iconColor: "text-violet-500" },
   { i18nKey: "sidebar.services", url: "/services", icon: Activity, iconColor: "text-pink-500" },
@@ -39,6 +39,11 @@ const mainItems = [
   { i18nKey: "sidebar.sampleCollections", url: "/sample-collections", icon: TestTubes, iconColor: "text-teal-500" },
   { i18nKey: "sidebar.medicines", url: "/medicines", icon: Pill, iconColor: "text-orange-500" },
   { i18nKey: "sidebar.doctorManagement", url: "/doctors", icon: UserRound, iconColor: "text-teal-500" },
+];
+
+const deviceItems = [
+  { i18nKey: "sidebar.patientMonitor", url: "/patient-monitor", icon: Monitor, iconColor: "text-rose-500" },
+  { i18nKey: "sidebar.integrations", url: "/integrations", icon: Cable, iconColor: "text-purple-500" },
 ];
 
 const financeItems = [
@@ -51,7 +56,6 @@ const financeItems = [
 const systemItems = [
   { i18nKey: "sidebar.userAndRole", url: "/staff", icon: UserCog, iconColor: "text-sky-500" },
   { i18nKey: "sidebar.authentication", url: "/authentication", icon: Shield, iconColor: "text-red-500" },
-  { i18nKey: "sidebar.integrations", url: "/integrations", icon: Cable, iconColor: "text-purple-500" },
   { i18nKey: "sidebar.reports", url: "/reports", icon: BarChart3, iconColor: "text-lime-500" },
   { i18nKey: "sidebar.settings", url: "/settings", icon: Settings, iconColor: "text-slate-400" },
 ];
@@ -78,8 +82,8 @@ function NavGroup({ label, items, isActive, visibleItems }: { label: string; ite
                   asChild
                   isActive={active}
                 >
-                  <Link href={item.url} data-testid={`link-nav-${item.i18nKey.split('.').pop()}`}>
-                    <item.icon className={`h-4 w-4 ${item.iconColor}`} />
+                  <Link href={item.url} data-testid={"link-nav-" + item.i18nKey.split(".").pop()}>
+                    <item.icon className={"h-4 w-4 " + item.iconColor} />
                     <span className="text-[13px] font-medium">{title}</span>
                   </Link>
                 </SidebarMenuButton>
@@ -88,6 +92,47 @@ function NavGroup({ label, items, isActive, visibleItems }: { label: string; ite
           })}
         </SidebarMenu>
       </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
+function DevicesCollapsible({ isActive, visibleItems }: { isActive: (url: string) => boolean; visibleItems: Set<string> }) {
+  const { t } = useTranslation();
+  const visible = deviceItems.filter((item) => visibleItems.has(item.url));
+  if (visible.length === 0) return null;
+  return (
+    <SidebarGroup>
+      <Collapsible defaultOpen className="group/collapsible">
+        <SidebarGroupLabel asChild>
+          <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:mb-1">
+            <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=closed]/collapsible:-rotate-90" />
+            {t("sidebar.devices")}
+          </CollapsibleTrigger>
+        </SidebarGroupLabel>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {visible.map((item) => {
+                const active = isActive(item.url);
+                const title = t(item.i18nKey);
+                return (
+                  <SidebarMenuItem key={item.i18nKey}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                    >
+                      <Link href={item.url} data-testid={"link-nav-" + item.i18nKey.split(".").pop()}>
+                        <item.icon className={"h-4 w-4 " + item.iconColor} />
+                        <span className="text-[13px] font-medium">{title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </CollapsibleContent>
+      </Collapsible>
     </SidebarGroup>
   );
 }
@@ -103,9 +148,8 @@ export function AppSidebar({ currentUser }: { currentUser: any }) {
   const permissions = currentUser?.permissions;
   const roleName = currentUser?.role;
   const visibleUrls = new Set(
-    [...mainItems, ...financeItems, ...systemItems]
+    [...mainItems, ...deviceItems, ...financeItems, ...systemItems]
       .filter((item) => {
-        // HRM should be visible to all logged-in users
         if (item.url === "/hrm") return !!currentUser;
         return canView(permissions, NAV_TO_MODULE[item.url] ?? "dashboard", roleName);
       })
@@ -160,6 +204,7 @@ export function AppSidebar({ currentUser }: { currentUser: any }) {
 
       <SidebarContent className="px-1">
         <NavGroup label={t("sidebar.main")} items={mainItems} isActive={isActive} visibleItems={visibleUrls} />
+        <DevicesCollapsible isActive={isActive} visibleItems={visibleUrls} />
         <NavGroup label={t("sidebar.finance")} items={financeItems} isActive={isActive} visibleItems={visibleUrls} />
         <NavGroup label={t("sidebar.system")} items={systemItems} isActive={isActive} visibleItems={visibleUrls} />
       </SidebarContent>

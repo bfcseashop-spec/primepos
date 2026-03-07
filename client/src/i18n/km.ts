@@ -57,6 +57,7 @@ export const km = {
   sidebar: {
     main: "មុខងារចម្បង",
     finance: "ហិរញ្ញវត្ថុ",
+    devices: "ឧបករណ៍",
     system: "ប្រព័ន្ធ",
     dashboard: "ផ្ទាំងគ្រប់គ្រង",
     hrm: "ប្រព័ន្ធវត្តមាន",

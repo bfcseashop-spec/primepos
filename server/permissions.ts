@@ -79,7 +79,8 @@ export function createRequirePermission(storage: IStorage) {
         const role = await storage.getRole(roleId);
         if (role) {
           roleName = role.name;
-          if (role.name.toLowerCase() === "admin") return next();
+          const r = role.name?.toLowerCase().trim();
+          if (r === "admin" || (r && r.includes("admin"))) return next();
           permissions = mergePermissions(role.permissions);
         } else {
           permissions = mergePermissions({});
