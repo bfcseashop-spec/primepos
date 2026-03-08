@@ -82,6 +82,8 @@ Use this base URL for PrimePOS: **https://pos.primeclinic24.com**
 
 **Server:** Ensure DNS for `pos.primeclinic24.com` points to your server and SSL (HTTPS/WSS) is set up (e.g. Nginx + Let’s Encrypt or Cloudflare).
 
+**WebSocket errors in the browser** (e.g. `Invalid frame header` or `WebSocket connection to 'wss://...' failed`): the reverse proxy must upgrade WebSocket for `/ws/notifications` and `/ws/patient-monitor`. See [WEBSOCKET_PROXY.md](./WEBSOCKET_PROXY.md) for Nginx and other proxy configuration.
+
 ---
 
 ## MEDEX Smart View-Pro 12B: Device configuration
