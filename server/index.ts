@@ -11,6 +11,11 @@ import { pool } from "./db";
 const app = express();
 const httpServer = createServer(app);
 
+// Register WebSocket upgrade handlers immediately so they are first to handle /ws/*.
+// Express must not send any response for /ws/* (see static.ts SPA fallback and early skip below).
+setupNotificationWebSocket(httpServer);
+setupPatientMonitorWebSocket(httpServer);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
@@ -28,6 +33,14 @@ declare module "express-session" {
 }
 
 app.set("trust proxy", true);
+
+// Do not run any middleware for WebSocket upgrade requests; the upgrade listener above handles them.
+app.use((req, res, next) => {
+  if (req.path.startsWith("/ws/")) {
+    return;
+  }
+  next();
+});
 
 app.use(
   express.json({
@@ -117,8 +130,6 @@ app.use((req, res, next) => {
   }
 
   await registerRoutes(httpServer, app);
-  setupNotificationWebSocket(httpServer);
-  setupPatientMonitorWebSocket(httpServer);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

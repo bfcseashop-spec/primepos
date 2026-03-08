@@ -92,12 +92,10 @@ export function broadcastPatientMonitorReading(payload: PatientMonitorReadingPay
   });
 }
 
-export function setupPatientMonitorWebSocket(server: Server): void {
-  const wss = new WebSocketServer({
-    server,
-    path: "/ws/patient-monitor",
-  });
+const PATH_PATIENT_MONITOR = "/ws/patient-monitor";
+const PATH_NOTIFICATIONS = "/ws/notifications";
 
+function setupPatientMonitorWss(wss: InstanceType<typeof WebSocketServer>): void {
   wss.on("connection", (ws) => {
     monitorClients.add(ws);
     ws.on("close", () => monitorClients.delete(ws));
@@ -105,12 +103,7 @@ export function setupPatientMonitorWebSocket(server: Server): void {
   });
 }
 
-export function setupNotificationWebSocket(server: Server): void {
-  const wss = new WebSocketServer({
-    server,
-    path: "/ws/notifications",
-  });
-
+function setupNotificationWss(wss: InstanceType<typeof WebSocketServer>): void {
   wss.on("connection", (ws) => {
     const meta: ClientMeta = { ws };
     clients.add(meta);
@@ -134,6 +127,34 @@ export function setupNotificationWebSocket(server: Server): void {
 
     ws.on("close", cleanup);
     ws.on("error", cleanup);
+  });
+}
+
+/**
+ * Attach WebSocket servers to the HTTP server using a single upgrade listener.
+ * This ensures upgrade is handled before Express can send a response (e.g. SPA fallback).
+ */
+export function setupPatientMonitorWebSocket(server: Server): void {
+  const wss = new WebSocketServer({ noServer: true, path: PATH_PATIENT_MONITOR });
+  setupPatientMonitorWss(wss);
+  server.on("upgrade", (req, socket, head) => {
+    const pathname = (req.url || "").split("?")[0];
+    if (pathname !== PATH_PATIENT_MONITOR) return;
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws, req);
+    });
+  });
+}
+
+export function setupNotificationWebSocket(server: Server): void {
+  const wss = new WebSocketServer({ noServer: true, path: PATH_NOTIFICATIONS });
+  setupNotificationWss(wss);
+  server.on("upgrade", (req, socket, head) => {
+    const pathname = (req.url || "").split("?")[0];
+    if (pathname !== PATH_NOTIFICATIONS) return;
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws, req);
+    });
   });
 }
 
