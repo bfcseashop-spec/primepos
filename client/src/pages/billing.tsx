@@ -128,6 +128,7 @@ export default function BillingPage() {
   const [viewBill, setViewBill] = useState<any>(null);
   const [editingBill, setEditingBill] = useState<any | null>(null);
   const [editingBillId, setEditingBillId] = useState<number | null>(null);
+  const [statusValue, setStatusValue] = useState<string>("paid");
   const [medicineQty, setMedicineQty] = useState(1);
   const [medicineBarcodeScan, setMedicineBarcodeScan] = useState("");
   const [customItemName, setCustomItemName] = useState("");
@@ -657,6 +658,7 @@ export default function BillingPage() {
           discountType,
           tax: "0.00",
           total: total.toFixed(2),
+          status: statusValue,
           paymentMethod,
           referenceDoctor: referenceDoctor?.trim() || null,
           paymentDate: paymentDate || null,
@@ -760,6 +762,7 @@ export default function BillingPage() {
     }
     setPaymentMethod(bill.paymentMethod || "cash");
     setReferenceDoctor(bill.referenceDoctor || "");
+    setStatusValue(typeof bill.status === "string" && bill.status.trim() ? bill.status : "paid");
     if (bill.paymentDate) {
       setPaymentDate(String(bill.paymentDate).split("T")[0]);
     } else if (bill.createdAt) {
@@ -1331,6 +1334,23 @@ export default function BillingPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {editingBillId != null && (
+                      <div className="space-y-1 pt-2">
+                        <div className="flex items-center gap-2">
+                          <Tag className="h-4 w-4 text-emerald-500" />
+                          <Label className="text-sm font-semibold">{t("common.status")}</Label>
+                        </div>
+                        <Select value={statusValue} onValueChange={setStatusValue}>
+                          <SelectTrigger data-testid="select-bill-status"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="paid">{t("billing.paid")}</SelectItem>
+                            <SelectItem value="partial">{t("billing.partial")}</SelectItem>
+                            <SelectItem value="unpaid">{t("billing.pending")}</SelectItem>
+                            <SelectItem value="cancelled">{t("billing.cancelled")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 </div>
 

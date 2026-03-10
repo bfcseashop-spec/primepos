@@ -109,6 +109,11 @@ export default function PackagesPage() {
     setItems(prev => prev.filter((_, i) => i !== index));
   };
 
+  const updateItemPrice = (index: number, value: string) => {
+    const price = Number(value) || 0;
+    setItems(prev => prev.map((it, i) => i === index ? { ...it, unitPrice: price } : it));
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: { name: string; description: string | null; items: PackageItem[] }) => {
       const res = await apiRequest("POST", "/api/packages", data);
@@ -242,14 +247,23 @@ export default function PackagesPage() {
             <div>
               <Label>Items</Label>
               <div className="border rounded-md p-3 space-y-3 bg-muted/30">
-                {items.map((item, idx) => (
-                  <div key={idx} className="flex flex-wrap items-center gap-2 text-sm">
-                    <Badge variant="secondary">{item.type}</Badge>
-                    <span className="font-medium">{item.name}</span>
-                    <span className="text-muted-foreground">× {item.quantity} @ ${Number(item.unitPrice).toFixed(2)} = ${(item.quantity * item.unitPrice).toFixed(2)}</span>
-                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeItem(idx)}><X className="h-3 w-3" /></Button>
-                  </div>
-                ))}
+              {items.map((item, idx) => (
+                <div key={idx} className="flex flex-wrap items-center gap-2 text-sm">
+                  <Badge variant="secondary">{item.type}</Badge>
+                  <span className="font-medium">{item.name}</span>
+                  <span className="text-muted-foreground">× {item.quantity} @</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    className="w-24 h-8 text-xs"
+                    value={item.unitPrice}
+                    onChange={e => updateItemPrice(idx, e.target.value)}
+                    data-testid={`input-package-item-price-${idx}`}
+                  />
+                  <span className="text-muted-foreground">= ${(item.quantity * item.unitPrice).toFixed(2)}</span>
+                  <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeItem(idx)}><X className="h-3 w-3" /></Button>
+                </div>
+              ))}
                 <div className="flex flex-wrap items-end gap-2 pt-2 border-t">
                   <Select value={newItemType} onValueChange={(v: PackageItem["type"]) => setNewItemType(v)}>
                     <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
