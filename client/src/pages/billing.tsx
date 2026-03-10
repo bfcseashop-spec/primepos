@@ -126,7 +126,8 @@ export default function BillingPage() {
   const [billAction, setBillAction] = useState<"create" | "print" | "payment">("create");
   const [showPreview, setShowPreview] = useState(false);
   const [viewBill, setViewBill] = useState<any>(null);
-  const [editBill, setEditBill] = useState<any>(null);
+  const [editingBill, setEditingBill] = useState<any | null>(null);
+  const [editingBillId, setEditingBillId] = useState<number | null>(null);
   const [medicineQty, setMedicineQty] = useState(1);
   const [medicineBarcodeScan, setMedicineBarcodeScan] = useState("");
   const [customItemName, setCustomItemName] = useState("");
@@ -224,7 +225,10 @@ export default function BillingPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
-      setEditBill(null);
+      setEditingBill(null);
+      setEditingBillId(null);
+      setDialogOpen(false);
+      resetForm();
       toast({ title: "Bill updated successfully" });
     },
     onError: (err: Error) => {
@@ -471,6 +475,8 @@ export default function BillingPage() {
     setReferenceDoctor("");
     setPaymentDate(new Date().toISOString().split("T")[0]);
     setShowPreview(false);
+    setEditingBill(null);
+    setEditingBillId(null);
   };
 
   const addServiceItem = (serviceId: string) => {
@@ -640,6 +646,24 @@ export default function BillingPage() {
       toast({ title: "Please select a patient and add items", variant: "destructive" });
       return;
     }
+    if (editingBillId != null) {
+      updateBillMutation.mutate({
+        id: editingBillId,
+        data: {
+          patientId: Number(selectedPatient),
+          items: billItems,
+          subtotal: subtotal.toFixed(2),
+          discount: discountAmount.toFixed(2),
+          discountType,
+          tax: "0.00",
+          total: total.toFixed(2),
+          paymentMethod,
+          referenceDoctor: referenceDoctor?.trim() || null,
+          paymentDate: paymentDate || null,
+        },
+      });
+      return;
+    }
     createBillMutation.mutate({
       billNo: "_",
       patientId: Number(selectedPatient),
@@ -704,6 +728,49 @@ export default function BillingPage() {
   };
 
   useGlobalBarcodeScanner(handleBarcodeSearch);
+
+  const startEditBill = (bill: any) => {
+    if (!bill) return;
+    setEditingBill(bill);
+    setEditingBillId(bill.id ?? null);
+    const items: BillItem[] = Array.isArray(bill.items)
+      ? bill.items.map((it: any) => {
+          const qty = Number(it.quantity) || 0;
+          const unitPrice = Number(it.unitPrice) || 0;
+          const totalValue = it.total != null ? Number(it.total) : qty * unitPrice;
+          return {
+            ...it,
+            quantity: qty,
+            unitPrice,
+            total: totalValue,
+          };
+        })
+      : [];
+    setBillItems(items);
+    setSelectedPatient(bill.patientId != null ? String(bill.patientId) : "");
+    const discType = bill.discountType === "percentage" ? "percentage" : "amount";
+    setDiscountType(discType);
+    const numericDiscount = Number(bill.discount) || 0;
+    const subtotalFromItems = items.reduce((sum, it) => sum + it.total, 0);
+    if (discType === "percentage" && subtotalFromItems > 0) {
+      const pct = (numericDiscount / subtotalFromItems) * 100;
+      setDiscount(String(Number(pct.toFixed(2))));
+    } else {
+      setDiscount(String(numericDiscount.toFixed(2)));
+    }
+    setPaymentMethod(bill.paymentMethod || "cash");
+    setReferenceDoctor(bill.referenceDoctor || "");
+    if (bill.paymentDate) {
+      setPaymentDate(String(bill.paymentDate).split("T")[0]);
+    } else if (bill.createdAt) {
+      setPaymentDate(new Date(bill.createdAt).toISOString().split("T")[0]);
+    } else {
+      setPaymentDate(new Date().toISOString().split("T")[0]);
+    }
+    setShowPreview(false);
+    setBillAction("create");
+    setDialogOpen(true);
+  };
 
   const filteredBills = dateFilteredBills.filter((b: any) =>
     (b.billNo && billNoMatches(searchTerm, b.billNo)) ||
@@ -784,7 +851,7 @@ export default function BillingPage() {
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printReceipt(row, "full"); }} data-testid={`action-print-full-${row.id}`} className="gap-2">
             <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" /> Print (Full size)
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditBill(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); startEditBill(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
             <Pencil className="h-4 w-4 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
           </DropdownMenuItem>
           {row.status === "paid" && (row.items || []).some((i: any) => i?.type === "medicine") && (
@@ -814,8 +881,18 @@ export default function BillingPage() {
             </DialogTrigger>
             <DialogContent className="w-[calc(100%-2rem)] max-w-5xl lg:max-w-6xl max-h-[92vh] overflow-y-auto p-6 sm:p-8">
               <DialogHeader className="pb-4 border-b border-border/50">
-                <DialogTitle className="text-xl sm:text-2xl font-bold tracking-tight">{showPreview ? t("billing.invoice") : t("billing.createBill")}</DialogTitle>
-                <DialogDescription className="text-muted-foreground">{showPreview ? t("billing.invoice") : t("billing.subtitle")}</DialogDescription>
+                <DialogTitle className="text-xl sm:text-2xl font-bold tracking-tight">
+                  {showPreview
+                    ? t("billing.invoice")
+                    : editingBill
+                    ? `${t("common.edit")} - ${editingBill.billNo || ""}`
+                    : t("billing.createBill")}
+                </DialogTitle>
+                <DialogDescription className="text-muted-foreground">
+                  {showPreview
+                    ? t("billing.invoice")
+                    : t("billing.subtitle")}
+                </DialogDescription>
               </DialogHeader>
 
               {showPreview ? (
@@ -1290,50 +1367,64 @@ export default function BillingPage() {
                   </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <Button
-                    onClick={() => { setBillAction("create"); handleCreateBill(); }}
-                    disabled={createBillMutation.isPending}
-                    className="bg-emerald-600 hover:bg-emerald-600 text-white border-emerald-700"
-                    data-testid="button-submit-bill"
-                  >
-                    <FileText className="h-4 w-4 mr-1.5" />
-                    {createBillMutation.isPending && billAction === "create" ? t("common.creating") : t("billing.createBill")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => { handleSaveDraft(); }}
-                    disabled={createBillMutation.isPending}
-                    data-testid="button-save-draft"
-                  >
-                    <FileText className="h-4 w-4 mr-1.5" />
-                    {createBillMutation.isPending ? t("common.loading") : "Save as Draft"}
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      if (!selectedPatient || billItems.length === 0) {
-                        toast({ title: "Please select a patient and add items", variant: "destructive" });
-                        return;
-                      }
-                      setShowPreview(true);
-                    }}
-                    disabled={createBillMutation.isPending}
-                    className="bg-blue-600 hover:bg-blue-600 text-white border-blue-700"
-                    data-testid="button-print-receipt"
-                  >
-                    <Printer className="h-4 w-4 mr-1.5" />
-                    {t("billing.printInvoice")}
-                  </Button>
-                  <Button
-                    onClick={() => { setBillAction("payment"); handleCreateBill(); }}
-                    disabled={createBillMutation.isPending}
-                    className="bg-amber-600 hover:bg-amber-600 text-white border-amber-700"
-                    data-testid="button-make-payment"
-                  >
-                    <CreditCard className="h-4 w-4 mr-1.5" />
-                    {createBillMutation.isPending && billAction === "payment" ? t("common.loading") : t("billing.title")}
-                  </Button>
-                </div>
+                {editingBillId != null ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <Button
+                      onClick={() => { setBillAction("create"); handleCreateBill(); }}
+                      disabled={updateBillMutation.isPending}
+                      className="bg-emerald-600 hover:bg-emerald-600 text-white border-emerald-700"
+                      data-testid="button-save-edit-bill"
+                    >
+                      <FileText className="h-4 w-4 mr-1.5" />
+                      {updateBillMutation.isPending ? t("common.saving") : t("common.save")}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <Button
+                      onClick={() => { setBillAction("create"); handleCreateBill(); }}
+                      disabled={createBillMutation.isPending}
+                      className="bg-emerald-600 hover:bg-emerald-600 text-white border-emerald-700"
+                      data-testid="button-submit-bill"
+                    >
+                      <FileText className="h-4 w-4 mr-1.5" />
+                      {createBillMutation.isPending && billAction === "create" ? t("common.creating") : t("billing.createBill")}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => { handleSaveDraft(); }}
+                      disabled={createBillMutation.isPending}
+                      data-testid="button-save-draft"
+                    >
+                      <FileText className="h-4 w-4 mr-1.5" />
+                      {createBillMutation.isPending ? t("common.loading") : "Save as Draft"}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (!selectedPatient || billItems.length === 0) {
+                          toast({ title: "Please select a patient and add items", variant: "destructive" });
+                          return;
+                        }
+                        setShowPreview(true);
+                      }}
+                      disabled={createBillMutation.isPending}
+                      className="bg-blue-600 hover:bg-blue-600 text-white border-blue-700"
+                      data-testid="button-print-receipt"
+                    >
+                      <Printer className="h-4 w-4 mr-1.5" />
+                      {t("billing.printInvoice")}
+                    </Button>
+                    <Button
+                      onClick={() => { setBillAction("payment"); handleCreateBill(); }}
+                      disabled={createBillMutation.isPending}
+                      className="bg-amber-600 hover:bg-amber-600 text-white border-amber-700"
+                      data-testid="button-make-payment"
+                    >
+                      <CreditCard className="h-4 w-4 mr-1.5" />
+                      {createBillMutation.isPending && billAction === "payment" ? t("common.loading") : t("billing.title")}
+                    </Button>
+                  </div>
+                )}
               </div>
               )}
             </DialogContent>
@@ -1671,85 +1762,6 @@ export default function BillingPage() {
         onConfirm={() => { if (deleteBillConfirm.billId != null) deleteBillMutation.mutate(deleteBillConfirm.billId); }}
       />
 
-      {/* Edit Bill Dialog */}
-      <Dialog open={!!editBill} onOpenChange={(open) => { if (!open) setEditBill(null); }}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t("common.edit")} - {editBill?.billNo}</DialogTitle>
-            <DialogDescription>{t("billing.subtitle")}</DialogDescription>
-          </DialogHeader>
-          {editBill && (() => {
-            const [editStatus, setEditStatus] = [editBill._editStatus || editBill.status, (v: string) => setEditBill({ ...editBill, _editStatus: v })];
-            const [editPaid, setEditPaid] = [editBill._editPaid || String(editBill.paidAmount), (v: string) => setEditBill({ ...editBill, _editPaid: v })];
-            const [editMethod, setEditMethod] = [editBill._editMethod || editBill.paymentMethod, (v: string) => setEditBill({ ...editBill, _editMethod: v })];
-            const [editDoctor, setEditDoctor] = [editBill._editDoctor ?? (editBill.referenceDoctor || ""), (v: string) => setEditBill({ ...editBill, _editDoctor: v })];
-            return (
-              <div className="space-y-3">
-                <div>
-                  <Label>{t("common.status")}</Label>
-                  <Select value={editStatus} onValueChange={setEditStatus}>
-                    <SelectTrigger data-testid="edit-bill-status"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="paid">{t("billing.paid")}</SelectItem>
-                      <SelectItem value="partial">{t("billing.partial")}</SelectItem>
-                      <SelectItem value="unpaid">{t("billing.pending")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>{t("billing.paid")} ($)</Label>
-                  <Input type="number" step="0.01" value={editPaid} onChange={(e) => setEditPaid(e.target.value)} data-testid="edit-bill-paid" />
-                </div>
-                <div>
-                  <Label>{t("billing.paymentMethod")}</Label>
-                  <Select value={editMethod} onValueChange={setEditMethod}>
-                    <SelectTrigger data-testid="edit-bill-method"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHODS.map(m => (
-                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Doctor / Refer Name</Label>
-                  <Input
-                    list="edit-bill-doctor-list"
-                    value={editDoctor}
-                    onChange={(e) => setEditDoctor(e.target.value)}
-                    placeholder="Select or type doctor / refer name..."
-                    className="w-full"
-                    data-testid="edit-bill-doctor"
-                  />
-                  <datalist id="edit-bill-doctor-list">
-                    {doctorOptions.filter(o => o.value !== "none").map((o) => (
-                      <option key={o.value} value={o.value} />
-                    ))}
-                  </datalist>
-                </div>
-                <Button
-                  className="w-full"
-                  disabled={updateBillMutation.isPending}
-                  data-testid="button-save-edit"
-                  onClick={() => {
-                    updateBillMutation.mutate({
-                      id: editBill.id,
-                      data: {
-                        status: editStatus,
-                        paidAmount: editPaid,
-                        paymentMethod: editMethod,
-                        referenceDoctor: editDoctor || null,
-                      },
-                    });
-                  }}
-                >
-                  {updateBillMutation.isPending ? t("common.saving") : t("common.save")}
-                </Button>
-              </div>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
