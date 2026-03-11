@@ -56,10 +56,17 @@ function parsePrescription(prescription: string | null | undefined): Prescriptio
   return { lines: [], notes: trimmed };
 }
 
+export type PrescriptionPrintDoctor = {
+  fullName: string;
+  qualification?: string | null;
+  signatureUrl?: string | null;
+};
+
 export function printPrescription(
   visit: { visitId: string; doctorName?: string | null; visitDate?: string | Date | null; prescription?: string | null; diagnosis?: string | null; symptoms?: string | null },
   patient: { name?: string; patientId?: string; age?: number | null; gender?: string | null; dateOfBirth?: string | null } | null,
-  settings: { clinicName?: string | null; address?: string | null; phone?: string | null; email?: string | null; logo?: string | null; printPageSize?: string | null } | null
+  settings: { clinicName?: string | null; address?: string | null; phone?: string | null; email?: string | null; logo?: string | null; printPageSize?: string | null } | null,
+  options?: { doctor?: PrescriptionPrintDoctor | null; printedBy?: string; printedAt?: string }
 ) {
   const pageSize = "A4";
   const clinicName = settings?.clinicName ?? "Clinic";
@@ -89,6 +96,10 @@ export function printPrescription(
   const border = "#e2e8f0";
   const muted = "#475569";
   const accent = "#0f172a";
+  const doctor = options?.doctor ?? (visit.doctorName ? { fullName: visit.doctorName, qualification: null, signatureUrl: null } : null);
+  const printedBy = options?.printedBy ?? "—";
+  const printedAtStr = options?.printedAt ?? new Date().toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const fSm = 10;
 
   const printWindow = window.open("", "_blank", "width=794,height=1123");
   if (!printWindow) return;
@@ -159,10 +170,34 @@ export function printPrescription(
       </table>
       ${notes ? `<div style="margin-top:8px;padding:8px;background:#f8fafc;border-radius:6px;"><strong>Notes:</strong> ${escapeHtml(notes)}</div>` : ""}
       </div>
-      <!-- Full A4 bottom footer -->
-      <div class="rx-print-footer" style="width:100%;text-align:center;margin-top:auto;padding-top:14px;padding-bottom:12px;border-top:2px solid ${border};">
-        <div style="font-size:11px;font-weight:600;color:${teal};">Thank you for trusting ${escapeHtml(clinicName)}. Your well-being is our greatest priority.</div>
-        ${clinicEmail ? `<div style="font-size:9px;color:${muted};margin-top:4px;">${escapeHtml(clinicEmail)}</div>` : ""}
+      <!-- Lab-report style footer: End Of Report, Prescribed/Printed info, Doctor signature -->
+      <div class="rx-print-footer" style="width:100%;margin-top:auto;padding-top:14px;padding-bottom:12px;border-top:2px solid ${border};">
+        <div style="text-align:center;margin:8px 0;font-size:11px;font-weight:700;color:${teal};">*** End Of Prescription ***</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;padding-top:6px;border-top:1px solid ${border};">
+          <div style="font-size:${fSm}px;">
+            ${doctor?.fullName ? `<div><strong>Prescribed By:</strong> ${escapeHtml(doctor.fullName)}</div>` : ""}
+            <div style="margin-top:2px;"><strong>Date:</strong> ${visitDate}</div>
+            <div style="margin-top:3px;"><strong>Printed By:</strong> ${escapeHtml(printedBy)}</div>
+            <div style="margin-top:2px;"><strong>Printed At:</strong> ${printedAtStr}</div>
+          </div>
+          ${doctor?.fullName ? (() => {
+            const sigHref = doctor.signatureUrl ? (doctor.signatureUrl.startsWith("http") ? doctor.signatureUrl : (typeof window !== "undefined" ? window.location.origin : "") + (doctor.signatureUrl.startsWith("/") ? doctor.signatureUrl : "/" + doctor.signatureUrl)) : "";
+            const name = escapeHtml(doctor.fullName);
+            const qualRaw = doctor.qualification || "";
+            const qual = qualRaw ? qualRaw.split(/,\s*,/).map((s: string) => escapeHtml(s.trim())).filter(Boolean).join("<br/>") : "";
+            return `
+          <div style="text-align:center;font-size:${fSm}px;line-height:1.3;">
+            ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:36px;max-width:120px;object-contain;display:block;margin:0 auto 2px;" onerror="this.style.display='none'" />` : ""}
+            <div style="font-weight:700;color:${accent};">${name}</div>
+            ${qual ? `<div style="color:${muted};">${qual}</div>` : ""}
+            <div style="font-size:9px;color:${muted};margin-top:1px;">Prescribing Doctor</div>
+          </div>`;
+          })() : ""}
+        </div>
+        <div style="text-align:center;margin-top:6px;padding-top:6px;border-top:1px solid ${border};font-size:11px;font-weight:600;color:${teal};">
+          Thank you for trusting ${escapeHtml(clinicName)}. Your well-being is our greatest priority.
+        </div>
+        ${clinicEmail ? `<div style="text-align:center;font-size:9px;color:${muted};margin-top:4px;">${escapeHtml(clinicEmail)}</div>` : ""}
       </div>
     </div>
     <script>

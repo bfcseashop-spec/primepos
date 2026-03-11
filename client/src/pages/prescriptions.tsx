@@ -17,6 +17,7 @@ import { FileText, Printer, Pill, Stethoscope, MoreVertical, Filter, Pencil, Plu
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { printPrescription, type PrescriptionLine } from "@/lib/prescription-print";
+import { useAuth } from "@/contexts/auth-context";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
@@ -62,6 +63,7 @@ function parsePrescriptionJson(prescription: string | null | undefined): { lines
 export default function PrescriptionsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const auth = useAuth();
   const [, setLocation] = useLocation();
   const [fromDate, setFromDate] = useState(() => {
     const d = new Date();
@@ -123,6 +125,7 @@ export default function PrescriptionsPage() {
 
   const handlePrint = (row: any) => {
     const patient = patients.find((p) => p.id === row.patientId);
+    const printedAtStr = new Date().toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
     printPrescription(
       {
         visitId: row.visitId,
@@ -133,7 +136,12 @@ export default function PrescriptionsPage() {
         symptoms: row.symptoms,
       },
       patient ?? null,
-      settings ? { clinicName: settings.clinicName ?? undefined, address: settings.address ?? undefined, phone: settings.phone ?? undefined, email: settings.email ?? undefined, logo: settings.logo ?? undefined, printPageSize: settings.printPageSize ?? undefined } : null
+      settings ? { clinicName: settings.clinicName ?? undefined, address: settings.address ?? undefined, phone: settings.phone ?? undefined, email: settings.email ?? undefined, logo: settings.logo ?? undefined, printPageSize: settings.printPageSize ?? undefined } : null,
+      {
+        doctor: row.doctorUser ?? (row.doctorName ? { fullName: row.doctorName, qualification: null, signatureUrl: null } : undefined),
+        printedBy: auth?.fullName ?? "—",
+        printedAt: printedAtStr,
+      }
     );
   };
 
@@ -149,10 +157,16 @@ export default function PrescriptionsPage() {
       if (variables.printAfterSave && editVisit) {
         const patient = patients.find((p: Patient) => p.id === editVisit.patientId);
         const settingsForPrint = settings ? { clinicName: settings.clinicName ?? undefined, address: settings.address ?? undefined, phone: settings.phone ?? undefined, email: settings.email ?? undefined, logo: settings.logo ?? undefined, printPageSize: settings.printPageSize ?? undefined } : null;
+        const printedAtStr = new Date().toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
         printPrescription(
           { visitId: editVisit.visitId, doctorName: updated.doctorName, visitDate: updated.visitDate, prescription: updated.prescription, diagnosis: updated.diagnosis, symptoms: updated.symptoms },
           patient ?? null,
-          settingsForPrint
+          settingsForPrint,
+          {
+            doctor: editVisit.doctorUser ?? (updated.doctorName ? { fullName: updated.doctorName, qualification: null, signatureUrl: null } : undefined),
+            printedBy: auth?.fullName ?? "—",
+            printedAt: printedAtStr,
+          }
         );
       }
       setEditVisit(null);

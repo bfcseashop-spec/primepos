@@ -1119,13 +1119,38 @@ export async function registerRoutes(
       const doctorName = req.query.doctorName as string | undefined;
       const patientId = req.query.patientId != null ? Number(req.query.patientId) : undefined;
       const hasPrescription = req.query.hasPrescription === "true" || req.query.hasPrescription === "1";
+      let result: any[];
       if (fromDate || toDate || (doctorName != null && doctorName.trim() !== "") || patientId != null || hasPrescription) {
-        const result = await storage.getOpdVisitsFiltered({ fromDate, toDate, doctorName, patientId, hasPrescription: hasPrescription || undefined });
-        res.json(result);
+        result = await storage.getOpdVisitsFiltered({ fromDate, toDate, doctorName, patientId, hasPrescription: hasPrescription || undefined });
       } else {
-        const result = await storage.getOpdVisits();
-        res.json(result);
+        result = await storage.getOpdVisits();
       }
+      const users = await storage.getUsers();
+      const doctorUserByFullName = new Map<string, { fullName: string; qualification?: string | null; signatureUrl?: string | null }>();
+      for (const u of users) {
+        const name = (u.fullName || "").trim();
+        if (name) doctorUserByFullName.set(name, { fullName: u.fullName, qualification: u.qualification ?? null, signatureUrl: u.signatureUrl ?? null });
+      }
+      const enriched = result.map((v: any) => {
+        const dName = (v.doctorName || "").trim();
+        const doctorUser = dName ? doctorUserByFullName.get(dName) ?? { fullName: dName, qualification: null, signatureUrl: null } : undefined;
+        return { ...v, doctorUser };
+      });
+      res.json(enriched);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/opd-visits/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      const numericIds = ids.map((id: unknown) => Number(id)).filter((n: number) => !Number.isNaN(n));
+      await storage.bulkDeleteOpdVisits(numericIds);
+      res.json({ success: true, deleted: numericIds.length });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -1283,20 +1308,6 @@ export async function registerRoutes(
       if (!visit) return res.status(404).json({ message: "Visit not found" });
       await storage.deleteOpdVisit(id);
       res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.post("/api/opd-visits/bulk-delete", async (req, res) => {
-    try {
-      const { ids } = req.body;
-      if (!Array.isArray(ids) || ids.length === 0) {
-        return res.status(400).json({ message: "No IDs provided" });
-      }
-      const numericIds = ids.map((id: unknown) => Number(id)).filter((n: number) => !Number.isNaN(n));
-      await storage.bulkDeleteOpdVisits(numericIds);
-      res.json({ success: true, deleted: numericIds.length });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
