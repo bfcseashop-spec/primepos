@@ -98,6 +98,8 @@ export interface IStorage {
   getNextVisitId(): Promise<string>;
   createOpdVisit(visit: InsertOpdVisit): Promise<OpdVisit>;
   updateOpdVisit(id: number, data: Partial<InsertOpdVisit>): Promise<OpdVisit | undefined>;
+  deleteOpdVisit(id: number): Promise<void>;
+  bulkDeleteOpdVisits(ids: number[]): Promise<void>;
 
   getBills(): Promise<any[]>;
   getBill(id: number): Promise<Bill | undefined>;
@@ -544,6 +546,17 @@ export class DatabaseStorage implements IStorage {
   async updateOpdVisit(id: number, data: Partial<InsertOpdVisit>): Promise<OpdVisit | undefined> {
     const [updated] = await db.update(opdVisits).set(data).where(eq(opdVisits.id, id)).returning();
     return updated;
+  }
+
+  async deleteOpdVisit(id: number): Promise<void> {
+    await db.update(bills).set({ visitId: null }).where(eq(bills.visitId, id));
+    await db.delete(opdVisits).where(eq(opdVisits.id, id));
+  }
+
+  async bulkDeleteOpdVisits(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+    await db.update(bills).set({ visitId: null }).where(inArray(bills.visitId, ids));
+    await db.delete(opdVisits).where(inArray(opdVisits.id, ids));
   }
 
   async getBills(): Promise<any[]> {

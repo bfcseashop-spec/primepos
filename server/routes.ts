@@ -1275,6 +1275,33 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/opd-visits/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid visit id" });
+      const visit = await storage.getOpdVisit(id);
+      if (!visit) return res.status(404).json({ message: "Visit not found" });
+      await storage.deleteOpdVisit(id);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/opd-visits/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      const numericIds = ids.map((id: unknown) => Number(id)).filter((n: number) => !Number.isNaN(n));
+      await storage.bulkDeleteOpdVisits(numericIds);
+      res.json({ success: true, deleted: numericIds.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Patient Monitor (GET endpoints require auth + opd view)
   const PATIENT_MONITOR_ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 

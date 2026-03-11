@@ -12,7 +12,8 @@ import { DataTable } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileText, Printer, Pill, Stethoscope, MoreVertical, Filter, Pencil, Plus, X } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { FileText, Printer, Pill, Stethoscope, MoreVertical, Filter, Pencil, Plus, X, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { printPrescription, type PrescriptionLine } from "@/lib/prescription-print";
@@ -78,6 +79,8 @@ export default function PrescriptionsPage() {
   const [editBarcodeInput, setEditBarcodeInput] = useState("");
   const [editSearchValue, setEditSearchValue] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedVisitIds, setSelectedVisitIds] = useState<Set<number>>(new Set());
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; ids: number[] }>({ open: false, ids: [] });
 
   const queryParams = useMemo(() => {
     const p = new URLSearchParams();
@@ -154,6 +157,24 @@ export default function PrescriptionsPage() {
       }
       setEditVisit(null);
       toast({ title: "Prescription updated" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const bulkDeleteVisitsMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const res = await apiRequest("POST", "/api/opd-visits/bulk-delete", { ids });
+      return res.json();
+    },
+    onSuccess: (_data: { deleted: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reports/prescription-stats"] });
+      setSelectedVisitIds(new Set());
+      setDeleteConfirm({ open: false, ids: [] });
+      toast({ title: "Prescriptions deleted", description: `${_data.deleted ?? 0} item(s) removed.` });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -271,11 +292,17 @@ export default function PrescriptionsPage() {
             <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => handlePrint(row)} className="gap-2">
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handlePrint(row); }} className="gap-2">
               <Printer className="h-4 w-4" /> Print prescription
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openEdit(row)} className="gap-2">
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="gap-2">
               <Pencil className="h-4 w-4" /> Edit prescription
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, ids: [row.id] }); }}
+              className="gap-2 text-red-600 dark:text-red-400"
+            >
+              <Trash2 className="h-4 w-4" /> Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -384,6 +411,17 @@ export default function PrescriptionsPage() {
               <FileText className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-semibold">Prescriptions</CardTitle>
               <Badge variant="secondary" className="text-[10px]">{filteredVisits.length}</Badge>
+              {selectedVisitIds.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="h-8 gap-1"
+                  onClick={() => setDeleteConfirm({ open: true, ids: Array.from(selectedVisitIds) })}
+                  data-testid="button-delete-selected-prescriptions"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete selected ({selectedVisitIds.size})
+                </Button>
+              )}
             </div>
             <div className="w-64">
               <SearchInputWithBarcode
@@ -404,7 +442,13 @@ export default function PrescriptionsPage() {
             ) : filteredVisits.length === 0 ? (
               <div className="text-sm text-muted-foreground py-8 text-center">No prescriptions match &quot;{searchTerm}&quot;.</div>
             ) : (
-              <DataTable columns={columns} data={filteredVisits} onRowClick={openEdit} />
+              <DataTable
+              columns={columns}
+              data={filteredVisits}
+              onRowClick={openEdit}
+              selectedIds={selectedVisitIds}
+              onSelectionChange={setSelectedVisitIds}
+            />
             )}
             </CardContent>
         </Card>
@@ -544,6 +588,21 @@ export default function PrescriptionsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm((c) => ({ ...c, open }))}
+        title="Delete prescriptions"
+        description={deleteConfirm.ids.length === 1
+          ? "Are you sure you want to delete this prescription? This cannot be undone."
+          : `Are you sure you want to delete ${deleteConfirm.ids.length} prescriptions? This cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => {
+          if (deleteConfirm.ids.length > 0) bulkDeleteVisitsMutation.mutate(deleteConfirm.ids);
+        }}
+      />
     </div>
   );
 }
