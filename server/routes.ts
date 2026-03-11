@@ -3481,6 +3481,44 @@ export async function registerRoutes(
     }
   });
 
+  // Helper: ensure each doctor also has a corresponding user account with a doctor role.
+  async function ensureDoctorUserFromDoctorRecord(doctor: InsertDoctor & { id?: number }) {
+    try {
+      // Find a role whose name contains "doctor"
+      const rolesList = await storage.getRoles();
+      const doctorRole = rolesList.find((r) => r.name.toLowerCase().includes("doctor"));
+
+      // Build a stable base username from doctorId or name
+      const baseRaw = (doctor.doctorId || doctor.name || "doctor").toLowerCase();
+      const baseSanitized = baseRaw.replace(/[^a-z0-9]/g, "") || `doctor${doctor.id ?? ""}`;
+      let username = baseSanitized;
+      let suffix = 1;
+      // Ensure username uniqueness
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const existing = await storage.getUserByUsername(username);
+        if (!existing) break;
+        username = `${baseSanitized}${suffix++}`;
+      }
+
+      const defaultPassword = doctor.doctorId || "doctor123";
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+      await storage.createUser({
+        username,
+        password: hashedPassword,
+        fullName: doctor.name,
+        email: doctor.email || null,
+        phone: doctor.phone || null,
+        roleId: doctorRole?.id ?? null,
+        qualification: doctor.qualification || null,
+        isActive: (doctor as any).status ? (doctor as any).status !== "inactive" : true,
+      } as any);
+    } catch (err) {
+      console.error("Failed to ensure doctor user:", err);
+    }
+  }
+
   // Doctors
   app.get("/api/doctors", async (_req, res) => {
     try {
@@ -3504,6 +3542,8 @@ export async function registerRoutes(
     try {
       const data = validateBody(insertDoctorSchema, req.body);
       const doctor = await storage.createDoctor(data);
+      // Ensure there is a matching user account with doctor role for this doctor.
+      await ensureDoctorUserFromDoctorRecord({ ...data, id: doctor.id });
       res.status(201).json(doctor);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -3524,6 +3564,33 @@ export async function registerRoutes(
       const data = validateBody(doctorUpdateSchema, req.body);
       const doctor = await storage.updateDoctor(Number(req.params.id), data);
       if (!doctor) return res.status(404).json({ message: "Doctor not found" });
+
+      // Try to sync with existing user; if none, create one.
+      try {
+        const users = await storage.getUsers();
+        const match = users.find((u: any) => {
+          const emailMatch = doctor.email && u.email && String(u.email).toLowerCase() === String(doctor.email).toLowerCase();
+          const nameMatch = u.fullName === doctor.name;
+          return emailMatch || nameMatch;
+        });
+        if (match) {
+          const rolesList = await storage.getRoles();
+          const doctorRole = rolesList.find((r) => r.name.toLowerCase().includes("doctor"));
+          await storage.updateUser(match.id, {
+            fullName: doctor.name,
+            email: doctor.email || null,
+            phone: doctor.phone || null,
+            qualification: doctor.qualification || null,
+            isActive: doctor.status !== "inactive",
+            roleId: match.roleId || doctorRole?.id || null,
+          } as any);
+        } else {
+          await ensureDoctorUserFromDoctorRecord({ ...(doctor as any), id: doctor.id });
+        }
+      } catch (err) {
+        console.error("Failed to sync doctor update with user:", err);
+      }
+
       res.json(doctor);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
