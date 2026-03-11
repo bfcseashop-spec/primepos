@@ -144,14 +144,24 @@ export function printPrescription(
         <div style="font-size:10px;color:${muted};margin-top:2px;">${clinicPhone ? "UHD: " + escapeHtml(clinicPhone) : ""}${clinicPhone && clinicEmail ? " | " : ""}${clinicEmail ? "CLINIC: " + escapeHtml(clinicEmail) : ""}</div>
       </div>
       <div class="rx-print-body">
-      <div style="font-size:14px;font-weight:700;color:${teal};margin-bottom:10px;text-transform:uppercase;">Prescription</div>
-      <table style="margin-bottom:10px;font-size:10px;">
-        <tr><td style="padding:2px 8px 2px 0;font-weight:600;">Patient:</td><td>${escapeHtml(patient?.name || "-")}</td></tr>
-        <tr><td style="padding:2px 8px 2px 0;font-weight:600;">UHID:</td><td>${escapeHtml(patient?.patientId || "-")}</td></tr>
-        <tr><td style="padding:2px 8px 2px 0;font-weight:600;">Age / Gender:</td><td>${patientAge ?? "-"} / ${patientGender}</td></tr>
-        <tr><td style="padding:2px 8px 2px 0;font-weight:600;">Doctor:</td><td>${escapeHtml(visit.doctorName || "-")}</td></tr>
-        <tr><td style="padding:2px 8px 2px 0;font-weight:600;">Date:</td><td>${visitDate}</td></tr>
-        <tr><td style="padding:2px 8px 2px 0;font-weight:600;">Visit ID:</td><td>${escapeHtml(visit.visitId)} <span id="rx-barcode" style="display:inline-block;vertical-align:middle;margin-left:8px;"></span></td></tr>
+      <div style="font-size:14px;font-weight:700;color:${teal};margin-bottom:10px;text-transform:uppercase;border-bottom:1px solid ${border};padding-bottom:4px;">Prescription</div>
+      <!-- Two-column like lab report: Patient info (left) | Visit ID + barcode (right), separated -->
+      <table style="width:100%;margin-bottom:10px;font-size:10px;border-collapse:collapse;">
+        <tr>
+          <td style="width:50%;vertical-align:top;padding:4px 10px 4px 0;">
+            <div style="margin-bottom:3px;"><strong>Patient Name:</strong> ${escapeHtml(patient?.name || "-")}</div>
+            <div style="margin-bottom:3px;"><strong>UHID:</strong> ${escapeHtml(patient?.patientId || "-")}</div>
+            <div style="margin-bottom:3px;"><strong>Age / Gender:</strong> ${patientAge ?? "-"} / ${patientGender}</div>
+            <div style="margin-bottom:3px;"><strong>Doctor:</strong> ${escapeHtml(visit.doctorName || "-")}</div>
+            <div><strong>Date:</strong> ${visitDate}</div>
+          </td>
+          <td style="width:50%;vertical-align:top;padding:4px 0 4px 10px;border-left:1px solid ${border};">
+            <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:3px;">
+              <div><strong>Visit ID:</strong> ${escapeHtml(visit.visitId)}</div>
+              <div id="rx-barcode" style="flex-shrink:0;"></div>
+            </div>
+          </td>
+        </tr>
       </table>
       ${visit.diagnosis ? `<div style="margin-bottom:8px;"><strong>Diagnosis:</strong> ${escapeHtml(visit.diagnosis)}</div>` : ""}
       ${visit.symptoms ? `<div style="margin-bottom:8px;"><strong>Symptoms:</strong> ${escapeHtml(visit.symptoms)}</div>` : ""}
@@ -170,16 +180,10 @@ export function printPrescription(
       </table>
       ${notes ? `<div style="margin-top:8px;padding:8px;background:#f8fafc;border-radius:6px;"><strong>Notes:</strong> ${escapeHtml(notes)}</div>` : ""}
       </div>
-      <!-- Lab-report style footer: End Of Report, Prescribed/Printed info, Doctor signature -->
+      <!-- Lab-report style footer: End Of Prescription, Doctor signature only (no Prescribed/Printed By block) -->
       <div class="rx-print-footer" style="width:100%;margin-top:auto;padding-top:14px;padding-bottom:12px;border-top:2px solid ${border};">
         <div style="text-align:center;margin:8px 0;font-size:11px;font-weight:700;color:${teal};">*** End Of Prescription ***</div>
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;padding-top:6px;border-top:1px solid ${border};">
-          <div style="font-size:${fSm}px;">
-            ${doctor?.fullName ? `<div><strong>Prescribed By:</strong> ${escapeHtml(doctor.fullName)}</div>` : ""}
-            <div style="margin-top:2px;"><strong>Date:</strong> ${visitDate}</div>
-            <div style="margin-top:3px;"><strong>Printed By:</strong> ${escapeHtml(printedBy)}</div>
-            <div style="margin-top:2px;"><strong>Printed At:</strong> ${printedAtStr}</div>
-          </div>
+        <div style="display:flex;justify-content:flex-end;align-items:flex-start;flex-wrap:wrap;gap:8px;padding-top:6px;border-top:1px solid ${border};">
           ${doctor?.fullName ? (() => {
             const sigHref = doctor.signatureUrl ? (doctor.signatureUrl.startsWith("http") ? doctor.signatureUrl : (typeof window !== "undefined" ? window.location.origin : "") + (doctor.signatureUrl.startsWith("/") ? doctor.signatureUrl : "/" + doctor.signatureUrl)) : "";
             const name = escapeHtml(doctor.fullName);
