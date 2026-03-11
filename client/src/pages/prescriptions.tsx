@@ -17,8 +17,9 @@ import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { printPrescription, type PrescriptionLine } from "@/lib/prescription-print";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
-import type { Patient, Doctor, ClinicSettings } from "@shared/schema";
+import type { Patient, Doctor, ClinicSettings, Service, Injection, Medicine, Package as PackageType } from "@shared/schema";
 
 const dateToYMD = (d: Date) => d.toISOString().split("T")[0];
 
@@ -57,6 +58,7 @@ export default function PrescriptionsPage() {
   const [editLines, setEditLines] = useState<PrescriptionLine[]>([]);
   const [editNotes, setEditNotes] = useState("");
   const [editBarcodeInput, setEditBarcodeInput] = useState("");
+  const [editSearchValue, setEditSearchValue] = useState("");
 
   const queryParams = useMemo(() => {
     const p = new URLSearchParams();
@@ -92,6 +94,10 @@ export default function PrescriptionsPage() {
   const { data: patients = [] } = useQuery<Patient[]>({ queryKey: ["/api/patients"] });
   const { data: doctors = [] } = useQuery<Doctor[]>({ queryKey: ["/api/doctors"] });
   const { data: settings } = useQuery<ClinicSettings | null>({ queryKey: ["/api/settings"] });
+  const { data: services = [] } = useQuery<Service[]>({ queryKey: ["/api/services"] });
+  const { data: injections = [] } = useQuery<Injection[]>({ queryKey: ["/api/injections"] });
+  const { data: medicines = [] } = useQuery<Medicine[]>({ queryKey: ["/api/medicines"] });
+  const { data: packagesList = [] } = useQuery<PackageType[]>({ queryKey: ["/api/packages"] });
 
   const handlePrint = (row: any) => {
     const patient = patients.find((p) => p.id === row.patientId);
@@ -313,7 +319,7 @@ export default function PrescriptionsPage() {
             ) : visits.length === 0 ? (
               <div className="text-sm text-muted-foreground py-8 text-center">No prescriptions in the selected range.</div>
             ) : (
-              <DataTable columns={columns} data={visits} />
+              <DataTable columns={columns} data={visits} onRowClick={openEdit} />
             )}
             </CardContent>
         </Card>
@@ -354,18 +360,71 @@ export default function PrescriptionsPage() {
                 <Textarea value={editDiagnosis} onChange={(e) => setEditDiagnosis(e.target.value)} rows={2} className="resize-none" />
               </div>
               <div>
-                <Label className="flex items-center gap-2">Prescription — scan barcode or add line</Label>
-                <div className="flex gap-2 mb-2">
-                  <SearchInputWithBarcode
-                    placeholder="Scan or enter medicine code..."
-                    value={editBarcodeInput}
-                    onChange={(e) => setEditBarcodeInput(e.target.value)}
-                    onSearch={handleEditBarcodeSearch}
-                    className="flex-1"
+                <Label className="flex items-center gap-2">Prescription — scan barcode or search items</Label>
+                <div className="flex flex-col gap-2 mb-2">
+                  <div className="flex gap-2">
+                    <SearchInputWithBarcode
+                      placeholder="Scan or enter medicine code..."
+                      value={editBarcodeInput}
+                      onChange={(e) => setEditBarcodeInput(e.target.value)}
+                      onSearch={handleEditBarcodeSearch}
+                      className="flex-1"
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => setEditLines((p) => [...p, { name: "", dosage: "", duration: "", frequency: "", instructions: "" }])}>
+                      <Plus className="h-4 w-4 mr-1" /> Add line
+                    </Button>
+                  </div>
+                  <SearchableSelect
+                    value={editSearchValue}
+                    onValueChange={(v) => {
+                      setEditSearchValue("");
+                      if (!v) return;
+                      const [kind, idStr] = v.split(":");
+                      const id = Number(idStr);
+                      let label = "";
+                      if (kind === "svc") {
+                        const s = (services as Service[]).find((sv) => sv.id === id);
+                        if (s) label = s.name;
+                      } else if (kind === "inj") {
+                        const inj = (injections as Injection[]).find((i) => i.id === id);
+                        if (inj) label = inj.name;
+                      } else if (kind === "med") {
+                        const med = (medicines as Medicine[]).find((m) => m.id === id);
+                        if (med) label = med.name;
+                      } else if (kind === "pkg") {
+                        const pkg = (packagesList as PackageType[]).find((p) => p.id === id);
+                        if (pkg) label = pkg.name;
+                      }
+                      if (!label) return;
+                      setEditLines((prev) => [...prev, { name: label, dosage: "", duration: "", frequency: "", instructions: "" }]);
+                    }}
+                    placeholder="Search services, medicines, injections, packages..."
+                    searchPlaceholder="Type name..."
+                    emptyText="No items found."
+                    className="w-full"
+                    options={[
+                      ...(services as Service[]).filter((s) => s.isActive).map((s) => ({
+                        value: `svc:${s.id}`,
+                        label: `Service · ${s.name}`,
+                        searchText: s.name,
+                      })),
+                      ...(medicines as Medicine[]).filter((m) => m.isActive).map((m) => ({
+                        value: `med:${m.id}`,
+                        label: `Medicine · ${m.name}`,
+                        searchText: m.name,
+                      })),
+                      ...(injections as Injection[]).filter((i) => i.isActive).map((i) => ({
+                        value: `inj:${i.id}`,
+                        label: `Injection · ${i.name}`,
+                        searchText: i.name,
+                      })),
+                      ...(packagesList as PackageType[]).filter((p) => p.isActive).map((p) => ({
+                        value: `pkg:${p.id}`,
+                        label: `Package · ${p.name}`,
+                        searchText: p.name,
+                      })),
+                    ]}
                   />
-                  <Button type="button" variant="outline" size="sm" onClick={() => setEditLines((p) => [...p, { name: "", dosage: "", duration: "", frequency: "", instructions: "" }])}>
-                    <Plus className="h-4 w-4 mr-1" /> Add line
-                  </Button>
                 </div>
                 <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
                   {editLines.map((line, idx) => (

@@ -28,8 +28,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { useLocation } from "wouter";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { SearchableSelect } from "@/components/searchable-select";
 import { printPrescription } from "@/lib/prescription-print";
-import type { Patient } from "@shared/schema";
+import type { Patient, Service, Injection, Medicine, Package as PackageType } from "@shared/schema";
+import { useAuth } from "@/contexts/auth-context";
 
 export type PrescriptionLine = { medicineId?: number; name: string; dosage?: string; duration?: string; frequency?: string; instructions?: string };
 
@@ -73,6 +75,7 @@ export default function OpdPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const auth = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -94,6 +97,7 @@ export default function OpdPage() {
   const [consultPrescriptionLines, setConsultPrescriptionLines] = useState<PrescriptionLine[]>([]);
   const [consultNotes, setConsultNotes] = useState("");
   const [consultBarcodeInput, setConsultBarcodeInput] = useState("");
+  const [consultSearchValue, setConsultSearchValue] = useState("");
 
   const { data: patients = [], isLoading: patientsLoading } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
@@ -105,6 +109,10 @@ export default function OpdPage() {
 
   const { data: doctors = [] } = useQuery<any[]>({ queryKey: ["/api/doctors"] });
   const { data: settings } = useQuery<any>({ queryKey: ["/api/settings"] });
+  const { data: services = [] } = useQuery<Service[]>({ queryKey: ["/api/services"] });
+  const { data: injections = [] } = useQuery<Injection[]>({ queryKey: ["/api/injections"] });
+  const { data: medicines = [] } = useQuery<Medicine[]>({ queryKey: ["/api/medicines"] });
+  const { data: packagesList = [] } = useQuery<PackageType[]>({ queryKey: ["/api/packages"] });
 
   const deletePatientMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -216,12 +224,22 @@ export default function OpdPage() {
 
   const openConsultation = (patient: Patient) => {
     setConsultationPatient(patient);
-    setConsultDoctor("");
+    const loggedName = (auth?.fullName || auth?.username || "").toLowerCase().trim();
+    let defaultDoctor = "";
+    if (loggedName) {
+      const match = (doctors as any[]).find((d) => typeof d.name === "string" && d.name.toLowerCase().includes(loggedName));
+      if (match?.name) defaultDoctor = match.name;
+    }
+    if (!defaultDoctor && (doctors as any[]).length > 0) {
+      defaultDoctor = (doctors as any[])[0].name || "";
+    }
+    setConsultDoctor(defaultDoctor);
     setConsultSymptoms("");
     setConsultDiagnosis("");
     setConsultPrescriptionLines([]);
     setConsultNotes("");
     setConsultBarcodeInput("");
+    setConsultSearchValue("");
   };
 
   const handleConsultationSave = async () => {
@@ -894,18 +912,71 @@ export default function OpdPage() {
                 <Textarea value={consultDiagnosis} onChange={(e) => setConsultDiagnosis(e.target.value)} placeholder="Diagnosis..." rows={2} className="resize-none" />
               </div>
               <div>
-                <Label className="flex items-center gap-2">Prescription — scan barcode or add manually</Label>
-                <div className="flex gap-2 mb-2">
-                  <SearchInputWithBarcode
-                    placeholder="Scan or enter medicine code..."
-                    value={consultBarcodeInput}
-                    onChange={(e) => setConsultBarcodeInput(e.target.value)}
-                    onSearch={handlePrescriptionBarcodeSearch}
-                    className="flex-1"
+                <Label className="flex items-center gap-2">Prescription — scan barcode or search items</Label>
+                <div className="flex flex-col gap-2 mb-2">
+                  <div className="flex gap-2">
+                    <SearchInputWithBarcode
+                      placeholder="Scan or enter medicine code..."
+                      value={consultBarcodeInput}
+                      onChange={(e) => setConsultBarcodeInput(e.target.value)}
+                      onSearch={handlePrescriptionBarcodeSearch}
+                      className="flex-1"
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => setConsultPrescriptionLines((p) => [...p, { name: "", dosage: "", duration: "", frequency: "", instructions: "" }])}>
+                      <Plus className="h-4 w-4 mr-1" /> Add line
+                    </Button>
+                  </div>
+                  <SearchableSelect
+                    value={consultSearchValue}
+                    onValueChange={(v) => {
+                      setConsultSearchValue("");
+                      if (!v) return;
+                      const [kind, idStr] = v.split(":");
+                      const id = Number(idStr);
+                      let label = "";
+                      if (kind === "svc") {
+                        const s = (services as Service[]).find((sv) => sv.id === id);
+                        if (s) label = s.name;
+                      } else if (kind === "inj") {
+                        const inj = (injections as Injection[]).find((i) => i.id === id);
+                        if (inj) label = inj.name;
+                      } else if (kind === "med") {
+                        const med = (medicines as Medicine[]).find((m) => m.id === id);
+                        if (med) label = med.name;
+                      } else if (kind === "pkg") {
+                        const pkg = (packagesList as PackageType[]).find((p) => p.id === id);
+                        if (pkg) label = pkg.name;
+                      }
+                      if (!label) return;
+                      setConsultPrescriptionLines((prev) => [...prev, { name: label, dosage: "", duration: "", frequency: "", instructions: "" }]);
+                    }}
+                    placeholder="Search services, medicines, injections, packages..."
+                    searchPlaceholder="Type name..."
+                    emptyText="No items found."
+                    className="w-full"
+                    options={[
+                      ...(services as Service[]).filter((s) => s.isActive).map((s) => ({
+                        value: `svc:${s.id}`,
+                        label: `Service · ${s.name}`,
+                        searchText: s.name,
+                      })),
+                      ...(medicines as Medicine[]).filter((m) => m.isActive).map((m) => ({
+                        value: `med:${m.id}`,
+                        label: `Medicine · ${m.name}`,
+                        searchText: m.name,
+                      })),
+                      ...(injections as Injection[]).filter((i) => i.isActive).map((i) => ({
+                        value: `inj:${i.id}`,
+                        label: `Injection · ${i.name}`,
+                        searchText: i.name,
+                      })),
+                      ...(packagesList as PackageType[]).filter((p) => p.isActive).map((p) => ({
+                        value: `pkg:${p.id}`,
+                        label: `Package · ${p.name}`,
+                        searchText: p.name,
+                      })),
+                    ]}
                   />
-                  <Button type="button" variant="outline" size="sm" onClick={() => setConsultPrescriptionLines((p) => [...p, { name: "", dosage: "", duration: "", frequency: "", instructions: "" }])}>
-                    <Plus className="h-4 w-4 mr-1" /> Add line
-                  </Button>
                 </div>
                 <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
                   {consultPrescriptionLines.map((line, idx) => (

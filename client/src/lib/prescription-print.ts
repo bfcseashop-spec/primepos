@@ -40,7 +40,7 @@ export function printPrescription(
   patient: { name?: string; patientId?: string; age?: number | null; gender?: string | null; dateOfBirth?: string | null } | null,
   settings: { clinicName?: string | null; address?: string | null; phone?: string | null; email?: string | null; logo?: string | null; printPageSize?: string | null } | null
 ) {
-  const pageSize = settings?.printPageSize ?? "A4";
+  const pageSize = "A4";
   const clinicName = settings?.clinicName ?? "Clinic";
   const clinicAddress = settings?.address ?? "";
   const clinicPhone = settings?.phone ?? "";
