@@ -137,7 +137,7 @@ export function printPrescription(
     </style></head><body>
     <div class="rx-print-page" style="width:100%;padding:0 12px;">
       <!-- Full A4 top header -->
-      <div style="width:100%;text-align:center;padding:12px 0 14px;margin-bottom:10px;border-bottom:2px solid ${border};">
+      <div style="width:100%;text-align:center;padding:12px 0 14px;margin-bottom:10px;">
         ${logoHref ? `<img src="${logoHref}" alt="Logo" style="max-height:44px;margin-bottom:6px;display:block;margin-left:auto;margin-right:auto;" />` : ""}
         <div style="font-size:20px;font-weight:800;color:${teal};text-transform:uppercase;letter-spacing:0.05em;">${escapeHtml(clinicName)}</div>
         <div style="font-size:10px;color:${muted};margin-top:6px;line-height:1.5;">${escapeHtml(clinicAddress)}</div>
@@ -181,7 +181,7 @@ export function printPrescription(
       ${notes ? `<div style="margin-top:8px;padding:8px;background:#f8fafc;border-radius:6px;"><strong>Notes:</strong> ${escapeHtml(notes)}</div>` : ""}
       </div>
       <!-- Lab-report style footer: End Of Prescription, Doctor signature only (no Prescribed/Printed By block) -->
-      <div class="rx-print-footer" style="width:100%;margin-top:auto;padding-top:14px;padding-bottom:12px;border-top:2px solid ${border};">
+      <div class="rx-print-footer" style="width:100%;margin-top:auto;padding-top:14px;padding-bottom:12px;">
         <div style="text-align:center;margin:8px 0;font-size:11px;font-weight:700;color:${teal};">*** End Of Prescription ***</div>
         <div style="display:flex;justify-content:flex-end;align-items:flex-start;flex-wrap:wrap;gap:8px;padding-top:6px;border-top:1px solid ${border};">
           ${doctor?.fullName ? (() => {
