@@ -5,6 +5,11 @@
 
 export type PrescriptionLine = {
   medicineId?: number;
+  serviceId?: number;
+  injectionId?: number;
+  packageId?: number;
+  /** Item type when added from search: service | medicine | injection | package */
+  type?: string;
   name: string;
   dosage?: string;
   duration?: string;
@@ -23,9 +28,25 @@ function parsePrescription(prescription: string | null | undefined): Prescriptio
   const trimmed = prescription.trim();
   if (trimmed.startsWith("{")) {
     try {
-      const parsed = JSON.parse(trimmed) as PrescriptionData;
+      const parsed = JSON.parse(trimmed) as { lines?: Array<Record<string, unknown>>; notes?: string };
+      const rawLines = Array.isArray(parsed.lines) ? parsed.lines : [];
+      const lines: PrescriptionLine[] = rawLines.map((line) => {
+        const name = [line.name, line.medicineName, line.itemName].find((v) => typeof v === "string" && String(v).trim()) as string | undefined;
+        return {
+          medicineId: line.medicineId != null ? Number(line.medicineId) : undefined,
+          serviceId: line.serviceId != null ? Number(line.serviceId) : undefined,
+          injectionId: line.injectionId != null ? Number(line.injectionId) : undefined,
+          packageId: line.packageId != null ? Number(line.packageId) : undefined,
+          type: typeof line.type === "string" ? line.type : undefined,
+          name: (name && name.trim()) || "",
+          dosage: typeof line.dosage === "string" ? line.dosage : "",
+          duration: typeof line.duration === "string" ? line.duration : "",
+          frequency: typeof line.frequency === "string" ? line.frequency : "",
+          instructions: typeof line.instructions === "string" ? line.instructions : "",
+        };
+      });
       return {
-        lines: Array.isArray(parsed.lines) ? parsed.lines : [],
+        lines,
         notes: typeof parsed.notes === "string" ? parsed.notes : "",
       };
     } catch {

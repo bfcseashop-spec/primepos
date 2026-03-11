@@ -28,9 +28,25 @@ function parsePrescriptionJson(prescription: string | null | undefined): { lines
   const t = prescription.trim();
   if (t.startsWith("{")) {
     try {
-      const p = JSON.parse(t) as { lines?: PrescriptionLine[]; notes?: string };
+      const p = JSON.parse(t) as { lines?: Array<Record<string, unknown>>; notes?: string };
+      const rawLines = Array.isArray(p.lines) ? p.lines : [];
+      const lines: PrescriptionLine[] = rawLines.map((line) => {
+        const name = [line.name, line.medicineName, line.itemName].find((v) => typeof v === "string" && v.trim()) as string | undefined;
+        return {
+          medicineId: line.medicineId != null ? Number(line.medicineId) : undefined,
+          serviceId: line.serviceId != null ? Number(line.serviceId) : undefined,
+          injectionId: line.injectionId != null ? Number(line.injectionId) : undefined,
+          packageId: line.packageId != null ? Number(line.packageId) : undefined,
+          type: typeof line.type === "string" ? line.type : undefined,
+          name: name?.trim() ?? "",
+          dosage: typeof line.dosage === "string" ? line.dosage : "",
+          duration: typeof line.duration === "string" ? line.duration : "",
+          frequency: typeof line.frequency === "string" ? line.frequency : "",
+          instructions: typeof line.instructions === "string" ? line.instructions : "",
+        };
+      });
       return {
-        lines: Array.isArray(p.lines) ? p.lines : [],
+        lines,
         notes: typeof p.notes === "string" ? p.notes : "",
       };
     } catch {
@@ -122,6 +138,7 @@ export default function PrescriptionsPage() {
     },
     onSuccess: (updated: any, variables: { id: number; data: Record<string, string>; printAfterSave?: boolean }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/reports/prescription-stats"] });
       if (variables.printAfterSave && editVisit) {
         const patient = patients.find((p: Patient) => p.id === editVisit.patientId);
@@ -154,7 +171,18 @@ export default function PrescriptionsPage() {
   const handleEditSave = (printAfterSave?: boolean) => {
     if (!editVisit) return;
     const prescriptionPayload = JSON.stringify({
-      lines: editLines.map((l) => ({ medicineId: l.medicineId, name: l.name, dosage: l.dosage || "", duration: l.duration || "", frequency: l.frequency || "", instructions: l.instructions || "" })),
+      lines: editLines.map((l) => ({
+        medicineId: l.medicineId,
+        serviceId: l.serviceId,
+        injectionId: l.injectionId,
+        packageId: l.packageId,
+        type: l.type,
+        name: l.name ?? "",
+        dosage: l.dosage || "",
+        duration: l.duration || "",
+        frequency: l.frequency || "",
+        instructions: l.instructions || "",
+      })),
       notes: editNotes,
     });
     updateVisitMutation.mutate({
@@ -381,22 +409,20 @@ export default function PrescriptionsPage() {
                       if (!v) return;
                       const [kind, idStr] = v.split(":");
                       const id = Number(idStr);
-                      let label = "";
+                      const base = { dosage: "", duration: "", frequency: "", instructions: "" as string };
                       if (kind === "svc") {
                         const s = (services as Service[]).find((sv) => sv.id === id);
-                        if (s) label = s.name;
+                        if (s) setEditLines((prev) => [...prev, { ...base, type: "service", serviceId: id, name: s.name ?? "" }]);
                       } else if (kind === "inj") {
                         const inj = (injections as Injection[]).find((i) => i.id === id);
-                        if (inj) label = inj.name;
+                        if (inj) setEditLines((prev) => [...prev, { ...base, type: "injection", injectionId: id, name: inj.name ?? "" }]);
                       } else if (kind === "med") {
                         const med = (medicines as Medicine[]).find((m) => m.id === id);
-                        if (med) label = med.name;
+                        if (med) setEditLines((prev) => [...prev, { ...base, type: "medicine", medicineId: id, name: med.name ?? "" }]);
                       } else if (kind === "pkg") {
                         const pkg = (packagesList as PackageType[]).find((p) => p.id === id);
-                        if (pkg) label = pkg.name;
+                        if (pkg) setEditLines((prev) => [...prev, { ...base, type: "package", packageId: id, name: pkg.name ?? "" }]);
                       }
-                      if (!label) return;
-                      setEditLines((prev) => [...prev, { name: label, dosage: "", duration: "", frequency: "", instructions: "" }]);
                     }}
                     placeholder="Search services, medicines, injections, packages..."
                     searchPlaceholder="Type name..."
@@ -429,7 +455,7 @@ export default function PrescriptionsPage() {
                 <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
                   {editLines.map((line, idx) => (
                     <div key={idx} className="p-2 grid grid-cols-12 gap-1 items-center text-sm">
-                      <input placeholder="Medicine" value={line.name} onChange={(e) => setEditLines((p) => p.map((l, i) => i === idx ? { ...l, name: e.target.value } : l))} className="col-span-3 border rounded px-2 py-1" />
+                      <input placeholder="Item / Service / Medicine" value={line.name ?? ""} onChange={(e) => setEditLines((p) => p.map((l, i) => i === idx ? { ...l, name: e.target.value } : l))} className="col-span-3 border rounded px-2 py-1" />
                       <input placeholder="Dosage" value={line.dosage || ""} onChange={(e) => setEditLines((p) => p.map((l, i) => i === idx ? { ...l, dosage: e.target.value } : l))} className="col-span-2 border rounded px-2 py-1" />
                       <input placeholder="Duration" value={line.duration || ""} onChange={(e) => setEditLines((p) => p.map((l, i) => i === idx ? { ...l, duration: e.target.value } : l))} className="col-span-2 border rounded px-2 py-1" />
                       <input placeholder="Frequency" value={line.frequency || ""} onChange={(e) => setEditLines((p) => p.map((l, i) => i === idx ? { ...l, frequency: e.target.value } : l))} className="col-span-2 border rounded px-2 py-1" />

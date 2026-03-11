@@ -1137,6 +1137,56 @@ export async function registerRoutes(
       const visit = await storage.createOpdVisit(data);
       res.status(201).json(visit);
 
+      // Auto-create draft bill + lab test + sample collection when prescription contains lab services
+      const prescriptionRaw = (data as any).prescription;
+      if (prescriptionRaw && typeof prescriptionRaw === "string" && prescriptionRaw.trim().startsWith("{")) {
+        try {
+          const parsed = JSON.parse(prescriptionRaw.trim()) as { lines?: Array<{ name?: string; medicineName?: string; serviceId?: number; type?: string }> };
+          const lines = Array.isArray(parsed.lines) ? parsed.lines : [];
+          const allServices = await storage.getServices();
+          const labLines: Array<{ serv: any; name: string }> = [];
+          for (const line of lines) {
+            const serv = line.serviceId != null
+              ? allServices.find((s: any) => s.id === Number(line.serviceId))
+              : allServices.find((s: any) => s.name === (line.name || (line as any).medicineName));
+            if (serv && (serv as any).isLabTest) labLines.push({ serv, name: serv.name });
+          }
+          if (labLines.length > 0) {
+            const settings = await storage.getSettings();
+            const prefix = (settings?.invoicePrefix || "INV").replace(/\s/g, "").slice(0, 4) || "INV";
+            const billNo = await storage.getNextBillNo(prefix);
+            const billItems = labLines.map(({ serv }) => ({
+              type: "service",
+              serviceId: serv.id,
+              name: serv.name,
+              quantity: 1,
+              unitPrice: Number(serv.price) || 0,
+              total: Number(serv.price) || 0,
+            }));
+            const subtotal = billItems.reduce((s: number, it: any) => s + (it.total || 0), 0);
+            const draftBill = await storage.createBill({
+              billNo,
+              patientId: visit.patientId,
+              visitId: visit.id,
+              items: billItems,
+              subtotal: String(subtotal.toFixed(2)),
+              discount: "0",
+              discountType: "amount",
+              tax: "0",
+              total: String(subtotal.toFixed(2)),
+              paidAmount: "0",
+              paymentMethod: "cash",
+              referenceDoctor: (visit as any).doctorName || null,
+              paymentDate: null,
+              status: "draft",
+            } as any);
+            await createLabTestAndSampleFromBillItems(draftBill, billItems, visit.patientId, (visit as any).doctorName || null);
+          }
+        } catch (e) {
+          console.error("Prescription draft-bill creation failed:", e);
+        }
+      }
+
       try {
         const payload: NotificationPayload = {
           id: `visit-${visit.id}-${Date.now()}`,
@@ -1164,6 +1214,61 @@ export async function registerRoutes(
       const data = validateBody(updateSchema, req.body);
       const visit = await storage.updateOpdVisit(Number(req.params.id), data);
       if (!visit) return res.status(404).json({ message: "Visit not found" });
+
+      // Auto-create draft bill + lab test + sample collection when prescription contains lab services
+      const prescriptionRaw = typeof data.prescription === "string" ? data.prescription : (visit as any).prescription;
+      if (prescriptionRaw && typeof prescriptionRaw === "string" && prescriptionRaw.trim().startsWith("{")) {
+        try {
+          const parsed = JSON.parse(prescriptionRaw.trim()) as { lines?: Array<{ name?: string; medicineName?: string; serviceId?: number; type?: string }> };
+          const lines = Array.isArray(parsed.lines) ? parsed.lines : [];
+          const allServices = await storage.getServices();
+          const labLines: Array<{ serv: any; name: string }> = [];
+          for (const line of lines) {
+            const serv = line.serviceId != null
+              ? allServices.find((s: any) => s.id === Number(line.serviceId))
+              : allServices.find((s: any) => s.name === (line.name || (line as any).medicineName));
+            if (serv && (serv as any).isLabTest) labLines.push({ serv, name: serv.name });
+          }
+          if (labLines.length > 0) {
+            const allBills = await storage.getBills();
+            const existingDraft = (allBills as any[]).find((b: any) => b.visitId === visit.id && b.status === "draft");
+            if (!existingDraft) {
+              const settings = await storage.getSettings();
+              const prefix = (settings?.invoicePrefix || "INV").replace(/\s/g, "").slice(0, 4) || "INV";
+              const billNo = await storage.getNextBillNo(prefix);
+              const billItems = labLines.map(({ serv }) => ({
+                type: "service",
+                serviceId: serv.id,
+                name: serv.name,
+                quantity: 1,
+                unitPrice: Number(serv.price) || 0,
+                total: Number(serv.price) || 0,
+              }));
+              const subtotal = billItems.reduce((s: number, it: any) => s + (it.total || 0), 0);
+              const draftBill = await storage.createBill({
+                billNo,
+                patientId: visit.patientId,
+                visitId: visit.id,
+                items: billItems,
+                subtotal: String(subtotal.toFixed(2)),
+                discount: "0",
+                discountType: "amount",
+                tax: "0",
+                total: String(subtotal.toFixed(2)),
+                paidAmount: "0",
+                paymentMethod: "cash",
+                referenceDoctor: (visit as any).doctorName || null,
+                paymentDate: null,
+                status: "draft",
+              } as any);
+              await createLabTestAndSampleFromBillItems(draftBill, billItems, visit.patientId, (visit as any).doctorName || null);
+            }
+          }
+        } catch (e) {
+          console.error("Prescription draft-bill creation failed:", e);
+        }
+      }
+
       res.json(visit);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -1224,6 +1329,73 @@ export async function registerRoutes(
     }
   });
 
+  /** Create lab test(s) and sample collection(s) from bill items that are lab services. Used by bills and prescription draft flow. */
+  async function createLabTestAndSampleFromBillItems(
+    bill: { id: number },
+    items: any[],
+    patientId: number,
+    referrerName: string | null
+  ): Promise<void> {
+    const allServices = await storage.getServices();
+    const labItems: Array<{ serv: any; item: any }> = [];
+    for (const item of items) {
+      if (item?.type === "service" && (item.serviceId != null || item.name)) {
+        const serv = item.serviceId != null
+          ? allServices.find((s: any) => s.id === Number(item.serviceId))
+          : allServices.find((s: any) => s.name === item.name);
+        if (serv && (serv as any).isLabTest) labItems.push({ serv, item });
+      }
+    }
+    if (labItems.length === 0) return;
+    const code = await storage.getNextLabTestCode();
+    const first = labItems[0].serv;
+    const anySampleRequired = labItems.some(({ serv }) => (serv as any).sampleCollectionRequired);
+    const serviceIds = labItems.map(({ serv }) => serv.id);
+    const labTest = await storage.createLabTest({
+      testCode: code,
+      testName: labItems.length === 1 ? first.name : "Lab Panel",
+      category: first.category,
+      sampleType: (first as any).sampleType || "Blood",
+      price: String(labItems.reduce((s: number, { serv }: any) => s + Number(serv.price || 0), 0)),
+      patientId,
+      serviceId: first.id,
+      serviceIds: labItems.length > 1 ? serviceIds : null,
+      billId: bill.id,
+      sampleCollectionRequired: anySampleRequired,
+      referrerName,
+      status: anySampleRequired ? "awaiting_sample" : "processing",
+    });
+    for (const { serv } of labItems) {
+      const sampleRequired = Boolean((serv as any).sampleCollectionRequired);
+      if (sampleRequired) {
+        await storage.createSampleCollection({
+          labTestId: labTest.id,
+          patientId,
+          billId: bill.id,
+          testName: serv.name,
+          sampleType: (serv as any).sampleType || "Blood",
+          status: "pending",
+        });
+      }
+    }
+    try {
+      const payload: NotificationPayload = {
+        id: `lab-${labTest.id}-${Date.now()}`,
+        type: "lab_test_created",
+        title: "New Lab Request",
+        message: `Lab test ${labTest.testCode} – ${labTest.testName}`,
+        audience: labTest.referrerName ? "doctor" : "lab_technologist",
+        doctorName: labTest.referrerName || undefined,
+        createdAt: new Date().toISOString(),
+        data: { labTestId: labTest.id, testCode: labTest.testCode, referrerName: labTest.referrerName || null },
+      };
+      pushNotification(payload);
+      void persistNotificationForAudience(payload);
+    } catch {
+      // Ignore notification errors.
+    }
+  }
+
   app.post("/api/bills", async (req, res) => {
     try {
       const data = validateBody(insertBillSchema, req.body) as Record<string, unknown>;
@@ -1258,83 +1430,22 @@ export async function registerRoutes(
       const patientId = Number(data.patientId);
       const referrerName = (data.referenceDoctor as string) || null;
       if (!isDraft) {
-      const allServices = await storage.getServices();
-      const labItems: Array<{ serv: any; item: any }> = [];
-      for (const item of items) {
-        if (item?.type === "service" && (item.serviceId != null || item.name)) {
-          const serv = item.serviceId != null
-            ? allServices.find(s => s.id === Number(item.serviceId))
-            : allServices.find(s => s.name === item.name);
-          if (serv && (serv as any).isLabTest) labItems.push({ serv, item });
-        }
-      }
-      if (labItems.length > 0) {
-        const code = await storage.getNextLabTestCode();
-        const first = labItems[0].serv;
-        const anySampleRequired = labItems.some(({ serv }) => (serv as any).sampleCollectionRequired);
-        const serviceIds = labItems.map(({ serv }) => serv.id);
-        const labTest = await storage.createLabTest({
-          testCode: code,
-          testName: labItems.length === 1 ? first.name : "Lab Panel",
-          category: first.category,
-          sampleType: (first as any).sampleType || "Blood",
-          price: String(labItems.reduce((s, { serv }) => s + Number(serv.price || 0), 0)),
-          patientId,
-          serviceId: first.id,
-          serviceIds: labItems.length > 1 ? serviceIds : null,
-          billId: bill.id,
-          sampleCollectionRequired: anySampleRequired,
-          referrerName,
-          status: anySampleRequired ? "awaiting_sample" : "processing",
-        });
-        for (const { serv } of labItems) {
-          const sampleRequired = Boolean((serv as any).sampleCollectionRequired);
-          if (sampleRequired) {
-            await storage.createSampleCollection({
-              labTestId: labTest.id,
-              patientId,
-              billId: bill.id,
-              testName: serv.name,
-              sampleType: (serv as any).sampleType || "Blood",
-              status: "pending",
+        await createLabTestAndSampleFromBillItems(bill, items, patientId, referrerName);
+        for (const [medIdStr, totalQty] of Object.entries(medQtyMap)) {
+          const med = await storage.getMedicine(Number(medIdStr));
+          if (med) {
+            const prev = Number(med.stockCount ?? 0);
+            const newStock = Math.max(0, prev - totalQty);
+            await storage.updateMedicine(med.id, { stockCount: newStock, quantity: newStock });
+            await storage.createStockAdjustment({
+              medicineId: med.id,
+              previousStock: prev,
+              newStock,
+              adjustmentType: "subtract",
+              reason: `Bill ${bill.billNo} – sold ${totalQty} pc`,
             });
           }
         }
-
-        // Notify lab technologists and the referring doctor (if any) about new lab work.
-        try {
-          const payload: NotificationPayload = {
-            id: `lab-${labTest.id}-${Date.now()}`,
-            type: "lab_test_created",
-            title: "New Lab Request",
-            message: `Lab test ${labTest.testCode} – ${labTest.testName}`,
-            audience: labTest.referrerName ? "doctor" : "lab_technologist",
-            doctorName: labTest.referrerName || undefined,
-            createdAt: new Date().toISOString(),
-            data: { labTestId: labTest.id, testCode: labTest.testCode, referrerName: labTest.referrerName || null },
-          };
-          pushNotification(payload);
-          void persistNotificationForAudience(payload);
-        } catch {
-          // Ignore notification errors.
-        }
-      }
-
-      for (const [medIdStr, totalQty] of Object.entries(medQtyMap)) {
-        const med = await storage.getMedicine(Number(medIdStr));
-        if (med) {
-          const prev = Number(med.stockCount ?? 0);
-          const newStock = Math.max(0, prev - totalQty);
-          await storage.updateMedicine(med.id, { stockCount: newStock, quantity: newStock });
-          await storage.createStockAdjustment({
-            medicineId: med.id,
-            previousStock: prev,
-            newStock,
-            adjustmentType: "subtract",
-            reason: `Bill ${bill.billNo} – sold ${totalQty} pc`,
-          });
-        }
-      }
       }
       res.status(201).json(bill);
 

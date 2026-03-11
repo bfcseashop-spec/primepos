@@ -32,8 +32,7 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { printPrescription } from "@/lib/prescription-print";
 import type { Patient, Service, Injection, Medicine, Package as PackageType } from "@shared/schema";
 import { useAuth } from "@/contexts/auth-context";
-
-export type PrescriptionLine = { medicineId?: number; name: string; dosage?: string; duration?: string; frequency?: string; instructions?: string };
+import type { PrescriptionLine } from "@/lib/prescription-print";
 
 function dateToYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -246,7 +245,18 @@ export default function OpdPage() {
     if (!consultationPatient) return;
     const doctorName = consultDoctor.trim() || (doctors as any[])[0]?.name || "";
     const prescriptionPayload = JSON.stringify({
-      lines: consultPrescriptionLines.map((l) => ({ medicineId: l.medicineId, name: l.name, dosage: l.dosage || "", duration: l.duration || "", frequency: l.frequency || "", instructions: l.instructions || "" })),
+      lines: consultPrescriptionLines.map((l) => ({
+        medicineId: l.medicineId,
+        serviceId: l.serviceId,
+        injectionId: l.injectionId,
+        packageId: l.packageId,
+        type: l.type,
+        name: l.name ?? "",
+        dosage: l.dosage || "",
+        duration: l.duration || "",
+        frequency: l.frequency || "",
+        instructions: l.instructions || "",
+      })),
       notes: consultNotes,
     });
     const resNextId = await fetch("/api/opd-visits/next-id", { credentials: "include" });
@@ -934,21 +944,20 @@ export default function OpdPage() {
                       const [kind, idStr] = v.split(":");
                       const id = Number(idStr);
                       let label = "";
+                      const base = { dosage: "", duration: "", frequency: "", instructions: "" as string };
                       if (kind === "svc") {
                         const s = (services as Service[]).find((sv) => sv.id === id);
-                        if (s) label = s.name;
+                        if (s) setConsultPrescriptionLines((prev) => [...prev, { ...base, type: "service", serviceId: id, name: s.name }]);
                       } else if (kind === "inj") {
                         const inj = (injections as Injection[]).find((i) => i.id === id);
-                        if (inj) label = inj.name;
+                        if (inj) setConsultPrescriptionLines((prev) => [...prev, { ...base, type: "injection", injectionId: id, name: inj.name }]);
                       } else if (kind === "med") {
                         const med = (medicines as Medicine[]).find((m) => m.id === id);
-                        if (med) label = med.name;
+                        if (med) setConsultPrescriptionLines((prev) => [...prev, { ...base, type: "medicine", medicineId: id, name: med.name }]);
                       } else if (kind === "pkg") {
                         const pkg = (packagesList as PackageType[]).find((p) => p.id === id);
-                        if (pkg) label = pkg.name;
+                        if (pkg) setConsultPrescriptionLines((prev) => [...prev, { ...base, type: "package", packageId: id, name: pkg.name }]);
                       }
-                      if (!label) return;
-                      setConsultPrescriptionLines((prev) => [...prev, { name: label, dosage: "", duration: "", frequency: "", instructions: "" }]);
                     }}
                     placeholder="Search services, medicines, injections, packages..."
                     searchPlaceholder="Type name..."
@@ -981,7 +990,7 @@ export default function OpdPage() {
                 <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
                   {consultPrescriptionLines.map((line, idx) => (
                     <div key={idx} className="p-2 grid grid-cols-12 gap-1 items-center text-sm">
-                      <input placeholder="Medicine" value={line.name} onChange={(e) => setConsultPrescriptionLines((p) => p.map((l, i) => i === idx ? { ...l, name: e.target.value } : l))} className="col-span-3 border rounded px-2 py-1" />
+                      <input placeholder="Item / Service / Medicine" value={line.name ?? ""} onChange={(e) => setConsultPrescriptionLines((p) => p.map((l, i) => i === idx ? { ...l, name: e.target.value } : l))} className="col-span-3 border rounded px-2 py-1" />
                       <input placeholder="Dosage" value={line.dosage || ""} onChange={(e) => setConsultPrescriptionLines((p) => p.map((l, i) => i === idx ? { ...l, dosage: e.target.value } : l))} className="col-span-2 border rounded px-2 py-1" />
                       <input placeholder="Duration" value={line.duration || ""} onChange={(e) => setConsultPrescriptionLines((p) => p.map((l, i) => i === idx ? { ...l, duration: e.target.value } : l))} className="col-span-2 border rounded px-2 py-1" />
                       <input placeholder="Frequency" value={line.frequency || ""} onChange={(e) => setConsultPrescriptionLines((p) => p.map((l, i) => i === idx ? { ...l, frequency: e.target.value } : l))} className="col-span-2 border rounded px-2 py-1" />
