@@ -19,6 +19,8 @@ import { printPrescription, type PrescriptionLine } from "@/lib/prescription-pri
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
+import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
+import { billNoMatches } from "@/lib/bill-utils";
 import type { Patient, Doctor, ClinicSettings, Service, Injection, Medicine, Package as PackageType } from "@shared/schema";
 
 const dateToYMD = (d: Date) => d.toISOString().split("T")[0];
@@ -75,6 +77,7 @@ export default function PrescriptionsPage() {
   const [editNotes, setEditNotes] = useState("");
   const [editBarcodeInput, setEditBarcodeInput] = useState("");
   const [editSearchValue, setEditSearchValue] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const queryParams = useMemo(() => {
     const p = new URLSearchParams();
@@ -216,6 +219,44 @@ export default function PrescriptionsPage() {
     }
   };
 
+  const handlePrescriptionBarcodeSearch = (v: string) => {
+    const val = (v || "").trim();
+    if (!val) return;
+    const byVisit = visits.find((row: any) => row.visitId && billNoMatches(val, row.visitId));
+    if (byVisit) {
+      setSearchTerm(val);
+      openEdit(byVisit);
+      toast({ title: "Prescription found", description: byVisit.visitId });
+      return;
+    }
+    const pat = patients.find((p: Patient) => (p.patientId || "").toLowerCase() === val.toLowerCase());
+    if (pat) {
+      setSearchTerm(pat.name || val);
+      const byPatient = visits.filter((row: any) => row.patientId === pat.id);
+      if (byPatient.length === 1) {
+        openEdit(byPatient[0]);
+        toast({ title: "Prescription found", description: byPatient[0].visitId });
+      } else if (byPatient.length > 1) {
+        toast({ title: "Multiple prescriptions", description: `${byPatient.length} for ${pat.name}. Refine search.` });
+      }
+      return;
+    }
+    setSearchTerm(val);
+  };
+
+  useGlobalBarcodeScanner(handlePrescriptionBarcodeSearch);
+
+  const filteredVisits = useMemo(() => {
+    if (!searchTerm.trim()) return visits;
+    const term = searchTerm.toLowerCase().trim();
+    return visits.filter((row: any) => {
+      const visitIdMatch = row.visitId && billNoMatches(searchTerm, row.visitId);
+      const patientNameMatch = (row.patientName || "").toLowerCase().includes(term);
+      const patientIdMatch = patients.some((p: Patient) => p.id === row.patientId && (p.patientId || "").toLowerCase() === term);
+      return visitIdMatch || patientNameMatch || patientIdMatch;
+    });
+  }, [visits, searchTerm, patients]);
+
   const columns = [
     { header: "Visit ID", accessor: (row: any) => <span className="font-mono text-xs font-medium">{row.visitId}</span> },
     { header: "Date", accessor: (row: any) => <span className="text-sm">{row.visitDate ? new Date(row.visitDate).toLocaleDateString() : "-"}</span> },
@@ -338,16 +379,32 @@ export default function PrescriptionsPage() {
 
         {/* Table */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Prescriptions</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-semibold">Prescriptions</CardTitle>
+              <Badge variant="secondary" className="text-[10px]">{filteredVisits.length}</Badge>
+            </div>
+            <div className="w-64">
+              <SearchInputWithBarcode
+                placeholder="Search / Scan visit or patient"
+                className="h-8 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onSearch={handlePrescriptionBarcodeSearch}
+                data-testid="input-search-prescriptions"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             {visitsLoading ? (
               <div className="text-sm text-muted-foreground py-8 text-center">Loading...</div>
             ) : visits.length === 0 ? (
               <div className="text-sm text-muted-foreground py-8 text-center">No prescriptions in the selected range.</div>
+            ) : filteredVisits.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-8 text-center">No prescriptions match &quot;{searchTerm}&quot;.</div>
             ) : (
-              <DataTable columns={columns} data={visits} onRowClick={openEdit} />
+              <DataTable columns={columns} data={filteredVisits} onRowClick={openEdit} />
             )}
             </CardContent>
         </Card>
