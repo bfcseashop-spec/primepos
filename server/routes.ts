@@ -4318,6 +4318,36 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  // Alias: /api/dues -> /api/due/patients-summary (for clients/proxies that use plural)
+  app.get("/api/dues", async (req, res) => {
+    try {
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const offset = req.query.offset ? Number(req.query.offset) : undefined;
+      const search = (req.query.search as string)?.trim() || undefined;
+      const statusFilter = (req.query.statusFilter as string) && req.query.statusFilter !== "all" ? req.query.statusFilter : undefined;
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined;
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : undefined;
+      const result = await storage.getPatientsDueSummary(limit, offset, search, statusFilter, dateFrom, dateTo);
+      res.json(result);
+    } catch (err: any) {
+      console.error("[due] getPatientsDueSummary (dues alias) error:", err?.message ?? err);
+      res.status(500).json({ message: err?.message ?? "Failed to load patients summary" });
+    }
+  });
+  app.get("/api/dues/stats", async (req, res) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined;
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : undefined;
+      const search = (req.query.search as string)?.trim() || undefined;
+      const statusFilter = (req.query.statusFilter as string) && req.query.statusFilter !== "all" ? req.query.statusFilter : undefined;
+      const stats = await storage.getPatientsDueSummaryStats(dateFrom, dateTo, search, statusFilter);
+      res.json(stats);
+    } catch (err: any) {
+      console.error("[due] getPatientsDueSummaryStats (dues alias) error:", err?.message ?? err);
+      res.status(500).json({ message: err?.message ?? "Failed to load due statistics" });
+    }
+  });
+
   // Unmatched /api routes -> 404 JSON (avoid SPA fallback)
   app.use("/api", (_req, res) => {
     res.status(404).json({ message: "Not found" });
