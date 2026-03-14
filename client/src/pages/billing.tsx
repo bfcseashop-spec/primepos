@@ -87,13 +87,13 @@ export default function BillingPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm]);
 
   const dateRange = getDateRange(datePeriod, customFromDate, customToDate, monthYear);
   useEffect(() => { setBillsPage(1); }, [debouncedSearch, dateRange?.from, dateRange?.to]);
-  const { data: billsData, isLoading } = useQuery<{ items: any[]; total: number; totalRevenue?: number; totalPaid?: number; paidCount?: number; pendingCount?: number }>({
+  const { data: billsData, isLoading } = useQuery<{ items: any[]; total: number }>({
     queryKey: ["/api/bills", "paginated", billsPage, billsPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -109,8 +109,20 @@ export default function BillingPage() {
       return normalizePaginatedResponse(raw) as typeof raw;
     },
   });
+  const { data: billsStats } = useQuery<{ total: number; totalRevenue: number; totalPaid: number; paidCount: number; pendingCount: number }>({
+    queryKey: ["/api/bills/stats", debouncedSearch, dateRange?.from, dateRange?.to],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (dateRange?.from) params.set("dateFrom", dateRange.from);
+      if (dateRange?.to) params.set("dateTo", dateRange.to);
+      const res = await fetch(getApiUrl(`/api/bills/stats?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+  });
   const bills = billsData?.items ?? [];
-  const billsTotal = billsData?.total ?? 0;
+  const billsTotal = billsStats?.total ?? billsData?.total ?? 0;
 
   const { data: patients = [] } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
@@ -213,6 +225,7 @@ export default function BillingPage() {
     },
     onSuccess: (bill: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
@@ -243,6 +256,7 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       toast({ title: "Bill deleted successfully" });
     },
@@ -258,6 +272,7 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       setEditingBill(null);
       setEditingBillId(null);
@@ -277,6 +292,7 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
       setReturnBill(null);
@@ -765,22 +781,32 @@ export default function BillingPage() {
     if (debouncedSearch && bills.length === 1) setViewBill(bills[0]);
   }, [debouncedSearch, bills]);
 
-  const handleBarcodeSearch = (v: string) => {
+  const handleBarcodeSearch = async (v: string) => {
     const val = v?.trim() ?? "";
     if (!val) return;
-    const bill = bills.find((b: any) => billNoMatches(val, b.billNo || ""));
-    if (bill) {
-      setSearchTerm(val);
-      setViewBill(bill);
-      return;
-    }
-    const pat = patients.find(p => (p.patientId || "").toLowerCase() === val.toLowerCase());
-    if (pat) {
-      setSearchTerm(pat.name || val);
-      const byPatient = bills.filter((b: any) => b.patientId === pat.id);
-      if (byPatient.length === 1) setViewBill(byPatient[0]);
-      return;
-    }
+    try {
+      const billRes = await fetch(getApiUrl(`/api/bills/by-billno?billNo=${encodeURIComponent(val)}`), { credentials: "include" });
+      if (billRes.ok) {
+        const bill = await billRes.json();
+        setSearchTerm(val);
+        setViewBill(bill);
+        return;
+      }
+    } catch { /* fall through */ }
+    try {
+      const patRes = await fetch(getApiUrl(`/api/patients/by-patient-id?patientId=${encodeURIComponent(val)}`), { credentials: "include" });
+      if (patRes.ok) {
+        const pat = await patRes.json();
+        setSearchTerm(pat.name || val);
+        const billRes2 = await fetch(getApiUrl(`/api/bills?limit=10&offset=0&patientId=${pat.id}`), { credentials: "include" });
+        if (billRes2.ok) {
+          const data = await billRes2.json();
+          const byPatient = data.items || [];
+          if (byPatient.length === 1) setViewBill(byPatient[0]);
+        }
+        return;
+      }
+    } catch { /* fall through */ }
     setSearchTerm(val);
   };
 
@@ -834,10 +860,10 @@ export default function BillingPage() {
     setDialogOpen(true);
   };
 
-  const totalRevenue = billsData?.totalRevenue ?? bills.reduce((sum: number, b: any) => sum + (Number(b.total) || 0), 0);
-  const totalPaid = billsData?.totalPaid ?? bills.reduce((sum: number, b: any) => sum + (Number(b.paidAmount) || 0), 0);
-  const paidCount = billsData?.paidCount ?? bills.filter((b: any) => b.status === "paid").length;
-  const pendingCount = billsData?.pendingCount ?? bills.filter((b: any) => b.status !== "paid").length;
+  const totalRevenue = billsStats?.totalRevenue ?? 0;
+  const totalPaid = billsStats?.totalPaid ?? 0;
+  const paidCount = billsStats?.paidCount ?? 0;
+  const pendingCount = billsStats?.pendingCount ?? 0;
 
   const getBillBreakdown = (row: any) => {
     const items = Array.isArray(row.items) ? row.items : [];

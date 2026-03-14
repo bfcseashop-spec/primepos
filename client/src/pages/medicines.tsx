@@ -85,7 +85,7 @@ export default function MedicinesPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm]);
   useEffect(() => { setPage(1); }, [debouncedSearch, categoryFilter, statusFilter]);

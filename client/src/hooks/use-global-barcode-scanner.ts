@@ -18,10 +18,6 @@ export function useGlobalBarcodeScanner(onScan: (value: string) => void) {
   const lastKeyTimeRef = useRef(0);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    const active = document.activeElement;
-    const isInput = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement || (active instanceof HTMLElement && active.getAttribute("contenteditable") === "true");
-    if (isInput) return;
-
     const now = Date.now();
     const elapsed = now - lastKeyTimeRef.current;
 

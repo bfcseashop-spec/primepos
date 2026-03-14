@@ -17,7 +17,6 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
-import { billNoMatches } from "@/lib/bill-utils";
 import { TestTubes, CheckCircle2, Clock, Beaker, Barcode, Printer, Eye, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import JsBarcode from "jsbarcode";
 
@@ -79,7 +78,7 @@ export default function SampleCollectionsPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm]);
   useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
@@ -104,14 +103,6 @@ export default function SampleCollectionsPage() {
   const pendingCount = samplesData?.pendingCount ?? 0;
   const collectedCount = samplesData?.collectedCount ?? 0;
 
-  const { data: bills = [] } = useQuery<{ id: number; billNo: string }[]>({
-    queryKey: ["/api/bills"],
-  });
-
-  const { data: labTests = [] } = useQuery<{ id: number; testCode: string }[]>({
-    queryKey: ["/api/lab-tests"],
-  });
-
   const handleBarcodeSearch = async (value: string) => {
     const v = value?.trim() ?? "";
     if (!v) return;
@@ -130,25 +121,39 @@ export default function SampleCollectionsPage() {
         return;
       }
     }
-    // Invoice: filter by bill (IAR-0017 matches IAR00017, etc.)
-    const bill = bills.find((b: { billNo: string }) => billNoMatches(v, b.billNo || ""));
-    if (bill) {
-      const byBill = samples.filter((s: SampleCollection) => s.billId === bill.id);
-      setSearchTerm(v);
-      if (byBill.length === 1) setViewSample(byBill[0]);
-      return;
-    }
-    // Lab test code: LAB-0008
+    // Invoice: lookup bill by billNo, then fetch samples for that bill
+    try {
+      const billRes = await fetch(getApiUrl(`/api/bills/by-billno?billNo=${encodeURIComponent(v)}`), { credentials: "include" });
+      if (billRes.ok) {
+        const bill = await billRes.json();
+        setSearchTerm(v);
+        const samplesRes = await fetch(getApiUrl(`/api/sample-collections?limit=10&offset=0&billId=${bill.id}`), { credentials: "include" });
+        if (samplesRes.ok) {
+          const data = await samplesRes.json();
+          const byBill = data.items || [];
+          if (byBill.length === 1) setViewSample(byBill[0]);
+        }
+        return;
+      }
+    } catch { /* fall through */ }
+    // Lab test code: lookup by testCode, then fetch samples for that lab test
     const labMatch = v.match(/^LAB-TEST\|([^|]+)\|/);
     const testCode = labMatch ? labMatch[1] : (v.includes("|") ? "" : v);
     if (testCode) {
-      const lt = labTests.find((t: { testCode: string }) => (t.testCode || "").toLowerCase() === testCode.toLowerCase());
-      if (lt) {
-        const byLab = samples.filter((s: SampleCollection) => s.labTestId === lt.id);
-        setSearchTerm(testCode);
-        if (byLab.length === 1) setViewSample(byLab[0]);
-        return;
-      }
+      try {
+        const ltRes = await fetch(getApiUrl(`/api/lab-tests/by-code?testCode=${encodeURIComponent(testCode)}`), { credentials: "include" });
+        if (ltRes.ok) {
+          const lt = await ltRes.json();
+          setSearchTerm(testCode);
+          const samplesRes = await fetch(getApiUrl(`/api/sample-collections?limit=10&offset=0&labTestId=${lt.id}`), { credentials: "include" });
+          if (samplesRes.ok) {
+            const data = await samplesRes.json();
+            const byLab = data.items || [];
+            if (byLab.length === 1) setViewSample(byLab[0]);
+          }
+          return;
+        }
+      } catch { /* fall through */ }
     }
     setSearchTerm(v);
   };

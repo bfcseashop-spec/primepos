@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Pagination,
@@ -51,9 +52,9 @@ export function TablePagination({
   };
 
   return (
-    <div className="sticky bottom-0 z-10 flex w-full flex-row flex-wrap items-center justify-between gap-3 border-t bg-background px-4 py-3">
+    <div className="sticky bottom-0 z-10 -mb-4 md:-mb-6 flex w-full flex-row flex-wrap items-center justify-between gap-2 border-t bg-background px-3 py-1.5 pb-4 md:pb-6">
       {/* Left: Showing X-Y of Z */}
-      <div className="text-sm text-muted-foreground">
+      <div className="text-xs text-muted-foreground">
         Showing {start}-{end} of {total}
       </div>
       {/* Middle: Previous 1 2 3 4 Next */}
@@ -68,7 +69,7 @@ export function TablePagination({
                     e.preventDefault();
                     if (page > 1) onPageChange(page - 1);
                   }}
-                  className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  className={cn("h-7 px-2 text-xs", page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer")}
                 />
               </PaginationItem>
               {getPageNumbers().map((p, i) =>
@@ -85,7 +86,7 @@ export function TablePagination({
                         onPageChange(p);
                       }}
                       isActive={page === p}
-                      className="cursor-pointer"
+                      className="h-7 min-w-7 cursor-pointer text-xs"
                     >
                       {p}
                     </PaginationLink>
@@ -99,7 +100,7 @@ export function TablePagination({
                     e.preventDefault();
                     if (page < totalPages) onPageChange(page + 1);
                   }}
-                  className={page >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  className={cn("h-7 px-2 text-xs", page >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer")}
                 />
               </PaginationItem>
             </PaginationContent>
@@ -107,7 +108,7 @@ export function TablePagination({
         ) : null}
       </div>
       {/* Right: Per page N */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <span>Per page</span>
         <Select
           value={String(pageSize)}
@@ -116,7 +117,7 @@ export function TablePagination({
             onPageChange(1);
           }}
         >
-          <SelectTrigger className="h-8 w-[70px]">
+          <SelectTrigger className="h-7 w-[60px] text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

@@ -1054,11 +1054,35 @@ export async function registerRoutes(
         });
         const lastVisits = await storage.getLastVisitDatesByPatientIds(result.items.map((p: any) => p.id));
         const enriched = result.items.map((p: any) => ({ ...p, lastVisitDate: lastVisits[p.id] || null }));
-        res.json({ items: enriched, total: result.total, outPatientCount: result.outPatientCount, inPatientCount: result.inPatientCount, emergencyPatientCount: result.emergencyPatientCount });
+        res.json({ items: enriched, total: result.total });
       } else {
         const result = await storage.getPatients();
         res.json(result);
       }
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/patients/stats", async (req, res) => {
+    try {
+      const result = await storage.getPatientsStats({
+        search: (req.query.search as string)?.trim() || undefined,
+        patientTypeFilter: (req.query.patientTypeFilter as string) || undefined,
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/patients/by-patient-id", async (req, res) => {
+    try {
+      const patientId = (req.query.patientId as string)?.trim();
+      if (!patientId) return res.status(400).json({ message: "Query parameter 'patientId' is required" });
+      const patient = await storage.getPatientByPatientId(patientId);
+      if (!patient) return res.status(404).json({ message: "Patient not found" });
+      res.json(patient);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -1412,12 +1436,40 @@ export async function registerRoutes(
           search: (req.query.search as string)?.trim() || undefined,
           dateFrom: (req.query.dateFrom as string) || undefined,
           dateTo: (req.query.dateTo as string) || undefined,
+          statusFilter: (req.query.statusFilter as string) || undefined,
+          patientId: req.query.patientId != null ? Number(req.query.patientId) : undefined,
         });
-        res.json(result);
+        res.json({ items: result.items, total: result.total });
       } else {
         const result = await storage.getBills();
         res.json(result);
       }
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/bills/stats", async (req, res) => {
+    try {
+      const result = await storage.getBillsStats({
+        search: (req.query.search as string)?.trim() || undefined,
+        dateFrom: (req.query.dateFrom as string) || undefined,
+        dateTo: (req.query.dateTo as string) || undefined,
+        statusFilter: (req.query.statusFilter as string) || undefined,
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/bills/by-billno", async (req, res) => {
+    try {
+      const billNo = (req.query.billNo as string)?.trim();
+      if (!billNo) return res.status(400).json({ message: "Query parameter 'billNo' is required" });
+      const bill = await storage.getBillByBillNo(billNo);
+      if (!bill) return res.status(404).json({ message: "Bill not found" });
+      res.json(bill);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -2532,7 +2584,7 @@ export async function registerRoutes(
           categoryFilter: (req.query.categoryFilter as string) || undefined,
           statusFilter: (req.query.statusFilter as string) || undefined,
         });
-        res.json(result);
+        res.json({ items: result.items || [], total: result.total, inStockCount: result.inStockCount, lowStockCount: result.lowStockCount, outOfStockCount: result.outOfStockCount });
       } else {
         const result = await storage.getMedicines();
         res.json(result);
@@ -2835,7 +2887,7 @@ export async function registerRoutes(
           dateFrom: (req.query.dateFrom as string) || undefined,
           dateTo: (req.query.dateTo as string) || undefined,
         });
-        res.json(result);
+        res.json({ items: result.items || [], total: result.total, totalAmount: result.totalAmount, approvedAmount: result.approvedAmount, pendingAmount: result.pendingAmount });
       } else {
         const result = await storage.getExpenses();
         res.json(result);
@@ -2900,7 +2952,7 @@ export async function registerRoutes(
           dateFrom: (req.query.dateFrom as string) || undefined,
           dateTo: (req.query.dateTo as string) || undefined,
         });
-        res.json(result);
+        res.json({ items: result.items || [], total: result.total, totalDeposits: result.totalDeposits, totalWithdrawals: result.totalWithdrawals });
       } else {
         const result = await storage.getBankTransactions();
         res.json(result);
@@ -3626,8 +3678,10 @@ export async function registerRoutes(
           categoryFilter: (req.query.categoryFilter as string) || undefined,
           dateFrom: (req.query.dateFrom as string) || undefined,
           dateTo: (req.query.dateTo as string) || undefined,
+          billId: req.query.billId != null ? Number(req.query.billId) : undefined,
+          patientId: req.query.patientId != null ? Number(req.query.patientId) : undefined,
         });
-        res.json(result);
+        res.json({ items: result.items || [], total: result.total, processingCount: result.processingCount, completeCount: result.completeCount, withReportsCount: result.withReportsCount });
       } else {
         const result = await storage.getLabTests();
         res.json(result);
@@ -3651,8 +3705,10 @@ export async function registerRoutes(
           categoryFilter: (req.query.categoryFilter as string) || undefined,
           dateFrom: (req.query.dateFrom as string) || undefined,
           dateTo: (req.query.dateTo as string) || undefined,
+          billId: req.query.billId != null ? Number(req.query.billId) : undefined,
+          patientId: req.query.patientId != null ? Number(req.query.patientId) : undefined,
         });
-        res.json(result);
+        res.json({ items: result.items || [], total: result.total, processingCount: result.processingCount, completeCount: result.completeCount, withReportsCount: result.withReportsCount });
       } else {
         const result = await storage.getLabTests();
         res.json(result);
@@ -3666,6 +3722,18 @@ export async function registerRoutes(
     try {
       const code = await storage.getNextLabTestCode();
       res.json({ code });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/lab-tests/by-code", async (req, res) => {
+    try {
+      const testCode = (req.query.testCode as string)?.trim();
+      if (!testCode) return res.status(400).json({ message: "Query parameter 'testCode' is required" });
+      const test = await storage.getLabTestByCode(testCode);
+      if (!test) return res.status(404).json({ message: "Lab test not found" });
+      res.json(test);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -3810,8 +3878,10 @@ export async function registerRoutes(
           offset: Number(req.query.offset) || 0,
           search: (req.query.search as string)?.trim() || undefined,
           statusFilter: (req.query.statusFilter as string) || undefined,
+          billId: req.query.billId != null ? Number(req.query.billId) : undefined,
+          labTestId: req.query.labTestId != null ? Number(req.query.labTestId) : undefined,
         });
-        res.json(result);
+        res.json({ items: result.items || [], total: result.total, pendingCount: result.pendingCount, collectedCount: result.collectedCount });
       } else {
         const result = await storage.getSampleCollections();
         res.json(result);

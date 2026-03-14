@@ -24,7 +24,6 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { billNoMatches } from "@/lib/bill-utils";
-import JsBarcode from "jsbarcode";
 import type { Patient, Doctor, ClinicSettings, Service, Injection, Medicine, Package as PackageType } from "@shared/schema";
 
 const dateToYMD = (d: Date) => d.toISOString().split("T")[0];
@@ -90,27 +89,14 @@ export default function PrescriptionsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prescriptionBarcodeRef = useRef<SVGSVGElement | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm]);
   useEffect(() => { setPage(1); }, [debouncedSearch, fromDate, toDate, doctorFilter]);
 
   const prescriptionBarcodeValue = (viewVisit?.visitId || "").replace(/[^A-Za-z0-9\-]/g, "") || "";
-  useEffect(() => {
-    const el = prescriptionBarcodeRef.current;
-    if (!el) return;
-    el.innerHTML = "";
-    if (prescriptionBarcodeValue) {
-      try {
-        JsBarcode(el, prescriptionBarcodeValue, { format: "CODE128", width: 1.2, height: 28, displayValue: false, margin: 2, lineColor: "#000000", background: "#ffffff" });
-      } catch {
-        el.innerHTML = "";
-      }
-    }
-  }, [viewVisit?.id, prescriptionBarcodeValue]);
 
   const queryParams = useMemo(() => {
     const p = new URLSearchParams();
@@ -538,8 +524,8 @@ export default function PrescriptionsPage() {
                     {prescriptionBarcodeValue && (
                       <div className="text-right shrink-0">
                         <p className="text-teal-600 dark:text-teal-400 font-bold text-[10px] uppercase tracking-wider mb-0.5">Prescription code:</p>
-                        <div className="inline-block rounded bg-white dark:bg-zinc-900 p-2 border border-border">
-                          <svg ref={prescriptionBarcodeRef} className="max-h-10 w-auto block" data-testid="prescription-view-barcode" />
+                        <div style={{ fontFamily: "'Libre Barcode 128', monospace", fontSize: 42, letterSpacing: 2, lineHeight: 1, color: "var(--foreground)" }}>
+                          {prescriptionBarcodeValue}
                         </div>
                         <p className="text-[10px] font-mono mt-0.5 text-muted-foreground">{prescriptionBarcodeValue}</p>
                       </div>

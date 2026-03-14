@@ -24,7 +24,6 @@ import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, Barcode, FlaskConica
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
-import { billNoMatches } from "@/lib/bill-utils";
 import { capitalizeGender } from "@/lib/utils";
 import JsBarcode from "jsbarcode";
 import type { LabTest, Patient, ClinicSettings } from "@shared/schema";
@@ -359,7 +358,7 @@ export default function LabTestsPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm || invoiceFilter || ""), 300);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm || invoiceFilter || ""), 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm, invoiceFilter]);
   useEffect(() => { setPage(1); }, [debouncedSearch, categoryFilter, dateRange?.from, dateRange?.to]);
@@ -387,10 +386,6 @@ export default function LabTestsPage() {
   const processingCount = labTestsData?.processingCount ?? 0;
   const completeCount = labTestsData?.completeCount ?? 0;
   const withReportsCount = labTestsData?.withReportsCount ?? 0;
-
-  const { data: bills = [] } = useQuery<{ id: number; billNo: string }[]>({
-    queryKey: ["/api/bills"],
-  });
 
   const { data: patients = [] } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
@@ -823,25 +818,39 @@ export default function LabTestsPage() {
     const v = value?.trim() ?? "";
     if (!v) return;
     setInvoiceFilter("");
-    // Invoice barcode: BILL-xxx, INV-xxx, IAR-0017, etc.
-    const bill = bills.find(b => billNoMatches(v, b.billNo || ""));
-    if (bill) {
-      const byBill = labTests.filter((t: LabTestWithPatient & { billId?: number | null }) => t.billId === bill.id);
-      setSearchTerm("");
-      setInvoiceFilter(v);
-      if (byBill.length === 1) setViewTest(byBill[0]);
-      else if (byBill.length === 0) toast({ title: t("labTests.noLabTests"), variant: "destructive" });
-      return;
-    }
-    // Patient barcode: PAT-725586 or patientId
-    const pat = patients.find(p => (p.patientId || "").toLowerCase() === v.toLowerCase());
-    if (pat) {
-      const byPatient = labTests.filter(t => t.patientId === pat.id);
-      setSearchTerm(v);
-      setInvoiceFilter("");
-      if (byPatient.length === 1) setViewTest(byPatient[0]);
-      return;
-    }
+    // Invoice barcode: lookup bill by billNo, fetch lab tests for that bill
+    try {
+      const billRes = await fetch(getApiUrl(`/api/bills/by-billno?billNo=${encodeURIComponent(v)}`), { credentials: "include" });
+      if (billRes.ok) {
+        const bill = await billRes.json();
+        const ltRes = await fetch(getApiUrl(`/api/lab-tests?limit=10&offset=0&billId=${bill.id}`), { credentials: "include" });
+        if (ltRes.ok) {
+          const data = await ltRes.json();
+          const byBill = data.items || [];
+          setSearchTerm("");
+          setInvoiceFilter(v);
+          if (byBill.length === 1) setViewTest(byBill[0]);
+          else if (byBill.length === 0) toast({ title: t("labTests.noLabTests"), variant: "destructive" });
+        }
+        return;
+      }
+    } catch { /* fall through */ }
+    // Patient barcode: lookup patient, fetch lab tests for that patient
+    try {
+      const patRes = await fetch(getApiUrl(`/api/patients/by-patient-id?patientId=${encodeURIComponent(v)}`), { credentials: "include" });
+      if (patRes.ok) {
+        const pat = await patRes.json();
+        const ltRes = await fetch(getApiUrl(`/api/lab-tests?limit=10&offset=0&patientId=${pat.id}`), { credentials: "include" });
+        if (ltRes.ok) {
+          const data = await ltRes.json();
+          const byPatient = data.items || [];
+          setSearchTerm(v);
+          setInvoiceFilter("");
+          if (byPatient.length === 1) setViewTest(byPatient[0]);
+        }
+        return;
+      }
+    } catch { /* fall through */ }
     // Sample collection barcode: SC5 or plain 5 (from small sticker)
     let sampleId: number | null = null;
     const scMatch = v.match(/^SC(\d+)$/i);
@@ -867,17 +876,22 @@ export default function LabTestsPage() {
         return;
       }
     }
-    // Lab barcode: LAB-0008 or LAB-TEST|...
+    // Lab barcode: lookup by testCode
     const labMatch = v.match(/^LAB-TEST\|([^|]+)\|/);
     const testCode = labMatch ? labMatch[1] : (v.includes("|") ? "" : v);
     if (testCode) {
-      const found = labTests.find(t => (t.testCode || "").toLowerCase() === testCode.toLowerCase());
-      if (found) {
-        setSearchTerm("");
-        setInvoiceFilter("");
-        setViewTest(found);
-        return;
-      }
+      try {
+        const codeRes = await fetch(getApiUrl(`/api/lab-tests/by-code?testCode=${encodeURIComponent(testCode)}`), { credentials: "include" });
+        if (codeRes.ok) {
+          const found = await codeRes.json();
+          const fullRes = await apiRequest("GET", `/api/lab-tests/${found.id}`);
+          const test = await fullRes.json();
+          setSearchTerm("");
+          setInvoiceFilter("");
+          setViewTest(test);
+          return;
+        }
+      } catch { /* fall through */ }
       toast({ title: t("labTests.test") + " not found: " + testCode, variant: "destructive" });
       return;
     }

@@ -54,8 +54,10 @@ export interface IStorage {
   deleteRole(id: number): Promise<void>;
 
   getPatients(): Promise<Patient[]>;
-  getPatientsPaginated(opts: { limit: number; offset: number; search?: string; patientTypeFilter?: string }): Promise<{ items: Patient[]; total: number; outPatientCount?: number; inPatientCount?: number; emergencyPatientCount?: number }>;
+  getPatientsPaginated(opts: { limit: number; offset: number; search?: string; patientTypeFilter?: string }): Promise<{ items: Patient[]; total: number }>;
+  getPatientsStats(opts: { search?: string; patientTypeFilter?: string }): Promise<{ total: number; outPatientCount: number; inPatientCount: number; emergencyPatientCount: number }>;
   getPatient(id: number): Promise<Patient | undefined>;
+  getPatientByPatientId(patientId: string): Promise<Patient | undefined>;
   getLastVisitDatesByPatientIds(patientIds: number[]): Promise<Record<number, string>>;
   createPatient(patient: InsertPatient): Promise<Patient>;
   updatePatient(id: number, patient: Partial<InsertPatient>): Promise<Patient>;
@@ -108,8 +110,10 @@ export interface IStorage {
   bulkDeleteOpdVisits(ids: number[]): Promise<void>;
 
   getBills(): Promise<any[]>;
-  getBillsPaginated(opts: { limit: number; offset: number; search?: string; dateFrom?: string; dateTo?: string }): Promise<{ items: any[]; total: number; totalRevenue?: number; totalPaid?: number; paidCount?: number; pendingCount?: number }>;
+  getBillsPaginated(opts: { limit: number; offset: number; search?: string; dateFrom?: string; dateTo?: string; statusFilter?: string; patientId?: number }): Promise<{ items: any[]; total: number }>;
+  getBillsStats(opts: { search?: string; dateFrom?: string; dateTo?: string; statusFilter?: string }): Promise<{ total: number; totalRevenue: number; totalPaid: number; paidCount: number; pendingCount: number }>;
   getBill(id: number): Promise<Bill | undefined>;
+  getBillByBillNo(billNo: string): Promise<any | undefined>;
   getNextBillNo(prefix: string): Promise<string>;
   createBill(bill: InsertBill): Promise<Bill>;
   updateBill(id: number, data: Partial<InsertBill>): Promise<Bill | undefined>;
@@ -165,6 +169,7 @@ export interface IStorage {
   getLabTests(): Promise<any[]>;
   getLabTestsPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string; categoryFilter?: string; dateFrom?: string; dateTo?: string }): Promise<{ items: any[]; total: number; processingCount?: number; completeCount?: number; withReportsCount?: number }>;
   getLabTest(id: number): Promise<LabTest | undefined>;
+  getLabTestByCode(testCode: string): Promise<any | undefined>;
   getLabTestWithPatient(id: number): Promise<any | undefined>;
   createLabTest(test: InsertLabTest): Promise<LabTest>;
   updateLabTest(id: number, data: Partial<InsertLabTest>): Promise<LabTest | undefined>;
@@ -173,7 +178,7 @@ export interface IStorage {
   getNextLabTestCode(): Promise<string>;
 
   getSampleCollections(): Promise<any[]>;
-  getSampleCollectionsPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string }): Promise<{ items: any[]; total: number; pendingCount?: number; collectedCount?: number }>;
+  getSampleCollectionsPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string; billId?: number; labTestId?: number }): Promise<{ items: any[]; total: number; pendingCount?: number; collectedCount?: number }>;
   getSampleCollection(id: number): Promise<SampleCollection | undefined>;
   createSampleCollection(s: InsertSampleCollection): Promise<SampleCollection>;
   updateSampleCollection(id: number, data: Partial<InsertSampleCollection>): Promise<SampleCollection | undefined>;
@@ -353,6 +358,23 @@ export class DatabaseStorage implements IStorage {
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
     const totalRes = await db.select({ count: count() }).from(patients).where(whereClause ?? sql`true`);
     const total = Number(totalRes[0]?.count ?? 0);
+    const items = await db.select().from(patients).where(whereClause ?? sql`true`).orderBy(desc(patients.createdAt)).limit(limit).offset(offset);
+    return { items, total };
+  }
+
+  async getPatientsStats(opts: { search?: string; patientTypeFilter?: string }): Promise<{ total: number; outPatientCount: number; inPatientCount: number; emergencyPatientCount: number }> {
+    const { search, patientTypeFilter } = opts;
+    const conditions: any[] = search?.trim() ? [or(ilike(patients.name, "%" + search.trim() + "%"), ilike(patients.patientId, "%" + search.trim() + "%"), ilike(patients.firstName, "%" + search.trim() + "%"), ilike(patients.lastName, "%" + search.trim() + "%"), ilike(patients.phone, "%" + search.trim() + "%"), ilike(patients.city, "%" + search.trim() + "%"))!] : [];
+    if (patientTypeFilter && patientTypeFilter !== "all") {
+      if (patientTypeFilter === "Out Patient") {
+        conditions.push(or(eq(patients.patientType, "Out Patient"), isNull(patients.patientType))!);
+      } else {
+        conditions.push(eq(patients.patientType, patientTypeFilter));
+      }
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const totalRes = await db.select({ count: count() }).from(patients).where(whereClause ?? sql`true`);
+    const total = Number(totalRes[0]?.count ?? 0);
     const statsRes = await db.select({
       outPatientCount: sql<number>`count(*) filter (where ${patients.patientType} = 'Out Patient' or ${patients.patientType} is null)`,
       inPatientCount: sql<number>`count(*) filter (where ${patients.patientType} = 'In Patient')`,
@@ -362,13 +384,18 @@ export class DatabaseStorage implements IStorage {
     const outPatientCount = Number(sr?.outPatientCount ?? 0);
     const inPatientCount = Number(sr?.inPatientCount ?? 0);
     const emergencyPatientCount = Number(sr?.emergencyPatientCount ?? 0);
-    let q = db.select().from(patients).where(whereClause ?? sql`true`).orderBy(desc(patients.createdAt)).limit(limit).offset(offset);
-    const items = await q;
-    return { items, total, outPatientCount, inPatientCount, emergencyPatientCount };
+    return { total, outPatientCount, inPatientCount, emergencyPatientCount };
   }
 
   async getPatient(id: number): Promise<Patient | undefined> {
     const [patient] = await db.select().from(patients).where(eq(patients.id, id));
+    return patient;
+  }
+
+  async getPatientByPatientId(patientId: string): Promise<Patient | undefined> {
+    const v = (patientId || "").trim();
+    if (!v) return undefined;
+    const [patient] = await db.select().from(patients).where(sql`LOWER(${patients.patientId}) = LOWER(${v})`);
     return patient;
   }
 
@@ -708,8 +735,8 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getBillsPaginated(opts: { limit: number; offset: number; search?: string; dateFrom?: string; dateTo?: string }): Promise<{ items: any[]; total: number }> {
-    const { limit, offset, search, dateFrom, dateTo } = opts;
+  async getBillsPaginated(opts: { limit: number; offset: number; search?: string; dateFrom?: string; dateTo?: string; statusFilter?: string; patientId?: number }): Promise<{ items: any[]; total: number }> {
+    const { limit, offset, search, dateFrom, dateTo, statusFilter, patientId } = opts;
     const conditions: ReturnType<typeof sql>[] = [];
     if (search?.trim()) {
       const s = "%" + search.trim() + "%";
@@ -717,6 +744,8 @@ export class DatabaseStorage implements IStorage {
     }
     if (dateFrom) conditions.push(sql`(COALESCE(${bills.paymentDate}, ${bills.createdAt}::date)) >= ${dateFrom}::date`);
     if (dateTo) conditions.push(sql`(COALESCE(${bills.paymentDate}, ${bills.createdAt}::date)) <= ${dateTo}::date`);
+    if (statusFilter?.trim() && statusFilter !== "all") conditions.push(eq(bills.status, statusFilter.trim()));
+    if (patientId != null) conditions.push(eq(bills.patientId, patientId));
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
     const baseQ = db.select({
       id: bills.id,
@@ -741,6 +770,22 @@ export class DatabaseStorage implements IStorage {
     const total = Number(countRes[0]?.count ?? 0);
     const itemsQ = baseQ.where(whereClause ?? sql`true`).orderBy(desc(bills.createdAt)).limit(limit).offset(offset);
     const items = await itemsQ;
+    return { items, total };
+  }
+
+  async getBillsStats(opts: { search?: string; dateFrom?: string; dateTo?: string; statusFilter?: string }): Promise<{ total: number; totalRevenue: number; totalPaid: number; paidCount: number; pendingCount: number }> {
+    const { search, dateFrom, dateTo, statusFilter } = opts;
+    const conditions: ReturnType<typeof sql>[] = [];
+    if (search?.trim()) {
+      const s = "%" + search.trim() + "%";
+      conditions.push(or(ilike(bills.billNo, s), ilike(patients.name, s))!);
+    }
+    if (dateFrom) conditions.push(sql`(COALESCE(${bills.paymentDate}, ${bills.createdAt}::date)) >= ${dateFrom}::date`);
+    if (dateTo) conditions.push(sql`(COALESCE(${bills.paymentDate}, ${bills.createdAt}::date)) <= ${dateTo}::date`);
+    if (statusFilter?.trim() && statusFilter !== "all") conditions.push(eq(bills.status, statusFilter.trim()));
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const countRes = await db.select({ count: count() }).from(bills).leftJoin(patients, eq(bills.patientId, patients.id)).where(whereClause ?? sql`true`);
+    const total = Number(countRes[0]?.count ?? 0);
     const aggRes = await db.select({
       totalRevenue: sum(bills.total),
       totalPaid: sum(bills.paidAmount),
@@ -753,12 +798,42 @@ export class DatabaseStorage implements IStorage {
     }).from(bills).leftJoin(patients, eq(bills.patientId, patients.id)).where(whereClause ?? sql`true`).groupBy(bills.status);
     const paidCount = statusCounts.filter((r: any) => r.status === "paid").reduce((s, r: any) => s + Number(r.cnt ?? 0), 0);
     const pendingCount = total - paidCount;
-    return { items, total, totalRevenue, totalPaid, paidCount, pendingCount };
+    return { total, totalRevenue, totalPaid, paidCount, pendingCount };
   }
 
   async getBill(id: number): Promise<Bill | undefined> {
     const [bill] = await db.select().from(bills).where(eq(bills.id, id));
     return bill;
+  }
+
+  /** Find bill by billNo with flexible matching (INV-001 = INV001). */
+  async getBillByBillNo(billNo: string): Promise<any | undefined> {
+    const v = (billNo || "").trim();
+    if (!v) return undefined;
+    const normalized = v.replace(/[\s\-_]/g, "").toLowerCase();
+    if (!normalized) return undefined;
+    const [match] = await db.select({
+      id: bills.id,
+      billNo: bills.billNo,
+      patientId: bills.patientId,
+      visitId: bills.visitId,
+      items: bills.items,
+      subtotal: bills.subtotal,
+      discount: bills.discount,
+      tax: bills.tax,
+      total: bills.total,
+      paidAmount: bills.paidAmount,
+      paymentMethod: bills.paymentMethod,
+      referenceDoctor: bills.referenceDoctor,
+      paymentDate: bills.paymentDate,
+      discountType: bills.discountType,
+      status: bills.status,
+      createdAt: bills.createdAt,
+      patientName: patients.name,
+    }).from(bills).leftJoin(patients, eq(bills.patientId, patients.id))
+      .where(sql`LOWER(REGEXP_REPLACE(${bills.billNo}, '[^a-zA-Z0-9]', '', 'g')) = ${normalized}`)
+      .limit(1);
+    return match;
   }
 
   async getNextBillNo(prefix: string): Promise<string> {
@@ -1344,8 +1419,8 @@ export class DatabaseStorage implements IStorage {
     return age >= 0 ? age : null;
   }
 
-  async getLabTestsPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string; categoryFilter?: string; dateFrom?: string; dateTo?: string }): Promise<{ items: any[]; total: number }> {
-    const { limit, offset, search, statusFilter, categoryFilter, dateFrom, dateTo } = opts;
+  async getLabTestsPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string; categoryFilter?: string; dateFrom?: string; dateTo?: string; billId?: number; patientId?: number }): Promise<{ items: any[]; total: number }> {
+    const { limit, offset, search, statusFilter, categoryFilter, dateFrom, dateTo, billId, patientId } = opts;
     const conds: ReturnType<typeof sql>[] = [];
     if (search?.trim()) {
       const s = "%" + search.trim() + "%";
@@ -1355,6 +1430,8 @@ export class DatabaseStorage implements IStorage {
     if (categoryFilter?.trim() && categoryFilter !== "all") conds.push(ilike(labTests.category, "%" + categoryFilter.trim() + "%"));
     if (dateFrom) conds.push(gte(labTests.createdAt, new Date(dateFrom + "T00:00:00")));
     if (dateTo) conds.push(lte(labTests.createdAt, new Date(dateTo + "T23:59:59.999")));
+    if (billId != null) conds.push(eq(labTests.billId, billId));
+    if (patientId != null) conds.push(eq(labTests.patientId, patientId));
     const whereClause = conds.length > 0 ? and(...conds) : undefined;
     const baseQ = db.select({
       id: labTests.id,
@@ -1492,6 +1569,23 @@ export class DatabaseStorage implements IStorage {
     return test;
   }
 
+  async getLabTestByCode(testCode: string): Promise<any | undefined> {
+    const v = (testCode || "").trim();
+    if (!v) return undefined;
+    const [row] = await db.select({
+      id: labTests.id,
+      testCode: labTests.testCode,
+      testName: labTests.testName,
+      category: labTests.category,
+      patientId: labTests.patientId,
+      billId: labTests.billId,
+      status: labTests.status,
+      patientName: patients.name,
+    }).from(labTests).leftJoin(patients, eq(labTests.patientId, patients.id))
+      .where(sql`LOWER(${labTests.testCode}) = LOWER(${v})`).limit(1);
+    return row;
+  }
+
   async getLabTestWithPatient(id: number): Promise<any | undefined> {
     const [row] = await db.select({
       id: labTests.id,
@@ -1593,14 +1687,16 @@ export class DatabaseStorage implements IStorage {
     }).from(sampleCollections).leftJoin(patients, eq(sampleCollections.patientId, patients.id)).orderBy(desc(sampleCollections.createdAt));
   }
 
-  async getSampleCollectionsPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string }): Promise<{ items: any[]; total: number }> {
-    const { limit, offset, search, statusFilter } = opts;
+  async getSampleCollectionsPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string; billId?: number; labTestId?: number }): Promise<{ items: any[]; total: number }> {
+    const { limit, offset, search, statusFilter, billId, labTestId } = opts;
     const conds: ReturnType<typeof sql>[] = [];
     if (search?.trim()) {
       const s = "%" + search.trim() + "%";
       conds.push(or(ilike(sampleCollections.testName, s), ilike(patients.name, s), ilike(patients.patientId, s))!);
     }
     if (statusFilter?.trim() && statusFilter !== "all") conds.push(eq(sampleCollections.status, statusFilter.trim()));
+    if (billId != null) conds.push(eq(sampleCollections.billId, billId));
+    if (labTestId != null) conds.push(eq(sampleCollections.labTestId, labTestId));
     const whereClause = conds.length > 0 ? and(...conds) : undefined;
     const baseQ = db.select({
       id: sampleCollections.id,

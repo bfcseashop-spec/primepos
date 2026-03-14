@@ -104,13 +104,13 @@ export default function OpdPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm]);
   useEffect(() => { setPage(1); }, [debouncedSearch, typeFilter]);
 
   const patientsQueryKey = ["/api/patients", "paginated", page, pageSize, debouncedSearch, typeFilter];
-  const { data: patientsData, isLoading: patientsLoading } = useQuery<{ items: (Patient & { lastVisitDate?: string | null })[]; total: number; outPatientCount?: number; inPatientCount?: number; emergencyPatientCount?: number }>({
+  const { data: patientsData, isLoading: patientsLoading } = useQuery<{ items: (Patient & { lastVisitDate?: string | null })[]; total: number }>({
     queryKey: patientsQueryKey,
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -125,11 +125,22 @@ export default function OpdPage() {
       return normalizePaginatedResponse<Patient & { lastVisitDate?: string | null }>(raw) as typeof raw;
     },
   });
+  const { data: patientsStats } = useQuery<{ total: number; outPatientCount: number; inPatientCount: number; emergencyPatientCount: number }>({
+    queryKey: ["/api/patients/stats", debouncedSearch, typeFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (typeFilter !== "all") params.set("patientTypeFilter", typeFilter);
+      const res = await fetch(getApiUrl(`/api/patients/stats?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+  });
   const patients = patientsData?.items ?? [];
-  const patientsTotal = patientsData?.total ?? 0;
-  const outPatientCount = patientsData?.outPatientCount ?? 0;
-  const inPatientCount = patientsData?.inPatientCount ?? 0;
-  const emergencyPatientCount = patientsData?.emergencyPatientCount ?? 0;
+  const patientsTotal = patientsStats?.total ?? patientsData?.total ?? 0;
+  const outPatientCount = patientsStats?.outPatientCount ?? 0;
+  const inPatientCount = patientsStats?.inPatientCount ?? 0;
+  const emergencyPatientCount = patientsStats?.emergencyPatientCount ?? 0;
 
   const { data: visits = [] } = useQuery<any[]>({
     queryKey: ["/api/opd-visits"],
@@ -148,6 +159,7 @@ export default function OpdPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients/stats"] });
       setDeletePatient(null);
       toast({ title: "Patient deleted successfully" });
     },
@@ -163,6 +175,7 @@ export default function OpdPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients/stats"] });
       setEditPatient(null);
       toast({ title: "Patient updated successfully" });
     },
@@ -230,6 +243,7 @@ export default function OpdPage() {
     onSuccess: (visit: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
       queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients/stats"] });
       const patient = consultationPatient;
       setConsultationPatient(null);
       setConsultDoctor("");
@@ -326,6 +340,7 @@ export default function OpdPage() {
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients/stats"] });
     queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
     toast({ title: "Data refreshed" });
   };

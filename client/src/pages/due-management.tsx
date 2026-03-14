@@ -102,7 +102,7 @@ export default function DueManagementPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 300);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [search]);
   useEffect(() => { setSummariesPage(1); }, [debouncedSearch, statusFilter, dateFrom, dateTo]);
