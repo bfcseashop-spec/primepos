@@ -129,6 +129,20 @@ app.use((req, res, next) => {
     console.error("Failed to seed database:", err.message);
   }
 
+  // Ensure due management tables exist (due_payments, due_payment_allocations)
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const migrationPath = path.join(process.cwd(), "migrations", "0001_due_management.sql");
+    if (fs.existsSync(migrationPath)) {
+      const sql = fs.readFileSync(migrationPath, "utf-8");
+      await pool.query(sql);
+      log("Due management tables ready.");
+    }
+  } catch (err: any) {
+    console.error("Due migration failed:", err.message);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

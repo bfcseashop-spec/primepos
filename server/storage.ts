@@ -680,7 +680,7 @@ export class DatabaseStorage implements IStorage {
           }).where(eq(bills.id, alloc.billId));
         }
       }
-      const unapplied = Number(payment.amount) - totalAllocated;
+      const unapplied = Number((payment as InsertDuePayment).amount) - totalAllocated;
       if (unapplied !== 0) {
         await tx.update(duePayments).set({ unappliedAmount: String(unapplied.toFixed(2)) }).where(eq(duePayments.id, created.id));
       }
@@ -697,8 +697,25 @@ export class DatabaseStorage implements IStorage {
   async deleteDuePayment(id: number): Promise<boolean> {
     const existing = await db.select().from(duePayments).where(eq(duePayments.id, id)).limit(1);
     if (existing.length === 0) return false;
-    await db.delete(duePaymentAllocations).where(eq(duePaymentAllocations.paymentId, id));
-    await db.delete(duePayments).where(eq(duePayments.id, id));
+    const allocs = await db.select().from(duePaymentAllocations).where(eq(duePaymentAllocations.paymentId, id));
+    await db.transaction(async (tx) => {
+      for (const a of allocs) {
+        const [bill] = await tx.select().from(bills).where(eq(bills.id, a.billId));
+        if (bill) {
+          const currentPaid = Number(bill.paidAmount ?? 0);
+          const allocAmt = Number(a.amount ?? 0);
+          const newPaid = Math.max(0, currentPaid - allocAmt);
+          const totalBill = Number(bill.total ?? 0);
+          const newStatus = newPaid >= totalBill ? "paid" : newPaid > 0 ? "partial" : "unpaid";
+          await tx.update(bills).set({
+            paidAmount: String(newPaid.toFixed(2)),
+            status: newStatus,
+          }).where(eq(bills.id, a.billId));
+        }
+      }
+      await tx.delete(duePaymentAllocations).where(eq(duePaymentAllocations.paymentId, id));
+      await tx.delete(duePayments).where(eq(duePayments.id, id));
+    });
     return true;
   }
 
@@ -726,7 +743,7 @@ export class DatabaseStorage implements IStorage {
       const isDue = (b.paymentMethod === "due" || b.status === "unpaid" || b.status === "partial") && paid < total;
       return isDue;
     });
-    const patientIds = [...new Set(dueBills.map((b) => b.patientId))];
+    const patientIds = Array.from(new Set(dueBills.map((b) => b.patientId)));
     const allPatients = await db.select().from(patients);
     const patientMap = new Map(allPatients.map((p) => [p.id, p]));
     const summaries: Array<{ patient: Patient; totalDue: number; totalPaid: number; balance: number; credit: number; billsCount: number }> = [];

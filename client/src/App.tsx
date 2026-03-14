@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { cleanupDialogScrollLock } from "@/components/ui/dialog";
-import { queryClient, apiRequest, safeJsonRes, API_NOT_REACHABLE_MSG } from "./lib/queryClient";
+import { queryClient, apiRequest, safeJsonRes, API_NOT_REACHABLE_MSG, getApiUrl } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -100,7 +100,7 @@ function App() {
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    const checkAuth = () => fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+    const checkAuth = () => fetch(getApiUrl("/api/auth/me"), { credentials: "include", cache: "no-store" });
     checkAuth()
       .then(async (res) => {
         if (!res.ok) throw new Error("Not authenticated");
@@ -129,10 +129,10 @@ function App() {
           setCurrentUser(restored);
           setAuthChecked(true);
           try {
-            const recheck = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+            const recheck = await fetch(getApiUrl("/api/auth/me"), { credentials: "include", cache: "no-store" });
             if (!recheck.ok) {
               await new Promise(r => setTimeout(r, 1500));
-              const retry = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+              const retry = await fetch(getApiUrl("/api/auth/me"), { credentials: "include", cache: "no-store" });
               if (!retry.ok) {
                 setCurrentUser(null);
                 localStorage.removeItem("clinicpos_user");

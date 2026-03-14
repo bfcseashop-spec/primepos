@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { NotificationPayload } from "@shared/notifications";
 import type { AuthUser } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/queryClient";
 
 export type ClientNotification = NotificationPayload & { read: boolean };
 
@@ -19,7 +20,7 @@ export function NotificationProvider({ user, children }: { user: AuthUser; child
 
   const loadNotifications = () => {
     if (!user) return;
-    fetch("/api/notifications?limit=50", { credentials: "include" })
+    fetch(getApiUrl("/api/notifications?limit=50"), { credentials: "include" })
       .then(async (res) => {
         if (!res.ok) return [];
         return await res.json();
@@ -116,7 +117,7 @@ export function NotificationProvider({ user, children }: { user: AuthUser; child
 
   const markAllRead = () => {
     if (!user) return;
-    fetch("/api/notifications/mark-read", {
+    fetch(getApiUrl("/api/notifications/mark-read"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",

@@ -44,7 +44,8 @@ export async function safeJsonRes(res: Response): Promise<unknown> {
 
 /** Fetch a URL (e.g. sample-template or export) and trigger file download. Avoids navigating to API URL (which can show SPA 404). */
 export async function downloadFile(url: string, filename: string): Promise<void> {
-  const res = await fetch(url, { credentials: "include" });
+  const fullUrl = url.startsWith("/api") ? getApiUrl(url) : url;
+  const res = await fetch(fullUrl, { credentials: "include" });
   if (!res.ok) throw new Error(`${res.status}: ${await res.text() || res.statusText}`);
   const blob = await res.blob();
   const disposition = res.headers.get("Content-Disposition");
@@ -62,7 +63,8 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const fullUrl = url.startsWith("/api") ? getApiUrl(url) : url;
+  const res = await fetch(fullUrl, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -73,13 +75,22 @@ export async function apiRequest(
   return res;
 }
 
+/** Build absolute API URL to avoid 404s when app is served from subpath or behind proxy. */
+export function getApiUrl(path: string): string {
+  if (typeof window === "undefined") return path;
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${window.location.origin}${p}`;
+}
+
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const path = queryKey.join("/") as string;
+    const url = path.startsWith("/api") ? getApiUrl(path) : path;
+    const res = await fetch(url, {
       credentials: "include",
     });
 

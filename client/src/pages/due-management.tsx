@@ -8,12 +8,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { billNoMatches } from "@/lib/bill-utils";
-import { Clock, DollarSign, User, Plus, Receipt, X, RefreshCw } from "lucide-react";
+import * as XLSX from "xlsx";
+import { format } from "date-fns";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Clock, DollarSign, User, Plus, Receipt, X, RefreshCw, Download, FileSpreadsheet, FileText, Upload, Edit2, Trash2 } from "lucide-react";
 import type { Patient } from "@shared/schema";
+
+interface DuePayment {
+  id: number;
+  patientId: number;
+  paymentDate: string;
+  amount: string;
+  paymentMethod: string;
+  note?: string | null;
+  createdAt?: string;
+}
 
 async function parseApiError(res: Response): Promise<string> {
   const text = await res.text();
@@ -54,6 +73,17 @@ export default function DueManagementPage() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [paymentNote, setPaymentNote] = useState("");
   const [allocations, setAllocations] = useState<Record<number, string>>({});
+  const [exporting, setExporting] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<"patients" | "payments">("patients");
+  const [editPayment, setEditPayment] = useState<DuePayment | null>(null);
+  const [editPaymentMethod, setEditPaymentMethod] = useState("cash");
+  const [editPaymentDate, setEditPaymentDate] = useState("");
+  const [deletePaymentId, setDeletePaymentId] = useState<number | null>(null);
+  const [paymentsPage, setPaymentsPage] = useState(1);
+  const paymentsPageSize = 10;
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,7 +99,7 @@ export default function DueManagementPage() {
       const params = new URLSearchParams();
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
-      const res = await fetch(`/api/dues?${params}`, { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/dues?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await parseApiError(res));
       return res.json();
     },
@@ -81,7 +111,7 @@ export default function DueManagementPage() {
       const params = new URLSearchParams();
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
-      const res = await fetch(`/api/dues/stats?${params}`, { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/dues/stats?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await parseApiError(res));
       return res.json();
     },
@@ -99,9 +129,37 @@ export default function DueManagementPage() {
     queryKey: ["/api/bills"],
   });
 
-  const { data: labTests = [] } = useQuery<any[]>({ queryKey: ["/api/lab-tests"], retry: false });
+  const { data: patientsList = [] } = useQuery<Patient[]>({
+    queryKey: ["/api/patients"],
+    enabled: activeTab === "payments",
+  });
+
+  const { data: paymentsData, refetch: refetchPayments } = useQuery<{ payments: DuePayment[]; total: number }>({
+    queryKey: ["/api/due/payments", paymentsPage, paymentsPageSize],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: String(paymentsPageSize), offset: String((paymentsPage - 1) * paymentsPageSize) });
+      const res = await fetch(getApiUrl(`/api/due/payments?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await parseApiError(res));
+      return res.json();
+    },
+    enabled: activeTab === "payments",
+  });
+
+  const { data: patientPaymentsData, refetch: refetchPatientPayments } = useQuery<{ payments: DuePayment[] }>({
+    queryKey: ["/api/due/payments", selectedPatient?.patient.id],
+    queryFn: async () => {
+      if (!selectedPatient) return { payments: [] };
+      const res = await fetch(getApiUrl(`/api/due/payments?patientId=${selectedPatient.patient.id}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await parseApiError(res));
+      return res.json();
+    },
+    enabled: !!selectedPatient && paymentDialogOpen,
+  });
 
   const summaries = summaryData?.summaries ?? [];
+  const allPayments = paymentsData?.payments ?? [];
+  const paymentsTotal = paymentsData?.total ?? 0;
+  const patientPayments = patientPaymentsData?.payments ?? [];
   const totalBalance = stats?.totalBalance ?? 0;
   const totalPatients = stats?.totalPatients ?? 0;
 
@@ -135,16 +193,20 @@ export default function DueManagementPage() {
         const res = await apiRequest("GET", `/api/sample-collections/${sampleOrLabId}`);
         const sample = await res.json() as { patientId: number };
         const ps = s.find((x) => x.patient.id === sample.patientId);
-        if (ps) {
-          setSearch(ps.patient.patientId ?? ps.patient.name ?? "");
-        } else setSearch(v);
+        if (ps) setSearch(ps.patient.patientId ?? ps.patient.name ?? "");
+        else setSearch(v);
       } catch {
-        const lt = labTests.find((t: any) => t.id === sampleOrLabId);
-        if (lt?.patientId) {
-          const ps = s.find((x) => x.patient.id === lt.patientId);
-          if (ps) setSearch(ps.patient.patientId ?? ps.patient.name ?? "");
-          else setSearch(v);
-        } else setSearch(v);
+        try {
+          const labRes = await apiRequest("GET", `/api/lab-tests/${sampleOrLabId}`);
+          const lt = await labRes.json() as { patientId?: number };
+          if (lt?.patientId) {
+            const ps = s.find((x) => x.patient.id === lt.patientId);
+            if (ps) setSearch(ps.patient.patientId ?? ps.patient.name ?? "");
+            else setSearch(v);
+          } else setSearch(v);
+        } catch {
+          setSearch(v);
+        }
       }
       return;
     }
@@ -152,16 +214,21 @@ export default function DueManagementPage() {
     const labMatch = v.match(/^LAB-TEST\|([^|]+)\|/);
     const testCode = labMatch ? labMatch[1] : (v.includes("|") ? "" : v);
     if (testCode) {
-      const lt = labTests.find((t: any) => (t.testCode || "").toLowerCase() === testCode.toLowerCase());
-      if (lt?.patientId) {
-        const ps = s.find((x) => x.patient.id === lt.patientId);
-        if (ps) setSearch(ps.patient.patientId ?? ps.patient.name ?? "");
-        else setSearch(v);
-      } else setSearch(v);
+      try {
+        const labList = await queryClient.fetchQuery<any[]>({ queryKey: ["/api/lab-tests"], retry: false });
+        const lt = labList?.find((t: any) => (t.testCode || "").toLowerCase() === testCode.toLowerCase());
+        if (lt?.patientId) {
+          const ps = s.find((x) => x.patient.id === lt.patientId);
+          if (ps) setSearch(ps.patient.patientId ?? ps.patient.name ?? "");
+          else setSearch(v);
+        } else setSearch(v);
+      } catch {
+        setSearch(v);
+      }
       return;
     }
     setSearch(v);
-  }, [summaryData?.summaries, bills, labTests]);
+  }, [summaryData?.summaries, bills, queryClient]);
 
   useGlobalBarcodeScanner(handleBarcodeSearch);
 
@@ -191,9 +258,179 @@ export default function DueManagementPage() {
     },
   });
 
+  const updatePaymentMutation = useMutation({
+    mutationFn: async (data: { id: number; paymentMethod: string; paymentDate: string }) => {
+      const res = await apiRequest("PATCH", `/api/due/payments/${data.id}`, {
+        paymentMethod: data.paymentMethod,
+        paymentDate: data.paymentDate,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/due/payments"] });
+      setEditPayment(null);
+      refetchPatientPayments?.();
+      refetchPayments?.();
+      toast({ title: "Payment updated" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deletePaymentMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/due/payments/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/due/payments"] });
+      setDeletePaymentId(null);
+      refetchPatientPayments?.();
+      refetchPayments?.();
+      toast({ title: "Payment deleted" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const patientBills = selectedPatient
     ? bills.filter((b: any) => b.patientId === selectedPatient.patient.id && Number(b.total ?? 0) > Number(b.paidAmount ?? 0))
     : [];
+
+  const buildExportParams = () => {
+    const params = new URLSearchParams();
+    if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+    if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
+    return params;
+  };
+
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const params = buildExportParams();
+      const res = await fetch(getApiUrl(`/api/due/export?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await parseApiError(res));
+      const data = await res.json();
+      const rows = (data.summaries ?? []).map((r: any) => ({
+        "Patient ID": r.patientId,
+        "Patient Name": r.patientName,
+        "Phone": r.phone,
+        "Total Due": r.totalDue,
+        "Total Paid": r.totalPaid,
+        "Balance": r.balance,
+        "Bills Count": r.billsCount,
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Due Summary");
+      XLSX.writeFile(wb, `due-management-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+      toast({ title: "Export complete" });
+    } catch (e: any) {
+      toast({ title: "Export failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      const params = buildExportParams();
+      const res = await fetch(getApiUrl(`/api/due/export?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await parseApiError(res));
+      const data = await res.json();
+      const rows = (data.summaries ?? []).map((r: any) => ({
+        "Patient ID": r.patientId,
+        "Patient Name": r.patientName,
+        "Phone": r.phone,
+        "Total Due": r.totalDue,
+        "Total Paid": r.totalPaid,
+        "Balance": r.balance,
+        "Bills Count": r.billsCount,
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const csv = XLSX.utils.sheet_to_csv(ws);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `due-management-${format(new Date(), "yyyy-MM-dd")}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast({ title: "Export complete" });
+    } catch (e: any) {
+      toast({ title: "Export failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) return;
+    setImporting(true);
+    try {
+      const buf = await importFile.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet) as any[];
+      let success = 0;
+      let errors = 0;
+      for (const row of rows) {
+        const patientId = String(row["Patient ID"] ?? row["patientId"] ?? "").trim();
+        const amount = parseFloat(row["Amount"] ?? row["amount"] ?? "0");
+        const dateStr = row["Date"] ?? row["date"] ?? row["Payment Date"] ?? "";
+        if (!patientId || isNaN(amount) || amount <= 0) {
+          errors++;
+          continue;
+        }
+        const patient = summaries.find((s) => (s.patient.patientId ?? "").toLowerCase() === patientId.toLowerCase());
+        if (!patient) {
+          errors++;
+          continue;
+        }
+        const patientBillsList = bills.filter((b: any) => b.patientId === patient.patient.id && Number(b.total ?? 0) > Number(b.paidAmount ?? 0));
+        if (patientBillsList.length === 0) {
+          errors++;
+          continue;
+        }
+        let remaining = amount;
+        const allocs: { billId: number; amount: number }[] = [];
+        for (const b of patientBillsList.sort((a: any, b: any) => (a.createdAt || "").localeCompare(b.createdAt || ""))) {
+          if (remaining <= 0) break;
+          const total = Number(b.total ?? 0);
+          const paid = Number(b.paidAmount ?? 0);
+          const due = total - paid;
+          const allocAmt = Math.min(remaining, due);
+          if (allocAmt > 0) {
+            allocs.push({ billId: b.id, amount: allocAmt });
+            remaining -= allocAmt;
+          }
+        }
+        if (allocs.length === 0) continue;
+        const paymentDate = dateStr ? new Date(dateStr) : new Date();
+        await apiRequest("POST", "/api/due/payments", {
+          patientId: patient.patient.id,
+          amount: allocs.reduce((s, a) => s + a.amount, 0),
+          paymentMethod: String(row["Payment Method"] ?? row["paymentMethod"] ?? "cash").trim() || "cash",
+          paymentDate: paymentDate.toISOString(),
+          allocations: allocs,
+        });
+        success++;
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      setShowImportDialog(false);
+      setImportFile(null);
+      toast({ title: "Import complete", description: `Imported ${success} payment(s). ${errors > 0 ? `${errors} row(s) skipped.` : ""}` });
+    } catch (e: any) {
+      toast({ title: "Import failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const openRecordPayment = (row: PatientDueSummary) => {
     setSelectedPatient(row);
@@ -289,38 +526,71 @@ export default function DueManagementPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              Patients with outstanding balance
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              {(summaryError || statsError) && (
-                <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => { refetchSummary(); refetchStats(); }}>
-                  <RefreshCw className="h-3.5 w-3.5" /> Retry
-                </Button>
-              )}
-              <SearchInputWithBarcode
-                placeholder="Search / Scan barcode (patient ID, invoice, lab, sample)..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onSearch={handleBarcodeSearch}
-                className="h-8 text-sm w-64"
-                wrapperClassName="w-64"
-              />
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40 h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="with_balance">With balance</SelectItem>
-                  <SelectItem value="with_credit">With credit</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "patients" | "payments")} className="w-full">
+              <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
+                <TabsList className="h-9">
+                  <TabsTrigger value="patients" className="gap-1.5">
+                    <User className="h-3.5 w-3.5" /> Patients
+                  </TabsTrigger>
+                  <TabsTrigger value="payments" className="gap-1.5">
+                    <Receipt className="h-3.5 w-3.5" /> Payments
+                  </TabsTrigger>
+                </TabsList>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2 sr-only">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  {activeTab === "patients" ? "Patients with outstanding balance" : "Payment history"}
+                </CardTitle>
+                <div className="flex flex-wrap items-center gap-2">
+                  {(summaryError || statsError) && (
+                    <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => { refetchSummary(); refetchStats(); }}>
+                      <RefreshCw className="h-3.5 w-3.5" /> Retry
+                    </Button>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 gap-1" disabled={exporting}>
+                        <Download className="h-3.5 w-3.5" />
+                        {exporting ? "Exporting…" : "Export"}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleExportExcel}>
+                        <FileSpreadsheet className="h-3.5 w-3.5 mr-2" /> Export to Excel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportCSV}>
+                        <FileText className="h-3.5 w-3.5 mr-2" /> Export to CSV
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setShowImportDialog(true)}>
+                    <Upload className="h-3.5 w-3.5" /> Import
+                  </Button>
+                  <SearchInputWithBarcode
+                    placeholder="Search / Scan barcode (patient ID, invoice, lab, sample)..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onSearch={handleBarcodeSearch}
+                    className="h-8 text-sm w-64"
+                    wrapperClassName="w-64"
+                  />
+                  {activeTab === "patients" && (
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-40 h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="with_balance">With balance</SelectItem>
+                        <SelectItem value="with_credit">With credit</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </div>
+            </Tabs>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {activeTab === "patients" ? (isLoading ? (
               <div className="text-sm text-muted-foreground py-8 text-center">Loading...</div>
             ) : summaries.length === 0 ? (
               <div className="text-sm text-muted-foreground py-8 text-center">No patients with outstanding dues.</div>
@@ -357,10 +627,91 @@ export default function DueManagementPage() {
                   </tbody>
                 </table>
               </div>
-            )}
+            )) : activeTab === "payments" ? (
+              <div className="space-y-4">
+                {allPayments.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-8 text-center">No payments recorded yet.</div>
+                ) : (
+                  <>
+                    <div className="overflow-auto rounded-md border">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/50">
+                            <th className="text-left p-3 font-medium">Date</th>
+                            <th className="text-left p-3 font-medium">Patient ID</th>
+                            <th className="text-right p-3 font-medium">Amount</th>
+                            <th className="text-left p-3 font-medium">Method</th>
+                            <th className="text-right p-3 font-medium">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allPayments.map((p) => {
+                            const patient = (patientsList as Patient[]).find((x) => x.id === p.patientId) ?? summaries.find((s) => s.patient.id === p.patientId)?.patient;
+                            return (
+                              <tr key={p.id} className="border-b hover:bg-muted/30">
+                                <td className="p-3">{format(new Date(p.paymentDate), "MMM d, yyyy")}</td>
+                                <td className="p-3">{patient?.patientId ?? patient?.name ?? `#${p.patientId}`}</td>
+                                <td className="p-3 text-right font-medium">${Number(p.amount).toFixed(2)}</td>
+                                <td className="p-3">{PAYMENT_METHODS.find((pm) => pm.value === p.paymentMethod)?.label ?? p.paymentMethod}</td>
+                                <td className="p-3 text-right">
+                                  <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={() => { setEditPayment(p); setEditPaymentMethod(p.paymentMethod); setEditPaymentDate(format(new Date(p.paymentDate), "yyyy-MM-dd")); }}>
+                                    <Edit2 className="h-3.5 w-3.5" /> Edit
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="h-7 gap-1 text-destructive hover:text-destructive" onClick={() => setDeletePaymentId(p.id)}>
+                                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {paymentsTotal > paymentsPageSize && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">
+                          Showing {(paymentsPage - 1) * paymentsPageSize + 1}–{Math.min(paymentsPage * paymentsPageSize, paymentsTotal)} of {paymentsTotal}
+                        </span>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" disabled={paymentsPage <= 1} onClick={() => setPaymentsPage((p) => p - 1)}>Previous</Button>
+                          <Button variant="outline" size="sm" disabled={paymentsPage * paymentsPageSize >= paymentsTotal} onClick={() => setPaymentsPage((p) => p + 1)}>Next</Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>
+
+      {/* Import dialog */}
+      {showImportDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowImportDialog(false)}>
+          <Card className="w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Import payments</CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => setShowImportDialog(false)}><X className="h-4 w-4" /></Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Upload Excel or CSV with columns: <strong>Patient ID</strong>, <strong>Amount</strong>, <strong>Date</strong> (optional), <strong>Payment Method</strong> (optional). Payments will be auto-allocated to bills.
+              </p>
+              <Input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+              />
+              {importFile && <p className="text-xs text-muted-foreground">Selected: {importFile.name}</p>}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => { setShowImportDialog(false); setImportFile(null); }}>Cancel</Button>
+                <Button onClick={handleImport} disabled={!importFile || importing}>{importing ? "Importing…" : "Import"}</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Record payment dialog */}
       {paymentDialogOpen && selectedPatient && (
@@ -399,6 +750,22 @@ export default function DueManagementPage() {
                 <Label>Note (optional)</Label>
                 <Input value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} placeholder="Note" />
               </div>
+              {patientPayments.length > 0 && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Payment history</Label>
+                  <div className="mt-2 max-h-32 overflow-y-auto rounded border p-2 space-y-1.5">
+                    {patientPayments.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between text-sm py-1.5 px-2 rounded bg-muted/50">
+                        <span>{format(new Date(p.paymentDate), "MMM d, yyyy")} — ${Number(p.amount).toFixed(2)} ({PAYMENT_METHODS.find((pm) => pm.value === p.paymentMethod)?.label ?? p.paymentMethod})</span>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" className="h-6 px-1.5" onClick={() => { setEditPayment(p); setEditPaymentMethod(p.paymentMethod); setEditPaymentDate(format(new Date(p.paymentDate), "yyyy-MM-dd")); setPaymentDialogOpen(false); }}><Edit2 className="h-3 w-3" /></Button>
+                          <Button variant="ghost" size="sm" className="h-6 px-1.5 text-destructive hover:text-destructive" onClick={() => setDeletePaymentId(p.id)}><Trash2 className="h-3 w-3" /></Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <Label>Allocate to bills</Label>
                 <p className="text-xs text-muted-foreground mb-2">Enter amount to apply to each bill. Total must equal payment amount.</p>
@@ -433,6 +800,63 @@ export default function DueManagementPage() {
                 <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
                 <Button onClick={handleSubmitPayment} disabled={recordPaymentMutation.isPending || patientBills.length === 0}>
                   {recordPaymentMutation.isPending ? "Saving..." : "Record payment"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit payment dialog */}
+      {editPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setEditPayment(null)}>
+          <Card className="w-full max-w-sm m-4" onClick={(e) => e.stopPropagation()}>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Edit payment</CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => setEditPayment(null)}><X className="h-4 w-4" /></Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">${Number(editPayment.amount).toFixed(2)} — {format(new Date(editPayment.paymentDate), "MMM d, yyyy")}</p>
+              <div>
+                <Label>Payment method</Label>
+                <Select value={editPaymentMethod} onValueChange={setEditPaymentMethod}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHODS.map((pm) => (
+                      <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Date</Label>
+                <Input type="date" value={editPaymentDate} onChange={(e) => setEditPaymentDate(e.target.value)} />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setEditPayment(null)}>Cancel</Button>
+                <Button onClick={() => updatePaymentMutation.mutate({ id: editPayment.id, paymentMethod: editPaymentMethod, paymentDate: new Date(editPaymentDate).toISOString() })} disabled={updatePaymentMutation.isPending}>
+                  {updatePaymentMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete payment confirmation */}
+      {deletePaymentId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDeletePaymentId(null)}>
+          <Card className="w-full max-w-sm m-4" onClick={(e) => e.stopPropagation()}>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Delete payment</CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => setDeletePaymentId(null)}><X className="h-4 w-4" /></Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">This will reverse the payment and restore the bill balances. Are you sure?</p>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDeletePaymentId(null)}>Cancel</Button>
+                <Button variant="destructive" onClick={() => deletePaymentMutation.mutate(deletePaymentId)} disabled={deletePaymentMutation.isPending}>
+                  {deletePaymentMutation.isPending ? "Deleting..." : "Delete"}
                 </Button>
               </div>
             </CardContent>

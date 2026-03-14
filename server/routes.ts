@@ -1687,6 +1687,29 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/due/export", async (req, res) => {
+    try {
+      const search = (req.query.search as string)?.trim() || undefined;
+      const statusFilter = (req.query.statusFilter as string) && req.query.statusFilter !== "all" ? req.query.statusFilter : undefined;
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined;
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : undefined;
+      const { summaries } = await storage.getPatientsDueSummary(undefined, undefined, search, statusFilter, dateFrom, dateTo);
+      const rows = summaries.map((s) => ({
+        patientId: s.patient.patientId ?? "",
+        patientName: s.patient.name ?? "",
+        phone: s.patient.phone ?? "",
+        totalDue: s.totalDue,
+        totalPaid: s.totalPaid,
+        balance: s.balance,
+        billsCount: s.billsCount,
+      }));
+      res.json({ summaries: rows });
+    } catch (err: any) {
+      console.error("[due] export error:", err?.message ?? err);
+      res.status(500).json({ message: err?.message ?? "Export failed" });
+    }
+  });
+
   app.post("/api/bills/:id/return", async (req, res) => {
     try {
       const id = Number(req.params.id);

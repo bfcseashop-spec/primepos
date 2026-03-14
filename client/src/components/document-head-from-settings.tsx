@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { getApiUrl } from "@/lib/queryClient";
 
 type Settings = {
   appName?: string | null;
@@ -18,7 +19,8 @@ export function DocumentHeadFromSettings() {
   const { data: settings } = useQuery<Settings | null>({
     queryKey: ["/api/settings"],
     queryFn: async ({ queryKey }) => {
-      const res = await fetch(queryKey.join("/"), { credentials: "include" });
+      const path = queryKey.join("/") as string;
+      const res = await fetch(getApiUrl(path), { credentials: "include" });
       if (!res.ok) return null;
       const text = await res.text();
       if (!text || text.trimStart().startsWith("<")) return null;
