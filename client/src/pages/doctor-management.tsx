@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
@@ -17,6 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { TablePagination } from "@/components/table-pagination";
 import type { Doctor } from "@shared/schema";
 
 const defaultPositions = [
@@ -82,6 +83,8 @@ export default function DoctorManagementPage() {
   });
   const [uploading, setUploading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
 
   const { data: doctors = [], isLoading } = useQuery<Doctor[]>({ queryKey: ["/api/doctors"] });
 
@@ -157,6 +160,8 @@ export default function DoctorManagementPage() {
     const matchDept = departmentFilter === "all" || d.department === departmentFilter;
     return matchSearch && matchStatus && matchDept;
   });
+  const paginatedDoctors = filtered.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => { setPage(1); }, [search, statusFilter, departmentFilter]);
 
   const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
   const getAvatarGradient = (id: number) => avatarGradients[id % avatarGradients.length];
@@ -293,9 +298,10 @@ export default function DoctorManagementPage() {
       ) : filtered.length === 0 ? (
         <div className="p-8 text-center text-muted-foreground">No doctors found. Click "Add New Doctor" to get started.</div>
       ) : viewMode === "grid" ? (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((doc) => (
-            <Card key={doc.id} className="overflow-visible hover-elevate" data-testid={`card-doctor-${doc.id}`}>
+          {paginatedDoctors.map((doc) => (
+            <Card key={doc.id} className="overflow-visible hover-elevate cursor-pointer" data-testid={`card-doctor-${doc.id}`} onClick={() => { setViewingDoctor(doc); setViewDialog(true); }}>
               <CardContent className="p-0">
                 <div className="h-1 rounded-t-md bg-gradient-to-r from-blue-500 to-violet-500" />
                 <div className="p-5">
@@ -305,7 +311,7 @@ export default function DoctorManagementPage() {
                   </Badge>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="ghost" data-testid={`button-menu-${doc.id}`}>
+                      <Button size="icon" variant="ghost" data-testid={`button-menu-${doc.id}`} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -402,10 +408,13 @@ export default function DoctorManagementPage() {
             </Card>
           ))}
         </div>
+        <TablePagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+        </>
       ) : (
+        <>
         <div className="space-y-2">
-          {filtered.map((doc) => (
-            <Card key={doc.id} className="overflow-visible hover-elevate" data-testid={`card-doctor-${doc.id}`}>
+          {paginatedDoctors.map((doc) => (
+            <Card key={doc.id} className="overflow-visible hover-elevate cursor-pointer" data-testid={`card-doctor-${doc.id}`} onClick={() => { setViewingDoctor(doc); setViewDialog(true); }}>
               <CardContent className="p-0">
                 <div className="h-1 rounded-t-md bg-gradient-to-r from-blue-500 to-violet-500" />
                 <div className="p-4 flex items-center gap-4 flex-wrap">
@@ -435,7 +444,7 @@ export default function DoctorManagementPage() {
                   <p className="font-medium text-foreground">{doc.experience || "-"}</p>
                 </div>
                 {doc.phone && <div className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="h-3 w-3 text-blue-500 dark:text-blue-400" />{doc.phone}</div>}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="icon" variant="ghost" data-testid={`button-menu-${doc.id}`}>
@@ -474,6 +483,8 @@ export default function DoctorManagementPage() {
             </Card>
           ))}
         </div>
+        <TablePagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+        </>
       )}
 
       <ConfirmDialog

@@ -22,7 +22,7 @@ import {
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
 import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, User as UserIcon, Phone, Mail, MapPin, Droplets, Calendar, AlertTriangle, FileText, Heart, Users, UserCheck, Activity, Clock, Stethoscope, Calendar as CalendarIcon, Pill, Printer, Plus, X, CalendarCheck } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarUI } from "@/components/ui/calendar";
@@ -120,7 +120,8 @@ export default function OpdPage() {
       if (typeFilter !== "all") params.set("patientTypeFilter", typeFilter);
       const res = await fetch(getApiUrl(`/api/patients?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
-      return res.json();
+      const raw = await res.json();
+      return normalizePaginatedResponse<Patient & { lastVisitDate?: string | null }>(raw) as typeof raw;
     },
   });
   const patients = patientsData?.items ?? [];

@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions, useAuth } from "@/contexts/auth-context";
-import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
 import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, Barcode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User, Clock, XCircle, AlertTriangle, Loader2, ChevronDown, ClipboardList } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
@@ -377,7 +377,8 @@ export default function LabTestsPage() {
       if (dateRange?.to) params.set("dateTo", dateRange.to);
       const res = await fetch(getApiUrl(`/api/lab-tests?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
-      return res.json();
+      const raw = await res.json();
+      return normalizePaginatedResponse<LabTestWithPatient>(raw) as typeof raw;
     },
   });
   const labTests = labTestsData?.items ?? [];

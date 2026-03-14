@@ -16,10 +16,11 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
-import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp, Trash2, MoreHorizontal, Calendar } from "lucide-react";
+import { apiRequest, queryClient, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
+import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp, Trash2, MoreHorizontal, Calendar, Eye } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
 import type { BankTransaction } from "@shared/schema";
@@ -46,6 +47,7 @@ export default function BankTransactionsPage() {
   const [deleteBillsConfirm, setDeleteBillsConfirm] = useState(false);
   const [deleteTxBulkConfirm, setDeleteTxBulkConfirm] = useState(false);
   const [deleteTxConfirm, setDeleteTxConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
+  const [viewTx, setViewTx] = useState<BankTransaction | null>(null);
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
   const [txPage, setTxPage] = useState(1);
   const [txPageSize, setTxPageSize] = useState(10);
@@ -69,7 +71,8 @@ export default function BankTransactionsPage() {
       if (dateRange?.to) params.set("dateTo", dateRange.to);
       const res = await fetch(getApiUrl(`/api/bank-transactions?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
-      return res.json();
+      const raw = await res.json();
+      return normalizePaginatedResponse(raw) as typeof raw;
     },
   });
   const transactions = transactionsData?.items ?? [];
@@ -255,11 +258,15 @@ export default function BankTransactionsPage() {
     { header: "", accessor: (row: BankTransaction) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" data-testid={`button-tx-actions-${row.id}`}>
+          <Button variant="ghost" size="icon" data-testid={`button-tx-actions-${row.id}`} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setViewTx(row)} data-testid={`button-view-tx-${row.id}`}>
+            <Eye className="h-3.5 w-3.5 mr-2 text-blue-500 dark:text-blue-400" />
+            {t("common.view")}
+          </DropdownMenuItem>
           <DropdownMenuItem
             className="text-red-600 dark:text-red-400"
             onClick={() => setDeleteTxConfirm({ open: true, id: row.id })}
@@ -543,13 +550,41 @@ export default function BankTransactionsPage() {
                     </Button>
                   </div>
                 )}
-                <DataTable columns={columns} data={transactions} isLoading={isLoading} emptyMessage={t("common.noData")} selectedIds={selectedTxIds} onSelectionChange={setSelectedTxIds} />
+                <DataTable columns={columns} data={transactions} isLoading={isLoading} emptyMessage={t("common.noData")} selectedIds={selectedTxIds} onSelectionChange={setSelectedTxIds} onRowClick={(row) => setViewTx(row)} />
                 <TablePagination page={txPage} pageSize={txPageSize} total={transactionsTotal} onPageChange={setTxPage} onPageSizeChange={(v) => { setTxPageSize(v); setTxPage(1); }} />
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={!!viewTx} onOpenChange={(open) => { if (!open) setViewTx(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+              {t("bank.bankTransactions")}
+            </DialogTitle>
+            <DialogDescription>View transaction details</DialogDescription>
+          </DialogHeader>
+          {viewTx && (
+            <div className="space-y-3 py-2">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">{t("common.type")}:</span><p className="font-medium capitalize">{viewTx.type}</p></div>
+                <div><span className="text-muted-foreground">{t("common.amount")}:</span><p className={`font-semibold ${viewTx.type === "deposit" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{viewTx.type === "deposit" ? "+" : "-"}${viewTx.amount}</p></div>
+                <div><span className="text-muted-foreground">Bank:</span><p className="font-medium">{viewTx.bankName || "-"}</p></div>
+                <div><span className="text-muted-foreground">Account:</span><p className="font-medium">{viewTx.accountNo || "-"}</p></div>
+                <div><span className="text-muted-foreground">{t("bank.reference")}:</span><p className="font-medium">{viewTx.referenceNo || "-"}</p></div>
+                <div><span className="text-muted-foreground">{t("common.date")}:</span><p className="font-medium">{viewTx.date || "-"}</p></div>
+                {viewTx.description && <div className="col-span-2"><span className="text-muted-foreground">{t("common.description")}:</span><p className="font-medium mt-1">{viewTx.description}</p></div>}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setViewTx(null)}>{t("common.close")}</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={deleteBillsConfirm}

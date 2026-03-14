@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { Clock, CheckCircle2, Activity, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { TablePagination } from "@/components/table-pagination";
 
 type HrmDay = {
   date: string;
@@ -47,8 +48,12 @@ function HistoryTable() {
   const { data, isLoading } = useQuery({
     queryKey: ["/api/hrm/attendance/history"],
   });
+  const [viewDay, setViewDay] = useState<HrmHistoryDay | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const rows = (data ?? []) as HrmHistoryDay[];
+  const paginatedRows = rows.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="w-full overflow-x-auto">
@@ -83,14 +88,14 @@ function HistoryTable() {
               </td>
             </tr>
           ) : (
-            rows.map((d) => {
+            paginatedRows.map((d) => {
               const workedHrs = (d.workingMinutes ?? 0) / 60;
               const overtimeMinutes = Math.max(
                 0,
                 (d.workingMinutes ?? 0) - MINUTES_PER_DAY,
               );
               return (
-                <tr key={d.id ?? d.date} className="border-b last:border-b-0">
+                <tr key={d.id ?? d.date} className="border-b last:border-b-0 cursor-pointer hover:bg-muted/30" onClick={() => setViewDay(d)}>
                   <td className="py-2 px-2">
                     {format(new Date(d.date), "dd MMM yyyy")}
                   </td>
@@ -132,6 +137,33 @@ function HistoryTable() {
           )}
         </tbody>
       </table>
+      {rows.length > 0 && !isLoading && (
+        <TablePagination page={page} pageSize={pageSize} total={rows.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+      )}
+      <Dialog open={!!viewDay} onOpenChange={(open) => { if (!open) setViewDay(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5" /> Attendance Record</DialogTitle>
+            <DialogDescription>View attendance details</DialogDescription>
+          </DialogHeader>
+          {viewDay && (
+            <div className="space-y-3 py-2">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">Date:</span><p className="font-medium">{format(new Date(viewDay.date), "dd MMM yyyy")}</p></div>
+                <div><span className="text-muted-foreground">Status:</span><p><Badge className={viewDay.status === "present" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" : viewDay.status === "absent" ? "text-red-600 border-red-500/40" : ""}>{viewDay.status}</Badge></p></div>
+                <div><span className="text-muted-foreground">Check-in:</span><p className="font-medium">{viewDay.checkInTime ? format(new Date(viewDay.checkInTime), "hh:mm a") : "-"}</p></div>
+                <div><span className="text-muted-foreground">Check-out:</span><p className="font-medium">{viewDay.checkOutTime ? format(new Date(viewDay.checkOutTime), "hh:mm a") : "-"}</p></div>
+                <div><span className="text-muted-foreground">Worked (hrs):</span><p className="font-medium">{((viewDay.workingMinutes ?? 0) / 60).toFixed(2)}</p></div>
+                <div><span className="text-muted-foreground">Overtime (hrs):</span><p className="font-medium">{Math.max(0, (viewDay.workingMinutes ?? 0) - MINUTES_PER_DAY) / 60 > 0 ? (Math.max(0, (viewDay.workingMinutes ?? 0) - MINUTES_PER_DAY) / 60).toFixed(2) : "-"}</p></div>
+                {viewDay.notes && <div className="col-span-2"><span className="text-muted-foreground">Notes:</span><p className="font-medium">{viewDay.notes}</p></div>}
+              </div>
+              <div className="flex justify-end pt-2">
+                <Button variant="outline" onClick={() => setViewDay(null)}>Close</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

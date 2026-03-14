@@ -22,6 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { TablePagination } from "@/components/table-pagination";
 import type { Investment, InvestmentInvestor, Investor, Contribution } from "@shared/schema";
 import { useTranslation } from "@/i18n";
 
@@ -102,6 +103,8 @@ export default function InvestmentsPage() {
   const [contributionToDate, setContributionToDate] = useState("");
   const [contributionMonth, setContributionMonth] = useState("");
   const [contributionViewMode, setContributionViewMode] = useState<"list" | "grid">("list");
+  const [contributionPage, setContributionPage] = useState(1);
+  const [contributionPageSize, setContributionPageSize] = useState(10);
   const [editContribution, setEditContribution] = useState<Contribution | null>(null);
   const [viewContribution, setViewContribution] = useState<Contribution | null>(null);
   const [deleteContributionConfirm, setDeleteContributionConfirm] = useState<number | null>(null);
@@ -590,6 +593,15 @@ export default function InvestmentsPage() {
     }
     return list;
   }, [allContributions, filtered, contributionFilter, contributionSearch, investments]);
+
+  const paginatedContributions = useMemo(() => {
+    const start = (contributionPage - 1) * contributionPageSize;
+    return filteredContributions.slice(start, start + contributionPageSize);
+  }, [filteredContributions, contributionPage, contributionPageSize]);
+
+  useEffect(() => {
+    setContributionPage(1);
+  }, [contributionFilter, contributionSearch, contributionFromDate, contributionToDate]);
 
   const contributionMonthOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [
@@ -1345,11 +1357,12 @@ export default function InvestmentsPage() {
           <CardContent className="p-0">
             {filteredContributions.length === 0 ? (
               <p className="p-4 text-sm text-muted-foreground text-center">
-                {contributionSearch || contributionFilter !== "all" || contributionFromDate || contributionToDate
+                {contributionSearch || contributionFilter !== "all" || (contributionFromDate || contributionToDate)
                   ? "No contributions match your search or filter"
                   : "No contributions recorded yet"}
               </p>
             ) : contributionViewMode === "list" ? (
+              <>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -1365,10 +1378,15 @@ export default function InvestmentsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredContributions.map((c) => {
+                    {paginatedContributions.map((c) => {
                       const inv = investments.find(i => i.id === c.investmentId);
                       return (
-                        <tr key={c.id} className="border-b last:border-0" data-testid={`row-contribution-${c.id}`}>
+                        <tr
+                          key={c.id}
+                          className="border-b last:border-0 cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => setViewContribution(c)}
+                          data-testid={`row-contribution-${c.id}`}
+                        >
                           <td className="p-2.5">{c.date}</td>
                           <td className="p-2.5 font-medium">{inv?.title || `#${c.investmentId}`}</td>
                           <td className="p-2.5">{c.investorName}</td>
@@ -1391,7 +1409,7 @@ export default function InvestmentsPage() {
                           </td>
                           <td className="p-2.5 text-muted-foreground max-w-[200px] truncate">{c.note || "-"}</td>
                           <td className="text-right p-2.5">
-                            <div className="flex items-center justify-end gap-1">
+                            <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                               <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title="View" aria-label="View" data-testid={`button-contribution-view-${c.id}`} onClick={() => setViewContribution(c)}>
                                 <Eye className="h-4 w-4" />
                               </Button>
@@ -1409,19 +1427,37 @@ export default function InvestmentsPage() {
                   </tbody>
                 </table>
               </div>
+              {filteredContributions.length > 0 && (
+                <div className="px-4 py-3 border-t">
+                  <TablePagination
+                    page={contributionPage}
+                    pageSize={contributionPageSize}
+                    total={filteredContributions.length}
+                    onPageChange={setContributionPage}
+                    onPageSizeChange={(v) => { setContributionPageSize(v); setContributionPage(1); }}
+                  />
+                </div>
+              )}
+              </>
             ) : (
+              <>
               <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {filteredContributions.map((c) => {
+                {paginatedContributions.map((c) => {
                   const inv = investments.find(i => i.id === c.investmentId);
                   return (
-                    <Card key={c.id} className="overflow-hidden" data-testid={`card-contribution-${c.id}`}>
+                    <Card
+                      key={c.id}
+                      className="overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
+                      onClick={() => setViewContribution(c)}
+                      data-testid={`card-contribution-${c.id}`}
+                    >
                       <CardHeader className="p-3 pb-2">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <CardTitle className="text-sm font-semibold truncate">{inv?.title || `#${c.investmentId}`}</CardTitle>
                             <p className="text-xs text-muted-foreground mt-0.5">{c.investorName}</p>
                           </div>
-                          <div className="flex items-center gap-0.5 shrink-0">
+                          <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => setViewContribution(c)} data-testid={`button-contribution-view-${c.id}`}>
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
@@ -1455,6 +1491,18 @@ export default function InvestmentsPage() {
                   );
                 })}
               </div>
+              {filteredContributions.length > 0 && (
+                <div className="px-4 pb-4">
+                  <TablePagination
+                    page={contributionPage}
+                    pageSize={contributionPageSize}
+                    total={filteredContributions.length}
+                    onPageChange={setContributionPage}
+                    onPageSizeChange={(v) => { setContributionPageSize(v); setContributionPage(1); }}
+                  />
+                </div>
+              )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -1762,7 +1810,7 @@ export default function InvestmentsPage() {
                     <Pencil className="h-4 w-4 mr-1.5" /> Edit
                   </Button>
                   <Button variant="outline" onClick={() => setViewContribution(null)} data-testid="button-close-view-contribution">
-                    Close
+                    Cancel
                   </Button>
                 </div>
               </div>

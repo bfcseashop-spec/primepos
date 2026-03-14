@@ -51,7 +51,7 @@ export function TablePagination({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-3">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 py-3 px-2 sm:px-0">
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
         <span>
           Showing {start}-{end} of {total}
@@ -80,7 +80,7 @@ export function TablePagination({
       </div>
       {totalPages > 1 && (
         <Pagination>
-          <PaginationContent>
+          <PaginationContent className="flex-wrap justify-center sm:justify-end">
             <PaginationItem>
               <PaginationPrevious
                 href="#"

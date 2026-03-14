@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -20,6 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
+import { TablePagination } from "@/components/table-pagination";
 import type { Patient } from "@shared/schema"; // used for patients query type
 
 const statusConfig: Record<string, { bg: string; text: string; border: string; dot: string; icon: any; gradient: string }> = {
@@ -77,6 +78,8 @@ export default function AppointmentsPage() {
   const [deleteBulkConfirm, setDeleteBulkConfirm] = useState(false);
   const [viewAppointment, setViewAppointment] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
 
   const { data: appointments = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/appointments"] });
@@ -170,6 +173,11 @@ export default function AppointmentsPage() {
   const todayAppointments = filtered.filter((a: any) => a.appointmentDate === todayStr);
   const upcomingAppointments = filtered.filter((a: any) => a.appointmentDate > todayStr);
   const pastAppointments = filtered.filter((a: any) => !a.appointmentDate || a.appointmentDate < todayStr);
+  const allDisplayed = todayAppointments.length > 0 || upcomingAppointments.length > 0 || pastAppointments.length > 0
+    ? [...todayAppointments, ...upcomingAppointments, ...pastAppointments]
+    : filtered;
+  const paginatedDisplayed = allDisplayed.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => { setPage(1); }, [search, statusFilter, dateRange?.from, dateRange?.to]);
 
   const renderAppointmentCard = (apt: any) => {
     const style = statusConfig[apt.status] || statusConfig.scheduled;
@@ -178,7 +186,7 @@ export default function AppointmentsPage() {
     const ModeIcon = modeConfig?.icon || User;
 
     return (
-      <Card key={apt.id} className="overflow-visible hover-elevate" data-testid={`card-appointment-${apt.id}`}>
+      <Card key={apt.id} className="overflow-visible hover-elevate cursor-pointer" data-testid={`card-appointment-${apt.id}`} onClick={() => setViewAppointment(apt)}>
         <CardContent className="p-0">
           <div className={`h-1 rounded-t-md bg-gradient-to-r ${style.gradient}`} />
           <div className="p-4">
@@ -188,6 +196,7 @@ export default function AppointmentsPage() {
                   checked={selectedIds.has(apt.id)}
                   onCheckedChange={() => toggleAppointmentSelection(apt.id)}
                   onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                  onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
                   data-testid={`checkbox-appointment-${apt.id}`}
                 />
                 <Avatar className="h-10 w-10">
@@ -202,7 +211,7 @@ export default function AppointmentsPage() {
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" data-testid={`button-actions-${apt.id}`}>
+                  <Button variant="ghost" size="icon" data-testid={`button-actions-${apt.id}`} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -416,16 +425,12 @@ export default function AppointmentsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
-            {renderSection(t("appointments.today"), todayAppointments, CalendarCheck, "text-emerald-600 dark:text-emerald-400")}
-            {renderSection(t("appointments.upcoming"), upcomingAppointments, CalendarDays, "text-blue-600 dark:text-blue-400")}
-            {renderSection(t("appointments.past"), pastAppointments, Clock, "text-muted-foreground")}
-            {todayAppointments.length === 0 && upcomingAppointments.length === 0 && pastAppointments.length === 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {filtered.map(renderAppointmentCard)}
-              </div>
-            )}
-          </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {paginatedDisplayed.map(renderAppointmentCard)}
+            </div>
+            <TablePagination page={page} pageSize={pageSize} total={allDisplayed.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+          </>
         )}
       </div>
 

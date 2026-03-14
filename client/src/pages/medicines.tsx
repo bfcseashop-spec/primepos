@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, downloadFile, getApiUrl } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
 import {
   Plus, Search, AlertTriangle, Package, Pill, TrendingUp, DollarSign,
   Box, Droplets, FlaskConical, MoreHorizontal, Eye, Pencil, Trash2,
@@ -144,7 +144,7 @@ export default function MedicinesPage() {
     }
   };
 
-  const { data: medicinesData, isLoading } = useQuery<{ items: Medicine[]; total: number }>({
+  const { data: medicinesData, isLoading } = useQuery<{ items: Medicine[]; total: number; inStockCount?: number; lowStockCount?: number; outOfStockCount?: number }>({
     queryKey: ["/api/medicines", "paginated", page, pageSize, debouncedSearch, categoryFilter, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -155,11 +155,15 @@ export default function MedicinesPage() {
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       const res = await fetch(getApiUrl(`/api/medicines?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
-      return res.json();
+      const raw = await res.json();
+      return normalizePaginatedResponse(raw) as typeof raw;
     },
   });
   const medicines = medicinesData?.items ?? [];
   const medicinesTotal = medicinesData?.total ?? 0;
+  const inStockCount = medicinesData?.inStockCount ?? 0;
+  const lowStockCount = medicinesData?.lowStockCount ?? 0;
+  const outOfStockCount = medicinesData?.outOfStockCount ?? 0;
 
   const { data: stockHistory = [], isLoading: stockHistoryLoading } = useQuery<StockAdjustment[]>({
     queryKey: ["/api/medicines", String(stockHistoryMed?.id ?? ""), "stock-history"],
@@ -374,7 +378,6 @@ export default function MedicinesPage() {
   };
 
   const filtered = medicines;
-
   const lowStock = medicines.filter(m => m.stockCount < (m.stockAlert || 10) && m.stockCount > 0 && m.isActive);
   const outOfStock = medicines.filter(m => m.stockCount === 0);
   const inStock = medicines.filter(m => m.stockCount >= (m.stockAlert || 10));
@@ -1238,9 +1241,9 @@ export default function MedicinesPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="medicine-stats">
           {[
             { key: "total", label: t("medicines.totalItems"), gradient: "from-blue-500 to-blue-600", value: totalMeds, icon: Package, testId: "stat-total-meds" },
-            { key: "in-stock", label: t("medicines.inStock"), gradient: "from-emerald-500 to-emerald-600", value: inStock.length, icon: PackageCheck, testId: "stat-in-stock" },
-            { key: "low-stock", label: t("medicines.lowStock"), gradient: "from-amber-500 to-amber-600", value: lowStock.length, icon: AlertTriangle, testId: "stat-low-stock" },
-            { key: "out-stock", label: t("medicines.outOfStock"), gradient: "from-red-500 to-red-600", value: outOfStock.length, icon: PackageX, testId: "stat-out-stock" },
+            { key: "in-stock", label: t("medicines.inStock"), gradient: "from-emerald-500 to-emerald-600", value: inStockCount, icon: PackageCheck, testId: "stat-in-stock" },
+            { key: "low-stock", label: t("medicines.lowStock"), gradient: "from-amber-500 to-amber-600", value: lowStockCount, icon: AlertTriangle, testId: "stat-low-stock" },
+            { key: "out-stock", label: t("medicines.outOfStock"), gradient: "from-red-500 to-red-600", value: outOfStockCount, icon: PackageX, testId: "stat-out-stock" },
             { key: "purchase", label: t("medicines.purchaseValue"), gradient: "from-violet-500 to-violet-600", value: `$${totalPurchaseValue.toFixed(2)}`, icon: DollarSign, testId: "stat-purchase-value" },
             { key: "sales", label: t("medicines.salesValue"), gradient: "from-cyan-500 to-cyan-600", value: `$${totalSalesValue.toFixed(2)}`, icon: TrendingUp, testId: "stat-sales-value" },
           ].map((s) => (
@@ -1260,17 +1263,17 @@ export default function MedicinesPage() {
           ))}
         </div>
 
-        {lowStock.length > 0 && (
+        {lowStockCount > 0 && (
           <Card className="border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20">
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-2">
                 <AlertTriangle className="h-4 w-4 text-red-500 animate-pulse" />
                 <span className="text-sm font-semibold text-red-600 dark:text-red-400">
-                  Low Stock Alert - {lowStock.length} medicine(s) below threshold
+                  Low Stock Alert - {lowStockCount} medicine(s) below threshold
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {lowStock.map(m => (
+                {lowStock.slice(0, 5).map(m => (
                   <Badge key={m.id} variant="outline" className="text-xs no-default-hover-elevate no-default-active-elevate bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800">
                     <ShieldAlert className="h-3 w-3 mr-1" />
                     {m.name} ({m.stockCount} left)

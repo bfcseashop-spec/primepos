@@ -75,7 +75,7 @@ export interface IStorage {
   deleteInjection(id: number): Promise<void>;
 
   getMedicines(): Promise<Medicine[]>;
-  getMedicinesPaginated(opts: { limit: number; offset: number; search?: string; categoryFilter?: string; statusFilter?: string }): Promise<{ items: Medicine[]; total: number }>;
+  getMedicinesPaginated(opts: { limit: number; offset: number; search?: string; categoryFilter?: string; statusFilter?: string }): Promise<{ items: Medicine[]; total: number; inStockCount?: number; lowStockCount?: number; outOfStockCount?: number }>;
   getMedicine(id: number): Promise<Medicine | undefined>;
   getMedicineByCode(code: string): Promise<Medicine | undefined>;
   createMedicine(medicine: InsertMedicine): Promise<Medicine>;
@@ -469,10 +469,22 @@ export class DatabaseStorage implements IStorage {
       else if (statusFilter === "out-of-stock" || statusFilter === "out_of_stock") conds.push(sql`(${stock} <= 0)`);
     }
     const whereClause = conds.length > 0 ? and(...conds) : undefined;
-    const totalRes = await db.select({ count: count() }).from(medicines).where(whereClause ?? sql`true`);
+    const baseWhere = whereClause ?? sql`true`;
+    const totalRes = await db.select({ count: count() }).from(medicines).where(baseWhere);
     const total = Number(totalRes[0]?.count ?? 0);
-    const items = await db.select().from(medicines).where(whereClause ?? sql`true`).orderBy(medicines.name).limit(limit).offset(offset);
-    return { items, total };
+    const items = await db.select().from(medicines).where(baseWhere).orderBy(medicines.name).limit(limit).offset(offset);
+    const stock = sql`COALESCE(${medicines.stockCount}, ${medicines.quantity}, 0)`;
+    const alert = sql`COALESCE(${medicines.stockAlert}, 10)`;
+    const [inStockRes] = await db.select({ count: count() }).from(medicines).where(and(baseWhere, sql`(${stock} >= ${alert})`));
+    const [lowStockRes] = await db.select({ count: count() }).from(medicines).where(and(baseWhere, sql`(${stock} > 0 AND ${stock} < ${alert})`));
+    const [outOfStockRes] = await db.select({ count: count() }).from(medicines).where(and(baseWhere, sql`(${stock} <= 0)`));
+    return {
+      items,
+      total,
+      inStockCount: Number(inStockRes?.count ?? 0),
+      lowStockCount: Number(lowStockRes?.count ?? 0),
+      outOfStockCount: Number(outOfStockRes?.count ?? 0),
+    };
   }
 
   async getMedicine(id: number): Promise<Medicine | undefined> {

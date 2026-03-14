@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { TablePagination } from "@/components/table-pagination";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import type { Salary, SalaryProfile, SalaryLoan, LoanInstallment, PayrollRun, Payslip } from "@shared/schema";
 
@@ -1520,6 +1521,8 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
   };
   const [ledgerForm, setLedgerForm] = useState(ledgerEmptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data: salaryList = [] } = useQuery<Salary[]>({ queryKey: ["/api/salaries"] });
 
@@ -1580,6 +1583,8 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
     const matchStatus = statusFilter === "all" || s.status === statusFilter;
     return matchSearch && matchMonth && matchStatus;
   });
+  const paginatedSalaries = filtered.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => { setPage(1); }, [search, monthFilter, statusFilter]);
 
   const totalPaid = filtered.filter(s => s.status === "paid").reduce((sum, s) => sum + Number(s.netSalary || 0), 0);
   const totalPending = filtered.filter(s => s.status === "pending").reduce((sum, s) => sum + Number(s.netSalary || 0), 0);
@@ -1674,6 +1679,7 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
           {filtered.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">No salary records found.</div>
           ) : (
+            <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -1691,8 +1697,8 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(sal => (
-                    <tr key={sal.id} className="border-b" data-testid={`row-ledger-${sal.id}`}>
+                  {paginatedSalaries.map(sal => (
+                    <tr key={sal.id} className="border-b cursor-pointer hover:bg-muted/30" data-testid={`row-ledger-${sal.id}`} onClick={() => { setViewingSalary(sal); setViewDialog(true); }}>
                       <td className="p-3 font-medium">{sal.staffName}</td>
                       <td className="p-3">{sal.role || "-"}</td>
                       <td className="p-3">{sal.department || "-"}</td>
@@ -1710,7 +1716,7 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
                           {sal.status}
                         </Badge>
                       </td>
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           <Button size="icon" variant="ghost" onClick={() => openEditSalary(sal)} data-testid={`button-edit-ledger-${sal.id}`}>
                             <Edit className="h-4 w-4 text-amber-500 dark:text-amber-400" />
@@ -1736,6 +1742,10 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
                 </tbody>
               </table>
             </div>
+            {filtered.length > 0 && (
+              <TablePagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+            )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -1849,7 +1859,8 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setViewDialog(false); setViewingSalary(null); }}>Close</Button>
+            <Button variant="outline" onClick={() => { setViewDialog(false); setViewingSalary(null); }}>Cancel</Button>
+            {viewingSalary && <Button variant="outline" onClick={() => { setViewDialog(false); openEditSalary(viewingSalary); }}><Edit className="h-4 w-4 mr-2" />Edit</Button>}
             {viewingSalary && <Button onClick={() => printSalary(viewingSalary)} data-testid="button-print-from-view"><Printer className="h-4 w-4 mr-2" />Print</Button>}
           </DialogFooter>
         </DialogContent>

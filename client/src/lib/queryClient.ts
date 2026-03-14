@@ -75,6 +75,17 @@ export async function apiRequest(
   return res;
 }
 
+/** Normalize paginated API response: accept either { items, total, ... } or raw array. */
+export function normalizePaginatedResponse<T>(data: unknown): { items: T[]; total: number; [k: string]: unknown } {
+  if (Array.isArray(data)) return { items: data, total: data.length };
+  const obj = (data as Record<string, unknown>) || {};
+  return {
+    ...obj,
+    items: Array.isArray(obj.items) ? obj.items : [],
+    total: typeof obj.total === "number" ? obj.total : (Array.isArray(obj.items) ? obj.items.length : 0),
+  };
+}
+
 /** Build absolute API URL to avoid 404s when app is served from subpath or behind proxy. */
 export function getApiUrl(path: string): string {
   if (typeof window === "undefined") return path;

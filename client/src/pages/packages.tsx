@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Pencil, Trash2, Package, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { TablePagination } from "@/components/table-pagination";
 import type { Package as PackageType, PackageItem } from "@shared/schema";
 import type { Service, Injection, Medicine } from "@shared/schema";
 
@@ -21,7 +22,10 @@ export default function PackagesPage() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editPkg, setEditPkg] = useState<PackageType | null>(null);
+  const [viewPkg, setViewPkg] = useState<PackageType | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [items, setItems] = useState<PackageItem[]>([]);
@@ -174,6 +178,9 @@ export default function PackagesPage() {
     return list.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0).toFixed(2);
   };
 
+  const activePackages = packagesList.filter(p => p.isActive);
+  const paginatedPackages = activePackages.slice((page - 1) * pageSize, page * pageSize);
+
   return (
     <div className="flex flex-col h-full">
       <PageHeader
@@ -187,8 +194,8 @@ export default function PackagesPage() {
       />
       <div className="flex-1 overflow-auto p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {packagesList.filter(p => p.isActive).map((pkg) => (
-            <Card key={pkg.id} data-testid={`card-package-${pkg.id}`}>
+          {paginatedPackages.map((pkg) => (
+            <Card key={pkg.id} className="cursor-pointer hover:ring-2 hover:ring-primary/20 transition-shadow" data-testid={`card-package-${pkg.id}`} onClick={() => setViewPkg(pkg)}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -205,7 +212,7 @@ export default function PackagesPage() {
                       <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{pkg.description}</p>
                     )}
                   </div>
-                  <div className="flex gap-1 shrink-0">
+                  <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEdit(pkg)} data-testid={`button-edit-package-${pkg.id}`}>
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -218,6 +225,9 @@ export default function PackagesPage() {
             </Card>
           ))}
         </div>
+        {activePackages.length > 0 && (
+          <TablePagination page={page} pageSize={pageSize} total={activePackages.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+        )}
         {packagesList.length === 0 && (
           <Card>
             <CardContent className="p-8 text-center text-muted-foreground">
@@ -340,6 +350,53 @@ export default function PackagesPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewPkg} onOpenChange={(open) => { if (!open) setViewPkg(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              Package Details
+            </DialogTitle>
+            <DialogDescription>View package information</DialogDescription>
+          </DialogHeader>
+          {viewPkg && (
+            <div className="space-y-4 py-2">
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Name</p>
+                <p className="font-semibold">{viewPkg.name}</p>
+              </div>
+              {viewPkg.description && (
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Description</p>
+                  <p className="text-sm">{viewPkg.description}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Items ({(viewPkg.items?.length || 0)})</p>
+                <div className="border rounded-md p-3 space-y-2 bg-muted/30 max-h-[200px] overflow-y-auto">
+                  {(viewPkg.items || []).map((item: PackageItem, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{item.name}</span>
+                      <span className="text-muted-foreground">× {item.quantity} @ ${Number(item.unitPrice).toFixed(2)} = ${(item.quantity * item.unitPrice).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
+                <p className="text-lg font-bold text-primary">${packageTotal(viewPkg)}</p>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => { setViewPkg(null); openEdit(viewPkg); }}>
+                  <Pencil className="h-4 w-4 mr-1" /> Edit
+                </Button>
+                <Button variant="outline" onClick={() => setViewPkg(null)}>Cancel</Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

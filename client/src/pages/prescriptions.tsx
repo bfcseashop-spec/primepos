@@ -15,7 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { FileText, Printer, Pill, Stethoscope, MoreVertical, Filter, Pencil, Plus, X, Trash2, Eye } from "lucide-react";
 import { useLocation } from "wouter";
-import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
 import { printPrescription, type PrescriptionLine } from "@/lib/prescription-print";
 import { useAuth } from "@/contexts/auth-context";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
@@ -119,8 +119,8 @@ export default function PrescriptionsPage() {
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       const res = await fetch(getApiUrl(`/api/opd-visits?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      return { items: data.items ?? [], total: data.total ?? 0 };
+      const raw = await res.json();
+      return normalizePaginatedResponse(raw);
     },
   });
   const visits = visitsData?.items ?? [];

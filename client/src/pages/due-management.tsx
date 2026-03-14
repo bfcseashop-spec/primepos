@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -94,6 +95,8 @@ export default function DueManagementPage() {
   const [createDueAmount, setCreateDueAmount] = useState("");
   const [createDueNote, setCreateDueNote] = useState("");
   const [createDuePatientSearch, setCreateDuePatientSearch] = useState("");
+  const [viewSummary, setViewSummary] = useState<PatientDueSummary | null>(null);
+  const [viewPayment, setViewPayment] = useState<DuePayment | null>(null);
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -677,14 +680,14 @@ export default function DueManagementPage() {
                   </thead>
                   <tbody>
                     {summaries.map((s) => (
-                      <tr key={s.patient.id} className="border-b hover:bg-muted/30">
+                      <tr key={s.patient.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => setViewSummary(s)}>
                         <td className="p-3 font-medium">{s.patient.name ?? "-"}</td>
                         <td className="p-3 text-muted-foreground">{s.patient.patientId ?? "-"}</td>
                         <td className="p-3 text-right">${s.totalDue.toFixed(2)}</td>
                         <td className="p-3 text-right text-green-600 dark:text-green-400">${s.totalPaid.toFixed(2)}</td>
                         <td className="p-3 text-right font-semibold text-rose-600 dark:text-rose-400">${s.balance.toFixed(2)}</td>
                         <td className="p-3 text-center">{s.billsCount}</td>
-                        <td className="p-3 text-right">
+                        <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
                           <Button variant="outline" size="sm" className="gap-1" onClick={() => openRecordPayment(s)}>
                             <Plus className="h-3.5 w-3.5" /> Record payment
                           </Button>
@@ -719,12 +722,12 @@ export default function DueManagementPage() {
                           {allPayments.map((p) => {
                             const patient = (patientsList as Patient[]).find((x) => x.id === p.patientId) ?? summaries.find((s) => s.patient.id === p.patientId)?.patient;
                             return (
-                              <tr key={p.id} className="border-b hover:bg-muted/30">
+                              <tr key={p.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => setViewPayment(p)}>
                                 <td className="p-3">{format(new Date(p.paymentDate), "MMM d, yyyy")}</td>
                                 <td className="p-3">{patient?.patientId ?? patient?.name ?? `#${p.patientId}`}</td>
                                 <td className="p-3 text-right font-medium">${Number(p.amount).toFixed(2)}</td>
                                 <td className="p-3">{PAYMENT_METHODS.find((pm) => pm.value === p.paymentMethod)?.label ?? p.paymentMethod}</td>
-                                <td className="p-3 text-right">
+                                <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
                                   <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={() => { setEditPayment(p); setEditPaymentMethod(p.paymentMethod); setEditPaymentDate(format(new Date(p.paymentDate), "yyyy-MM-dd")); }}>
                                     <Edit2 className="h-3.5 w-3.5" /> Edit
                                   </Button>
@@ -748,6 +751,60 @@ export default function DueManagementPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!viewSummary} onOpenChange={(open) => { if (!open) setViewSummary(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><User className="h-5 w-5" /> Patient Due Summary</DialogTitle>
+            <DialogDescription>View patient due details</DialogDescription>
+          </DialogHeader>
+          {viewSummary && (
+            <div className="space-y-3 py-2">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">Patient:</span><p className="font-medium">{viewSummary.patient.name ?? "-"}</p></div>
+                <div><span className="text-muted-foreground">UHID:</span><p className="font-medium">{viewSummary.patient.patientId ?? "-"}</p></div>
+                <div><span className="text-muted-foreground">Total Due:</span><p className="font-medium">${viewSummary.totalDue.toFixed(2)}</p></div>
+                <div><span className="text-muted-foreground">Total Paid:</span><p className="font-medium text-green-600 dark:text-green-400">${viewSummary.totalPaid.toFixed(2)}</p></div>
+                <div><span className="text-muted-foreground">Balance:</span><p className="font-semibold text-rose-600 dark:text-rose-400">${viewSummary.balance.toFixed(2)}</p></div>
+                <div><span className="text-muted-foreground">Bills:</span><p className="font-medium">{viewSummary.billsCount}</p></div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => { setViewSummary(null); openRecordPayment(viewSummary); }}><Plus className="h-4 w-4 mr-1" /> Record payment</Button>
+                <Button variant="outline" onClick={() => setViewSummary(null)}>Cancel</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewPayment} onOpenChange={(open) => { if (!open) setViewPayment(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Receipt className="h-5 w-5" /> Payment Details</DialogTitle>
+            <DialogDescription>View payment record</DialogDescription>
+          </DialogHeader>
+          {viewPayment && (
+            <div className="space-y-3 py-2">
+              {(() => {
+                const patient = (patientsList as Patient[]).find((x) => x.id === viewPayment.patientId) ?? summaries.find((s) => s.patient.id === viewPayment.patientId)?.patient;
+                return (
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><span className="text-muted-foreground">Patient:</span><p className="font-medium">{patient?.patientId ?? patient?.name ?? `#${viewPayment.patientId}`}</p></div>
+                    <div><span className="text-muted-foreground">Date:</span><p className="font-medium">{format(new Date(viewPayment.paymentDate), "MMM d, yyyy")}</p></div>
+                    <div><span className="text-muted-foreground">Amount:</span><p className="font-semibold text-green-600 dark:text-green-400">${Number(viewPayment.amount).toFixed(2)}</p></div>
+                    <div><span className="text-muted-foreground">Method:</span><p className="font-medium">{PAYMENT_METHODS.find((pm) => pm.value === viewPayment.paymentMethod)?.label ?? viewPayment.paymentMethod}</p></div>
+                    {viewPayment.note && <div className="col-span-2"><span className="text-muted-foreground">Note:</span><p className="font-medium">{viewPayment.note}</p></div>}
+                  </div>
+                );
+              })()}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => { setViewPayment(null); setEditPayment(viewPayment); setEditPaymentMethod(viewPayment.paymentMethod); setEditPaymentDate(format(new Date(viewPayment.paymentDate), "yyyy-MM-dd")); }}><Edit2 className="h-4 w-4 mr-1" /> Edit</Button>
+                <Button variant="outline" onClick={() => setViewPayment(null)}>Cancel</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Create Due dialog */}
       {showCreateDue && (

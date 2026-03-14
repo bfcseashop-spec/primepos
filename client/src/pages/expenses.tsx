@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, downloadFile, getApiUrl } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
 import {
   Plus, Search, DollarSign, CheckCircle2, Clock, List, LayoutGrid,
   RefreshCw, MoreHorizontal, Eye, Pencil, Trash2, X, Filter,
@@ -136,7 +136,8 @@ export default function ExpensesPage() {
       if (dateRange?.to) params.set("dateTo", dateRange.to);
       const res = await fetch(getApiUrl(`/api/expenses?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
-      return res.json();
+      const raw = await res.json();
+      return normalizePaginatedResponse(raw) as typeof raw;
     },
   });
   const expenses = expensesData?.items ?? [];
@@ -329,9 +330,9 @@ export default function ExpensesPage() {
     )},
     { header: "Status", accessor: (row: Expense) => getStatusBadge(row.status) },
     { header: "Actions", accessor: (row: Expense) => (
-      <DropdownMenu>
+        <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" data-testid={`button-expense-actions-${row.id}`}>
+          <Button variant="ghost" size="icon" data-testid={`button-expense-actions-${row.id}`} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -613,7 +614,7 @@ export default function ExpensesPage() {
                     <p className="text-sm font-medium mb-1">No expenses recorded</p>
                     <p className="text-xs text-muted-foreground">Start tracking your expenses by adding a new entry</p>
                   </div>
-                } selectedIds={selectedIds} onSelectionChange={setSelectedIds} />
+                } selectedIds={selectedIds} onSelectionChange={setSelectedIds} onRowClick={(row) => setViewExpense(row)} />
                 <TablePagination page={page} pageSize={pageSize} total={expensesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
               </CardContent>
             </Card>
@@ -633,7 +634,7 @@ export default function ExpensesPage() {
               </div>
             ) : (
               expenses.map(exp => (
-                <Card key={exp.id} className="hover-elevate" data-testid={`card-expense-${exp.id}`}>
+                <Card key={exp.id} className="hover-elevate cursor-pointer" data-testid={`card-expense-${exp.id}`} onClick={() => setViewExpense(exp)}>
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -642,7 +643,7 @@ export default function ExpensesPage() {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" data-testid={`button-expense-grid-actions-${exp.id}`}>
+                          <Button variant="ghost" size="icon" data-testid={`button-expense-grid-actions-${exp.id}`} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>

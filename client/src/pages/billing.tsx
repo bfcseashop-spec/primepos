@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag, Package, RotateCcw } from "lucide-react";
@@ -91,9 +91,8 @@ export default function BillingPage() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm]);
 
-  useEffect(() => { setBillsPage(1); }, [debouncedSearch, dateRange?.from, dateRange?.to]);
-
   const dateRange = getDateRange(datePeriod, customFromDate, customToDate, monthYear);
+  useEffect(() => { setBillsPage(1); }, [debouncedSearch, dateRange?.from, dateRange?.to]);
   const { data: billsData, isLoading } = useQuery<{ items: any[]; total: number; totalRevenue?: number; totalPaid?: number; paidCount?: number; pendingCount?: number }>({
     queryKey: ["/api/bills", "paginated", billsPage, billsPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
     queryFn: async () => {
@@ -105,7 +104,8 @@ export default function BillingPage() {
       if (dateRange?.to) params.set("dateTo", dateRange.to);
       const res = await fetch(getApiUrl(`/api/bills?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
-      return res.json();
+      const raw = await res.json();
+      return normalizePaginatedResponse(raw) as typeof raw;
     },
   });
   const bills = billsData?.items ?? [];
