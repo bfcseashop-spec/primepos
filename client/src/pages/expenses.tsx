@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, downloadFile } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile, getApiUrl } from "@/lib/queryClient";
 import {
   Plus, Search, DollarSign, CheckCircle2, Clock, List, LayoutGrid,
   RefreshCw, MoreHorizontal, Eye, Pencil, Trash2, X, Filter,
@@ -22,8 +22,9 @@ import {
   FileSpreadsheet, FileDown, File
 } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { TablePagination } from "@/components/table-pagination";
 import type { Expense } from "@shared/schema";
-import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
+import { DateFilterBar, useDateFilter } from "@/components/date-filter";
 import { useTranslation } from "@/i18n";
 
 const DEFAULT_EXPENSE_CATEGORIES = [
@@ -106,13 +107,43 @@ export default function ExpensesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
   const [deleteBulkConfirm, setDeleteBulkConfirm] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchTerm]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, filterCategory, filterStatus, dateRange?.from, dateRange?.to]);
 
   const allCategories = [...DEFAULT_EXPENSE_CATEGORIES, ...customCategories];
 
-  const { data: expenses = [], isLoading } = useQuery<Expense[]>({
-    queryKey: ["/api/expenses"],
+  const expensesQueryKey = ["/api/expenses", "paginated", page, pageSize, debouncedSearch, filterCategory, filterStatus, dateRange?.from, dateRange?.to];
+  const { data: expensesData, isLoading } = useQuery<{ items: Expense[]; total: number; totalAmount?: number; approvedAmount?: number; pendingAmount?: number }>({
+    queryKey: expensesQueryKey,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("limit", String(pageSize));
+      params.set("offset", String((page - 1) * pageSize));
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (filterCategory !== "all") params.set("categoryFilter", filterCategory);
+      if (filterStatus !== "all") params.set("statusFilter", filterStatus);
+      if (dateRange?.from) params.set("dateFrom", dateRange.from);
+      if (dateRange?.to) params.set("dateTo", dateRange.to);
+      const res = await fetch(getApiUrl(`/api/expenses?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
   });
+  const expenses = expensesData?.items ?? [];
+  const expensesTotal = expensesData?.total ?? 0;
+  const totalExpenses = expensesData?.totalAmount ?? expenses.reduce((s, e) => s + Number(e.amount), 0);
+  const approvedExpenses = expensesData?.approvedAmount ?? expenses.filter(e => e.status === "approved").reduce((s, e) => s + Number(e.amount), 0);
+  const pendingExpenses = expensesData?.pendingAmount ?? expenses.filter(e => !e.status || e.status === "pending").reduce((s, e) => s + Number(e.amount), 0);
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -259,7 +290,7 @@ export default function ExpensesPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/expenses/import", { method: "POST", body: formData, credentials: "include" });
+      const res = await fetch(getApiUrl("/api/expenses/import"), { method: "POST", body: formData, credentials: "include" });
       const result = await res.json();
       if (!res.ok) throw new Error(result.message);
       setImportResult(result);
@@ -272,19 +303,6 @@ export default function ExpensesPage() {
       e.target.value = "";
     }
   };
-
-  const filtered = expenses.filter(e => {
-    const matchesSearch = e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filterCategory === "all" || e.category === filterCategory;
-    const matchesStatus = filterStatus === "all" || (e.status || "pending") === filterStatus;
-    const matchesDate = isDateInRange(e.date, dateRange);
-    return matchesSearch && matchesCategory && matchesStatus && matchesDate;
-  });
-
-  const totalExpenses = filtered.reduce((sum, e) => sum + Number(e.amount), 0);
-  const approvedExpenses = filtered.filter(e => e.status === "approved").reduce((sum, e) => sum + Number(e.amount), 0);
-  const pendingExpenses = filtered.filter(e => !e.status || e.status === "pending").reduce((sum, e) => sum + Number(e.amount), 0);
 
   const usedCategories = Array.from(new Set(expenses.map(e => e.category)));
 
@@ -587,7 +605,7 @@ export default function ExpensesPage() {
             )}
             <Card>
               <CardContent className="p-0">
-                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={
+                <DataTable columns={columns} data={expenses} isLoading={isLoading} emptyMessage={
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-4">
                       <DollarSign className="h-8 w-8 text-blue-500 dark:text-blue-400" />
@@ -596,14 +614,16 @@ export default function ExpensesPage() {
                     <p className="text-xs text-muted-foreground">Start tracking your expenses by adding a new entry</p>
                   </div>
                 } selectedIds={selectedIds} onSelectionChange={setSelectedIds} />
+                <TablePagination page={page} pageSize={pageSize} total={expensesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
               </CardContent>
             </Card>
           </div>
         ) : (
+          <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {isLoading ? (
               <p className="text-sm text-muted-foreground col-span-full text-center py-8">Loading expenses...</p>
-            ) : filtered.length === 0 ? (
+            ) : expenses.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
                 <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-4">
                   <DollarSign className="h-8 w-8 text-blue-500 dark:text-blue-400" />
@@ -612,7 +632,7 @@ export default function ExpensesPage() {
                 <p className="text-xs text-muted-foreground">Start tracking your expenses by adding a new entry</p>
               </div>
             ) : (
-              filtered.map(exp => (
+              expenses.map(exp => (
                 <Card key={exp.id} className="hover-elevate" data-testid={`card-expense-${exp.id}`}>
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
@@ -681,6 +701,8 @@ export default function ExpensesPage() {
               ))
             )}
           </div>
+          <TablePagination page={page} pageSize={pageSize} total={expensesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+          </>
         )}
       </div>
 

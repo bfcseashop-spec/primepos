@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { TablePagination } from "@/components/table-pagination";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { billNoMatches } from "@/lib/bill-utils";
 import { TestTubes, CheckCircle2, Clock, Beaker, Barcode, Printer, Eye, Pencil, Trash2, MoreHorizontal } from "lucide-react";
@@ -72,10 +73,34 @@ export default function SampleCollectionsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; sample: SampleCollection | null }>({ open: false, sample: null });
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleteBulkConfirm, setDeleteBulkConfirm] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchTerm]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
 
-  const { data: samples = [], isLoading } = useQuery<SampleCollection[]>({
-    queryKey: ["/api/sample-collections"],
+  const { data: samplesData, isLoading } = useQuery<{ items: SampleCollection[]; total: number; pendingCount?: number; collectedCount?: number }>({
+    queryKey: ["/api/sample-collections", "paginated", page, pageSize, debouncedSearch, statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("limit", String(pageSize));
+      params.set("offset", String((page - 1) * pageSize));
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (statusFilter !== "all") params.set("statusFilter", statusFilter);
+      const res = await fetch(getApiUrl(`/api/sample-collections?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
   });
+  const samples = samplesData?.items ?? [];
+  const samplesTotal = samplesData?.total ?? 0;
+  const pendingCount = samplesData?.pendingCount ?? 0;
+  const collectedCount = samplesData?.collectedCount ?? 0;
 
   const { data: bills = [] } = useQuery<{ id: number; billNo: string }[]>({
     queryKey: ["/api/bills"],
@@ -272,24 +297,6 @@ export default function SampleCollectionsPage() {
     printWindow.focus();
   };
 
-  const filtered = samples.filter((s) => {
-    const bill = bills.find((b: { billNo: string }) => billNoMatches(searchTerm, b.billNo || ""));
-    const lab = labTests.find((t: { testCode: string }) => (t.testCode || "").toLowerCase() === searchTerm.toLowerCase());
-    const matchInvoice = !bill || s.billId === bill.id;
-    const matchLab = !lab || s.labTestId === lab.id;
-    const matchSearch =
-      !searchTerm ||
-      (s.testName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.patientName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.patientIdCode || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (bill != null && s.billId === bill.id) ||
-      (lab != null && s.labTestId === lab.id);
-    const matchStatus = statusFilter === "all" || s.status === statusFilter;
-    return matchInvoice && matchLab && matchSearch && matchStatus;
-  });
-
-  const pendingCount = samples.filter((s) => s.status === "pending").length;
-  const collectedCount = samples.filter((s) => s.status === "collected").length;
 
   const columns = [
     {
@@ -395,7 +402,7 @@ export default function SampleCollectionsPage() {
               <Beaker className="h-5 w-5 text-amber-500" />
               <span className="text-sm font-medium text-muted-foreground">Total</span>
             </div>
-            <p className="text-2xl font-bold">{samples.length}</p>
+            <p className="text-2xl font-bold">{samplesTotal}</p>
           </CardContent>
         </Card>
         <Card>
@@ -461,13 +468,14 @@ export default function SampleCollectionsPage() {
 
           <DataTable
             columns={columns}
-            data={filtered}
+            data={samples}
             isLoading={isLoading}
             emptyMessage="No sample collections yet. They are created when a bill includes lab tests that require sample collection."
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
             onRowClick={(row) => setViewSample(row)}
           />
+          <TablePagination page={page} pageSize={pageSize} total={samplesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
         </CardContent>
       </Card>
 

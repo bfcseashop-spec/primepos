@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
@@ -22,12 +22,13 @@ import {
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
 import { Search, UserPlus, LayoutGrid, List, RefreshCw, MoreVertical, CalendarPlus, Eye, Pencil, Trash2, User as UserIcon, Phone, Mail, MapPin, Droplets, Calendar, AlertTriangle, FileText, Heart, Users, UserCheck, Activity, Clock, Stethoscope, Calendar as CalendarIcon, Pill, Printer, Plus, X, CalendarCheck } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { useLocation } from "wouter";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { TablePagination } from "@/components/table-pagination";
 import { SearchableSelect } from "@/components/searchable-select";
 import { printPrescription } from "@/lib/prescription-print";
 import type { Patient, Service, Injection, Medicine, Package as PackageType } from "@shared/schema";
@@ -97,10 +98,36 @@ export default function OpdPage() {
   const [consultNotes, setConsultNotes] = useState("");
   const [consultBarcodeInput, setConsultBarcodeInput] = useState("");
   const [consultSearchValue, setConsultSearchValue] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchTerm]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, typeFilter]);
 
-  const { data: patients = [], isLoading: patientsLoading } = useQuery<Patient[]>({
-    queryKey: ["/api/patients"],
+  const patientsQueryKey = ["/api/patients", "paginated", page, pageSize, debouncedSearch, typeFilter];
+  const { data: patientsData, isLoading: patientsLoading } = useQuery<{ items: (Patient & { lastVisitDate?: string | null })[]; total: number; outPatientCount?: number; inPatientCount?: number; emergencyPatientCount?: number }>({
+    queryKey: patientsQueryKey,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("limit", String(pageSize));
+      params.set("offset", String((page - 1) * pageSize));
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (typeFilter !== "all") params.set("patientTypeFilter", typeFilter);
+      const res = await fetch(getApiUrl(`/api/patients?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
   });
+  const patients = patientsData?.items ?? [];
+  const patientsTotal = patientsData?.total ?? 0;
+  const outPatientCount = patientsData?.outPatientCount ?? 0;
+  const inPatientCount = patientsData?.inPatientCount ?? 0;
+  const emergencyPatientCount = patientsData?.emergencyPatientCount ?? 0;
 
   const { data: visits = [] } = useQuery<any[]>({
     queryKey: ["/api/opd-visits"],
@@ -200,6 +227,7 @@ export default function OpdPage() {
     },
     onSuccess: (visit: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
       const patient = consultationPatient;
       setConsultationPatient(null);
       setConsultDoctor("");
@@ -259,7 +287,7 @@ export default function OpdPage() {
       })),
       notes: consultNotes,
     });
-    const resNextId = await fetch("/api/opd-visits/next-id", { credentials: "include" });
+    const resNextId = await fetch(getApiUrl("/api/opd-visits/next-id"), { credentials: "include" });
     if (!resNextId.ok) {
       toast({ title: "Error", description: "Could not get visit ID", variant: "destructive" });
       return;
@@ -324,8 +352,9 @@ export default function OpdPage() {
     });
   };
 
-  const getLastVisit = (patientId: number) => {
-    const patientVisits = visits.filter((v: any) => v.patientId === patientId);
+  const getLastVisit = (patient: Patient & { lastVisitDate?: string | null }) => {
+    if (patient.lastVisitDate) return { visitDate: patient.lastVisitDate };
+    const patientVisits = visits.filter((v: any) => v.patientId === patient.id);
     if (patientVisits.length === 0) return null;
     return patientVisits.sort((a: any, b: any) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime())[0];
   };
@@ -342,24 +371,6 @@ export default function OpdPage() {
     return patient.name;
   };
 
-  const outPatients = patients.filter(p => !p.patientType || p.patientType === "Out Patient");
-  const inPatients = patients.filter(p => p.patientType === "In Patient");
-  const emergencyPatients = patients.filter(p => p.patientType === "Emergency");
-  const filteredPatients = patients.filter((p) => {
-    const term = searchTerm.toLowerCase();
-    const matchesSearch = (
-      p.name?.toLowerCase().includes(term) ||
-      p.firstName?.toLowerCase().includes(term) ||
-      p.lastName?.toLowerCase().includes(term) ||
-      p.patientId?.toLowerCase().includes(term) ||
-      p.city?.toLowerCase().includes(term) ||
-      p.phone?.toLowerCase().includes(term)
-    );
-    const matchesType = typeFilter === "all" ||
-      (typeFilter === "Out Patient" && (!p.patientType || p.patientType === "Out Patient")) ||
-      p.patientType === typeFilter;
-    return matchesSearch && matchesType;
-  });
 
   const avatarGradients = [
     "from-blue-500 to-cyan-400",
@@ -414,9 +425,9 @@ export default function OpdPage() {
       <span className="text-sm">{row.city || "-"}</span>
     )},
     { header: t("opd.lastVisit"), accessor: (row: any) => {
-      const lv = getLastVisit(row.id);
+      const lv = getLastVisit(row);
       return lv ? (
-        <span className="text-xs text-muted-foreground">{new Date(lv.visitDate).toLocaleDateString()}</span>
+        <span className="text-xs text-muted-foreground">{lv.visitDate ? new Date(lv.visitDate).toLocaleDateString() : "-"}</span>
       ) : (
         <span className="text-xs text-muted-foreground">-</span>
       );
@@ -461,7 +472,7 @@ export default function OpdPage() {
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("opd.totalPatients")}</p>
-                  <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{patients.length}</p>
+                  <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{patientsTotal}</p>
                 </div>
               </div>
             </CardContent>
@@ -474,7 +485,7 @@ export default function OpdPage() {
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("opd.activeVisits")}</p>
-                  <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{outPatients.length}</p>
+                  <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{outPatientCount}</p>
                 </div>
               </div>
             </CardContent>
@@ -487,7 +498,7 @@ export default function OpdPage() {
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("opd.completedToday")}</p>
-                  <p className="text-xl font-bold text-violet-600 dark:text-violet-400">{inPatients.length}</p>
+                  <p className="text-xl font-bold text-violet-600 dark:text-violet-400">{inPatientCount}</p>
                 </div>
               </div>
             </CardContent>
@@ -500,7 +511,7 @@ export default function OpdPage() {
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("opd.pendingFollow")}</p>
-                  <p className="text-xl font-bold text-red-600 dark:text-red-400">{emergencyPatients.length}</p>
+                  <p className="text-xl font-bold text-red-600 dark:text-red-400">{emergencyPatientCount}</p>
                 </div>
               </div>
             </CardContent>
@@ -573,7 +584,7 @@ export default function OpdPage() {
                 </Card>
               ))}
             </div>
-          ) : filteredPatients.length === 0 ? (
+          ) : patients.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-16">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
@@ -587,9 +598,10 @@ export default function OpdPage() {
               </CardContent>
             </Card>
           ) : (
+            <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredPatients.map((patient) => {
-                const lastVisit = getLastVisit(patient.id);
+              {patients.map((patient) => {
+                const lastVisit = getLastVisit(patient);
                 const typeBadge = patientTypeBadge(patient.patientType);
                 return (
                   <Card key={patient.id} className="overflow-visible hover-elevate" data-testid={`card-patient-${patient.id}`}>
@@ -685,33 +697,39 @@ export default function OpdPage() {
                         )}
                       </div>
 
-                      <div className="border-t p-2.5 flex gap-1.5">
+                      <div className="border-t p-2.5 grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="flex-1 text-xs"
+                          className="h-8 min-w-0 px-1.5 text-xs"
                           onClick={() => setViewPatient(patient)}
                           data-testid={`button-view-patient-${patient.id}`}
+                          title={t("common.view")}
                         >
-                          <Eye className="h-3.5 w-3.5 mr-1 text-blue-500 dark:text-blue-400" /> {t("common.view")}
+                          <Eye className="h-3.5 w-3.5 shrink-0 text-blue-500 dark:text-blue-400 sm:mr-1" />
+                          <span className="hidden truncate sm:inline">{t("common.view")}</span>
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="flex-1 text-xs"
+                          className="h-8 min-w-0 px-1.5 text-xs"
                           onClick={() => openAppointmentDialog(patient)}
                           data-testid={`button-add-appointment-${patient.id}`}
+                          title={t("opd.addAppointment")}
                         >
-                          <CalendarPlus className="h-3.5 w-3.5 mr-1 text-emerald-500 dark:text-emerald-400" /> {t("opd.addAppointment")}
+                          <CalendarPlus className="h-3.5 w-3.5 shrink-0 text-emerald-500 dark:text-emerald-400 sm:mr-1" />
+                          <span className="hidden truncate sm:inline">{t("opd.addAppointment")}</span>
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="flex-1 text-xs"
+                          className="h-8 min-w-0 px-1.5 text-xs"
                           onClick={() => openConsultation(patient)}
                           data-testid={`button-prescription-${patient.id}`}
+                          title="Prescription"
                         >
-                          <FileText className="h-3.5 w-3.5 mr-1 text-teal-500 dark:text-teal-400" /> Prescription
+                          <FileText className="h-3.5 w-3.5 shrink-0 text-teal-500 dark:text-teal-400 sm:mr-1" />
+                          <span className="hidden truncate sm:inline">Prescription</span>
                         </Button>
                       </div>
                     </CardContent>
@@ -719,11 +737,14 @@ export default function OpdPage() {
                 );
               })}
             </div>
+            <TablePagination page={page} pageSize={pageSize} total={patientsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+            </>
           )
         ) : (
           <Card>
             <CardContent className="p-0">
-              <DataTable columns={listColumns} data={filteredPatients} isLoading={patientsLoading} emptyMessage="No patients found" />
+              <DataTable columns={listColumns} data={patients} isLoading={patientsLoading} emptyMessage="No patients found" />
+              <TablePagination page={page} pageSize={pageSize} total={patientsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
             </CardContent>
           </Card>
         )}

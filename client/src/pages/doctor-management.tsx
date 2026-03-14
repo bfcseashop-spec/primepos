@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, getApiUrl } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,7 +87,7 @@ export default function DoctorManagementPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const nextIdRes = await fetch("/api/doctors/next-id", { credentials: "include" });
+      const nextIdRes = await fetch(getApiUrl("/api/doctors/next-id"), { credentials: "include" });
       if (!nextIdRes.ok) {
         const err = await nextIdRes.json().catch(() => ({}));
         throw new Error(err.message || `${nextIdRes.status}: ${nextIdRes.statusText}`);
@@ -134,7 +134,7 @@ export default function DoctorManagementPage() {
     try {
       const formData = new FormData();
       formData.append("photo", file);
-      const res = await fetch("/api/doctors/upload-photo", { method: "POST", body: formData, credentials: "include" });
+      const res = await fetch(getApiUrl("/api/doctors/upload-photo"), { method: "POST", body: formData, credentials: "include" });
       const data = await res.json();
       if (res.ok) {
         setForm(f => ({ ...f, photoUrl: data.photoUrl }));

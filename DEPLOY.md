@@ -90,3 +90,12 @@ If you see 404s for API requests (e.g. `/api/dues`, `/api/bills`, `/api/medicine
 1. **Reverse proxy must forward all `/api/*`** to the Node app. Nginx/Caddy/Cloudflare Tunnel should proxy the entire path, e.g. `location / { proxy_pass http://127.0.0.1:5010; }` so `/api/dues`, `/api/bills`, etc. reach the server.
 2. **Cloudflare**: Ensure WebSockets are On (Network) and no Page Rules block API paths.
 3. **Verify**: `curl -I https://pos.primeclinic24.com/api/dues` (with session cookie) should return 200 or 401, not 404.
+4. **Custom API base**: If the API is on a different origin, set `VITE_API_BASE` at build time (e.g. `VITE_API_BASE=https://api.example.com npm run build`). All API requests use absolute URLs via `getApiUrl()`.
+
+**404s for `e.css`, `exex`, or other odd paths**
+
+These often come from browser extensions (e.g. React DevTools, ad blockers) or third-party scripts, not from the app. Try in an incognito window or with extensions disabled. The app does not request these paths.
+
+**Split payment / payment_splits column**
+
+If you use manual migrations instead of `drizzle-kit push`, run `psql $DATABASE_URL -f migrations/0002_bills_payment_splits.sql` to add the `payment_splits` column to bills.

@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
 import { Plus, Eye, Edit, Trash2, ShieldCheck, Check, X, Users, Shield, UserCheck } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -694,7 +694,7 @@ export default function StaffPage() {
                       const fd = new FormData();
                       fd.append("file", file);
                       try {
-                        const res = await fetch(`/api/users/${selectedUser.id}/upload-signature`, { method: "POST", body: fd, credentials: "include" });
+                        const res = await fetch(getApiUrl(`/api/users/${selectedUser.id}/upload-signature`), { method: "POST", body: fd, credentials: "include" });
                         if (res.ok) {
                           queryClient.invalidateQueries({ queryKey: ["/api/users"] });
                           toast({ title: "Signature uploaded" });

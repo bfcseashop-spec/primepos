@@ -79,6 +79,9 @@ export async function apiRequest(
 export function getApiUrl(path: string): string {
   if (typeof window === "undefined") return path;
   const p = path.startsWith("/") ? path : `/${path}`;
+  const base = (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_API_BASE) || "";
+  if (base && base.startsWith("http")) return `${base.replace(/\/$/, "")}${p}`;
+  if (base) return `${window.location.origin}${base.replace(/\/$/, "")}${p}`;
   return `${window.location.origin}${p}`;
 }
 
@@ -88,7 +91,10 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const path = queryKey.join("/") as string;
+    const parts = Array.isArray(queryKey)
+      ? queryKey.filter((k): k is string | number => (typeof k === "string" || typeof k === "number") && String(k) !== "")
+      : [];
+    const path = parts.join("/").replace(/\/+/g, "/"); // collapse multiple slashes
     const url = path.startsWith("/api") ? getApiUrl(path) : path;
     const res = await fetch(url, {
       credentials: "include",

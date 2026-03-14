@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -162,7 +162,7 @@ export default function SettingsPage() {
     try {
       const formData = new FormData();
       formData.append("logo", file);
-      const res = await fetch("/api/settings/upload-logo", { method: "POST", body: formData, credentials: "include" });
+      const res = await fetch(getApiUrl("/api/settings/upload-logo"), { method: "POST", body: formData, credentials: "include" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { message?: string }).message || "Upload failed");

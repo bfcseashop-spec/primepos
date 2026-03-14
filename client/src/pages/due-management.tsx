@@ -21,7 +21,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, DollarSign, User, Plus, Receipt, X, RefreshCw, Download, FileSpreadsheet, FileText, Upload, Edit2, Trash2 } from "lucide-react";
+import { Clock, DollarSign, User, Plus, Receipt, X, RefreshCw, Download, FileSpreadsheet, FileText, Upload, Edit2, Trash2, Calendar } from "lucide-react";
+import { TablePagination } from "@/components/table-pagination";
 import type { Patient } from "@shared/schema";
 
 interface DuePayment {
@@ -83,7 +84,16 @@ export default function DueManagementPage() {
   const [editPaymentDate, setEditPaymentDate] = useState("");
   const [deletePaymentId, setDeletePaymentId] = useState<number | null>(null);
   const [paymentsPage, setPaymentsPage] = useState(1);
-  const paymentsPageSize = 10;
+  const [paymentsPageSize, setPaymentsPageSize] = useState(10);
+  const [summariesPage, setSummariesPage] = useState(1);
+  const [summariesPageSize, setSummariesPageSize] = useState(10);
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+  const [showCreateDue, setShowCreateDue] = useState(false);
+  const [createDuePatientId, setCreateDuePatientId] = useState<number | null>(null);
+  const [createDueAmount, setCreateDueAmount] = useState("");
+  const [createDueNote, setCreateDueNote] = useState("");
+  const [createDuePatientSearch, setCreateDuePatientSearch] = useState("");
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -92,25 +102,32 @@ export default function DueManagementPage() {
     debounceRef.current = setTimeout(() => setDebouncedSearch(search), 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [search]);
+  useEffect(() => { setSummariesPage(1); }, [debouncedSearch, statusFilter, dateFrom, dateTo]);
 
   const { data: summaryData, isLoading, isError: summaryError, error: summaryErr, refetch: refetchSummary } = useQuery<{ summaries: PatientDueSummary[]; total: number }>({
-    queryKey: ["/api/dues", debouncedSearch, statusFilter],
+    queryKey: ["/api/dues", debouncedSearch, statusFilter, dateFrom, dateTo, summariesPage, summariesPageSize],
     queryFn: async () => {
       const params = new URLSearchParams();
+      params.set("limit", String(summariesPageSize));
+      params.set("offset", String((summariesPage - 1) * summariesPageSize));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
       const res = await fetch(getApiUrl(`/api/dues?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await parseApiError(res));
       return res.json();
     },
   });
 
-  const { data: stats, isError: statsError, error: statsErr, refetch: refetchStats } = useQuery<{ totalBalance: number; totalPatients: number }>({
-    queryKey: ["/api/dues/stats", debouncedSearch, statusFilter],
+  const { data: stats, isError: statsError, error: statsErr, refetch: refetchStats } = useQuery<{ totalBalance: number; totalPatients: number; totalCollected: number }>({
+    queryKey: ["/api/dues/stats", debouncedSearch, statusFilter, dateFrom, dateTo],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
       const res = await fetch(getApiUrl(`/api/dues/stats?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await parseApiError(res));
       return res.json();
@@ -131,7 +148,7 @@ export default function DueManagementPage() {
 
   const { data: patientsList = [] } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
-    enabled: activeTab === "payments",
+    enabled: activeTab === "payments" || showCreateDue,
   });
 
   const { data: paymentsData, refetch: refetchPayments } = useQuery<{ payments: DuePayment[]; total: number }>({
@@ -157,11 +174,13 @@ export default function DueManagementPage() {
   });
 
   const summaries = summaryData?.summaries ?? [];
+  const summariesTotal = summaryData?.total ?? 0;
   const allPayments = paymentsData?.payments ?? [];
   const paymentsTotal = paymentsData?.total ?? 0;
   const patientPayments = patientPaymentsData?.payments ?? [];
   const totalBalance = stats?.totalBalance ?? 0;
   const totalPatients = stats?.totalPatients ?? 0;
+  const totalCollected = stats?.totalCollected ?? 0;
 
   const handleBarcodeSearch = useCallback(async (value: string) => {
     const v = value?.trim() ?? "";
@@ -296,6 +315,24 @@ export default function DueManagementPage() {
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const createDueMutation = useMutation({
+    mutationFn: async (data: { patientId: number; amount: number; note?: string }) => {
+      const res = await apiRequest("POST", "/api/due/create", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      setShowCreateDue(false);
+      setCreateDuePatientId(null);
+      setCreateDueAmount("");
+      setCreateDueNote("");
+      toast({ title: "Due created" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const patientBills = selectedPatient
     ? bills.filter((b: any) => b.patientId === selectedPatient.patient.id && Number(b.total ?? 0) > Number(b.paidAmount ?? 0))
     : [];
@@ -304,6 +341,8 @@ export default function DueManagementPage() {
     const params = new URLSearchParams();
     if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
     if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
     return params;
   };
 
@@ -522,6 +561,30 @@ export default function DueManagementPage() {
               </div>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-emerald-500/10 shrink-0">
+                  <Receipt className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Total collected</p>
+                  <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">${totalCollected.toFixed(2)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-8 w-36" placeholder="From" />
+            <span className="text-muted-foreground">to</span>
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-8 w-36" placeholder="To" />
+          </div>
+          {(dateFrom || dateTo) && (
+            <Button variant="ghost" size="sm" className="h-8" onClick={() => { setDateFrom(""); setDateTo(""); }}>Clear dates</Button>
+          )}
         </div>
 
         <Card>
@@ -562,6 +625,9 @@ export default function DueManagementPage() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setShowCreateDue(true)}>
+                    <Plus className="h-3.5 w-3.5" /> Create Due
+                  </Button>
                   <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setShowImportDialog(true)}>
                     <Upload className="h-3.5 w-3.5" /> Import
                   </Button>
@@ -595,6 +661,7 @@ export default function DueManagementPage() {
             ) : summaries.length === 0 ? (
               <div className="text-sm text-muted-foreground py-8 text-center">No patients with outstanding dues.</div>
             ) : (
+              <>
               <div className="overflow-auto rounded-md border">
                 <table className="w-full text-sm">
                   <thead>
@@ -627,6 +694,10 @@ export default function DueManagementPage() {
                   </tbody>
                 </table>
               </div>
+              {summariesTotal > 0 && (
+                <TablePagination page={summariesPage} pageSize={summariesPageSize} total={summariesTotal} onPageChange={setSummariesPage} onPageSizeChange={(v) => { setSummariesPageSize(v); setSummariesPage(1); }} />
+              )}
+            </>
             )) : activeTab === "payments" ? (
               <div className="space-y-4">
                 {allPayments.length === 0 ? (
@@ -667,16 +738,8 @@ export default function DueManagementPage() {
                         </tbody>
                       </table>
                     </div>
-                    {paymentsTotal > paymentsPageSize && (
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">
-                          Showing {(paymentsPage - 1) * paymentsPageSize + 1}–{Math.min(paymentsPage * paymentsPageSize, paymentsTotal)} of {paymentsTotal}
-                        </span>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" disabled={paymentsPage <= 1} onClick={() => setPaymentsPage((p) => p - 1)}>Previous</Button>
-                          <Button variant="outline" size="sm" disabled={paymentsPage * paymentsPageSize >= paymentsTotal} onClick={() => setPaymentsPage((p) => p + 1)}>Next</Button>
-                        </div>
-                      </div>
+                    {paymentsTotal > 0 && (
+                      <TablePagination page={paymentsPage} pageSize={paymentsPageSize} total={paymentsTotal} onPageChange={setPaymentsPage} onPageSizeChange={(v) => { setPaymentsPageSize(v); setPaymentsPage(1); }} />
                     )}
                   </>
                 )}
@@ -685,6 +748,74 @@ export default function DueManagementPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Create Due dialog */}
+      {showCreateDue && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCreateDue(false)}>
+          <Card className="w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Create Due</CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => setShowCreateDue(false)}><X className="h-4 w-4" /></Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Patient</Label>
+                <Input
+                  placeholder="Search by name, ID, or phone..."
+                  value={createDuePatientSearch}
+                  onChange={(e) => setCreateDuePatientSearch(e.target.value)}
+                  className="mb-2"
+                />
+                <Select
+                  value={createDuePatientId ? String(createDuePatientId) : ""}
+                  onValueChange={(v) => setCreateDuePatientId(v ? Number(v) : null)}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select patient..." /></SelectTrigger>
+                  <SelectContent>
+                    {(patientsList as Patient[])
+                      .filter((p) => {
+                        const q = createDuePatientSearch.toLowerCase().trim();
+                        if (!q) return true;
+                        return (p.name ?? "").toLowerCase().includes(q) ||
+                          (p.patientId ?? "").toLowerCase().includes(q) ||
+                          (p.phone ?? "").includes(q);
+                      })
+                      .slice(0, 50)
+                      .map((p) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.patientId ?? p.name} — {p.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Amount</Label>
+                <Input type="number" step="0.01" min="0" placeholder="0.00" value={createDueAmount} onChange={(e) => setCreateDueAmount(e.target.value)} />
+              </div>
+              <div>
+                <Label>Note (optional)</Label>
+                <Input placeholder="e.g. Manual due entry" value={createDueNote} onChange={(e) => setCreateDueNote(e.target.value)} />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => { setShowCreateDue(false); setCreateDuePatientId(null); setCreateDueAmount(""); setCreateDueNote(""); }}>Cancel</Button>
+                <Button
+                  onClick={() => {
+                    const pid = createDuePatientId;
+                    const amt = parseFloat(createDueAmount);
+                    if (!pid) { toast({ title: "Select a patient", variant: "destructive" }); return; }
+                    if (Number.isNaN(amt) || amt <= 0) { toast({ title: "Enter valid amount", variant: "destructive" }); return; }
+                    createDueMutation.mutate({ patientId: pid, amount: amt, note: createDueNote.trim() || undefined });
+                  }}
+                  disabled={!createDuePatientId || !createDueAmount || createDueMutation.isPending}
+                >
+                  {createDueMutation.isPending ? "Creating…" : "Create"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Import dialog */}
       {showImportDialog && (

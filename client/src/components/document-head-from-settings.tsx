@@ -19,8 +19,10 @@ export function DocumentHeadFromSettings() {
   const { data: settings } = useQuery<Settings | null>({
     queryKey: ["/api/settings"],
     queryFn: async ({ queryKey }) => {
-      const path = queryKey.join("/") as string;
-      const res = await fetch(getApiUrl(path), { credentials: "include" });
+      const path = Array.isArray(queryKey)
+        ? queryKey.filter((k): k is string | number => typeof k === "string" || typeof k === "number").join("/")
+        : "";
+      const res = await fetch(path.startsWith("/api") ? getApiUrl(path) : path, { credentials: "include" });
       if (!res.ok) return null;
       const text = await res.text();
       if (!text || text.trimStart().startsWith("<")) return null;

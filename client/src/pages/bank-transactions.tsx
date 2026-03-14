@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
@@ -16,11 +16,12 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
 import { Plus, Search, ArrowUpRight, ArrowDownLeft, Landmark, Banknote, CreditCard, Building2, Smartphone, Receipt, TrendingUp, Trash2, MoreHorizontal, Calendar } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { TablePagination } from "@/components/table-pagination";
 import type { BankTransaction } from "@shared/schema";
 
 const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; bgColor: string; progressColor: string }> = {
@@ -46,10 +47,33 @@ export default function BankTransactionsPage() {
   const [deleteTxBulkConfirm, setDeleteTxBulkConfirm] = useState(false);
   const [deleteTxConfirm, setDeleteTxConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
+  const [txPage, setTxPage] = useState(1);
+  const [txPageSize, setTxPageSize] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchTerm]);
+  useEffect(() => { setTxPage(1); }, [debouncedSearch, dateRange?.from, dateRange?.to]);
 
-  const { data: transactions = [], isLoading } = useQuery<BankTransaction[]>({
-    queryKey: ["/api/bank-transactions"],
+  const { data: transactionsData, isLoading } = useQuery<{ items: BankTransaction[]; total: number; totalDeposits?: number; totalWithdrawals?: number }>({
+    queryKey: ["/api/bank-transactions", "paginated", txPage, txPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("limit", String(txPageSize));
+      params.set("offset", String((txPage - 1) * txPageSize));
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (dateRange?.from) params.set("dateFrom", dateRange.from);
+      if (dateRange?.to) params.set("dateTo", dateRange.to);
+      const res = await fetch(getApiUrl(`/api/bank-transactions?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
   });
+  const transactions = transactionsData?.items ?? [];
+  const transactionsTotal = transactionsData?.total ?? 0;
 
   const { data: bills = [] } = useQuery<any[]>({
     queryKey: ["/api/bills"],
@@ -135,22 +159,9 @@ export default function BankTransactionsPage() {
     });
   };
 
-  const dateFilteredTransactions = useMemo(() =>
-    transactions.filter(t => isDateInRange(t.date, dateRange)),
-    [transactions, dateRange]
-  );
-
   const dateFilteredBills = useMemo(() =>
     bills.filter((b: any) => isDateInRange(b.paymentDate || b.createdAt?.slice(0, 10), dateRange)),
     [bills, dateRange]
-  );
-
-  const totalDeposits = dateFilteredTransactions.filter(t => t.type === "deposit").reduce((s, t) => s + Number(t.amount), 0);
-  const totalWithdrawals = dateFilteredTransactions.filter(t => t.type === "withdrawal").reduce((s, t) => s + Number(t.amount), 0);
-
-  const filtered = dateFilteredTransactions.filter(t =>
-    t.bankName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.description?.toLowerCase().includes(searchTerm.toLowerCase()) || false
   );
 
   const paymentsByMethod = dateFilteredBills.reduce((acc: Record<string, { count: number; total: number; bills: any[] }>, bill: any) => {
@@ -532,7 +543,8 @@ export default function BankTransactionsPage() {
                     </Button>
                   </div>
                 )}
-                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={t("common.noData")} selectedIds={selectedTxIds} onSelectionChange={setSelectedTxIds} />
+                <DataTable columns={columns} data={transactions} isLoading={isLoading} emptyMessage={t("common.noData")} selectedIds={selectedTxIds} onSelectionChange={setSelectedTxIds} />
+                <TablePagination page={txPage} pageSize={txPageSize} total={transactionsTotal} onPageChange={setTxPage} onPageSizeChange={(v) => { setTxPageSize(v); setTxPage(1); }} />
               </CardContent>
             </Card>
           </TabsContent>

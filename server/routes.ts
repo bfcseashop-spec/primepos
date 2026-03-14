@@ -1041,10 +1041,23 @@ export async function registerRoutes(
   });
 
   // Patients
-  app.get("/api/patients", async (_req, res) => {
+  app.get("/api/patients", async (req, res) => {
     try {
-      const result = await storage.getPatients();
-      res.json(result);
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      if (limit != null && limit > 0) {
+        const result = await storage.getPatientsPaginated({
+          limit,
+          offset: Number(req.query.offset) || 0,
+          search: (req.query.search as string)?.trim() || undefined,
+          patientTypeFilter: (req.query.patientTypeFilter as string) || undefined,
+        });
+        const lastVisits = await storage.getLastVisitDatesByPatientIds(result.items.map((p: any) => p.id));
+        const enriched = result.items.map((p: any) => ({ ...p, lastVisitDate: lastVisits[p.id] || null }));
+        res.json({ items: enriched, total: result.total, outPatientCount: result.outPatientCount, inPatientCount: result.inPatientCount, emergencyPatientCount: result.emergencyPatientCount });
+      } else {
+        const result = await storage.getPatients();
+        res.json(result);
+      }
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -1115,29 +1128,55 @@ export async function registerRoutes(
 
   app.get("/api/opd-visits", async (req, res) => {
     try {
-      const fromDate = req.query.fromDate as string | undefined;
-      const toDate = req.query.toDate as string | undefined;
-      const doctorName = req.query.doctorName as string | undefined;
-      const patientId = req.query.patientId != null ? Number(req.query.patientId) : undefined;
-      const hasPrescription = req.query.hasPrescription === "true" || req.query.hasPrescription === "1";
-      let result: any[];
-      if (fromDate || toDate || (doctorName != null && doctorName.trim() !== "") || patientId != null || hasPrescription) {
-        result = await storage.getOpdVisitsFiltered({ fromDate, toDate, doctorName, patientId, hasPrescription: hasPrescription || undefined });
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      if (limit != null && limit > 0) {
+        const result = await storage.getOpdVisitsPaginated({
+          limit,
+          offset: Number(req.query.offset) || 0,
+          search: (req.query.search as string)?.trim() || undefined,
+          typeFilter: (req.query.typeFilter as string) || undefined,
+          fromDate: (req.query.fromDate as string) || undefined,
+          toDate: (req.query.toDate as string) || undefined,
+          doctorName: (req.query.doctorName as string) || undefined,
+          hasPrescription: req.query.hasPrescription === "true" || req.query.hasPrescription === "1",
+        });
+        const users = await storage.getUsers();
+        const doctorUserByFullName = new Map<string, { fullName: string; qualification?: string | null; signatureUrl?: string | null }>();
+        for (const u of users) {
+          const name = (u.fullName || "").trim();
+          if (name) doctorUserByFullName.set(name, { fullName: u.fullName, qualification: u.qualification ?? null, signatureUrl: u.signatureUrl ?? null });
+        }
+        const enriched = result.items.map((v: any) => {
+          const dName = (v.doctorName || "").trim();
+          const doctorUser = dName ? doctorUserByFullName.get(dName) ?? { fullName: dName, qualification: null, signatureUrl: null } : undefined;
+          return { ...v, doctorUser };
+        });
+        res.json({ items: enriched, total: result.total });
       } else {
-        result = await storage.getOpdVisits();
+        const fromDate = req.query.fromDate as string | undefined;
+        const toDate = req.query.toDate as string | undefined;
+        const doctorName = req.query.doctorName as string | undefined;
+        const patientId = req.query.patientId != null ? Number(req.query.patientId) : undefined;
+        const hasPrescription = req.query.hasPrescription === "true" || req.query.hasPrescription === "1";
+        let result: any[];
+        if (fromDate || toDate || (doctorName != null && doctorName.trim() !== "") || patientId != null || hasPrescription) {
+          result = await storage.getOpdVisitsFiltered({ fromDate, toDate, doctorName, patientId, hasPrescription: hasPrescription || undefined });
+        } else {
+          result = await storage.getOpdVisits();
+        }
+        const users = await storage.getUsers();
+        const doctorUserByFullName = new Map<string, { fullName: string; qualification?: string | null; signatureUrl?: string | null }>();
+        for (const u of users) {
+          const name = (u.fullName || "").trim();
+          if (name) doctorUserByFullName.set(name, { fullName: u.fullName, qualification: u.qualification ?? null, signatureUrl: u.signatureUrl ?? null });
+        }
+        const enriched = result.map((v: any) => {
+          const dName = (v.doctorName || "").trim();
+          const doctorUser = dName ? doctorUserByFullName.get(dName) ?? { fullName: dName, qualification: null, signatureUrl: null } : undefined;
+          return { ...v, doctorUser };
+        });
+        res.json(enriched);
       }
-      const users = await storage.getUsers();
-      const doctorUserByFullName = new Map<string, { fullName: string; qualification?: string | null; signatureUrl?: string | null }>();
-      for (const u of users) {
-        const name = (u.fullName || "").trim();
-        if (name) doctorUserByFullName.set(name, { fullName: u.fullName, qualification: u.qualification ?? null, signatureUrl: u.signatureUrl ?? null });
-      }
-      const enriched = result.map((v: any) => {
-        const dName = (v.doctorName || "").trim();
-        const doctorUser = dName ? doctorUserByFullName.get(dName) ?? { fullName: dName, qualification: null, signatureUrl: null } : undefined;
-        return { ...v, doctorUser };
-      });
-      res.json(enriched);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -1359,10 +1398,23 @@ export async function registerRoutes(
   });
 
   // Bills
-  app.get("/api/bills", async (_req, res) => {
+  app.get("/api/bills", async (req, res) => {
     try {
-      const result = await storage.getBills();
-      res.json(result);
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const offset = req.query.offset ? Number(req.query.offset) : undefined;
+      if (limit != null && limit > 0) {
+        const result = await storage.getBillsPaginated({
+          limit,
+          offset: offset ?? 0,
+          search: (req.query.search as string)?.trim() || undefined,
+          dateFrom: (req.query.dateFrom as string) || undefined,
+          dateTo: (req.query.dateTo as string) || undefined,
+        });
+        res.json(result);
+      } else {
+        const result = await storage.getBills();
+        res.json(result);
+      }
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -1516,8 +1568,28 @@ export async function registerRoutes(
   app.put("/api/bills/:id", async (req, res) => {
     try {
       const id = Number(req.params.id);
-      const bill = await storage.updateBill(id, req.body);
+      const data = req.body as Record<string, unknown>;
+      const bill = await storage.updateBill(id, data);
       if (!bill) return res.status(404).json({ message: "Bill not found" });
+      // Create lab tests/samples when bill has lab items but none exist yet (e.g. draft updated with lab services)
+      const items = Array.isArray(data.items) ? data.items : [];
+      const labItems = items.filter((it: any) => it?.type === "service" && (it.serviceId != null || it.name));
+      if (labItems.length > 0) {
+        const allLabTests = await storage.getLabTests();
+        const existingForBill = allLabTests.filter((t: any) => t.billId === id);
+        if (existingForBill.length === 0) {
+          const allServices = await storage.getServices();
+          const hasLabServices = labItems.some((item: any) => {
+            const serv = item.serviceId != null
+              ? allServices.find((s: any) => s.id === Number(item.serviceId))
+              : allServices.find((s: any) => s.name === item.name);
+            return serv && (serv as any).isLabTest;
+          });
+          if (hasLabServices) {
+            await createLabTestAndSampleFromBillItems(bill, items, bill.patientId, (bill.referenceDoctor as string) || null);
+          }
+        }
+      }
       res.json(bill);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -1548,6 +1620,41 @@ export async function registerRoutes(
   });
 
   // Due management (role-permission: due.view / due.add / due.edit / due.delete)
+  app.post("/api/due/create", async (req, res) => {
+    try {
+      const { patientId, amount, note } = req.body;
+      const pid = Number(patientId);
+      if (Number.isNaN(pid)) return res.status(400).json({ message: "Valid patient ID is required" });
+      const amt = Number(amount);
+      if (Number.isNaN(amt) || amt <= 0) return res.status(400).json({ message: "Amount must be greater than 0" });
+      const patient = await storage.getPatient(pid);
+      if (!patient) return res.status(404).json({ message: "Patient not found" });
+      const settings = await storage.getSettings();
+      const prefix = (settings?.invoicePrefix || "INV").replace(/\s/g, "").slice(0, 4) || "INV";
+      const billNo = await storage.getNextBillNo(prefix);
+      const itemName = typeof note === "string" && note.trim() ? note.trim() : "Manual due entry";
+      const bill = await storage.createBill({
+        billNo,
+        patientId: pid,
+        visitId: null,
+        items: [{ type: "custom", name: itemName, quantity: 1, unitPrice: amt, total: amt }],
+        subtotal: String(amt.toFixed(2)),
+        discount: "0",
+        discountType: "amount",
+        tax: "0",
+        total: String(amt.toFixed(2)),
+        paidAmount: "0",
+        paymentMethod: "due",
+        referenceDoctor: null,
+        paymentDate: null,
+        status: "unpaid",
+      } as any);
+      res.status(201).json(bill);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/due/payments", async (req, res) => {
     try {
       const patientId = req.query.patientId ? Number(req.query.patientId) : undefined;
@@ -2410,10 +2517,22 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/medicines", async (_req, res) => {
+  app.get("/api/medicines", async (req, res) => {
     try {
-      const result = await storage.getMedicines();
-      res.json(result);
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      if (limit != null && limit > 0) {
+        const result = await storage.getMedicinesPaginated({
+          limit,
+          offset: Number(req.query.offset) || 0,
+          search: (req.query.search as string)?.trim() || undefined,
+          categoryFilter: (req.query.categoryFilter as string) || undefined,
+          statusFilter: (req.query.statusFilter as string) || undefined,
+        });
+        res.json(result);
+      } else {
+        const result = await storage.getMedicines();
+        res.json(result);
+      }
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -2696,10 +2815,26 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/expenses", async (_req, res) => {
+  app.get("/api/expenses", async (req, res) => {
     try {
-      const result = await storage.getExpenses();
-      res.json(result);
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      if (limit != null && limit > 0) {
+        const cat = (req.query.categoryFilter as string)?.trim();
+        const st = (req.query.statusFilter as string)?.trim();
+        const result = await storage.getExpensesPaginated({
+          limit,
+          offset: Number(req.query.offset) || 0,
+          search: (req.query.search as string)?.trim() || undefined,
+          categoryFilter: cat && cat !== "all" ? cat : undefined,
+          statusFilter: st && st !== "all" ? st : undefined,
+          dateFrom: (req.query.dateFrom as string) || undefined,
+          dateTo: (req.query.dateTo as string) || undefined,
+        });
+        res.json(result);
+      } else {
+        const result = await storage.getExpenses();
+        res.json(result);
+      }
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -2748,10 +2883,22 @@ export async function registerRoutes(
   });
 
   // Bank Transactions
-  app.get("/api/bank-transactions", async (_req, res) => {
+  app.get("/api/bank-transactions", async (req, res) => {
     try {
-      const result = await storage.getBankTransactions();
-      res.json(result);
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      if (limit != null && limit > 0) {
+        const result = await storage.getBankTransactionsPaginated({
+          limit,
+          offset: Number(req.query.offset) || 0,
+          search: (req.query.search as string)?.trim() || undefined,
+          dateFrom: (req.query.dateFrom as string) || undefined,
+          dateTo: (req.query.dateTo as string) || undefined,
+        });
+        res.json(result);
+      } else {
+        const result = await storage.getBankTransactions();
+        res.json(result);
+      }
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -3460,20 +3607,48 @@ export async function registerRoutes(
   });
 
   // Lab Tests
-  app.get("/api/lab-tests", async (_req, res) => {
+  app.get("/api/lab-tests", async (req, res) => {
     try {
-      const result = await storage.getLabTests();
-      res.json(result);
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      if (limit != null && limit > 0) {
+        const result = await storage.getLabTestsPaginated({
+          limit,
+          offset: Number(req.query.offset) || 0,
+          search: (req.query.search as string)?.trim() || undefined,
+          statusFilter: (req.query.statusFilter as string) || undefined,
+          categoryFilter: (req.query.categoryFilter as string) || undefined,
+          dateFrom: (req.query.dateFrom as string) || undefined,
+          dateTo: (req.query.dateTo as string) || undefined,
+        });
+        res.json(result);
+      } else {
+        const result = await storage.getLabTests();
+        res.json(result);
+      }
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
   });
 
   // Alias: /api/labs -> /api/lab-tests (for clients/proxies that use shorthand)
-  app.get("/api/labs", async (_req, res) => {
+  app.get("/api/labs", async (req, res) => {
     try {
-      const result = await storage.getLabTests();
-      res.json(result);
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      if (limit != null && limit > 0) {
+        const result = await storage.getLabTestsPaginated({
+          limit: Number(req.query.limit),
+          offset: Number(req.query.offset) || 0,
+          search: (req.query.search as string)?.trim() || undefined,
+          statusFilter: (req.query.statusFilter as string) || undefined,
+          categoryFilter: (req.query.categoryFilter as string) || undefined,
+          dateFrom: (req.query.dateFrom as string) || undefined,
+          dateTo: (req.query.dateTo as string) || undefined,
+        });
+        res.json(result);
+      } else {
+        const result = await storage.getLabTests();
+        res.json(result);
+      }
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -3617,10 +3792,21 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/sample-collections", async (_req, res) => {
+  app.get("/api/sample-collections", async (req, res) => {
     try {
-      const result = await storage.getSampleCollections();
-      res.json(result);
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      if (limit != null && limit > 0) {
+        const result = await storage.getSampleCollectionsPaginated({
+          limit,
+          offset: Number(req.query.offset) || 0,
+          search: (req.query.search as string)?.trim() || undefined,
+          statusFilter: (req.query.statusFilter as string) || undefined,
+        });
+        res.json(result);
+      } else {
+        const result = await storage.getSampleCollections();
+        res.json(result);
+      }
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
@@ -13,13 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag, Package, RotateCcw } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { TablePagination } from "@/components/table-pagination";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
-import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
+import { DateFilterBar, useDateFilter, getDateRange } from "@/components/date-filter";
 import { billNoMatches } from "@/lib/bill-utils";
 import { capitalizeGender } from "@/lib/utils";
 import type { Patient, Service, Injection, Medicine, BillItem, User as UserType, ClinicSettings, Package as PackageType, Doctor } from "@shared/schema";
@@ -79,11 +80,36 @@ export default function BillingPage() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [referenceDoctor, setReferenceDoctor] = useState("");
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
-  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
+  const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear } = useDateFilter();
+  const [billsPage, setBillsPage] = useState(1);
+  const [billsPageSize, setBillsPageSize] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchTerm]);
 
-  const { data: bills = [], isLoading } = useQuery<any[]>({
-    queryKey: ["/api/bills"],
+  useEffect(() => { setBillsPage(1); }, [debouncedSearch, dateRange?.from, dateRange?.to]);
+
+  const dateRange = getDateRange(datePeriod, customFromDate, customToDate, monthYear);
+  const { data: billsData, isLoading } = useQuery<{ items: any[]; total: number; totalRevenue?: number; totalPaid?: number; paidCount?: number; pendingCount?: number }>({
+    queryKey: ["/api/bills", "paginated", billsPage, billsPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("limit", String(billsPageSize));
+      params.set("offset", String((billsPage - 1) * billsPageSize));
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (dateRange?.from) params.set("dateFrom", dateRange.from);
+      if (dateRange?.to) params.set("dateTo", dateRange.to);
+      const res = await fetch(getApiUrl(`/api/bills?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
   });
+  const bills = billsData?.items ?? [];
+  const billsTotal = billsData?.total ?? 0;
 
   const { data: patients = [] } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
@@ -138,6 +164,11 @@ export default function BillingPage() {
   const [deleteBillConfirm, setDeleteBillConfirm] = useState<{ open: boolean; billId?: number }>({ open: false });
   const [returnBill, setReturnBill] = useState<any>(null);
   const [returnQuantities, setReturnQuantities] = useState<Record<number, number>>({});
+  const [amountPaid, setAmountPaid] = useState("");
+  const [paymentSplits, setPaymentSplits] = useState<Array<{ method: string; amount: number }>>([]);
+  const [isSplitMode, setIsSplitMode] = useState(false);
+  const [newSplitMethod, setNewSplitMethod] = useState("cash");
+  const [newSplitAmount, setNewSplitAmount] = useState("");
 
   const getPaymentLabel = (method: string) => {
     const found = PAYMENT_METHODS.find(p => p.value === method);
@@ -479,6 +510,11 @@ export default function BillingPage() {
     setShowPreview(false);
     setEditingBill(null);
     setEditingBillId(null);
+    setAmountPaid("");
+    setPaymentSplits([]);
+    setIsSplitMode(false);
+    setNewSplitMethod("cash");
+    setNewSplitAmount("");
   };
 
   const addServiceItem = (serviceId: string) => {
@@ -643,12 +679,21 @@ export default function BillingPage() {
     : discountValue;
   const total = Math.max(0, subtotal - discountAmount);
 
+  useEffect(() => {
+    if (editingBillId == null && !isSplitMode && paymentSplits.length === 0) {
+      setAmountPaid(total > 0 ? total.toFixed(2) : "");
+    }
+  }, [total, editingBillId, isSplitMode, paymentSplits.length]);
+
   const handleCreateBill = () => {
     if (!selectedPatient || billItems.length === 0) {
       toast({ title: "Please select a patient and add items", variant: "destructive" });
       return;
     }
     if (editingBillId != null) {
+      const paid = paymentSplits.length > 0
+        ? paymentSplits.reduce((s, sp) => s + sp.amount, 0)
+        : parseFloat(amountPaid || "0") || 0;
       updateBillMutation.mutate({
         id: editingBillId,
         data: {
@@ -659,14 +704,22 @@ export default function BillingPage() {
           discountType,
           tax: "0.00",
           total: total.toFixed(2),
+          paidAmount: Math.min(paid, total).toFixed(2),
           status: statusValue,
-          paymentMethod,
+          paymentMethod: paymentSplits.length > 0 ? "split" : paymentMethod,
+          paymentSplits: paymentSplits.length > 0 ? paymentSplits : undefined,
           referenceDoctor: referenceDoctor?.trim() || null,
           paymentDate: paymentDate || null,
         },
       });
       return;
     }
+    const paid = paymentSplits.length > 0
+      ? paymentSplits.reduce((s, sp) => s + sp.amount, 0)
+      : parseFloat(amountPaid || "0") || 0;
+    const status = paid >= total ? "paid" : paid > 0 ? "partial" : "unpaid";
+    const method = paymentSplits.length > 0 ? "split" : paymentMethod;
+    const splits = paymentSplits.length > 0 ? paymentSplits : undefined;
     createBillMutation.mutate({
       billNo: "_",
       patientId: Number(selectedPatient),
@@ -676,11 +729,12 @@ export default function BillingPage() {
       discountType,
       tax: "0.00",
       total: total.toFixed(2),
-      paidAmount: total.toFixed(2),
-      paymentMethod,
+      paidAmount: Math.min(paid, total).toFixed(2),
+      paymentMethod: method,
+      paymentSplits: splits,
       referenceDoctor: referenceDoctor?.trim() || null,
       paymentDate: paymentDate || null,
-      status: "paid",
+      status,
     });
   };
 
@@ -706,10 +760,9 @@ export default function BillingPage() {
     });
   };
 
-  const dateFilteredBills = bills.filter((b: any) => {
-    const billDateStr = b.paymentDate || (b.createdAt ? new Date(b.createdAt).toISOString().split("T")[0] : null);
-    return isDateInRange(billDateStr, dateRange);
-  });
+  useEffect(() => {
+    if (debouncedSearch && bills.length === 1) setViewBill(bills[0]);
+  }, [debouncedSearch, bills]);
 
   const handleBarcodeSearch = (v: string) => {
     const val = v?.trim() ?? "";
@@ -723,7 +776,7 @@ export default function BillingPage() {
     const pat = patients.find(p => (p.patientId || "").toLowerCase() === val.toLowerCase());
     if (pat) {
       setSearchTerm(pat.name || val);
-      const byPatient = dateFilteredBills.filter((b: any) => b.patientId === pat.id);
+      const byPatient = bills.filter((b: any) => b.patientId === pat.id);
       if (byPatient.length === 1) setViewBill(byPatient[0]);
       return;
     }
@@ -764,6 +817,10 @@ export default function BillingPage() {
     setPaymentMethod(bill.paymentMethod || "cash");
     setReferenceDoctor(bill.referenceDoctor || "");
     setStatusValue(typeof bill.status === "string" && bill.status.trim() ? bill.status : "paid");
+    const splits = Array.isArray((bill as any).paymentSplits) ? (bill as any).paymentSplits : [];
+    setPaymentSplits(splits);
+    setIsSplitMode(splits.length > 0);
+    setAmountPaid(String(Number(bill.paidAmount ?? 0).toFixed(2)));
     if (bill.paymentDate) {
       setPaymentDate(String(bill.paymentDate).split("T")[0]);
     } else if (bill.createdAt) {
@@ -776,15 +833,10 @@ export default function BillingPage() {
     setDialogOpen(true);
   };
 
-  const filteredBills = dateFilteredBills.filter((b: any) =>
-    (b.billNo && billNoMatches(searchTerm, b.billNo)) ||
-    b.patientName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const totalRevenue = dateFilteredBills.reduce((sum: number, b: any) => sum + (Number(b.total) || 0), 0);
-  const totalPaid = dateFilteredBills.reduce((sum: number, b: any) => sum + (Number(b.paidAmount) || 0), 0);
-  const paidCount = dateFilteredBills.filter((b: any) => b.status === "paid").length;
-  const pendingCount = dateFilteredBills.filter((b: any) => b.status !== "paid").length;
+  const totalRevenue = billsData?.totalRevenue ?? bills.reduce((sum: number, b: any) => sum + (Number(b.total) || 0), 0);
+  const totalPaid = billsData?.totalPaid ?? bills.reduce((sum: number, b: any) => sum + (Number(b.paidAmount) || 0), 0);
+  const paidCount = billsData?.paidCount ?? bills.filter((b: any) => b.status === "paid").length;
+  const pendingCount = billsData?.pendingCount ?? bills.filter((b: any) => b.status !== "paid").length;
 
   const getBillBreakdown = (row: any) => {
     const items = Array.isArray(row.items) ? row.items : [];
@@ -1322,19 +1374,130 @@ export default function BillingPage() {
                       <Wallet className="h-4 w-4 text-violet-500" />
                       <Label className="text-sm font-semibold">{t("billing.paymentMethod")}</Label>
                     </div>
-                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                      <SelectTrigger data-testid="select-payment-method"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {PAYMENT_METHODS.map(pm => (
-                          <SelectItem key={pm.value} value={pm.value}>
-                            <div className="flex items-center gap-2">
-                              <pm.icon className="h-3.5 w-3.5" />
-                              <span>{pm.label}</span>
+                    {(editingBillId != null || (!isSplitMode && paymentSplits.length === 0)) && (
+                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                        <SelectTrigger data-testid="select-payment-method"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_METHODS.map(pm => (
+                            <SelectItem key={pm.value} value={pm.value}>
+                              <div className="flex items-center gap-2">
+                                <pm.icon className="h-3.5 w-3.5" />
+                                <span>{pm.label}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <>
+                        {!isSplitMode && paymentSplits.length === 0 && (
+                          <div className="space-y-2 pt-2">
+                            <Label className="text-sm">{t("billing.amountPaid") ?? "Amount Paid"}</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min={0}
+                              value={amountPaid}
+                              onChange={(e) => setAmountPaid(e.target.value)}
+                              placeholder={total.toFixed(2)}
+                              className="font-mono"
+                              data-testid="input-amount-paid"
+                            />
+                            {parseFloat(amountPaid || "0") < total && parseFloat(amountPaid || "0") > 0 && (
+                              <p className="text-xs text-amber-600 dark:text-amber-400">
+                                {t("billing.partialPaymentHint") ?? "Partial payment – remaining will show in Due Management"}
+                              </p>
+                            )}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsSplitMode(true)}
+                              className="w-full"
+                              data-testid="button-split-bill"
+                            >
+                              Split Bill
+                            </Button>
+                          </div>
+                        )}
+                        {(isSplitMode || paymentSplits.length > 0) && (
+                          <div className="border rounded-md p-3 space-y-3 pt-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">Split Payment</span>
+                              {isSplitMode && paymentSplits.length === 0 && (
+                                <Button type="button" variant="ghost" size="sm" onClick={() => setIsSplitMode(false)}>
+                                  Cancel
+                                </Button>
+                              )}
                             </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Select value={newSplitMethod} onValueChange={setNewSplitMethod}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {PAYMENT_METHODS.filter(p => p.value !== "split").map(pm => (
+                                    <SelectItem key={pm.value} value={pm.value}>
+                                      <span>{pm.label}</span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                placeholder="0.00"
+                                value={newSplitAmount}
+                                onChange={(e) => setNewSplitAmount(e.target.value)}
+                                className="font-mono"
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const amt = parseFloat(newSplitAmount || "0");
+                                if (amt > 0) {
+                                  setPaymentSplits(prev => [...prev, { method: newSplitMethod, amount: amt }]);
+                                  setNewSplitAmount("");
+                                }
+                              }}
+                              className="w-full"
+                            >
+                              Add Payment
+                            </Button>
+                            {paymentSplits.length > 0 && (
+                              <div className="space-y-2">
+                                {paymentSplits.map((sp, i) => (
+                                  <div key={i} className="flex items-center justify-between gap-2 p-2 bg-muted rounded text-sm">
+                                    <span>{PAYMENT_METHODS.find(p => p.value === sp.method)?.label ?? sp.method}</span>
+                                    <span className="font-mono">{formatDualCurrency(sp.amount, settings)}</span>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setPaymentSplits(prev => prev.filter((_, j) => j !== i))}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                                <div className="flex justify-between text-sm font-medium pt-2">
+                                  <span>Total Paid:</span>
+                                  <span className={paymentSplits.reduce((s, sp) => s + sp.amount, 0) >= total ? "text-emerald-600" : "text-amber-600"}>
+                                    {formatDualCurrency(paymentSplits.reduce((s, sp) => s + sp.amount, 0), settings)}
+                                  </span>
+                                </div>
+                                {paymentSplits.reduce((s, sp) => s + sp.amount, 0) < total && (
+                                  <p className="text-xs text-amber-600">Remaining: {formatDualCurrency(total - paymentSplits.reduce((s, sp) => s + sp.amount, 0), settings)}</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                    </>
                     {editingBillId != null && (
                       <div className="space-y-1 pt-2">
                         <div className="flex items-center gap-2">
@@ -1534,7 +1697,7 @@ export default function BillingPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <FileText className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-semibold">{t("billing.totalBills")}</CardTitle>
-              <Badge variant="secondary" className="text-[10px]">{filteredBills.length}</Badge>
+              <Badge variant="secondary" className="text-[10px]">{billsTotal}</Badge>
             </div>
             <div className="w-64">
               <SearchInputWithBarcode
@@ -1548,7 +1711,14 @@ export default function BillingPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <DataTable columns={billColumns} data={filteredBills} isLoading={isLoading} emptyMessage={t("common.noData")} onRowClick={(row) => setViewBill(row)} />
+            <DataTable columns={billColumns} data={bills} isLoading={isLoading} emptyMessage={t("common.noData")} onRowClick={(row) => setViewBill(row)} />
+            <TablePagination
+              page={billsPage}
+              pageSize={billsPageSize}
+              total={billsTotal}
+              onPageChange={setBillsPage}
+              onPageSizeChange={(v) => { setBillsPageSize(v); setBillsPage(1); }}
+            />
           </CardContent>
         </Card>
       </div>

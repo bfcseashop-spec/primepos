@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
 import { ArrowLeft, Upload, Camera, Link as LinkIcon, UserCircle, User, Phone, Heart, AlertTriangle, Calendar as CalendarIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarUI } from "@/components/ui/calendar";
@@ -104,7 +104,7 @@ export default function RegisterPatientPage() {
     try {
       const formData = new FormData();
       formData.append("photo", file);
-      const res = await fetch("/api/patients/upload-photo", { method: "POST", body: formData, credentials: "include" });
+      const res = await fetch(getApiUrl("/api/patients/upload-photo"), { method: "POST", body: formData, credentials: "include" });
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
       setPhotoUrl(data.photoUrl);

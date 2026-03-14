@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
@@ -13,12 +13,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { FileText, Printer, Pill, Stethoscope, MoreVertical, Filter, Pencil, Plus, X, Trash2 } from "lucide-react";
+import { FileText, Printer, Pill, Stethoscope, MoreVertical, Filter, Pencil, Plus, X, Trash2, Eye } from "lucide-react";
 import { useLocation } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
 import { printPrescription, type PrescriptionLine } from "@/lib/prescription-print";
 import { useAuth } from "@/contexts/auth-context";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { TablePagination } from "@/components/table-pagination";
 import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
@@ -83,6 +84,17 @@ export default function PrescriptionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedVisitIds, setSelectedVisitIds] = useState<Set<number>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; ids: number[] }>({ open: false, ids: [] });
+  const [viewVisit, setViewVisit] = useState<any | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchTerm]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, fromDate, toDate, doctorFilter]);
 
   const queryParams = useMemo(() => {
     const p = new URLSearchParams();
@@ -93,14 +105,26 @@ export default function PrescriptionsPage() {
     return p.toString();
   }, [fromDate, toDate, doctorFilter]);
 
-  const { data: visits = [], isLoading: visitsLoading } = useQuery<any[]>({
-    queryKey: ["/api/opd-visits", queryParams],
+  const visitsQueryKey = ["/api/opd-visits", "paginated", page, pageSize, fromDate, toDate, doctorFilter, debouncedSearch];
+  const { data: visitsData, isLoading: visitsLoading } = useQuery<{ items: any[]; total: number }>({
+    queryKey: visitsQueryKey,
     queryFn: async () => {
-      const res = await fetch(`/api/opd-visits?${queryParams}`, { credentials: "include" });
+      const params = new URLSearchParams();
+      params.set("limit", String(pageSize));
+      params.set("offset", String((page - 1) * pageSize));
+      params.set("fromDate", fromDate);
+      params.set("toDate", toDate);
+      params.set("hasPrescription", "true");
+      if (doctorFilter && doctorFilter !== "all") params.set("doctorName", doctorFilter);
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      const res = await fetch(getApiUrl(`/api/opd-visits?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
-      return res.json();
+      const data = await res.json();
+      return { items: data.items ?? [], total: data.total ?? 0 };
     },
   });
+  const visits = visitsData?.items ?? [];
+  const visitsTotal = visitsData?.total ?? 0;
 
   const { data: stats } = useQuery<any>({
     queryKey: ["/api/reports/prescription-stats", fromDate, toDate, doctorFilter],
@@ -109,7 +133,7 @@ export default function PrescriptionsPage() {
       p.set("fromDate", fromDate);
       p.set("toDate", toDate);
       if (doctorFilter && doctorFilter !== "all") p.set("doctorName", doctorFilter);
-      const res = await fetch(`/api/reports/prescription-stats?${p}`, { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/reports/prescription-stats?${p}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
@@ -260,7 +284,7 @@ export default function PrescriptionsPage() {
     const byVisit = visits.find((row: any) => row.visitId && billNoMatches(val, row.visitId));
     if (byVisit) {
       setSearchTerm(val);
-      openEdit(byVisit);
+      setViewVisit(byVisit);
       toast({ title: "Prescription found", description: byVisit.visitId });
       return;
     }
@@ -269,7 +293,7 @@ export default function PrescriptionsPage() {
       setSearchTerm(pat.name || val);
       const byPatient = visits.filter((row: any) => row.patientId === pat.id);
       if (byPatient.length === 1) {
-        openEdit(byPatient[0]);
+        setViewVisit(byPatient[0]);
         toast({ title: "Prescription found", description: byPatient[0].visitId });
       } else if (byPatient.length > 1) {
         toast({ title: "Multiple prescriptions", description: `${byPatient.length} for ${pat.name}. Refine search.` });
@@ -281,17 +305,6 @@ export default function PrescriptionsPage() {
 
   useGlobalBarcodeScanner(handlePrescriptionBarcodeSearch);
 
-  const filteredVisits = useMemo(() => {
-    if (!searchTerm.trim()) return visits;
-    const term = searchTerm.toLowerCase().trim();
-    return visits.filter((row: any) => {
-      const visitIdMatch = row.visitId && billNoMatches(searchTerm, row.visitId);
-      const patientNameMatch = (row.patientName || "").toLowerCase().includes(term);
-      const patientIdMatch = patients.some((p: Patient) => p.id === row.patientId && (p.patientId || "").toLowerCase() === term);
-      return visitIdMatch || patientNameMatch || patientIdMatch;
-    });
-  }, [visits, searchTerm, patients]);
-
   const columns = [
     { header: "Visit ID", accessor: (row: any) => <span className="font-mono text-xs font-medium">{row.visitId}</span> },
     { header: "Date", accessor: (row: any) => <span className="text-sm">{row.visitDate ? new Date(row.visitDate).toLocaleDateString() : "-"}</span> },
@@ -301,25 +314,30 @@ export default function PrescriptionsPage() {
     {
       header: "Actions",
       accessor: (row: any) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handlePrint(row); }} className="gap-2">
-              <Printer className="h-4 w-4" /> Print prescription
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="gap-2">
-              <Pencil className="h-4 w-4" /> Edit prescription
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, ids: [row.id] }); }}
-              className="gap-2 text-red-600 dark:text-red-400"
-            >
-              <Trash2 className="h-4 w-4" /> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" className="gap-1.5" onClick={(e) => { e.stopPropagation(); setViewVisit(row); }} data-testid={`action-view-${row.id}`} title={t("common.view")}>
+            <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" /> {t("common.view")}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><MoreVertical className="h-4 w-4" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handlePrint(row); }} className="gap-2">
+                <Printer className="h-4 w-4" /> Print prescription
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); setViewVisit(null); }} className="gap-2">
+                <Pencil className="h-4 w-4" /> Edit prescription
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, ids: [row.id] }); }}
+                className="gap-2 text-red-600 dark:text-red-400"
+              >
+                <Trash2 className="h-4 w-4" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       ),
     },
   ];
@@ -380,7 +398,7 @@ export default function PrescriptionsPage() {
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Prescriptions (filtered)</p>
-                  <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{stats?.total ?? visits.length}</p>
+                  <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{stats?.total ?? visitsTotal}</p>
                 </div>
               </div>
             </CardContent>
@@ -424,7 +442,7 @@ export default function PrescriptionsPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <FileText className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-semibold">Prescriptions</CardTitle>
-              <Badge variant="secondary" className="text-[10px]">{filteredVisits.length}</Badge>
+              <Badge variant="secondary" className="text-[10px]">{visitsTotal}</Badge>
               {selectedVisitIds.size > 0 && (
                 <Button
                   variant="destructive"
@@ -453,20 +471,95 @@ export default function PrescriptionsPage() {
               <div className="text-sm text-muted-foreground py-8 text-center">Loading...</div>
             ) : visits.length === 0 ? (
               <div className="text-sm text-muted-foreground py-8 text-center">No prescriptions in the selected range.</div>
-            ) : filteredVisits.length === 0 ? (
-              <div className="text-sm text-muted-foreground py-8 text-center">No prescriptions match &quot;{searchTerm}&quot;.</div>
             ) : (
+              <>
               <DataTable
               columns={columns}
-              data={filteredVisits}
-              onRowClick={openEdit}
+              data={visits}
+              onRowClick={(row) => setViewVisit(row)}
               selectedIds={selectedVisitIds}
               onSelectionChange={setSelectedVisitIds}
             />
+            <TablePagination page={page} pageSize={pageSize} total={visitsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+            </>
             )}
             </CardContent>
         </Card>
       </div>
+
+      {/* View prescription modal */}
+      <Dialog open={!!viewVisit} onOpenChange={(open) => { if (!open) setViewVisit(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-teal-500" /> Prescription — {viewVisit?.visitId}
+            </DialogTitle>
+            <DialogDescription>
+              {viewVisit && `${viewVisit.patientName || ""} · ${viewVisit.doctorName || ""}`}
+            </DialogDescription>
+          </DialogHeader>
+          {viewVisit && (() => {
+            const { lines, notes } = parsePrescriptionJson(viewVisit.prescription);
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Patient</p>
+                    <p className="font-semibold">{viewVisit.patientName || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Doctor</p>
+                    <p className="font-semibold">{viewVisit.doctorName || "-"}</p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Symptoms</p>
+                    <p className="text-sm">{viewVisit.symptoms || "-"}</p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Diagnosis</p>
+                    <p className="text-sm">{viewVisit.diagnosis || "-"}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">Prescription</p>
+                  <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
+                    {lines.length === 0 ? (
+                      <div className="p-4 text-center text-muted-foreground text-sm">No prescription lines</div>
+                    ) : (
+                      lines.map((line, idx) => (
+                        <div key={idx} className="p-3 grid grid-cols-12 gap-2 text-sm items-center">
+                          <span className="col-span-3 font-medium">{line.name || "-"}</span>
+                          <span className="col-span-2 text-muted-foreground">{line.dosage || "-"}</span>
+                          <span className="col-span-2 text-muted-foreground">{line.duration || "-"}</span>
+                          <span className="col-span-2 text-muted-foreground">{line.frequency || "-"}</span>
+                          <span className="col-span-3 text-muted-foreground truncate">{line.instructions || "-"}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+                {notes && (
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Notes</p>
+                    <p className="text-sm">{notes}</p>
+                  </div>
+                )}
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button variant="outline" onClick={() => setViewVisit(null)} data-testid="button-view-cancel">
+                    Cancel
+                  </Button>
+                  <Button onClick={() => { openEdit(viewVisit); setViewVisit(null); }} className="bg-teal-600 hover:bg-teal-700" data-testid="button-view-edit">
+                    <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                  </Button>
+                  <Button onClick={() => { handlePrint(viewVisit); setViewVisit(null); }} variant="secondary" data-testid="button-view-print">
+                    <Printer className="h-4 w-4 mr-1.5" /> Print
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit prescription dialog */}
       <Dialog open={!!editVisit} onOpenChange={(open) => { if (!open) setEditVisit(null); }}>

@@ -240,6 +240,7 @@ export const km = {
     downloadReport: "ទាញយករបាយការណ៍",
     printReport: "បោះពុម្ពរបាយការណ៍",
     barcode: "បាកូដ",
+    ageGender: "អាយុ / ភេទ",
   },
   medicines: {
     title: "គ្រប់គ្រងឱសថ",

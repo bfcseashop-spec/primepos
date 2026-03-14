@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, downloadFile } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile, getApiUrl } from "@/lib/queryClient";
 import {
   Plus, DollarSign, X, Tag, Trash2, Eye, Pencil, Printer,
   MoreHorizontal, Users, Wallet, AlertTriangle, CheckCircle2, CreditCard,
@@ -133,7 +133,7 @@ export default function InvestmentsPage() {
       if (contributionFromDate) params.set("fromDate", contributionFromDate);
       if (contributionToDate) params.set("toDate", contributionToDate);
       const url = `/api/contributions${params.toString() ? "?" + params.toString() : ""}`;
-      const res = await fetch(url, { credentials: "include" });
+      const res = await fetch(getApiUrl(url), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text() || res.statusText);
       return res.json();
     },
@@ -706,7 +706,7 @@ export default function InvestmentsPage() {
     try {
       const formData = new FormData();
       formData.append("slip", file);
-      const res = await fetch("/api/contributions/upload-slip", { method: "POST", body: formData });
+      const res = await fetch(getApiUrl("/api/contributions/upload-slip"), { method: "POST", body: formData, credentials: "include" });
       if (!res.ok) throw new Error("Upload failed");
       const { url } = await res.json();
       if (target === "create") {
@@ -747,7 +747,7 @@ export default function InvestmentsPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/contributions/import", { method: "POST", body: formData });
+      const res = await fetch(getApiUrl("/api/contributions/import"), { method: "POST", body: formData, credentials: "include" });
       if (!res.ok) throw new Error("Import failed");
       const result = await res.json();
       queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
@@ -1728,7 +1728,7 @@ export default function InvestmentsPage() {
                         try {
                           const formData = new FormData();
                           formData.append("slip", f);
-                          const res = await fetch("/api/contributions/upload-slip", { method: "POST", body: formData });
+                          const res = await fetch(getApiUrl("/api/contributions/upload-slip"), { method: "POST", body: formData, credentials: "include" });
                           if (!res.ok) throw new Error("Upload failed");
                           const { url } = await res.json();
                           const currentImages = viewContribution.images || [];

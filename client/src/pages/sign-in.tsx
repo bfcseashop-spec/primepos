@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getApiUrl } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ export default function SignInPage({ onLogin }: SignInPageProps) {
   const { data: publicSettings } = useQuery<PublicSettings>({
     queryKey: ["/api/public/settings"],
     queryFn: async () => {
-      const res = await fetch("/api/public/settings", { credentials: "include" });
+      const res = await fetch(getApiUrl("/api/public/settings"), { credentials: "include" });
       if (!res.ok) return {} as PublicSettings;
       const json = await res.json();
       return json as PublicSettings;

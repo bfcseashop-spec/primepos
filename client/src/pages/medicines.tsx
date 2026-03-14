@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, downloadFile } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile, getApiUrl } from "@/lib/queryClient";
 import {
   Plus, Search, AlertTriangle, Package, Pill, TrendingUp, DollarSign,
   Box, Droplets, FlaskConical, MoreHorizontal, Eye, Pencil, Trash2,
@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { TablePagination } from "@/components/table-pagination";
 import type { Medicine, StockAdjustment } from "@shared/schema";
 
 const MEDICINE_CATEGORIES = [
@@ -78,6 +79,16 @@ export default function MedicinesPage() {
   const [newCategory, setNewCategory] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [importDialog, setImportDialog] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchTerm]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, categoryFilter, statusFilter]);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -116,7 +127,7 @@ export default function MedicinesPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/medicines/import", { method: "POST", body: formData, credentials: "include" });
+      const res = await fetch(getApiUrl("/api/medicines/import"), { method: "POST", body: formData, credentials: "include" });
       const data = await res.json();
       if (res.ok) {
         setImportResult(data);
@@ -133,9 +144,22 @@ export default function MedicinesPage() {
     }
   };
 
-  const { data: medicines = [], isLoading } = useQuery<Medicine[]>({
-    queryKey: ["/api/medicines"],
+  const { data: medicinesData, isLoading } = useQuery<{ items: Medicine[]; total: number }>({
+    queryKey: ["/api/medicines", "paginated", page, pageSize, debouncedSearch, categoryFilter, statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("limit", String(pageSize));
+      params.set("offset", String((page - 1) * pageSize));
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (categoryFilter && categoryFilter !== "all") params.set("categoryFilter", categoryFilter);
+      if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
+      const res = await fetch(getApiUrl(`/api/medicines?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
   });
+  const medicines = medicinesData?.items ?? [];
+  const medicinesTotal = medicinesData?.total ?? 0;
 
   const { data: stockHistory = [], isLoading: stockHistoryLoading } = useQuery<StockAdjustment[]>({
     queryKey: ["/api/medicines", String(stockHistoryMed?.id ?? ""), "stock-history"],
@@ -349,32 +373,12 @@ export default function MedicinesPage() {
     setForm(f => ({ ...f, imageUrl: resolved }));
   };
 
-  const filtered = medicines.filter(m => {
-    const matchesSearch = searchTerm === "" ||
-      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (m.category?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (m.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (m.batchNo?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      ((m as any).boxNo?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
-
-    const matchesCategory = categoryFilter === "all" || m.category === categoryFilter;
-
-    const isLowItem = m.stockCount < (m.stockAlert || 10) && m.stockCount > 0;
-    const isOutItem = m.stockCount === 0;
-    const isInItem = m.stockCount >= (m.stockAlert || 10);
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "in_stock" && isInItem) ||
-      (statusFilter === "low_stock" && isLowItem) ||
-      (statusFilter === "out_of_stock" && isOutItem);
-
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+  const filtered = medicines;
 
   const lowStock = medicines.filter(m => m.stockCount < (m.stockAlert || 10) && m.stockCount > 0 && m.isActive);
   const outOfStock = medicines.filter(m => m.stockCount === 0);
   const inStock = medicines.filter(m => m.stockCount >= (m.stockAlert || 10));
-  const totalMeds = medicines.length;
+  const totalMeds = medicinesTotal;
   const totalPurchaseValue = medicines.reduce((sum, m) => sum + Number(m.totalPurchasePrice || 0), 0);
   const totalSalesValue = medicines.reduce((sum, m) => sum + (Number(m.sellingPriceLocal || 0) * m.stockCount), 0);
   const usedCategories = Array.from(new Set(medicines.map(m => m.category).filter(Boolean))) as string[];
@@ -1345,8 +1349,10 @@ export default function MedicinesPage() {
                   </div>
                 )}
                 <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No medicines yet" selectedIds={selectedIds} onSelectionChange={setSelectedIds} onRowClick={(row) => setViewMed(row)} />
+                <TablePagination page={page} pageSize={pageSize} total={medicinesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
               </>
             ) : (
+              <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3" data-testid="medicine-grid">
                 {isLoading ? (
                   <p className="col-span-full text-center text-muted-foreground py-8">Loading...</p>
@@ -1453,6 +1459,8 @@ export default function MedicinesPage() {
                   );
                 })}
               </div>
+              <TablePagination page={page} pageSize={pageSize} total={medicinesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+            </>
             )}
           </CardContent>
         </Card>

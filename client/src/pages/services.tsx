@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, downloadFile } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile, getApiUrl } from "@/lib/queryClient";
 import {
   Plus, Search, MoreVertical, Eye, Pencil, Trash2, ImagePlus, X, Check,
   FolderPlus, Activity, CheckCircle2, XCircle, DollarSign, Layers,
@@ -232,7 +232,7 @@ function InjectionManagement() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/injections/import", { method: "POST", body: formData });
+      const res = await fetch(getApiUrl("/api/injections/import"), { method: "POST", body: formData, credentials: "include" });
       if (!res.ok) throw new Error((await res.json()).message || "Import failed");
       return res.json();
     },
@@ -251,11 +251,11 @@ function InjectionManagement() {
   };
 
   const handleInjDownloadSample = () => {
-    window.open("/api/injections/sample-template", "_blank");
+    window.open(getApiUrl("/api/injections/sample-template"), "_blank");
   };
 
   const handleInjExport = () => {
-    window.open("/api/injections/export/xlsx", "_blank");
+    window.open(getApiUrl("/api/injections/export/xlsx"), "_blank");
   };
 
   const handleSubmit = () => {
@@ -1038,7 +1038,7 @@ export default function ServicesPage() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/services/import", { method: "POST", body: formData, credentials: "include" });
+      const res = await fetch(getApiUrl("/api/services/import"), { method: "POST", body: formData, credentials: "include" });
       if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
       return res.json();
     },

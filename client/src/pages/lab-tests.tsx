@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
-import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
+import { DateFilterBar, useDateFilter } from "@/components/date-filter";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,9 +19,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions, useAuth } from "@/contexts/auth-context";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
 import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, Barcode, FlaskConical, TestTubes, DollarSign, CheckCircle, Upload, Download, FileText, Printer, User, Clock, XCircle, AlertTriangle, Loader2, ChevronDown, ClipboardList } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { TablePagination } from "@/components/table-pagination";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { billNoMatches } from "@/lib/bill-utils";
 import { capitalizeGender } from "@/lib/utils";
@@ -352,10 +353,38 @@ export default function LabTestsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
   const [deleteBulkConfirm, setDeleteBulkConfirm] = useState(false);
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm || invoiceFilter || ""), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchTerm, invoiceFilter]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, categoryFilter, dateRange?.from, dateRange?.to]);
 
-  const { data: labTests = [], isLoading } = useQuery<LabTestWithPatient[]>({
-    queryKey: ["/api/lab-tests"],
+  const labTestsQueryKey = ["/api/lab-tests", "paginated", page, pageSize, debouncedSearch, categoryFilter, dateRange?.from, dateRange?.to];
+  const { data: labTestsData, isLoading } = useQuery<{ items: LabTestWithPatient[]; total: number; processingCount?: number; completeCount?: number; withReportsCount?: number }>({
+    queryKey: labTestsQueryKey,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("limit", String(pageSize));
+      params.set("offset", String((page - 1) * pageSize));
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (categoryFilter !== "all") params.set("categoryFilter", categoryFilter);
+      if (dateRange?.from) params.set("dateFrom", dateRange.from);
+      if (dateRange?.to) params.set("dateTo", dateRange.to);
+      const res = await fetch(getApiUrl(`/api/lab-tests?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
   });
+  const labTests = labTestsData?.items ?? [];
+  const labTestsTotal = labTestsData?.total ?? 0;
+  const processingCount = labTestsData?.processingCount ?? 0;
+  const completeCount = labTestsData?.completeCount ?? 0;
+  const withReportsCount = labTestsData?.withReportsCount ?? 0;
 
   const { data: bills = [] } = useQuery<{ id: number; billNo: string }[]>({
     queryKey: ["/api/bills"],
@@ -374,7 +403,7 @@ export default function LabTestsPage() {
     queryKey: inputServiceIds.length ? (inputServiceIds.length > 1 ? ["/api/services/params-batch", inputServiceIds.join(",")] : [`/api/services/${inputServiceIds[0]}`]) : ["__skip"],
     enabled: inputServiceIds.length > 0,
     ...(inputServiceIds.length > 1
-      ? { queryFn: () => fetch(`/api/services/params-batch?ids=${inputServiceIds.join(",")}`, { credentials: "include" }).then(r => r.json()) }
+      ? { queryFn: () => fetch(getApiUrl(`/api/services/params-batch?ids=${inputServiceIds.join(",")}`), { credentials: "include" }).then(r => r.json()) }
       : {}),
   });
 
@@ -387,7 +416,7 @@ export default function LabTestsPage() {
     queryKey: viewServiceIds.length ? (viewServiceIds.length > 1 ? ["/api/services/params-batch", viewServiceIds.join(",")] : [`/api/services/${viewServiceIds[0]}`]) : ["__skip"],
     enabled: viewServiceIds.length > 0,
     ...(viewServiceIds.length > 1
-      ? { queryFn: () => fetch(`/api/services/params-batch?ids=${viewServiceIds.join(",")}`, { credentials: "include" }).then(r => r.json()) }
+      ? { queryFn: () => fetch(getApiUrl(`/api/services/params-batch?ids=${viewServiceIds.join(",")}`), { credentials: "include" }).then(r => r.json()) }
       : {}),
   });
 
@@ -403,7 +432,7 @@ export default function LabTestsPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const codeRes = await fetch("/api/lab-tests/next-code", { credentials: "include" });
+      const codeRes = await fetch(getApiUrl("/api/lab-tests/next-code"), { credentials: "include" });
       if (!codeRes.ok) {
         const err = await codeRes.json().catch(() => ({}));
         throw new Error(err.message || `${codeRes.status}: ${codeRes.statusText}`);
@@ -767,7 +796,7 @@ export default function LabTestsPage() {
       const formData = new FormData();
       formData.append('report', fileInputRef.current.files[0]);
       if (uploadReferrer) formData.append('referrerName', uploadReferrer);
-      const res = await fetch(`/api/lab-tests/${uploadTest.id}/upload-report`, {
+      const res = await fetch(getApiUrl(`/api/lab-tests/${uploadTest.id}/upload-report`), {
         method: 'POST',
         body: formData,
         credentials: 'include',
@@ -856,28 +885,7 @@ export default function LabTestsPage() {
 
   useGlobalBarcodeScanner(handleBarcodeSearch);
 
-  const filtered = labTests.filter(t => {
-    const matchInvoice = !invoiceFilter || (() => {
-      const bill = bills.find(b => billNoMatches(invoiceFilter, b.billNo || ""));
-      return bill && (t as LabTestWithPatient & { billId?: number | null }).billId === bill.id;
-    })();
-    const matchSearch = searchTerm === "" ||
-      t.testName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.sampleType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.testCode && t.testCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (t.patientName && t.patientName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (t.referrerName && t.referrerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      ((t as { patientPatientId?: string }).patientPatientId?.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchCategory = categoryFilter === "all" || t.category.includes(categoryFilter);
-    const matchDate = isDateInRange(t.createdAt?.toString().slice(0, 10), dateRange);
-    return matchInvoice && matchSearch && matchCategory && matchDate;
-  });
-
-  const processingCount = filtered.filter(t => t.status === "processing").length;
-  const completeCount = filtered.filter(t => t.status === "complete").length;
-  const uniqueCategories = Array.from(new Set(filtered.flatMap(t => t.category.split(",").map(s => s.trim()))));
-  const withReports = filtered.filter(t => t.reportFileUrl).length;
+  const uniqueCategories = Array.from(new Set(labTests.flatMap(t => t.category.split(",").map(s => s.trim()))));
 
   const statusBadgeConfig: Record<string, { dot: string; bg: string; text: string; border: string }> = {
     processing: { dot: "bg-amber-500", bg: "bg-amber-500/10 dark:bg-amber-400/10", text: "text-amber-700 dark:text-amber-300", border: "border-amber-500/20" },
@@ -911,6 +919,17 @@ export default function LabTestsPage() {
         {row.patientName || <span className="text-muted-foreground">-</span>}
       </span>
     )},
+    { header: t("labTests.ageGender"), accessor: (row: LabTestWithPatient) => {
+      const age = (row as { patientAge?: number | null }).patientAge;
+      const gender = (row as { patientGender?: string | null }).patientGender;
+      const ageStr = age != null ? String(age) : "-";
+      const genderStr = gender?.trim() || "-";
+      return (
+        <span className="text-sm text-muted-foreground" data-testid={`text-age-gender-${row.id}`}>
+          {ageStr} / {genderStr}
+        </span>
+      );
+    }},
     { header: t("common.category"), accessor: (row: LabTestWithPatient) => (
       <div className="flex flex-wrap gap-1" data-testid={`badge-category-${row.id}`}>
         {row.category.split(",").map(c => c.trim()).filter(Boolean).map(c => (
@@ -1523,10 +1542,10 @@ export default function LabTestsPage() {
         <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} monthYear={monthYear} setMonthYear={setMonthYear} dateRange={dateRange} />
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { key: "total", label: t("labTests.totalTests"), gradient: "from-blue-500 to-blue-600", value: filtered.length, icon: FlaskConical, testId: "text-total-tests" },
+            { key: "total", label: t("labTests.totalTests"), gradient: "from-blue-500 to-blue-600", value: labTestsTotal, icon: FlaskConical, testId: "text-total-tests" },
             { key: "processing", label: t("labTests.processing"), gradient: "from-amber-500 to-amber-600", value: processingCount, icon: Loader2, testId: "text-processing-tests" },
             { key: "complete", label: t("labTests.completed"), gradient: "from-emerald-500 to-emerald-600", value: completeCount, icon: CheckCircle, testId: "text-complete-tests" },
-            { key: "reports", label: t("labTests.downloadReport"), gradient: "from-violet-500 to-violet-600", value: withReports, icon: FileText, testId: "text-with-reports" },
+            { key: "reports", label: t("labTests.downloadReport"), gradient: "from-violet-500 to-violet-600", value: withReportsCount, icon: FileText, testId: "text-with-reports" },
             { key: "categories", label: t("common.category"), gradient: "from-cyan-500 to-cyan-600", value: uniqueCategories.length, icon: TestTubes, testId: "text-categories-count" },
           ].map((s) => (
             <Card key={s.key} data-testid={`stat-${s.key}`}>
@@ -1581,7 +1600,8 @@ export default function LabTestsPage() {
                 </Button>
               </div>
             )}
-            <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage={t("labTests.noLabTests")} selectedIds={canDelete ? selectedIds : undefined} onSelectionChange={canDelete ? setSelectedIds : undefined} onRowClick={(row) => setViewTest(row)} />
+            <DataTable columns={columns} data={labTests} isLoading={isLoading} emptyMessage={t("labTests.noLabTests")} selectedIds={canDelete ? selectedIds : undefined} onSelectionChange={canDelete ? setSelectedIds : undefined} onRowClick={(row) => setViewTest(row)} />
+                <TablePagination page={page} pageSize={pageSize} total={labTestsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
           </CardContent>
         </Card>
       </div>

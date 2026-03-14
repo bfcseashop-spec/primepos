@@ -305,6 +305,7 @@ export const en = {
     awaitingSampleTooltip: "Sample collection required before starting the test. Go to Sample Collection page to mark sample as collected.",
     test: "Test",
     current: "Current",
+    ageGender: "Age / Gender",
   },
   medicines: {
     title: "Medicine Management",

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, getApiUrl } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -539,7 +539,7 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
                           const fd = new FormData();
                           fd.append("file", file);
                           try {
-                            const res = await fetch(`/api/salary-profiles/${editingProfile.id}/upload-image`, { method: "POST", body: fd, credentials: "include" });
+                            const res = await fetch(getApiUrl(`/api/salary-profiles/${editingProfile.id}/upload-image`), { method: "POST", body: fd, credentials: "include" });
                             const data = await res.json();
                             setForm(f => ({ ...f, profileImage: data.profileImage || "" }));
                             queryClient.invalidateQueries({ queryKey: ["/api/salary-profiles"] });
@@ -590,7 +590,7 @@ function ProfilesTab({ profiles, departments, salaryCategories, onRefresh }: {
                           const fd = new FormData();
                           fd.append("file", file);
                           try {
-                            const res = await fetch(`/api/salary-profiles/${editingProfile.id}/upload-payment-slip`, { method: "POST", body: fd, credentials: "include" });
+                            const res = await fetch(getApiUrl(`/api/salary-profiles/${editingProfile.id}/upload-payment-slip`), { method: "POST", body: fd, credentials: "include" });
                             const data = await res.json();
                             setForm(f => ({ ...f, paymentSlip: data.paymentSlip || "" }));
                             queryClient.invalidateQueries({ queryKey: ["/api/salary-profiles"] });
@@ -715,7 +715,7 @@ function LoansTab({ loans, profiles }: { loans: SalaryLoan[]; profiles: SalaryPr
     queryKey: ["/api/loan-installments", selectedLoan?.id],
     queryFn: async () => {
       if (!selectedLoan) return [];
-      const res = await fetch(`/api/loan-installments/${selectedLoan.id}`, { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/loan-installments/${selectedLoan.id}`), { credentials: "include" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || `${res.status}: ${res.statusText}`);
@@ -1144,7 +1144,7 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
     let slips = payslipsList;
     if (!selectedRun || selectedRun.id !== run.id) {
       try {
-        const res = await fetch(`/api/payslips/${run.id}`, { credentials: "include" });
+        const res = await fetch(getApiUrl(`/api/payslips/${run.id}`), { credentials: "include" });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || res.statusText);
         slips = await res.json();
         if (!Array.isArray(slips)) slips = [];
@@ -1180,7 +1180,7 @@ function PayrollTab({ payrollRuns, profiles, loans }: { payrollRuns: PayrollRun[
   const viewPayslips = async (run: PayrollRun) => {
     setSelectedRun(run);
     try {
-      const res = await fetch(`/api/payslips/${run.id}`, { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/payslips/${run.id}`), { credentials: "include" });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || res.statusText);
       const data = await res.json();
       setPayslipsList(Array.isArray(data) ? data : []);
