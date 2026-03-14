@@ -1043,8 +1043,9 @@ export async function registerRoutes(
   // Patients
   app.get("/api/patients", async (req, res) => {
     try {
-      const limit = req.query.limit ? Number(req.query.limit) : undefined;
-      if (limit != null && limit > 0) {
+      const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
+      const limit = (rawLimit != null && rawLimit > 0) ? rawLimit : (req.query.limit != null ? 10 : undefined);
+      if (limit != null) {
         const result = await storage.getPatientsPaginated({
           limit,
           offset: Number(req.query.offset) || 0,
@@ -1128,8 +1129,9 @@ export async function registerRoutes(
 
   app.get("/api/opd-visits", async (req, res) => {
     try {
-      const limit = req.query.limit ? Number(req.query.limit) : undefined;
-      if (limit != null && limit > 0) {
+      const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
+      const limit = (rawLimit != null && rawLimit > 0) ? rawLimit : (req.query.limit != null ? 10 : undefined);
+      if (limit != null) {
         const result = await storage.getOpdVisitsPaginated({
           limit,
           offset: Number(req.query.offset) || 0,
@@ -1400,9 +1402,10 @@ export async function registerRoutes(
   // Bills
   app.get("/api/bills", async (req, res) => {
     try {
-      const limit = req.query.limit ? Number(req.query.limit) : undefined;
-      const offset = req.query.offset ? Number(req.query.offset) : undefined;
-      if (limit != null && limit > 0) {
+      const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
+      const limit = (rawLimit != null && rawLimit > 0) ? rawLimit : (req.query.limit != null ? 10 : undefined);
+      const offset = req.query.offset != null ? Number(req.query.offset) : undefined;
+      if (limit != null) {
         const result = await storage.getBillsPaginated({
           limit,
           offset: offset ?? 0,
@@ -2519,8 +2522,9 @@ export async function registerRoutes(
 
   app.get("/api/medicines", async (req, res) => {
     try {
-      const limit = req.query.limit ? Number(req.query.limit) : undefined;
-      if (limit != null && limit > 0) {
+      const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
+      const limit = (rawLimit != null && rawLimit > 0) ? rawLimit : (req.query.limit != null ? 10 : undefined);
+      if (limit != null) {
         const result = await storage.getMedicinesPaginated({
           limit,
           offset: Number(req.query.offset) || 0,
@@ -2817,8 +2821,9 @@ export async function registerRoutes(
 
   app.get("/api/expenses", async (req, res) => {
     try {
-      const limit = req.query.limit ? Number(req.query.limit) : undefined;
-      if (limit != null && limit > 0) {
+      const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
+      const limit = (rawLimit != null && rawLimit > 0) ? rawLimit : (req.query.limit != null ? 10 : undefined);
+      if (limit != null) {
         const cat = (req.query.categoryFilter as string)?.trim();
         const st = (req.query.statusFilter as string)?.trim();
         const result = await storage.getExpensesPaginated({
@@ -2885,8 +2890,9 @@ export async function registerRoutes(
   // Bank Transactions
   app.get("/api/bank-transactions", async (req, res) => {
     try {
-      const limit = req.query.limit ? Number(req.query.limit) : undefined;
-      if (limit != null && limit > 0) {
+      const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
+      const limit = (rawLimit != null && rawLimit > 0) ? rawLimit : (req.query.limit != null ? 10 : undefined);
+      if (limit != null) {
         const result = await storage.getBankTransactionsPaginated({
           limit,
           offset: Number(req.query.offset) || 0,
@@ -3609,8 +3615,9 @@ export async function registerRoutes(
   // Lab Tests
   app.get("/api/lab-tests", async (req, res) => {
     try {
-      const limit = req.query.limit ? Number(req.query.limit) : undefined;
-      if (limit != null && limit > 0) {
+      const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
+      const limit = (rawLimit != null && rawLimit > 0) ? rawLimit : (req.query.limit != null ? 10 : undefined);
+      if (limit != null) {
         const result = await storage.getLabTestsPaginated({
           limit,
           offset: Number(req.query.offset) || 0,
@@ -3633,10 +3640,11 @@ export async function registerRoutes(
   // Alias: /api/labs -> /api/lab-tests (for clients/proxies that use shorthand)
   app.get("/api/labs", async (req, res) => {
     try {
-      const limit = req.query.limit ? Number(req.query.limit) : undefined;
-      if (limit != null && limit > 0) {
+      const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
+      const limit = (rawLimit != null && rawLimit > 0) ? rawLimit : (req.query.limit != null ? 10 : undefined);
+      if (limit != null) {
         const result = await storage.getLabTestsPaginated({
-          limit: Number(req.query.limit),
+          limit,
           offset: Number(req.query.offset) || 0,
           search: (req.query.search as string)?.trim() || undefined,
           statusFilter: (req.query.statusFilter as string) || undefined,
@@ -3794,8 +3802,9 @@ export async function registerRoutes(
 
   app.get("/api/sample-collections", async (req, res) => {
     try {
-      const limit = req.query.limit ? Number(req.query.limit) : undefined;
-      if (limit != null && limit > 0) {
+      const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
+      const limit = (rawLimit != null && rawLimit > 0) ? rawLimit : (req.query.limit != null ? 10 : undefined);
+      if (limit != null) {
         const result = await storage.getSampleCollectionsPaginated({
           limit,
           offset: Number(req.query.offset) || 0,

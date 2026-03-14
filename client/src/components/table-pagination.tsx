@@ -51,80 +51,83 @@ export function TablePagination({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 py-3 px-2 sm:px-0">
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-        <span>
-          Showing {start}-{end} of {total}
-        </span>
-        <div className="flex items-center gap-2">
-          <span>Per page</span>
-          <Select
-            value={String(pageSize)}
-            onValueChange={(v) => {
-              onPageSizeChange(Number(v));
-              onPageChange(1);
-            }}
-          >
-            <SelectTrigger className="h-8 w-[70px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {pageSizeOptions.map((size) => (
-                <SelectItem key={size} value={String(size)}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+    <div className="sticky bottom-0 z-10 flex w-full flex-row flex-wrap items-center justify-between gap-3 border-t bg-background px-4 py-3">
+      {/* Left: Showing X-Y of Z */}
+      <div className="text-sm text-muted-foreground">
+        Showing {start}-{end} of {total}
       </div>
-      {totalPages > 1 && (
-        <Pagination>
-          <PaginationContent className="flex-wrap justify-center sm:justify-end">
-            <PaginationItem>
-              <PaginationPrevious
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (page > 1) onPageChange(page - 1);
-                }}
-                className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-              />
-            </PaginationItem>
-            {getPageNumbers().map((p, i) =>
-              p === "ellipsis" ? (
-                <PaginationItem key={`ellipsis-${i}`}>
-                  <PaginationEllipsis />
-                </PaginationItem>
-              ) : (
-                <PaginationItem key={p}>
-                  <PaginationLink
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      onPageChange(p);
-                    }}
-                    isActive={page === p}
-                    className="cursor-pointer"
-                  >
-                    {p}
-                  </PaginationLink>
-                </PaginationItem>
-              )
-            )}
-            <PaginationItem>
-              <PaginationNext
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (page < totalPages) onPageChange(page + 1);
-                }}
-                className={page >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      )}
+      {/* Middle: Previous 1 2 3 4 Next */}
+      <div className="flex items-center">
+        {totalPages > 1 ? (
+          <Pagination>
+            <PaginationContent className="flex-wrap justify-center">
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (page > 1) onPageChange(page - 1);
+                  }}
+                  className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+              {getPageNumbers().map((p, i) =>
+                p === "ellipsis" ? (
+                  <PaginationItem key={`ellipsis-${i}`}>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                ) : (
+                  <PaginationItem key={p}>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onPageChange(p);
+                      }}
+                      isActive={page === p}
+                      className="cursor-pointer"
+                    >
+                      {p}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              )}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (page < totalPages) onPageChange(page + 1);
+                  }}
+                  className={page >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        ) : null}
+      </div>
+      {/* Right: Per page N */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span>Per page</span>
+        <Select
+          value={String(pageSize)}
+          onValueChange={(v) => {
+            onPageSizeChange(Number(v));
+            onPageChange(1);
+          }}
+        >
+          <SelectTrigger className="h-8 w-[70px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {pageSizeOptions.map((size) => (
+              <SelectItem key={size} value={String(size)}>
+                {size}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }

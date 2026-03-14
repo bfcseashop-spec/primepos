@@ -114,8 +114,9 @@ export default function OpdPage() {
     queryKey: patientsQueryKey,
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.set("limit", String(pageSize));
-      params.set("offset", String((page - 1) * pageSize));
+      const limit = Math.max(1, pageSize);
+      params.set("limit", String(limit));
+      params.set("offset", String((page - 1) * limit));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (typeFilter !== "all") params.set("patientTypeFilter", typeFilter);
       const res = await fetch(getApiUrl(`/api/patients?${params}`), { credentials: "include" });

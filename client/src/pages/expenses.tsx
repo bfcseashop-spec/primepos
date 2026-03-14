@@ -127,8 +127,9 @@ export default function ExpensesPage() {
     queryKey: expensesQueryKey,
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.set("limit", String(pageSize));
-      params.set("offset", String((page - 1) * pageSize));
+      const limit = Math.max(1, pageSize);
+      params.set("limit", String(limit));
+      params.set("offset", String((page - 1) * limit));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (filterCategory !== "all") params.set("categoryFilter", filterCategory);
       if (filterStatus !== "all") params.set("statusFilter", filterStatus);

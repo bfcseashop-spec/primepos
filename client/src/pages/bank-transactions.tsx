@@ -64,8 +64,9 @@ export default function BankTransactionsPage() {
     queryKey: ["/api/bank-transactions", "paginated", txPage, txPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.set("limit", String(txPageSize));
-      params.set("offset", String((txPage - 1) * txPageSize));
+      const limit = Math.max(1, txPageSize);
+      params.set("limit", String(limit));
+      params.set("offset", String((txPage - 1) * limit));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (dateRange?.from) params.set("dateFrom", dateRange.from);
       if (dateRange?.to) params.set("dateTo", dateRange.to);

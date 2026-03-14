@@ -148,8 +148,9 @@ export default function MedicinesPage() {
     queryKey: ["/api/medicines", "paginated", page, pageSize, debouncedSearch, categoryFilter, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.set("limit", String(pageSize));
-      params.set("offset", String((page - 1) * pageSize));
+      const limit = Math.max(1, pageSize);
+      params.set("limit", String(limit));
+      params.set("offset", String((page - 1) * limit));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (categoryFilter && categoryFilter !== "all") params.set("categoryFilter", categoryFilter);
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);

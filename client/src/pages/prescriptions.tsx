@@ -24,6 +24,7 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { billNoMatches } from "@/lib/bill-utils";
+import JsBarcode from "jsbarcode";
 import type { Patient, Doctor, ClinicSettings, Service, Injection, Medicine, Package as PackageType } from "@shared/schema";
 
 const dateToYMD = (d: Date) => d.toISOString().split("T")[0];
@@ -89,12 +90,27 @@ export default function PrescriptionsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prescriptionBarcodeRef = useRef<SVGSVGElement | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm]);
   useEffect(() => { setPage(1); }, [debouncedSearch, fromDate, toDate, doctorFilter]);
+
+  const prescriptionBarcodeValue = (viewVisit?.visitId || "").replace(/[^A-Za-z0-9\-]/g, "") || "";
+  useEffect(() => {
+    const el = prescriptionBarcodeRef.current;
+    if (!el) return;
+    el.innerHTML = "";
+    if (prescriptionBarcodeValue) {
+      try {
+        JsBarcode(el, prescriptionBarcodeValue, { format: "CODE128", width: 1.2, height: 28, displayValue: false, margin: 2, lineColor: "#000000", background: "#ffffff" });
+      } catch {
+        el.innerHTML = "";
+      }
+    }
+  }, [viewVisit?.id, prescriptionBarcodeValue]);
 
   const queryParams = useMemo(() => {
     const p = new URLSearchParams();
@@ -110,8 +126,9 @@ export default function PrescriptionsPage() {
     queryKey: visitsQueryKey,
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.set("limit", String(pageSize));
-      params.set("offset", String((page - 1) * pageSize));
+      const limit = Math.max(1, pageSize);
+      params.set("limit", String(limit));
+      params.set("offset", String((page - 1) * limit));
       params.set("fromDate", fromDate);
       params.set("toDate", toDate);
       params.set("hasPrescription", "true");
@@ -487,64 +504,118 @@ export default function PrescriptionsPage() {
         </Card>
       </div>
 
-      {/* View prescription modal */}
+      {/* View prescription modal - layout matches billing view invoice */}
       <Dialog open={!!viewVisit} onOpenChange={(open) => { if (!open) setViewVisit(null); }}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-teal-500" /> Prescription — {viewVisit?.visitId}
-            </DialogTitle>
-            <DialogDescription>
-              {viewVisit && `${viewVisit.patientName || ""} · ${viewVisit.doctorName || ""}`}
-            </DialogDescription>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Prescription — {viewVisit?.visitId}</DialogTitle>
+            <DialogDescription>{viewVisit && `${viewVisit.patientName || ""} · ${viewVisit.doctorName || ""}`}</DialogDescription>
           </DialogHeader>
           {viewVisit && (() => {
             const { lines, notes } = parsePrescriptionJson(viewVisit.prescription);
+            const patient = patients.find((p) => p.id === viewVisit.patientId);
+            const dateStr = viewVisit.visitDate ? new Date(viewVisit.visitDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
             return (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Patient</p>
-                    <p className="font-semibold">{viewVisit.patientName || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Doctor</p>
-                    <p className="font-semibold">{viewVisit.doctorName || "-"}</p>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Symptoms</p>
-                    <p className="text-sm">{viewVisit.symptoms || "-"}</p>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Diagnosis</p>
-                    <p className="text-sm">{viewVisit.diagnosis || "-"}</p>
+              <div>
+                <div className="bg-card border-b">
+                  <div className="px-6 pt-6 pb-4 text-center border-b">
+                    {settings?.logo && <img src={settings.logo} alt="Logo" className="h-12 object-contain mx-auto mb-2" />}
+                    <h2 className="text-xl font-black tracking-wider uppercase text-teal-600 dark:text-teal-400">{settings?.clinicName || "Clinic"}</h2>
+                    <div className="text-[11px] text-muted-foreground leading-relaxed mt-1.5">
+                      {settings?.address && <p>{settings.address}</p>}
+                      <p>{[settings?.phone, settings?.email].filter(Boolean).join(", ")}</p>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">Prescription</p>
-                  <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
-                    {lines.length === 0 ? (
-                      <div className="p-4 text-center text-muted-foreground text-sm">No prescription lines</div>
-                    ) : (
-                      lines.map((line, idx) => (
-                        <div key={idx} className="p-3 grid grid-cols-12 gap-2 text-sm items-center">
-                          <span className="col-span-3 font-medium">{line.name || "-"}</span>
-                          <span className="col-span-2 text-muted-foreground">{line.dosage || "-"}</span>
-                          <span className="col-span-2 text-muted-foreground">{line.duration || "-"}</span>
-                          <span className="col-span-2 text-muted-foreground">{line.frequency || "-"}</span>
-                          <span className="col-span-3 text-muted-foreground truncate">{line.instructions || "-"}</span>
+
+                <div className="px-6 py-5 space-y-5">
+                  <div className="flex items-start justify-between gap-6 flex-wrap">
+                    <div className="space-y-1.5">
+                      <p className="text-sm"><span className="text-teal-600 dark:text-teal-400 font-bold uppercase text-[11px] tracking-wide">Prescription No #:</span> <span className="font-bold font-mono text-sm">{viewVisit.visitId || "-"}</span></p>
+                      <p className="text-sm"><span className="text-teal-600 dark:text-teal-400 font-bold uppercase text-[11px] tracking-wide">Date:</span> <span className="font-semibold">{new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span></p>
+                      <p className="text-sm text-muted-foreground">Prescribed by: <span className="font-semibold text-foreground">{viewVisit.doctorName || "-"}</span></p>
+                    </div>
+                    {prescriptionBarcodeValue && (
+                      <div className="text-right shrink-0">
+                        <p className="text-teal-600 dark:text-teal-400 font-bold text-[10px] uppercase tracking-wider mb-0.5">Prescription code:</p>
+                        <div className="inline-block rounded bg-white dark:bg-zinc-900 p-2 border border-border">
+                          <svg ref={prescriptionBarcodeRef} className="max-h-10 w-auto block" data-testid="prescription-view-barcode" />
                         </div>
-                      ))
+                        <p className="text-[10px] font-mono mt-0.5 text-muted-foreground">{prescriptionBarcodeValue}</p>
+                      </div>
                     )}
                   </div>
-                </div>
-                {notes && (
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Notes</p>
-                    <p className="text-sm">{notes}</p>
+
+                  <div className="flex items-start justify-between gap-8 flex-wrap">
+                    <div>
+                      <p className="text-base font-extrabold text-teal-600 dark:text-teal-400 mb-1.5">Patient :</p>
+                      <p className="font-bold text-sm">{viewVisit.patientName || patient?.name || "-"}</p>
+                      {patient?.patientId && <p className="text-muted-foreground text-xs mt-0.5">ID : {patient.patientId}</p>}
+                      {patient?.gender && <p className="text-muted-foreground text-xs mt-0.5">Gender: {patient.gender}{patient?.age != null ? `, Age: ${patient.age}` : ""}</p>}
+                      {patient?.phone && <p className="text-muted-foreground text-xs mt-0.5">Phone: {patient.phone}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-base font-extrabold text-teal-600 dark:text-teal-400 mb-1.5">Doctor :</p>
+                      <p className="font-bold text-sm">{viewVisit.doctorName || "-"}</p>
+                    </div>
                   </div>
-                )}
-                <div className="flex justify-end gap-2 pt-4 border-t">
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-teal-600 dark:text-teal-400 font-bold uppercase text-[11px] tracking-wide mb-1">Symptoms</p>
+                      <p className="text-sm">{viewVisit.symptoms || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-teal-600 dark:text-teal-400 font-bold uppercase text-[11px] tracking-wide mb-1">Diagnosis</p>
+                      <p className="text-sm">{viewVisit.diagnosis || "-"}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-md overflow-hidden border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-teal-600 dark:bg-teal-700 text-white">
+                          <th className="text-center py-3 px-3 text-[10px] uppercase tracking-widest font-bold w-14">Item</th>
+                          <th className="text-left py-3 px-3 text-[10px] uppercase tracking-widest font-bold">Description</th>
+                          <th className="text-left py-3 px-3 text-[10px] uppercase tracking-widest font-bold w-24">Dosage</th>
+                          <th className="text-left py-3 px-3 text-[10px] uppercase tracking-widest font-bold w-20">Duration</th>
+                          <th className="text-left py-3 px-3 text-[10px] uppercase tracking-widest font-bold w-24">Frequency</th>
+                          <th className="text-left py-3 px-3 text-[10px] uppercase tracking-widest font-bold">Instructions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lines.length === 0 ? (
+                          <tr><td colSpan={6} className="py-8 text-center text-muted-foreground text-sm">No prescription lines</td></tr>
+                        ) : (
+                          lines.map((line, i) => (
+                            <tr key={i} className="border-b border-border/40 last:border-b-0">
+                              <td className="py-3 px-3 text-center font-bold tabular-nums text-xs">{String(i + 1).padStart(2, "0")}</td>
+                              <td className="py-3 px-3 text-sm font-medium">{line.name || "-"}</td>
+                              <td className="py-3 px-3 text-sm text-muted-foreground">{line.dosage || "-"}</td>
+                              <td className="py-3 px-3 text-sm text-muted-foreground">{line.duration || "-"}</td>
+                              <td className="py-3 px-3 text-sm text-muted-foreground">{line.frequency || "-"}</td>
+                              <td className="py-3 px-3 text-sm text-muted-foreground">{line.instructions || "-"}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {notes && (
+                    <div>
+                      <p className="text-teal-600 dark:text-teal-400 font-bold uppercase text-[11px] tracking-wide mb-1">Notes</p>
+                      <p className="text-sm">{notes}</p>
+                    </div>
+                  )}
+
+                  <div className="text-center pt-6 pb-2 space-y-1.5 border-t">
+                    <p className="text-xs font-extrabold text-teal-600 dark:text-teal-400 uppercase tracking-wider leading-relaxed">Thank you for choosing {settings?.clinicName || "our clinic"}!</p>
+                    {settings?.email && <p className="text-[10px] text-muted-foreground uppercase font-medium">For questions, contact {settings.email}</p>}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 px-6 pb-5">
                   <Button variant="outline" onClick={() => setViewVisit(null)} data-testid="button-view-cancel">
                     Cancel
                   </Button>

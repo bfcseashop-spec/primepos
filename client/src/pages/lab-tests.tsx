@@ -369,8 +369,9 @@ export default function LabTestsPage() {
     queryKey: labTestsQueryKey,
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.set("limit", String(pageSize));
-      params.set("offset", String((page - 1) * pageSize));
+      const limit = Math.max(1, pageSize);
+      params.set("limit", String(limit));
+      params.set("offset", String((page - 1) * limit));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (categoryFilter !== "all") params.set("categoryFilter", categoryFilter);
       if (dateRange?.from) params.set("dateFrom", dateRange.from);

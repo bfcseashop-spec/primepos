@@ -111,8 +111,9 @@ export default function DueManagementPage() {
     queryKey: ["/api/dues", debouncedSearch, statusFilter, dateFrom, dateTo, summariesPage, summariesPageSize],
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.set("limit", String(summariesPageSize));
-      params.set("offset", String((summariesPage - 1) * summariesPageSize));
+      const limit = Math.max(1, summariesPageSize);
+      params.set("limit", String(limit));
+      params.set("offset", String((summariesPage - 1) * limit));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       if (dateFrom) params.set("dateFrom", dateFrom);
@@ -157,7 +158,8 @@ export default function DueManagementPage() {
   const { data: paymentsData, refetch: refetchPayments } = useQuery<{ payments: DuePayment[]; total: number }>({
     queryKey: ["/api/due/payments", paymentsPage, paymentsPageSize],
     queryFn: async () => {
-      const params = new URLSearchParams({ limit: String(paymentsPageSize), offset: String((paymentsPage - 1) * paymentsPageSize) });
+      const limit = Math.max(1, paymentsPageSize);
+      const params = new URLSearchParams({ limit: String(limit), offset: String((paymentsPage - 1) * limit) });
       const res = await fetch(getApiUrl(`/api/due/payments?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await parseApiError(res));
       return res.json();

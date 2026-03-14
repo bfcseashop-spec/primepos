@@ -88,8 +88,9 @@ export default function SampleCollectionsPage() {
     queryKey: ["/api/sample-collections", "paginated", page, pageSize, debouncedSearch, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.set("limit", String(pageSize));
-      params.set("offset", String((page - 1) * pageSize));
+      const limit = Math.max(1, pageSize);
+      params.set("limit", String(limit));
+      params.set("offset", String((page - 1) * limit));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter !== "all") params.set("statusFilter", statusFilter);
       const res = await fetch(getApiUrl(`/api/sample-collections?${params}`), { credentials: "include" });

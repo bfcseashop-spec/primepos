@@ -97,8 +97,9 @@ export default function BillingPage() {
     queryKey: ["/api/bills", "paginated", billsPage, billsPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.set("limit", String(billsPageSize));
-      params.set("offset", String((billsPage - 1) * billsPageSize));
+      const limit = Math.max(1, billsPageSize);
+      params.set("limit", String(limit));
+      params.set("offset", String((billsPage - 1) * limit));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (dateRange?.from) params.set("dateFrom", dateRange.from);
       if (dateRange?.to) params.set("dateTo", dateRange.to);
@@ -1635,7 +1636,7 @@ export default function BillingPage() {
               </div>
               <div className="flex items-center gap-1.5 rounded-md bg-white/15 backdrop-blur-sm px-3 py-1.5">
                 <FileText className="h-3.5 w-3.5 text-blue-200" />
-                <span className="text-sm text-white font-semibold" data-testid="stat-total-bills">{bills.length} {t("billing.totalBills")}</span>
+                <span className="text-sm text-white font-semibold" data-testid="stat-total-bills">{billsTotal} {t("billing.totalBills")}</span>
               </div>
             </div>
           </div>
@@ -1649,7 +1650,7 @@ export default function BillingPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{t("billing.totalBills")}</p>
-                <p className="text-xl font-bold text-blue-700 dark:text-blue-300 tabular-nums">{bills.length}</p>
+                <p className="text-xl font-bold text-blue-700 dark:text-blue-300 tabular-nums" data-testid="stat-total-bills-count">{billsTotal}</p>
               </div>
             </CardContent>
           </Card>
