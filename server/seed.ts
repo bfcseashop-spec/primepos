@@ -29,7 +29,7 @@ export async function seedDatabase() {
 
   // Roles (view/add/edit/delete format for role permission UI)
   const [adminRole] = await db.insert(roles).values([
-    { name: "Admin", permissions: perms({ dashboard: all, make_payment: all, opd: all, appointments: all, services: all, lab_tests: all, medicines: all, doctors: all, patients: all, expenses: all, bank_transactions: all, investments: all, salary: all, user_role: all, authentication: all, integrations: all, reports: all, settings: all }) },
+    { name: "Admin", permissions: perms({ dashboard: all, make_payment: all, opd: all, appointments: all, services: all, lab_tests: all, medicines: all, doctors: all, patients: all, expenses: all, bank_transactions: all, due: all, investments: all, salary: all, user_role: all, authentication: all, integrations: all, reports: all, settings: all }) },
     { name: "Doctor", permissions: perms({ dashboard: viewOnly, make_payment: viewAddEdit, opd: viewAddEdit, appointments: viewOnly, services: viewOnly, lab_tests: viewOnly, medicines: viewOnly, doctors: viewOnly, patients: viewOnly, integrations: viewOnly, reports: viewOnly }) },
     { name: "Receptionist", permissions: perms({ dashboard: viewOnly, make_payment: viewAddEdit, opd: viewAddEdit, appointments: viewAddEdit, services: viewOnly, lab_tests: viewOnly, medicines: viewOnly, patients: viewAddEdit }) },
     { name: "Lab Technologist", description: "Lab Technologist user", permissions: perms({ dashboard: viewOnly, make_payment: viewAddEdit, opd: viewAddEdit, services: all, lab_tests: all, medicines: viewOnly, patients: all }) },

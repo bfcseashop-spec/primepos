@@ -53,24 +53,24 @@ export default function DueManagementPage() {
   const [allocations, setAllocations] = useState<Record<number, string>>({});
 
   const { data: summaryData, isLoading, isError: summaryError, error: summaryErr, refetch: refetchSummary } = useQuery<{ summaries: PatientDueSummary[]; total: number }>({
-    queryKey: ["/api/due/patients-summary", search, statusFilter],
+    queryKey: ["/api/dues", search, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
-      const res = await fetch(`/api/due/patients-summary?${params}`, { credentials: "include" });
+      const res = await fetch(`/api/dues?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error(await parseApiError(res));
       return res.json();
     },
   });
 
   const { data: stats, isError: statsError, error: statsErr, refetch: refetchStats } = useQuery<{ totalBalance: number; totalPatients: number }>({
-    queryKey: ["/api/due/patients-summary/stats", search, statusFilter],
+    queryKey: ["/api/dues/stats", search, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
-      const res = await fetch(`/api/due/patients-summary/stats?${params}`, { credentials: "include" });
+      const res = await fetch(`/api/dues/stats?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error(await parseApiError(res));
       return res.json();
     },
@@ -108,8 +108,8 @@ export default function DueManagementPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/due/patients-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/due/patients-summary/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       setPaymentDialogOpen(false);
       setSelectedPatient(null);

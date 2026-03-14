@@ -82,3 +82,11 @@ git push
 ```
 
 Then on server: `git pull` and `chmod +x deploy.sh`; `./deploy.sh` will work.
+
+**"Error Not found" or 404 on Due Management / API pages**
+
+If you see 404s for API requests (e.g. `/api/dues`, `/api/bills`, `/api/medicines`) while the app loads:
+
+1. **Reverse proxy must forward all `/api/*`** to the Node app. Nginx/Caddy/Cloudflare Tunnel should proxy the entire path, e.g. `location / { proxy_pass http://127.0.0.1:5010; }` so `/api/dues`, `/api/bills`, etc. reach the server.
+2. **Cloudflare**: Ensure WebSockets are On (Network) and no Page Rules block API paths.
+3. **Verify**: `curl -I https://pos.primeclinic24.com/api/dues` (with session cookie) should return 200 or 401, not 404.
