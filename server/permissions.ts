@@ -22,6 +22,7 @@ const ROUTE_TO_MODULE: RouteRule[] = [
   { prefix: "/api/patients", module: "patients" },
   { prefix: "/api/expenses", module: "expenses" },
   { prefix: "/api/bank-transactions", module: "bank_transactions" },
+  { prefix: "/api/due", module: "due" },
   { prefix: "/api/investments", module: "investments" },
   { prefix: "/api/investors", module: "investments" },
   { prefix: "/api/contributions", module: "investments" },

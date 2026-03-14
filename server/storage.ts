@@ -11,7 +11,9 @@ import {
   type InsertMedicine, type Medicine,
   stockAdjustments, type InsertStockAdjustment, type StockAdjustment,
   type InsertOpdVisit, type OpdVisit,
-  type InsertBill, type Bill, type InsertExpense, type Expense,
+  type InsertBill, type Bill,
+  duePayments, duePaymentAllocations, type InsertDuePayment, type DuePayment, type InsertDuePaymentAllocation, type DuePaymentAllocation,
+  type InsertExpense, type Expense,
   type InsertBankTransaction, type BankTransaction,
   type InsertInvestor, type Investor,
   type InsertInvestment, type Investment,
@@ -108,6 +110,14 @@ export interface IStorage {
   updateBill(id: number, data: Partial<InsertBill>): Promise<Bill | undefined>;
   deleteBill(id: number): Promise<void>;
   bulkDeleteBills(ids: number[]): Promise<void>;
+
+  getDuePayments(patientId?: number, limit?: number, offset?: number): Promise<{ payments: DuePayment[]; total: number }>;
+  getDuePaymentAllocations(paymentId: number): Promise<DuePaymentAllocation[]>;
+  recordPaymentWithAllocations(payment: InsertDuePayment, allocations: { billId: number; amount: number }[]): Promise<DuePayment>;
+  updateDuePayment(id: number, updates: Partial<InsertDuePayment>): Promise<DuePayment | undefined>;
+  deleteDuePayment(id: number): Promise<boolean>;
+  getPatientsDueSummary(limit?: number, offset?: number, search?: string, statusFilter?: string, dateFrom?: Date, dateTo?: Date): Promise<{ summaries: Array<{ patient: Patient; totalDue: number; totalPaid: number; balance: number; credit: number; billsCount: number }>; total: number }>;
+  getPatientsDueSummaryStats(dateFrom?: Date, dateTo?: Date, search?: string, statusFilter?: string): Promise<{ totalBalance: number; totalPatients: number }>;
 
   getExpenses(): Promise<Expense[]>;
   createExpense(expense: InsertExpense): Promise<Expense>;
@@ -613,13 +623,158 @@ export class DatabaseStorage implements IStorage {
   async deleteBill(id: number): Promise<void> {
     await db.update(sampleCollections).set({ billId: null }).where(eq(sampleCollections.billId, id));
     await db.update(labTests).set({ billId: null }).where(eq(labTests.billId, id));
+    await db.delete(duePaymentAllocations).where(eq(duePaymentAllocations.billId, id));
     await db.delete(bills).where(eq(bills.id, id));
   }
 
   async bulkDeleteBills(ids: number[]): Promise<void> {
     await db.update(sampleCollections).set({ billId: null }).where(inArray(sampleCollections.billId, ids));
     await db.update(labTests).set({ billId: null }).where(inArray(labTests.billId, ids));
+    await db.delete(duePaymentAllocations).where(inArray(duePaymentAllocations.billId, ids));
     await db.delete(bills).where(inArray(bills.id, ids));
+  }
+
+  async getDuePayments(patientId?: number, limit?: number, offset?: number): Promise<{ payments: DuePayment[]; total: number }> {
+    const conditions = patientId != null ? [eq(duePayments.patientId, patientId)] : [];
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const countResult = await db.select({ count: count() }).from(duePayments).where(whereClause ?? sql`true`);
+    const total = Number(countResult[0]?.count ?? 0);
+    let q = db.select().from(duePayments).orderBy(desc(duePayments.paymentDate));
+    if (whereClause) q = q.where(whereClause) as typeof q;
+    if (limit != null) q = q.limit(limit) as typeof q;
+    if (offset != null) q = q.offset(offset) as typeof q;
+    const payments = await q;
+    return { payments, total };
+  }
+
+  async getDuePaymentAllocations(paymentId: number): Promise<DuePaymentAllocation[]> {
+    return db.select().from(duePaymentAllocations).where(eq(duePaymentAllocations.paymentId, paymentId));
+  }
+
+  async recordPaymentWithAllocations(payment: InsertDuePayment, allocations: { billId: number; amount: number }[]): Promise<DuePayment> {
+    return db.transaction(async (tx) => {
+      const paymentDate = typeof (payment as any).paymentDate === "string" || (payment as any).paymentDate instanceof Date
+        ? (payment as any).paymentDate
+        : new Date();
+      const [created] = await tx.insert(duePayments).values({
+        ...payment,
+        paymentDate: paymentDate instanceof Date ? paymentDate : new Date(paymentDate),
+      } as typeof duePayments.$inferInsert).returning();
+      let totalAllocated = 0;
+      for (const alloc of allocations) {
+        await tx.insert(duePaymentAllocations).values({
+          paymentId: created.id,
+          billId: alloc.billId,
+          amount: String(alloc.amount),
+        });
+        totalAllocated += alloc.amount;
+        const [bill] = await tx.select().from(bills).where(eq(bills.id, alloc.billId));
+        if (bill) {
+          const currentPaid = Number(bill.paidAmount ?? 0);
+          const newPaid = currentPaid + alloc.amount;
+          const totalBill = Number(bill.total ?? 0);
+          const newStatus = newPaid >= totalBill ? "paid" : newPaid > 0 ? "partial" : bill.status;
+          await tx.update(bills).set({
+            paidAmount: String(newPaid.toFixed(2)),
+            status: newStatus,
+          }).where(eq(bills.id, alloc.billId));
+        }
+      }
+      const unapplied = Number(payment.amount) - totalAllocated;
+      if (unapplied !== 0) {
+        await tx.update(duePayments).set({ unappliedAmount: String(unapplied.toFixed(2)) }).where(eq(duePayments.id, created.id));
+      }
+      const [updated] = await tx.select().from(duePayments).where(eq(duePayments.id, created.id));
+      return updated;
+    });
+  }
+
+  async updateDuePayment(id: number, updates: Partial<InsertDuePayment>): Promise<DuePayment | undefined> {
+    const [updated] = await db.update(duePayments).set(updates as Record<string, unknown>).where(eq(duePayments.id, id)).returning();
+    return updated;
+  }
+
+  async deleteDuePayment(id: number): Promise<boolean> {
+    const existing = await db.select().from(duePayments).where(eq(duePayments.id, id)).limit(1);
+    if (existing.length === 0) return false;
+    await db.delete(duePaymentAllocations).where(eq(duePaymentAllocations.paymentId, id));
+    await db.delete(duePayments).where(eq(duePayments.id, id));
+    return true;
+  }
+
+  async getPatientsDueSummary(
+    limit?: number,
+    offset?: number,
+    search?: string,
+    statusFilter?: string,
+    dateFrom?: Date,
+    dateTo?: Date
+  ): Promise<{ summaries: Array<{ patient: Patient; totalDue: number; totalPaid: number; balance: number; credit: number; billsCount: number }>; total: number }> {
+    const allBills = await db.select().from(bills);
+    const billDateFilter = (b: typeof bills.$inferSelect) => {
+      if (!dateFrom && !dateTo) return true;
+      const d = b.createdAt ? new Date(b.createdAt) : null;
+      if (!d) return true;
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    };
+    const dueBills = allBills.filter((b) => {
+      if (!billDateFilter(b)) return false;
+      const total = Number(b.total ?? 0);
+      const paid = Number(b.paidAmount ?? 0);
+      const isDue = (b.paymentMethod === "due" || b.status === "unpaid" || b.status === "partial") && paid < total;
+      return isDue;
+    });
+    const patientIds = [...new Set(dueBills.map((b) => b.patientId))];
+    const allPatients = await db.select().from(patients);
+    const patientMap = new Map(allPatients.map((p) => [p.id, p]));
+    const summaries: Array<{ patient: Patient; totalDue: number; totalPaid: number; balance: number; credit: number; billsCount: number }> = [];
+    for (const pid of patientIds) {
+      const patient = patientMap.get(pid);
+      if (!patient) continue;
+      if (search && search.trim()) {
+        const term = search.toLowerCase().trim();
+        if (!((patient.name ?? "").toLowerCase().includes(term) || (patient.patientId ?? "").toLowerCase().includes(term) || (patient.phone ?? "").includes(term))) continue;
+      }
+      const patientBills = dueBills.filter((b) => b.patientId === pid);
+      let totalDue = 0;
+      let totalPaid = 0;
+      for (const b of patientBills) {
+        totalDue += Number(b.total ?? 0);
+        totalPaid += Number(b.paidAmount ?? 0);
+      }
+      const balance = totalDue - totalPaid;
+      if (statusFilter === "with_balance" && balance <= 0) continue;
+      if (statusFilter === "with_credit") {
+        const { payments } = await this.getDuePayments(pid);
+        const credit = payments.reduce((s, p) => s + Number(p.unappliedAmount ?? 0), 0);
+        if (credit <= 0) continue;
+      }
+      const { payments } = await this.getDuePayments(pid);
+      const credit = payments.reduce((s, p) => s + Number(p.unappliedAmount ?? 0), 0);
+      summaries.push({
+        patient,
+        totalDue,
+        totalPaid,
+        balance,
+        credit,
+        billsCount: patientBills.length,
+      });
+    }
+    const total = summaries.length;
+    if (offset != null || limit != null) {
+      const start = offset ?? 0;
+      const end = limit != null ? start + limit : undefined;
+      return { summaries: summaries.slice(start, end), total };
+    }
+    return { summaries, total };
+  }
+
+  async getPatientsDueSummaryStats(dateFrom?: Date, dateTo?: Date, search?: string, statusFilter?: string): Promise<{ totalBalance: number; totalPatients: number }> {
+    const { summaries } = await this.getPatientsDueSummary(undefined, undefined, search, statusFilter, dateFrom, dateTo);
+    const totalBalance = summaries.reduce((s, x) => s + x.balance, 0);
+    return { totalBalance, totalPatients: summaries.length };
   }
 
   async getExpenses(): Promise<Expense[]> {

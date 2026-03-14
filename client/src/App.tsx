@@ -20,6 +20,7 @@ import PackagesPage from "@/pages/packages";
 import MedicinesPage from "@/pages/medicines";
 import ExpensesPage from "@/pages/expenses";
 import BankTransactionsPage from "@/pages/bank-transactions";
+import DueManagementPage from "@/pages/due-management";
 import InvestmentsPage from "@/pages/investments";
 import StaffPage from "@/pages/staff";
 import IntegrationsPage from "@/pages/integrations";
@@ -75,6 +76,7 @@ function Router({ currentUser }: { currentUser: any }) {
       <Route path="/medicines" component={MedicinesPage} />
       <Route path="/expenses" component={ExpensesPage} />
       <Route path="/bank" component={BankTransactionsPage} />
+      <Route path="/due-management" component={DueManagementPage} />
       <Route path="/investments" component={InvestmentsPage} />
       <Route path="/staff" component={StaffPage} />
       <Route path="/integrations" component={IntegrationsPage} />

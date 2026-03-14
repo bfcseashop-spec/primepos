@@ -5,6 +5,7 @@ import { createRequirePermission } from "./permissions";
 import { mergePermissions } from "@shared/permissions";
 import {
   insertPatientSchema, insertOpdVisitSchema, insertBillSchema,
+  insertDuePaymentSchema,
   insertServiceSchema, insertInjectionSchema, insertMedicineSchema, insertExpenseSchema,
   insertBankTransactionSchema, insertInvestorSchema, insertInvestmentSchema, insertContributionSchema,
   insertPackageSchema,
@@ -1467,8 +1468,9 @@ export async function registerRoutes(
 
       const patientId = Number(data.patientId);
       const referrerName = (data.referenceDoctor as string) || null;
+      // Create lab test and sample collection for draft and non-draft when bill has lab services
+      await createLabTestAndSampleFromBillItems(bill, items, patientId, referrerName);
       if (!isDraft) {
-        await createLabTestAndSampleFromBillItems(bill, items, patientId, referrerName);
         for (const [medIdStr, totalQty] of Object.entries(medQtyMap)) {
           const med = await storage.getMedicine(Number(medIdStr));
           if (med) {
@@ -1540,6 +1542,136 @@ export async function registerRoutes(
       }
       await storage.bulkDeleteBills(ids);
       res.json({ success: true, deleted: ids.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Due management (role-permission: due.view / due.add / due.edit / due.delete)
+  app.get("/api/due/payments", async (req, res) => {
+    try {
+      const patientId = req.query.patientId ? Number(req.query.patientId) : undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const offset = req.query.offset ? Number(req.query.offset) : undefined;
+      const result = await storage.getDuePayments(patientId, limit, offset);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/due/payments", async (req, res) => {
+    try {
+      const { allocations, paymentSlips, ...rest } = req.body;
+      if (!Array.isArray(allocations) || allocations.length === 0) {
+        return res.status(400).json({ message: "Allocations array is required" });
+      }
+      const patientId = Number(rest.patientId);
+      if (Number.isNaN(patientId)) {
+        return res.status(400).json({ message: "Valid patient ID is required" });
+      }
+      const allocList = allocations.map((a: { billId: number; amount: number }) => ({
+        billId: Number(a.billId),
+        amount: Number(a.amount),
+      }));
+      for (const a of allocList) {
+        if (Number.isNaN(a.billId) || Number.isNaN(a.amount) || a.amount <= 0) {
+          return res.status(400).json({ message: "Each allocation must have a valid bill ID and positive amount" });
+        }
+        const bill = await storage.getBill(a.billId);
+        if (!bill) return res.status(404).json({ message: `Bill ${a.billId} not found` });
+        if (bill.patientId !== patientId) {
+          return res.status(400).json({ message: `Bill ${bill.billNo ?? a.billId} does not belong to this patient` });
+        }
+        const total = Number(bill.total ?? 0);
+        const paid = Number(bill.paidAmount ?? 0);
+        const remaining = total - paid;
+        if (a.amount > remaining + 0.01) {
+          return res.status(400).json({ message: `Allocation for bill ${bill.billNo ?? a.billId} ($${a.amount.toFixed(2)}) exceeds remaining balance ($${remaining.toFixed(2)})` });
+        }
+      }
+      const totalAllocated = allocList.reduce((s, a) => s + a.amount, 0);
+      const amount = Number(rest.amount);
+      if (Number.isNaN(amount) || amount <= 0) {
+        return res.status(400).json({ message: "Valid payment amount is required" });
+      }
+      if (Math.abs(totalAllocated - amount) > 0.01) {
+        return res.status(400).json({ message: `Allocated total ($${totalAllocated.toFixed(2)}) must equal payment amount ($${amount.toFixed(2)})` });
+      }
+      const paymentData = {
+        ...rest,
+        patientId,
+        amount: String(amount),
+        paymentDate: rest.paymentDate ? new Date(rest.paymentDate) : new Date(),
+        ...(paymentSlips && Array.isArray(paymentSlips) ? { paymentSlips: JSON.stringify(paymentSlips) } : {}),
+      };
+      const validated = insertDuePaymentSchema.parse(paymentData);
+      const payment = await storage.recordPaymentWithAllocations(validated, allocList);
+      res.status(201).json(payment);
+    } catch (err: any) {
+      if (err.name === "ZodError") return res.status(400).json({ message: "Invalid payment data", details: err.errors });
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/due/payments/:id/allocations", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid payment id" });
+      const allocations = await storage.getDuePaymentAllocations(id);
+      res.json(allocations);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/due/payments/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid payment id" });
+      const payment = await storage.updateDuePayment(id, req.body);
+      if (!payment) return res.status(404).json({ message: "Due payment not found" });
+      res.json(payment);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/due/payments/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid payment id" });
+      const deleted = await storage.deleteDuePayment(id);
+      if (!deleted) return res.status(404).json({ message: "Due payment not found" });
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/due/patients-summary", async (req, res) => {
+    try {
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const offset = req.query.offset ? Number(req.query.offset) : undefined;
+      const search = (req.query.search as string)?.trim() || undefined;
+      const statusFilter = (req.query.statusFilter as string) && req.query.statusFilter !== "all" ? req.query.statusFilter : undefined;
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined;
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : undefined;
+      const result = await storage.getPatientsDueSummary(limit, offset, search, statusFilter, dateFrom, dateTo);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/due/patients-summary/stats", async (req, res) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined;
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : undefined;
+      const search = (req.query.search as string)?.trim() || undefined;
+      const statusFilter = (req.query.statusFilter as string) && req.query.statusFilter !== "all" ? req.query.statusFilter : undefined;
+      const stats = await storage.getPatientsDueSummaryStats(dateFrom, dateTo, search, statusFilter);
+      res.json(stats);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

@@ -215,6 +215,36 @@ export const insertBillSchema = createInsertSchema(bills).omit({ id: true, creat
 export type InsertBill = z.infer<typeof insertBillSchema>;
 export type Bill = typeof bills.$inferSelect;
 
+export const duePayments = pgTable("due_payments", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  paymentDate: timestamp("payment_date").notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  unappliedAmount: numeric("unapplied_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  paymentMethod: text("payment_method").notNull(),
+  reference: text("reference"),
+  note: text("note"),
+  paymentSlips: text("payment_slips"),
+  recordedBy: text("recorded_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDuePaymentSchema = createInsertSchema(duePayments).omit({ id: true, createdAt: true } as any);
+export type InsertDuePayment = z.infer<typeof insertDuePaymentSchema>;
+export type DuePayment = typeof duePayments.$inferSelect;
+
+export const duePaymentAllocations = pgTable("due_payment_allocations", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  paymentId: integer("payment_id").references(() => duePayments.id).notNull(),
+  billId: integer("bill_id").references(() => bills.id).notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDuePaymentAllocationSchema = createInsertSchema(duePaymentAllocations).omit({ id: true, createdAt: true } as any);
+export type InsertDuePaymentAllocation = z.infer<typeof insertDuePaymentAllocationSchema>;
+export type DuePaymentAllocation = typeof duePaymentAllocations.$inferSelect;
+
 export const expenses = pgTable("expenses", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   category: text("category").notNull(),

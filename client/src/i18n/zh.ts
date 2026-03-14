@@ -75,6 +75,7 @@ export const zh = {
     doctorManagement: "医生管理",
     expenses: "费用管理",
     bankTransactions: "银行交易",
+    dueManagement: "欠款管理",
     investments: "投资管理",
     salary: "薪资管理",
     userAndRole: "用户与角色",

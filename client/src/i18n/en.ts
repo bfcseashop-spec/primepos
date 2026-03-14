@@ -108,6 +108,7 @@ export const en = {
     doctorManagement: "Doctor Management",
     expenses: "Expenses",
     bankTransactions: "Bank Transactions",
+    dueManagement: "Due Management",
     investments: "Investments",
     salary: "Salary",
     userAndRole: "User and Role",

@@ -75,6 +75,7 @@ export const km = {
     doctorManagement: "គ្រប់គ្រងវេជ្ជបណ្ឌិត",
     expenses: "ចំណាយ",
     bankTransactions: "ប្រតិបត្តិការធនាគារ",
+    dueManagement: "ការគ្រប់គ្រងបំណុល",
     investments: "ការវិនិយោគ",
     salary: "ប្រាក់ខែ",
     userAndRole: "អ្នកប្រើប្រាស់ និងតួនាទី",

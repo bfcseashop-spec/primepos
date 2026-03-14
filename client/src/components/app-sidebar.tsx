@@ -5,7 +5,7 @@ import {
   Receipt, Landmark, TrendingUp, UserCog, Settings,
   Cable, BarChart3, Activity, FlaskConical, CalendarCheck,
   UserRound, DollarSign, Shield, Heart, LogOut, ShoppingBag,
-  TestTubes, Monitor, ChevronDown,
+  TestTubes, Monitor, ChevronDown, Clock,
 } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import {
@@ -49,6 +49,7 @@ const deviceItems = [
 const financeItems = [
   { i18nKey: "sidebar.expenses", url: "/expenses", icon: Receipt, iconColor: "text-rose-500" },
   { i18nKey: "sidebar.bankTransactions", url: "/bank", icon: Landmark, iconColor: "text-indigo-500" },
+  { i18nKey: "sidebar.dueManagement", url: "/due-management", icon: Clock, iconColor: "text-orange-500" },
   { i18nKey: "sidebar.investments", url: "/investments", icon: TrendingUp, iconColor: "text-green-500" },
   { i18nKey: "sidebar.salary", url: "/salary", icon: DollarSign, iconColor: "text-yellow-500" },
 ];
