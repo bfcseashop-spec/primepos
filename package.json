@@ -9,6 +9,7 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
+    "db:migrate-due": "node scripts/run-due-migration.js",
     "create:super-admin": "tsx script/create-super-admin.ts",
     "pm2:restart": "pm2 restart primepos 2>/dev/null || pm2 start ecosystem.config.cjs",
     "deploy": "bash deploy.sh",

@@ -93,6 +93,12 @@ npm run build
 echo "[6/7] npm run db:push (--force for non-interactive)"
 npx drizzle-kit push --force
 
+# --- 6b. Due management migration (ensures due_payments tables exist) ---
+if [ -f "scripts/run-due-migration.js" ] && [ -f "migrations/0001_due_management.sql" ]; then
+  echo "[6b/7] Running due management migration..."
+  node scripts/run-due-migration.js || echo "  (migration skipped or already applied)"
+fi
+
 # --- 7. PM2 restart ---
 echo "[7/7] pm2 restart"
 npm run pm2:restart

@@ -1660,7 +1660,12 @@ export async function registerRoutes(
       const result = await storage.getPatientsDueSummary(limit, offset, search, statusFilter, dateFrom, dateTo);
       res.json(result);
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      console.error("[due] getPatientsDueSummary error:", err?.message ?? err);
+      const msg = err?.message ?? "Failed to load patients summary";
+      const hint = /relation.*does not exist|does not exist/i.test(String(msg))
+        ? " Run: npm run db:migrate-due"
+        : "";
+      res.status(500).json({ message: msg + hint });
     }
   });
 
@@ -1673,7 +1678,12 @@ export async function registerRoutes(
       const stats = await storage.getPatientsDueSummaryStats(dateFrom, dateTo, search, statusFilter);
       res.json(stats);
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      console.error("[due] getPatientsDueSummaryStats error:", err?.message ?? err);
+      const msg = err?.message ?? "Failed to load due statistics";
+      const hint = /relation.*does not exist|does not exist/i.test(String(msg))
+        ? " Run: npm run db:migrate-due"
+        : "";
+      res.status(500).json({ message: msg + hint });
     }
   });
 

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Clock, DollarSign, User, Plus, Search, Receipt, X } from "lucide-react";
+import { Clock, DollarSign, User, Plus, Search, Receipt, X, RefreshCw } from "lucide-react";
 import type { Patient } from "@shared/schema";
 
 async function parseApiError(res: Response): Promise<string> {
@@ -52,7 +52,7 @@ export default function DueManagementPage() {
   const [paymentNote, setPaymentNote] = useState("");
   const [allocations, setAllocations] = useState<Record<number, string>>({});
 
-  const { data: summaryData, isLoading, isError: summaryError } = useQuery<{ summaries: PatientDueSummary[]; total: number }>({
+  const { data: summaryData, isLoading, isError: summaryError, error: summaryErr, refetch: refetchSummary } = useQuery<{ summaries: PatientDueSummary[]; total: number }>({
     queryKey: ["/api/due/patients-summary", search, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -64,7 +64,7 @@ export default function DueManagementPage() {
     },
   });
 
-  const { data: stats, isError: statsError } = useQuery<{ totalBalance: number; totalPatients: number }>({
+  const { data: stats, isError: statsError, error: statsErr, refetch: refetchStats } = useQuery<{ totalBalance: number; totalPatients: number }>({
     queryKey: ["/api/due/patients-summary/stats", search, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -77,12 +77,12 @@ export default function DueManagementPage() {
   });
 
   useEffect(() => {
-    if (summaryError) toast({ title: "Error", description: "Failed to load patients with dues", variant: "destructive" });
-  }, [summaryError, toast]);
+    if (summaryError && summaryErr) toast({ title: "Error", description: summaryErr.message || "Failed to load patients with dues", variant: "destructive" });
+  }, [summaryError, summaryErr, toast]);
 
   useEffect(() => {
-    if (statsError) toast({ title: "Error", description: "Failed to load due statistics", variant: "destructive" });
-  }, [statsError, toast]);
+    if (statsError && statsErr) toast({ title: "Error", description: statsErr.message || "Failed to load due statistics", variant: "destructive" });
+  }, [statsError, statsErr, toast]);
 
   const { data: bills = [], isError: billsError } = useQuery<any[]>({
     queryKey: ["/api/bills"],
@@ -225,6 +225,11 @@ export default function DueManagementPage() {
               Patients with outstanding balance
             </CardTitle>
             <div className="flex items-center gap-2">
+              {(summaryError || statsError) && (
+                <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => { refetchSummary(); refetchStats(); }}>
+                  <RefreshCw className="h-3.5 w-3.5" /> Retry
+                </Button>
+              )}
               <div className="relative w-48">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
