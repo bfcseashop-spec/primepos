@@ -3446,6 +3446,16 @@ export async function registerRoutes(
     }
   });
 
+  // Alias: /api/labs -> /api/lab-tests (for clients/proxies that use shorthand)
+  app.get("/api/labs", async (_req, res) => {
+    try {
+      const result = await storage.getLabTests();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/lab-tests/next-code", async (_req, res) => {
     try {
       const code = await storage.getNextLabTestCode();

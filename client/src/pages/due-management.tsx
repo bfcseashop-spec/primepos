@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
@@ -9,7 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Clock, DollarSign, User, Plus, Search, Receipt, X, RefreshCw } from "lucide-react";
+import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
+import { billNoMatches } from "@/lib/bill-utils";
+import { Clock, DollarSign, User, Plus, Receipt, X, RefreshCw } from "lucide-react";
 import type { Patient } from "@shared/schema";
 
 async function parseApiError(res: Response): Promise<string> {
@@ -52,11 +55,19 @@ export default function DueManagementPage() {
   const [paymentNote, setPaymentNote] = useState("");
   const [allocations, setAllocations] = useState<Record<number, string>>({});
 
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search]);
+
   const { data: summaryData, isLoading, isError: summaryError, error: summaryErr, refetch: refetchSummary } = useQuery<{ summaries: PatientDueSummary[]; total: number }>({
-    queryKey: ["/api/dues", search, statusFilter],
+    queryKey: ["/api/dues", debouncedSearch, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (search.trim()) params.set("search", search.trim());
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       const res = await fetch(`/api/dues?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error(await parseApiError(res));
@@ -65,10 +76,10 @@ export default function DueManagementPage() {
   });
 
   const { data: stats, isError: statsError, error: statsErr, refetch: refetchStats } = useQuery<{ totalBalance: number; totalPatients: number }>({
-    queryKey: ["/api/dues/stats", search, statusFilter],
+    queryKey: ["/api/dues/stats", debouncedSearch, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (search.trim()) params.set("search", search.trim());
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       const res = await fetch(`/api/dues/stats?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error(await parseApiError(res));
@@ -84,17 +95,75 @@ export default function DueManagementPage() {
     if (statsError && statsErr) toast({ title: "Error", description: statsErr.message || "Failed to load due statistics", variant: "destructive" });
   }, [statsError, statsErr, toast]);
 
-  const { data: bills = [], isError: billsError } = useQuery<any[]>({
+  const { data: bills = [] } = useQuery<any[]>({
     queryKey: ["/api/bills"],
   });
 
-  useEffect(() => {
-    if (billsError) toast({ title: "Error", description: "Failed to load bills", variant: "destructive" });
-  }, [billsError, toast]);
+  const { data: labTests = [] } = useQuery<any[]>({ queryKey: ["/api/lab-tests"], retry: false });
 
   const summaries = summaryData?.summaries ?? [];
   const totalBalance = stats?.totalBalance ?? 0;
   const totalPatients = stats?.totalPatients ?? 0;
+
+  const handleBarcodeSearch = useCallback(async (value: string) => {
+    const v = value?.trim() ?? "";
+    if (!v) return;
+    const s = summaryData?.summaries ?? [];
+    const b = bills;
+    // Patient ID (e.g. PAT-001)
+    const pat = s.find((x) => (x.patient.patientId ?? "").toLowerCase() === v.toLowerCase());
+    if (pat) {
+      setSearch(v);
+      return;
+    }
+    // Bill / invoice number
+    const bill = b.find((x: any) => billNoMatches(v, x.billNo || ""));
+    if (bill) {
+      const patientSummary = s.find((x) => x.patient.id === bill.patientId);
+      if (patientSummary) {
+        setSearch(patientSummary.patient.patientId ?? patientSummary.patient.name ?? "");
+      } else {
+        setSearch(v);
+      }
+      return;
+    }
+    // Sample ID: SC5 or plain 5
+    const scMatch = v.match(/^SC(\d+)$/i);
+    const sampleOrLabId = scMatch ? parseInt(scMatch[1], 10) : (/^\d+$/.test(v) ? parseInt(v, 10) : null);
+    if (sampleOrLabId != null) {
+      try {
+        const res = await apiRequest("GET", `/api/sample-collections/${sampleOrLabId}`);
+        const sample = await res.json() as { patientId: number };
+        const ps = s.find((x) => x.patient.id === sample.patientId);
+        if (ps) {
+          setSearch(ps.patient.patientId ?? ps.patient.name ?? "");
+        } else setSearch(v);
+      } catch {
+        const lt = labTests.find((t: any) => t.id === sampleOrLabId);
+        if (lt?.patientId) {
+          const ps = s.find((x) => x.patient.id === lt.patientId);
+          if (ps) setSearch(ps.patient.patientId ?? ps.patient.name ?? "");
+          else setSearch(v);
+        } else setSearch(v);
+      }
+      return;
+    }
+    // Lab test code: LAB-TEST|...| or LT-0008
+    const labMatch = v.match(/^LAB-TEST\|([^|]+)\|/);
+    const testCode = labMatch ? labMatch[1] : (v.includes("|") ? "" : v);
+    if (testCode) {
+      const lt = labTests.find((t: any) => (t.testCode || "").toLowerCase() === testCode.toLowerCase());
+      if (lt?.patientId) {
+        const ps = s.find((x) => x.patient.id === lt.patientId);
+        if (ps) setSearch(ps.patient.patientId ?? ps.patient.name ?? "");
+        else setSearch(v);
+      } else setSearch(v);
+      return;
+    }
+    setSearch(v);
+  }, [summaryData?.summaries, bills, labTests]);
+
+  useGlobalBarcodeScanner(handleBarcodeSearch);
 
   const recordPaymentMutation = useMutation({
     mutationFn: async (payload: { patientId: number; amount: number; paymentMethod: string; note?: string; allocations: { billId: number; amount: number }[] }) => {
@@ -230,22 +299,22 @@ export default function DueManagementPage() {
                   <RefreshCw className="h-3.5 w-3.5" /> Retry
                 </Button>
               )}
-              <div className="relative w-48">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search patient..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-8 h-8 text-sm"
-                />
-              </div>
+              <SearchInputWithBarcode
+                placeholder="Search / Scan barcode (patient ID, invoice, lab, sample)..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onSearch={handleBarcodeSearch}
+                className="h-8 text-sm w-64"
+                wrapperClassName="w-64"
+              />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-36 h-8 text-sm">
+                <SelectTrigger className="w-40 h-8 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="with_balance">With balance</SelectItem>
+                  <SelectItem value="with_credit">With credit</SelectItem>
                 </SelectContent>
               </Select>
             </div>
