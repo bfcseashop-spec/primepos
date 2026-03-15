@@ -1574,7 +1574,7 @@ export default function InvestmentsPage() {
                 </table>
               </div>
               {filteredContributions.length > 0 && (
-                <div className="px-4 py-3 border-t">
+                <div className="px-4 py-3">
                   <TablePagination
                     page={contributionPage}
                     pageSize={contributionPageSize}
@@ -1666,7 +1666,7 @@ export default function InvestmentsPage() {
         )}
         </div>
         {investmentsTotal > 0 && (
-          <div className="shrink-0 border-t bg-background px-4 py-3">
+          <div className="shrink-0 bg-background px-4 py-3">
             <TablePagination
               page={invPage}
               pageSize={invPageSize}

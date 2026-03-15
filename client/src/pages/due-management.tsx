@@ -753,12 +753,12 @@ export default function DueManagementPage() {
         </Card>
         </div>
         {activeTab === "patients" && summariesTotal > 0 && (
-          <div className="shrink-0 border-t bg-background px-4 py-3">
+          <div className="shrink-0 bg-background px-4 py-3">
             <TablePagination page={summariesPage} pageSize={summariesPageSize} total={summariesTotal} onPageChange={setSummariesPage} onPageSizeChange={(v) => { setSummariesPageSize(v); setSummariesPage(1); }} fixedAtBottom />
           </div>
         )}
         {activeTab === "payments" && paymentsTotal > 0 && (
-          <div className="shrink-0 border-t bg-background px-4 py-3">
+          <div className="shrink-0 bg-background px-4 py-3">
             <TablePagination page={paymentsPage} pageSize={paymentsPageSize} total={paymentsTotal} onPageChange={setPaymentsPage} onPageSizeChange={(v) => { setPaymentsPageSize(v); setPaymentsPage(1); }} fixedAtBottom />
           </div>
         )}

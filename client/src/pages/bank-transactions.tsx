@@ -562,7 +562,7 @@ export default function BankTransactionsPage() {
         </Tabs>
         </div>
         {bankActiveTab === "transactions" && transactionsTotal > 0 && (
-          <div className="shrink-0 border-t bg-background px-4 py-3">
+          <div className="shrink-0 bg-background px-4 py-3">
             <TablePagination page={txPage} pageSize={txPageSize} total={transactionsTotal} onPageChange={setTxPage} onPageSizeChange={(v) => { setTxPageSize(v); setTxPage(1); }} fixedAtBottom />
           </div>
         )}

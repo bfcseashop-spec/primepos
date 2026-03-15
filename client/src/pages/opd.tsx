@@ -763,7 +763,7 @@ export default function OpdPage() {
         )}
         </div>
         {patientsTotal > 0 && (
-          <div className="shrink-0 border-t bg-background px-4 py-3">
+          <div className="shrink-0 bg-background px-4 py-3">
             <TablePagination page={page} pageSize={pageSize} total={patientsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} fixedAtBottom />
           </div>
         )}

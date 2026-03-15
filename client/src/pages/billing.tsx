@@ -1742,7 +1742,7 @@ export default function BillingPage() {
           </CardContent>
         </Card>
         </div>
-        <div className="shrink-0 border-t bg-background px-4 md:px-6 py-3">
+        <div className="shrink-0 bg-background px-4 md:px-6 py-3">
           <TablePagination
             page={billsPage}
             pageSize={billsPageSize}

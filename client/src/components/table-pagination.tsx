@@ -57,8 +57,8 @@ export function TablePagination({
   return (
     <div
       className={cn(
-        "flex w-full flex-row flex-wrap items-center justify-between gap-2 bg-background",
-        fixedAtBottom ? "border-t px-0 py-0" : "sticky bottom-0 z-10 -mb-4 md:-mb-6 border-t px-3 py-1.5 pb-4 md:pb-6"
+        "flex w-full flex-row flex-wrap items-center justify-between gap-2 bg-background border-0",
+        fixedAtBottom ? "px-0 py-0" : "sticky bottom-0 z-10 -mb-4 md:-mb-6 px-3 py-1.5 pb-4 md:pb-6"
       )}
     >
       {/* Left: Showing X-Y of Z */}
@@ -66,10 +66,10 @@ export function TablePagination({
         Showing {start}-{end} of {total}
       </div>
       {/* Middle: Previous 1 2 3 4 Next */}
-      <div className="flex items-center">
+      <div className="flex items-center border-0">
         {totalPages > 1 ? (
-          <Pagination>
-            <PaginationContent className="flex-wrap justify-center [&_a]:border-0">
+          <Pagination className="border-0">
+            <PaginationContent className="flex-wrap justify-center border-0 [&_li]:border-0 [&_a]:!border-0 [&_a]:!shadow-none">
               <PaginationItem>
                 <PaginationPrevious
                   href="#"

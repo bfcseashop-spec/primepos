@@ -491,7 +491,7 @@ export default function SampleCollectionsPage() {
       </Card>
       </div>
       {samplesTotal > 0 && (
-        <div className="shrink-0 border-t bg-background px-4 md:px-6 py-3">
+        <div className="shrink-0 bg-background px-4 md:px-6 py-3">
           <TablePagination page={page} pageSize={pageSize} total={samplesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} fixedAtBottom />
         </div>
       )}
