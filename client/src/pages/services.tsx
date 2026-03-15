@@ -937,7 +937,7 @@ export default function ServicesPage() {
   const [rangesModalParamIndex, setRangesModalParamIndex] = useState<number | null>(null);
   const [rangesModalRanges, setRangesModalRanges] = useState<string[]>([]);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const [pageSize, setPageSize] = useState(10);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -966,7 +966,7 @@ export default function ServicesPage() {
   });
 
   const { data: servicesData, isLoading } = useQuery<{ items: Service[]; total: number }>({
-    queryKey: ["/api/services/paginated", page, pageSize, debouncedSearch, categoryFilter, statusFilter],
+    queryKey: ["/api/services-paginated", page, pageSize, debouncedSearch, categoryFilter, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("page", String(page));
@@ -974,20 +974,20 @@ export default function ServicesPage() {
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (categoryFilter && categoryFilter !== "all") params.set("categoryFilter", categoryFilter);
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
-      const res = await fetch(getApiUrl(`/api/services/paginated?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/services-paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse(raw) as { items: Service[]; total: number };
     },
   });
   const { data: servicesStats } = useQuery<{ total: number; activeCount: number; inactiveCount: number; categoriesCount: number; totalValue: number; categories: string[]; categoryCounts?: Record<string, number> }>({
-    queryKey: ["/api/services/stats", debouncedSearch, categoryFilter, statusFilter],
+    queryKey: ["/api/services-stats", debouncedSearch, categoryFilter, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (categoryFilter && categoryFilter !== "all") params.set("categoryFilter", categoryFilter);
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
-      const res = await fetch(getApiUrl(`/api/services/stats?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/services-stats?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
@@ -1002,8 +1002,8 @@ export default function ServicesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services-stats"] });
       setDialogOpen(false);
       setForm(defaultForm);
       toast({ title: t("services.createdSuccess") });
@@ -1020,8 +1020,8 @@ export default function ServicesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services-stats"] });
       setEditService(null);
       setForm(defaultForm);
       toast({ title: t("services.updatedSuccess") });
@@ -1037,8 +1037,8 @@ export default function ServicesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services-stats"] });
       toast({ title: t("services.deleted") });
       setDeleteService(null);
     },
@@ -1050,8 +1050,8 @@ export default function ServicesPage() {
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services-stats"] });
       setSelectedIds(new Set());
       toast({ title: `${ids.length} service(s) deleted` });
     },
@@ -1090,8 +1090,8 @@ export default function ServicesPage() {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services-stats"] });
       setImportResult(result);
       setImportFile(null);
       toast({ title: `${result.imported} service(s) imported successfully` });
@@ -1198,8 +1198,8 @@ export default function ServicesPage() {
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/services-paginated"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/services-stats"] });
     toast({ title: t("common.dataRefreshed") });
   };
 
@@ -1230,8 +1230,8 @@ export default function ServicesPage() {
       const data = (await res.json()) as { updated?: number };
       const updated = data?.updated ?? 0;
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services-stats"] });
       setEditingCategory(null);
       toast({ title: t("common.saved") || "Category updated", description: updated > 0 ? `${updated} service(s) updated` : undefined });
     } catch (err: any) {
@@ -1247,8 +1247,8 @@ export default function ServicesPage() {
       .then((data) => {
         const updated = data?.updated ?? 0;
         queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/services-paginated"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/services-stats"] });
         toast({ title: t("common.categoryRemoved"), description: updated > 0 ? `${updated} service(s) updated` : undefined });
       })
       .catch((err) => toast({ title: t("common.error"), description: err.message, variant: "destructive" }));

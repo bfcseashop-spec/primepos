@@ -10,7 +10,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-const PAGE_SIZE_OPTIONS = [10, 50, 100, 500] as const;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 500] as const;
 
 export interface TablePaginationProps {
   page: number;

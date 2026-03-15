@@ -108,7 +108,7 @@ export default function DueManagementPage() {
   useEffect(() => { setSummariesPage(1); }, [debouncedSearch, statusFilter, dateFrom, dateTo]);
 
   const { data: summaryData, isLoading, isError: summaryError, error: summaryErr, refetch: refetchSummary } = useQuery<{ summaries: PatientDueSummary[]; total: number }>({
-    queryKey: ["/api/dues/paginated", debouncedSearch, statusFilter, dateFrom, dateTo, summariesPage, summariesPageSize],
+    queryKey: ["/api/dues-paginated", debouncedSearch, statusFilter, dateFrom, dateTo, summariesPage, summariesPageSize],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("page", String(summariesPage));
@@ -117,21 +117,21 @@ export default function DueManagementPage() {
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
-      const res = await fetch(getApiUrl(`/api/dues/paginated?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/dues-paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await parseApiError(res));
       return res.json();
     },
   });
 
   const { data: stats, isError: statsError, error: statsErr, refetch: refetchStats } = useQuery<{ totalBalance: number; totalPatients: number; totalCollected: number }>({
-    queryKey: ["/api/dues/stats", debouncedSearch, statusFilter, dateFrom, dateTo],
+    queryKey: ["/api/dues-stats", debouncedSearch, statusFilter, dateFrom, dateTo],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
-      const res = await fetch(getApiUrl(`/api/dues/stats?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/dues-stats?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await parseApiError(res));
       return res.json();
     },
@@ -268,8 +268,8 @@ export default function DueManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dues/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       setPaymentDialogOpen(false);
       setSelectedPatient(null);
@@ -292,8 +292,8 @@ export default function DueManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dues/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/due/payments"] });
       setEditPayment(null);
@@ -310,8 +310,8 @@ export default function DueManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dues/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/due/payments"] });
       setDeletePaymentId(null);
@@ -329,8 +329,8 @@ export default function DueManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dues/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       setShowCreateDue(false);
       setCreateDuePatientId(null);
@@ -467,8 +467,8 @@ export default function DueManagementPage() {
         success++;
       }
       queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dues/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       setShowImportDialog(false);
       setImportFile(null);

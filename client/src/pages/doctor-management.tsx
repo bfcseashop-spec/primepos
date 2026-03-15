@@ -84,7 +84,7 @@ export default function DoctorManagementPage() {
   const [uploading, setUploading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const [pageSize, setPageSize] = useState(10);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -95,7 +95,7 @@ export default function DoctorManagementPage() {
   useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, departmentFilter]);
 
   const { data: doctorsData, isLoading } = useQuery<{ items: Doctor[]; total: number }>({
-    queryKey: ["/api/doctors/paginated", page, pageSize, debouncedSearch, statusFilter, departmentFilter],
+    queryKey: ["/api/doctors-paginated", page, pageSize, debouncedSearch, statusFilter, departmentFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("page", String(page));
@@ -103,20 +103,20 @@ export default function DoctorManagementPage() {
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       if (departmentFilter && departmentFilter !== "all") params.set("departmentFilter", departmentFilter);
-      const res = await fetch(getApiUrl(`/api/doctors/paginated?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/doctors-paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse(raw) as { items: Doctor[]; total: number };
     },
   });
   const { data: doctorsStats } = useQuery<{ total: number; activeCount: number; onLeaveCount: number; inactiveCount: number }>({
-    queryKey: ["/api/doctors/stats", debouncedSearch, statusFilter, departmentFilter],
+    queryKey: ["/api/doctors-stats", debouncedSearch, statusFilter, departmentFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       if (departmentFilter && departmentFilter !== "all") params.set("departmentFilter", departmentFilter);
-      const res = await fetch(getApiUrl(`/api/doctors/stats?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/doctors-stats?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
@@ -136,8 +136,8 @@ export default function DoctorManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/doctors"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/doctors/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/doctors/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/doctors-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/doctors-stats"] });
       toast({ title: "Doctor added successfully" });
       setAddDialog(false);
       resetForm();
@@ -151,8 +151,8 @@ export default function DoctorManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/doctors"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/doctors/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/doctors/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/doctors-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/doctors-stats"] });
       toast({ title: "Doctor updated" });
       setEditDialog(false);
     },
@@ -162,8 +162,8 @@ export default function DoctorManagementPage() {
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/doctors/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/doctors"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/doctors/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/doctors/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/doctors-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/doctors-stats"] });
       toast({ title: "Doctor deleted" });
     },
   });
@@ -257,7 +257,7 @@ export default function DoctorManagementPage() {
             >
               <List className="h-4 w-4" />
             </Button>
-            <Button size="icon" variant="outline" onClick={() => { queryClient.invalidateQueries({ queryKey: ["/api/doctors"] }); queryClient.invalidateQueries({ queryKey: ["/api/doctors/paginated"] }); queryClient.invalidateQueries({ queryKey: ["/api/doctors/stats"] }); }} data-testid="button-refresh">
+            <Button size="icon" variant="outline" onClick={() => { queryClient.invalidateQueries({ queryKey: ["/api/doctors"] }); queryClient.invalidateQueries({ queryKey: ["/api/doctors-paginated"] }); queryClient.invalidateQueries({ queryKey: ["/api/doctors-stats"] }); }} data-testid="button-refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
             <Select value={statusFilter} onValueChange={setStatusFilter}>

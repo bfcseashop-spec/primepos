@@ -25,7 +25,7 @@ export default function PackagesPage() {
   const [viewPkg, setViewPkg] = useState<PackageType | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -47,14 +47,14 @@ export default function PackagesPage() {
   const [newItemPrice, setNewItemPrice] = useState("");
 
   const { data: packagesData, isLoading } = useQuery<{ items: PackageType[]; total: number }>({
-    queryKey: ["/api/packages/paginated", page, pageSize, debouncedSearch, statusFilter],
+    queryKey: ["/api/packages-paginated", page, pageSize, debouncedSearch, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("page", String(page));
       params.set("limit", String(Math.max(1, pageSize)));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
-      const res = await fetch(getApiUrl(`/api/packages/paginated?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/packages-paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse(raw) as { items: PackageType[]; total: number };
@@ -151,7 +151,7 @@ export default function PackagesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/packages/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/packages-paginated"] });
       setDialogOpen(false);
       toast({ title: "Package created" });
     },
@@ -165,7 +165,7 @@ export default function PackagesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/packages/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/packages-paginated"] });
       setDialogOpen(false);
       setEditPkg(null);
       toast({ title: "Package updated" });
@@ -177,7 +177,7 @@ export default function PackagesPage() {
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/packages/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/packages/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/packages-paginated"] });
       setDeleteConfirm(null);
       toast({ title: "Package deleted" });
     },

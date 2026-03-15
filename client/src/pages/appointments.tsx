@@ -77,7 +77,7 @@ export default function AppointmentsPage() {
   const [viewAppointment, setViewAppointment] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const [pageSize, setPageSize] = useState(10);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
@@ -90,7 +90,7 @@ export default function AppointmentsPage() {
   useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, dateRange?.from, dateRange?.to]);
 
   const { data: appointmentsData, isLoading } = useQuery<{ items: any[]; total: number }>({
-    queryKey: ["/api/appointments/paginated", page, pageSize, debouncedSearch, statusFilter, dateRange?.from, dateRange?.to],
+    queryKey: ["/api/appointments-paginated", page, pageSize, debouncedSearch, statusFilter, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("page", String(page));
@@ -99,21 +99,21 @@ export default function AppointmentsPage() {
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       if (dateRange?.from) params.set("fromDate", dateRange.from);
       if (dateRange?.to) params.set("toDate", dateRange.to);
-      const res = await fetch(getApiUrl(`/api/appointments/paginated?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/appointments-paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse(raw) as { items: any[]; total: number };
     },
   });
   const { data: appointmentsStats } = useQuery<{ total: number; scheduled: number; confirmed: number; completed: number; cancelled: number; noShow: number }>({
-    queryKey: ["/api/appointments/stats", debouncedSearch, statusFilter, dateRange?.from, dateRange?.to],
+    queryKey: ["/api/appointments-stats", debouncedSearch, statusFilter, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       if (dateRange?.from) params.set("fromDate", dateRange.from);
       if (dateRange?.to) params.set("toDate", dateRange.to);
-      const res = await fetch(getApiUrl(`/api/appointments/stats?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/appointments-stats?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
@@ -127,8 +127,8 @@ export default function AppointmentsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments-stats"] });
       toast({ title: "Appointment updated" });
       setEditDialog(false);
     },
@@ -140,8 +140,8 @@ export default function AppointmentsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments-stats"] });
       toast({ title: "Appointment deleted" });
       setDeleteAppointment(null);
     },
@@ -153,8 +153,8 @@ export default function AppointmentsPage() {
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments-stats"] });
       setSelectedIds(new Set());
       toast({ title: `${ids.length} appointment(s) deleted` });
     },
@@ -177,8 +177,8 @@ export default function AppointmentsPage() {
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/appointments/paginated"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/appointments/stats"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/appointments-paginated"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/appointments-stats"] });
     toast({ title: "Data refreshed" });
   };
 

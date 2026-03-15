@@ -122,7 +122,7 @@ export default function ExpensesPage() {
 
   const allCategories = [...DEFAULT_EXPENSE_CATEGORIES, ...customCategories];
 
-  const expensesQueryKey = ["/api/expenses/paginated", page, pageSize, debouncedSearch, filterCategory, filterStatus, dateRange?.from, dateRange?.to];
+  const expensesQueryKey = ["/api/expenses-paginated", page, pageSize, debouncedSearch, filterCategory, filterStatus, dateRange?.from, dateRange?.to];
   const { data: expensesData, isLoading } = useQuery<{ items: Expense[]; total: number; totalAmount?: number; approvedAmount?: number; pendingAmount?: number }>({
     queryKey: expensesQueryKey,
     queryFn: async () => {
@@ -134,7 +134,7 @@ export default function ExpensesPage() {
       if (filterStatus !== "all") params.set("statusFilter", filterStatus);
       if (dateRange?.from) params.set("dateFrom", dateRange.from);
       if (dateRange?.to) params.set("dateTo", dateRange.to);
-      const res = await fetch(getApiUrl(`/api/expenses/paginated?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/expenses-paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse(raw) as typeof raw;
@@ -153,7 +153,7 @@ export default function ExpensesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/expenses/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses-paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       setDialogOpen(false);
       toast({ title: "Expense recorded successfully" });
@@ -170,7 +170,7 @@ export default function ExpensesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/expenses/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses-paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       setEditExpense(null);
       toast({ title: "Expense updated successfully" });
@@ -186,7 +186,7 @@ export default function ExpensesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/expenses/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses-paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       toast({ title: "Expense deleted" });
     },
@@ -201,7 +201,7 @@ export default function ExpensesPage() {
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/expenses/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses-paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       setSelectedIds(new Set());
       toast({ title: `${ids.length} expense(s) deleted` });
@@ -300,7 +300,7 @@ export default function ExpensesPage() {
       if (!res.ok) throw new Error(result.message);
       setImportResult(result);
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/expenses/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses-paginated"] });
       toast({ title: `Imported ${result.imported} expense(s)` });
     } catch (err: any) {
       toast({ title: "Import failed", description: err.message, variant: "destructive" });
@@ -465,7 +465,7 @@ export default function ExpensesPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => { queryClient.invalidateQueries({ queryKey: ["/api/expenses"] }); queryClient.invalidateQueries({ queryKey: ["/api/expenses/paginated"] }); }}
+              onClick={() => { queryClient.invalidateQueries({ queryKey: ["/api/expenses"] }); queryClient.invalidateQueries({ queryKey: ["/api/expenses-paginated"] }); }}
               data-testid="button-refresh-expenses"
             >
               <RefreshCw className="h-4 w-4" />

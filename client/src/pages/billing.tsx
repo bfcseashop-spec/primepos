@@ -97,7 +97,7 @@ export default function BillingPage() {
   const dateRange = getDateRange(datePeriod, customFromDate, customToDate, monthYear);
   useEffect(() => { setBillsPage(1); }, [debouncedSearch, dateRange?.from, dateRange?.to]);
   const { data: billsData, isLoading } = useQuery<{ items: any[]; total: number }>({
-    queryKey: ["/api/bills/paginated", billsPage, billsPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
+    queryKey: ["/api/bills-paginated", billsPage, billsPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("page", String(billsPage));
@@ -105,20 +105,20 @@ export default function BillingPage() {
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (dateRange?.from) params.set("dateFrom", dateRange.from);
       if (dateRange?.to) params.set("dateTo", dateRange.to);
-      const res = await fetch(getApiUrl(`/api/bills/paginated?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/bills-paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse(raw) as typeof raw;
     },
   });
   const { data: billsStats } = useQuery<{ total: number; totalRevenue: number; totalPaid: number; paidCount: number; pendingCount: number }>({
-    queryKey: ["/api/bills/stats", debouncedSearch, dateRange?.from, dateRange?.to],
+    queryKey: ["/api/bills-stats", debouncedSearch, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (dateRange?.from) params.set("dateFrom", dateRange.from);
       if (dateRange?.to) params.set("dateTo", dateRange.to);
-      const res = await fetch(getApiUrl(`/api/bills/stats?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/bills-stats?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
@@ -231,8 +231,8 @@ export default function BillingPage() {
     },
     onSuccess: (bill: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bills/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bills/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
@@ -264,8 +264,8 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bills/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bills/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       toast({ title: "Bill deleted successfully" });
     },
@@ -281,8 +281,8 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bills/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bills/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
       setEditingBill(null);
@@ -303,8 +303,8 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bills/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bills/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
       setReturnBill(null);
@@ -810,7 +810,7 @@ export default function BillingPage() {
       if (patRes.ok) {
         const pat = await patRes.json();
         setSearchTerm(pat.name || val);
-        const billRes2 = await fetch(getApiUrl(`/api/bills/paginated?page=1&limit=10&patientId=${pat.id}`), { credentials: "include" });
+        const billRes2 = await fetch(getApiUrl(`/api/bills-paginated?page=1&limit=10&patientId=${pat.id}`), { credentials: "include" });
         if (billRes2.ok) {
           const data = await billRes2.json();
           const byPatient = data.items || [];

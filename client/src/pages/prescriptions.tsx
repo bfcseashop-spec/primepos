@@ -107,7 +107,7 @@ export default function PrescriptionsPage() {
     return p.toString();
   }, [fromDate, toDate, doctorFilter]);
 
-  const visitsQueryKey = ["/api/prescriptions/paginated", page, pageSize, fromDate, toDate, doctorFilter, debouncedSearch];
+  const visitsQueryKey = ["/api/prescriptions-paginated", page, pageSize, fromDate, toDate, doctorFilter, debouncedSearch];
   const { data: visitsData, isLoading: visitsLoading } = useQuery<{ items: any[]; total: number }>({
     queryKey: visitsQueryKey,
     queryFn: async () => {
@@ -118,7 +118,7 @@ export default function PrescriptionsPage() {
       params.set("toDate", toDate);
       if (doctorFilter && doctorFilter !== "all") params.set("doctorName", doctorFilter);
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
-      const res = await fetch(getApiUrl(`/api/prescriptions/paginated?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/prescriptions-paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse(raw);
@@ -128,13 +128,13 @@ export default function PrescriptionsPage() {
   const visitsTotal = visitsData?.total ?? 0;
 
   const { data: stats } = useQuery<any>({
-    queryKey: ["/api/prescriptions/stats", fromDate, toDate, doctorFilter],
+    queryKey: ["/api/prescriptions-stats", fromDate, toDate, doctorFilter],
     queryFn: async () => {
       const p = new URLSearchParams();
       p.set("fromDate", fromDate);
       p.set("toDate", toDate);
       if (doctorFilter && doctorFilter !== "all") p.set("doctorName", doctorFilter);
-      const res = await fetch(getApiUrl(`/api/prescriptions/stats?${p}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/prescriptions-stats?${p}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
@@ -178,9 +178,9 @@ export default function PrescriptionsPage() {
     },
     onSuccess: (updated: any, variables: { id: number; data: Record<string, string>; printAfterSave?: boolean }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/prescriptions/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prescriptions-paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/prescriptions/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prescriptions-stats"] });
       if (variables.printAfterSave && editVisit) {
         const patient = patients.find((p: Patient) => p.id === editVisit.patientId);
         const settingsForPrint = settings ? { clinicName: settings.clinicName ?? undefined, address: settings.address ?? undefined, phone: settings.phone ?? undefined, email: settings.email ?? undefined, logo: settings.logo ?? undefined, printPageSize: settings.printPageSize ?? undefined } : null;
@@ -211,9 +211,9 @@ export default function PrescriptionsPage() {
     },
     onSuccess: (_data: { deleted: number }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/prescriptions/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prescriptions-paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/prescriptions/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prescriptions-stats"] });
       setSelectedVisitIds(new Set());
       setDeleteConfirm({ open: false, ids: [] });
       toast({ title: "Prescriptions deleted", description: `${_data.deleted ?? 0} item(s) removed.` });

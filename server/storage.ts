@@ -154,6 +154,8 @@ export interface IStorage {
   deleteInvestor(id: number): Promise<void>;
 
   getInvestments(): Promise<Investment[]>;
+  getInvestmentsPaginated(opts: { limit: number; offset: number; search?: string; categoryFilter?: string; statusFilter?: string; dateFrom?: string; dateTo?: string }): Promise<{ items: Investment[]; total: number }>;
+  getInvestmentsStats(opts: { search?: string; categoryFilter?: string; statusFilter?: string; dateFrom?: string; dateTo?: string }): Promise<{ total: number; totalAmount: number; totalPaid: number; remaining: number }>;
   getInvestment(id: number): Promise<Investment | undefined>;
   createInvestment(inv: InsertInvestment): Promise<Investment>;
   updateInvestment(id: number, data: Partial<InsertInvestment>): Promise<Investment | undefined>;
@@ -1272,6 +1274,62 @@ export class DatabaseStorage implements IStorage {
 
   async getInvestments(): Promise<Investment[]> {
     return db.select().from(investments).orderBy(desc(investments.startDate));
+  }
+
+  async getInvestmentsPaginated(opts: { limit: number; offset: number; search?: string; categoryFilter?: string; statusFilter?: string; dateFrom?: string; dateTo?: string }): Promise<{ items: Investment[]; total: number }> {
+    const { limit, offset, search, categoryFilter, statusFilter, dateFrom, dateTo } = opts;
+    const conds: ReturnType<typeof sql>[] = [];
+    if (search?.trim()) {
+      const s = "%" + search.trim() + "%";
+      conds.push(or(
+        ilike(investments.title, s),
+        ilike(sql`coalesce(${investments.investorName}, '')`, s),
+        ilike(investments.category, s),
+        ilike(sql`coalesce(${investments.notes}, '')`, s),
+        sql`${investments.investors}::text ilike ${s}`
+      )!);
+    }
+    if (categoryFilter?.trim()) conds.push(eq(investments.category, categoryFilter.trim()));
+    if (statusFilter?.trim()) conds.push(eq(investments.status, statusFilter.trim()));
+    if (dateFrom) conds.push(gte(investments.startDate, dateFrom));
+    if (dateTo) conds.push(lte(investments.startDate, dateTo));
+    const whereClause = conds.length > 0 ? and(...conds) : undefined;
+    const totalRes = await db.select({ count: count() }).from(investments).where(whereClause ?? sql`true`);
+    const total = Number(totalRes[0]?.count ?? 0);
+    const items = await db.select().from(investments).where(whereClause ?? sql`true`).orderBy(desc(investments.startDate)).limit(limit).offset(offset);
+    return { items, total };
+  }
+
+  async getInvestmentsStats(opts: { search?: string; categoryFilter?: string; statusFilter?: string; dateFrom?: string; dateTo?: string }): Promise<{ total: number; totalAmount: number; totalPaid: number; remaining: number }> {
+    const { search, categoryFilter, statusFilter, dateFrom, dateTo } = opts;
+    const conds: ReturnType<typeof sql>[] = [];
+    if (search?.trim()) {
+      const s = "%" + search.trim() + "%";
+      conds.push(or(
+        ilike(investments.title, s),
+        ilike(sql`coalesce(${investments.investorName}, '')`, s),
+        ilike(investments.category, s),
+        ilike(sql`coalesce(${investments.notes}, '')`, s),
+        sql`${investments.investors}::text ilike ${s}`
+      )!);
+    }
+    if (categoryFilter?.trim()) conds.push(eq(investments.category, categoryFilter.trim()));
+    if (statusFilter?.trim()) conds.push(eq(investments.status, statusFilter.trim()));
+    if (dateFrom) conds.push(gte(investments.startDate, dateFrom));
+    if (dateTo) conds.push(lte(investments.startDate, dateTo));
+    const whereClause = conds.length > 0 ? and(...conds) : undefined;
+    const totalRes = await db.select({ count: count(), totalAmount: sum(investments.amount) }).from(investments).where(whereClause ?? sql`true`);
+    const total = Number(totalRes[0]?.count ?? 0);
+    const totalAmount = Number(totalRes[0]?.totalAmount ?? 0);
+    const matchingRows = await db.select({ id: investments.id }).from(investments).where(whereClause ?? sql`true`);
+    const ids = matchingRows.map((r) => r.id);
+    let totalPaid = 0;
+    if (ids.length > 0) {
+      const paidRes = await db.select({ totalPaid: sum(contributions.amount) }).from(contributions).where(inArray(contributions.investmentId, ids));
+      totalPaid = Number(paidRes[0]?.totalPaid ?? 0);
+    }
+    const remaining = totalAmount - totalPaid;
+    return { total, totalAmount, totalPaid, remaining };
   }
 
   async getInvestment(id: number): Promise<Investment | undefined> {

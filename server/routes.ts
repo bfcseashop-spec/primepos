@@ -1046,7 +1046,7 @@ export async function registerRoutes(
   });
 
   // Patients – paginated endpoint (always returns { items, total })
-  app.get("/api/patients/paginated", async (req, res) => {
+  app.get("/api/patients-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -1089,7 +1089,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/patients/stats", async (req, res) => {
+  app.get("/api/patients-stats", async (req, res) => {
     try {
       const result = await storage.getPatientsStats({
         search: (req.query.search as string)?.trim() || undefined,
@@ -1177,7 +1177,7 @@ export async function registerRoutes(
   });
 
   // OPD Visits – paginated endpoint (always returns { items, total })
-  app.get("/api/opd-visits/paginated", async (req, res) => {
+  app.get("/api/opd-visits-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -1281,7 +1281,7 @@ export async function registerRoutes(
   });
 
   // Prescriptions – dedicated paginated endpoint for prescriptions page (always hasPrescription=true)
-  app.get("/api/prescriptions/paginated", async (req, res) => {
+  app.get("/api/prescriptions-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -1313,7 +1313,7 @@ export async function registerRoutes(
   });
 
   // Prescriptions – dedicated stats endpoint for prescriptions page
-  app.get("/api/prescriptions/stats", async (req, res) => {
+  app.get("/api/prescriptions-stats", async (req, res) => {
     try {
       const fromDate = req.query.fromDate as string | undefined;
       const toDate = req.query.toDate as string | undefined;
@@ -1536,7 +1536,7 @@ export async function registerRoutes(
   });
 
   // Bills – paginated endpoint (always returns { items, total } with server-side pagination/filtering)
-  app.get("/api/bills/paginated", async (req, res) => {
+  app.get("/api/bills-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -1556,7 +1556,7 @@ export async function registerRoutes(
     }
   });
 
-  // Bills – legacy endpoint (returns all when no pagination params; use /api/bills/paginated for list views)
+  // Bills – legacy endpoint (returns all when no pagination params; use /api/bills-paginated for list views)
   app.get("/api/bills", async (req, res) => {
     try {
       const limit = req.query.limit != null ? Math.min(500, Math.max(1, Number(req.query.limit) || 10)) : undefined;
@@ -1581,7 +1581,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/bills/stats", async (req, res) => {
+  app.get("/api/bills-stats", async (req, res) => {
     try {
       const result = await storage.getBillsStats({
         search: (req.query.search as string)?.trim() || undefined,
@@ -2095,7 +2095,7 @@ export async function registerRoutes(
   });
 
   // Services – paginated endpoint (always returns { items, total })
-  app.get("/api/services/paginated", async (req, res) => {
+  app.get("/api/services-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -2114,7 +2114,7 @@ export async function registerRoutes(
   });
 
   // Services – stats endpoint
-  app.get("/api/services/stats", async (req, res) => {
+  app.get("/api/services-stats", async (req, res) => {
     try {
       const result = await storage.getServicesStats({
         search: (req.query.search as string)?.trim() || undefined,
@@ -2613,7 +2613,7 @@ export async function registerRoutes(
     unitPrice: z.coerce.number().min(0),
   });
   // Packages – paginated endpoint (always returns { items, total })
-  app.get("/api/packages/paginated", async (req, res) => {
+  app.get("/api/packages-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -2784,7 +2784,7 @@ export async function registerRoutes(
   });
 
   // Medicines – paginated endpoint (always returns { items, total, ... })
-  app.get("/api/medicines/paginated", async (req, res) => {
+  app.get("/api/medicines-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -3102,7 +3102,7 @@ export async function registerRoutes(
   });
 
   // Expenses – paginated endpoint (always returns { items, total, ... })
-  app.get("/api/expenses/paginated", async (req, res) => {
+  app.get("/api/expenses-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -3193,7 +3193,7 @@ export async function registerRoutes(
   });
 
   // Bank Transactions – paginated endpoint (always returns { items, total, ... })
-  app.get("/api/bank-transactions/paginated", async (req, res) => {
+  app.get("/api/bank-transactions-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -3320,7 +3320,38 @@ export async function registerRoutes(
     }
   });
 
-  // Investments
+  // Investments (paginated/stats before :id to avoid route conflicts)
+  app.get("/api/investments-paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+      const offset = (page - 1) * limit;
+      const search = typeof req.query.search === "string" ? req.query.search : undefined;
+      const categoryFilter = typeof req.query.categoryFilter === "string" ? req.query.categoryFilter : undefined;
+      const statusFilter = typeof req.query.statusFilter === "string" ? req.query.statusFilter : undefined;
+      const dateFrom = typeof req.query.dateFrom === "string" ? req.query.dateFrom : undefined;
+      const dateTo = typeof req.query.dateTo === "string" ? req.query.dateTo : undefined;
+      const result = await storage.getInvestmentsPaginated({ limit, offset, search, categoryFilter, statusFilter, dateFrom, dateTo });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/investments-stats", async (req, res) => {
+    try {
+      const search = typeof req.query.search === "string" ? req.query.search : undefined;
+      const categoryFilter = typeof req.query.categoryFilter === "string" ? req.query.categoryFilter : undefined;
+      const statusFilter = typeof req.query.statusFilter === "string" ? req.query.statusFilter : undefined;
+      const dateFrom = typeof req.query.dateFrom === "string" ? req.query.dateFrom : undefined;
+      const dateTo = typeof req.query.dateTo === "string" ? req.query.dateTo : undefined;
+      const result = await storage.getInvestmentsStats({ search, categoryFilter, statusFilter, dateFrom, dateTo });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/investments", async (_req, res) => {
     try {
       const result = await storage.getInvestments();
@@ -3937,7 +3968,7 @@ export async function registerRoutes(
   });
 
   // Lab Tests – paginated endpoint (always returns { items, total, ... })
-  app.get("/api/lab-tests/paginated", async (req, res) => {
+  app.get("/api/lab-tests-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -4164,7 +4195,7 @@ export async function registerRoutes(
   });
 
   // Sample Collections – paginated endpoint (always returns { items, total, ... })
-  app.get("/api/sample-collections/paginated", async (req, res) => {
+  app.get("/api/sample-collections-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -4292,7 +4323,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/appointments/paginated", async (req, res) => {
+  app.get("/api/appointments-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "12"), 10) || 12));
@@ -4311,7 +4342,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/appointments/stats", async (req, res) => {
+  app.get("/api/appointments-stats", async (req, res) => {
     try {
       const result = await storage.getAppointmentsStats({
         search: (req.query.search as string)?.trim() || undefined,
@@ -4457,7 +4488,7 @@ export async function registerRoutes(
   }
 
   // Doctors – paginated endpoint (always returns { items, total })
-  app.get("/api/doctors/paginated", async (req, res) => {
+  app.get("/api/doctors-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -4485,7 +4516,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/doctors/stats", async (req, res) => {
+  app.get("/api/doctors-stats", async (req, res) => {
     try {
       const result = await storage.getDoctorsStats({
         search: (req.query.search as string)?.trim() || undefined,
@@ -4997,7 +5028,7 @@ export async function registerRoutes(
   });
 
   // Dues – paginated endpoint (always returns { summaries, total })
-  app.get("/api/dues/paginated", async (req, res) => {
+  app.get("/api/dues-paginated", async (req, res) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -5030,7 +5061,7 @@ export async function registerRoutes(
       res.status(500).json({ message: err?.message ?? "Failed to load patients summary" });
     }
   });
-  app.get("/api/dues/stats", async (req, res) => {
+  app.get("/api/dues-stats", async (req, res) => {
     try {
       const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined;
       const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : undefined;

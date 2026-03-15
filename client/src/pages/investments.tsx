@@ -10,14 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, downloadFile, getApiUrl } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
 import {
   Plus, DollarSign, X, Tag, Trash2, Eye, Pencil, Printer,
   MoreHorizontal, Users, Wallet, AlertTriangle, CheckCircle2, CreditCard,
   TrendingUp, ArrowDownRight, ArrowUpRight, CircleDollarSign, PiggyBank, Receipt, ChevronUp,
   Upload, ImageIcon, Download, FileSpreadsheet, LayoutList, LayoutGrid, Search, Calendar, CalendarDays
 } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -117,6 +117,20 @@ export default function InvestmentsPage() {
   const [editCapitalAmounts, setEditCapitalAmounts] = useState<{ id: number; title: string; amount: string }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const [invPage, setInvPage] = useState(1);
+  const [invPageSize, setInvPageSize] = useState(10);
+  const [invCategoryFilter, setInvCategoryFilter] = useState("all");
+  const [invStatusFilter, setInvStatusFilter] = useState("all");
+  const [debouncedInvSearch, setDebouncedInvSearch] = useState("");
+  const debounceInvRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceInvRef.current) clearTimeout(debounceInvRef.current);
+    debounceInvRef.current = setTimeout(() => setDebouncedInvSearch(searchTerm), 400);
+    return () => { if (debounceInvRef.current) clearTimeout(debounceInvRef.current); };
+  }, [searchTerm]);
+  useEffect(() => { setInvPage(1); }, [debouncedInvSearch, invCategoryFilter, invStatusFilter]);
+
   const handleScroll = useCallback(() => {
     if (scrollRef.current) {
       setShowScrollTop(scrollRef.current.scrollTop > 300);
@@ -128,7 +142,37 @@ export default function InvestmentsPage() {
   }, []);
 
   const { data: investorsList = [] } = useQuery<Investor[]>({ queryKey: ["/api/investors"] });
-  const { data: investments = [], isLoading } = useQuery<Investment[]>({ queryKey: ["/api/investments"] });
+  const { data: investmentsAll = [] } = useQuery<Investment[]>({ queryKey: ["/api/investments"] });
+  const investmentsPaginatedQueryKey = ["/api/investments-paginated", invPage, invPageSize, debouncedInvSearch, invCategoryFilter, invStatusFilter];
+  const { data: investmentsPaginated, isLoading } = useQuery<{ items: Investment[]; total: number }>({
+    queryKey: investmentsPaginatedQueryKey,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("page", String(invPage));
+      params.set("limit", String(Math.max(1, invPageSize)));
+      if (debouncedInvSearch.trim()) params.set("search", debouncedInvSearch.trim());
+      if (invCategoryFilter !== "all") params.set("categoryFilter", invCategoryFilter);
+      if (invStatusFilter !== "all") params.set("statusFilter", invStatusFilter);
+      const res = await fetch(getApiUrl(`/api/investments-paginated?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      const raw = await res.json();
+      return normalizePaginatedResponse(raw) as { items: Investment[]; total: number };
+    },
+  });
+  const investments = investmentsPaginated?.items ?? [];
+  const investmentsTotal = investmentsPaginated?.total ?? 0;
+  const { data: investmentsStats } = useQuery<{ total: number; totalAmount: number; totalPaid: number; remaining: number }>({
+    queryKey: ["/api/investments-stats", debouncedInvSearch, invCategoryFilter, invStatusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (debouncedInvSearch.trim()) params.set("search", debouncedInvSearch.trim());
+      if (invCategoryFilter !== "all") params.set("categoryFilter", invCategoryFilter);
+      if (invStatusFilter !== "all") params.set("statusFilter", invStatusFilter);
+      const res = await fetch(getApiUrl(`/api/investments-stats?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+  });
   const { data: allContributions = [] } = useQuery<Contribution[]>({
     queryKey: ["/api/contributions", contributionFromDate || null, contributionToDate || null],
     queryFn: async () => {
@@ -178,6 +222,8 @@ export default function InvestmentsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-stats"] });
       setDialogOpen(false);
       toast({ title: "Investment recorded successfully" });
     },
@@ -191,6 +237,8 @@ export default function InvestmentsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-stats"] });
       setEditInvestment(null);
       toast({ title: "Investment updated" });
     },
@@ -201,6 +249,8 @@ export default function InvestmentsPage() {
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/investments/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
       setViewInvestment(null);
       setEditInvestment(null);
@@ -213,6 +263,8 @@ export default function InvestmentsPage() {
     mutationFn: async (ids: number[]) => apiRequest("POST", "/api/investments/bulk-delete", { ids }),
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-stats"] });
       toast({ title: `${ids.length} investment(s) deleted` });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -262,6 +314,8 @@ export default function InvestmentsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-stats"] });
       await queryClient.refetchQueries({ queryKey: ["/api/contributions"] });
       setContributionDialogOpen(false);
       setContributionForm({ investmentId: 0, investorName: "", amount: "", date: new Date().toISOString().split("T")[0], category: "", paymentSlip: "", images: [], note: "" });
@@ -283,6 +337,8 @@ export default function InvestmentsPage() {
       setEditContribution(null);
       await queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-stats"] });
       await queryClient.refetchQueries({ queryKey: ["/api/contributions"] });
       toast({ title: "Contribution updated" });
     },
@@ -295,6 +351,8 @@ export default function InvestmentsPage() {
       setDeleteContributionConfirm(null);
       await queryClient.invalidateQueries({ queryKey: ["/api/contributions"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investments-stats"] });
       await queryClient.refetchQueries({ queryKey: ["/api/contributions"] });
       toast({ title: "Contribution deleted" });
     },
@@ -361,7 +419,7 @@ export default function InvestmentsPage() {
 
   const openCapitalDialog = (investmentId?: number) => {
     setCapitalEditTarget(null);
-    const invId = investmentId || (investments.length > 0 ? investments[0].id : 0);
+    const invId = investmentId || (investmentsAll.length > 0 ? investmentsAll[0].id : 0);
     setCapitalForm({
       investmentId: invId,
       investorName: "",
@@ -372,7 +430,7 @@ export default function InvestmentsPage() {
   };
 
   const openCapitalEdit = (investmentId: number, investorIdx: number) => {
-    const inv = investments.find(i => i.id === investmentId);
+    const inv = investmentsAll.find(i => i.id === investmentId) ?? investments.find(i => i.id === investmentId);
     if (!inv) return;
     const invInvestors = ((inv as any).investors ?? []) as InvestmentInvestor[];
     const total = Number(inv.amount) || 0;
@@ -402,7 +460,7 @@ export default function InvestmentsPage() {
       toast({ title: "Fill in investor name and percentage", variant: "destructive" });
       return;
     }
-    const inv = investments.find(i => i.id === capitalForm.investmentId);
+    const inv = investmentsAll.find(i => i.id === capitalForm.investmentId) ?? investments.find(i => i.id === capitalForm.investmentId);
     if (!inv) return;
     const total = Number(inv.amount) || 0;
     let currentInvestors = [...((inv as any).investors ?? [])] as { investorId?: number; name: string; sharePercentage: number }[];
@@ -443,7 +501,7 @@ export default function InvestmentsPage() {
   const handleCapitalDelete = () => {
     if (!deleteCapitalConfirm) return;
     const { investmentId, investorIdx } = deleteCapitalConfirm;
-    const inv = investments.find(i => i.id === investmentId);
+    const inv = investmentsAll.find(i => i.id === investmentId) ?? investments.find(i => i.id === investmentId);
     if (!inv) return;
     const total = Number(inv.amount) || 0;
     let currentInvestors = [...((inv as any).investors ?? [])] as { investorId?: number; name: string; sharePercentage: number }[];
@@ -486,23 +544,16 @@ export default function InvestmentsPage() {
     });
   };
 
-  const filtered = investments.filter(i => {
-    const invI = (i as any).investors ?? [];
-    const investorNames = invI.map((x: any) => x.name).join(" ");
-    return !searchTerm ||
-      i.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      i.investorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      investorNames.toLowerCase().includes(searchTerm.toLowerCase());
-  });
-
-  const totalInvestment = filtered.reduce((s, i) => s + Number(i.amount), 0);
-  const totalPaid = useMemo(() => {
+  const filtered = investments;
+  const totalInvestment = investmentsStats?.totalAmount ?? filtered.reduce((s, i) => s + Number(i.amount), 0);
+  const totalPaidFallback = useMemo(() => {
     const investmentIds = new Set(filtered.map(i => i.id));
     return allContributions
       .filter(c => investmentIds.has(c.investmentId))
       .reduce((s, c) => s + Number(c.amount), 0);
   }, [filtered, allContributions]);
-  const remainingTotal = totalInvestment - totalPaid;
+  const totalPaid = investmentsStats?.totalPaid ?? totalPaidFallback;
+  const remainingTotal = investmentsStats?.remaining ?? Math.max(0, totalInvestment - totalPaid);
 
   const investorTableData = useMemo(() => {
     const map: Record<string, { name: string; shareAmount: number; paid: number }> = {};
@@ -581,7 +632,7 @@ export default function InvestmentsPage() {
     if (contributionSearch.trim()) {
       const q = contributionSearch.trim().toLowerCase();
       list = list.filter(c => {
-        const inv = investments.find(i => i.id === c.investmentId);
+        const inv = investmentsAll.find(i => i.id === c.investmentId) ?? investments.find(i => i.id === c.investmentId);
         return (
           (c.investorName || "").toLowerCase().includes(q) ||
           (inv?.title || "").toLowerCase().includes(q) ||
@@ -592,7 +643,7 @@ export default function InvestmentsPage() {
       });
     }
     return list;
-  }, [allContributions, filtered, contributionFilter, contributionSearch, investments]);
+  }, [allContributions, filtered, contributionFilter, contributionSearch, investments, investmentsAll]);
 
   const paginatedContributions = useMemo(() => {
     const start = (contributionPage - 1) * contributionPageSize;
@@ -650,7 +701,7 @@ export default function InvestmentsPage() {
 
   const allInvestorNames = useMemo(() => {
     const names = new Set<string>();
-    for (const inv of investments) {
+    for (const inv of investmentsAll) {
       const invInvestors = ((inv as any).investors ?? []) as InvestmentInvestor[];
       if (invInvestors.length === 0) {
         if (inv.investorName) names.add(inv.investorName);
@@ -659,11 +710,11 @@ export default function InvestmentsPage() {
       }
     }
     return Array.from(names).sort();
-  }, [investments]);
+  }, [investmentsAll]);
 
   const openContributionDialog = (investmentId?: number, investorName?: string) => {
     setContributionForm({
-      investmentId: investmentId || (investments.length > 0 ? investments[0].id : 0),
+      investmentId: investmentId || (investmentsAll.length > 0 ? investmentsAll[0].id : 0),
       investorName: investorName || "",
       amount: "",
       date: new Date().toISOString().split("T")[0],
@@ -770,7 +821,7 @@ export default function InvestmentsPage() {
   };
 
   const investorsForSelectedInvestment = useMemo(() => {
-    const inv = investments.find(i => i.id === contributionForm.investmentId);
+    const inv = investmentsAll.find(i => i.id === contributionForm.investmentId) ?? investments.find(i => i.id === contributionForm.investmentId);
     if (!inv) return [];
     const invInvestors = ((inv as any).investors ?? []) as InvestmentInvestor[];
     if (invInvestors.length === 0 && inv.investorName) return [inv.investorName];
@@ -1045,12 +1096,113 @@ export default function InvestmentsPage() {
       />
 
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto scroll-smooth p-4 space-y-5 relative">
+        {/* Investments search and filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex-1 min-w-[200px] max-w-[320px]">
+            <SearchInputWithBarcode
+              placeholder="Search investments by title, investor, category..."
+              value={searchTerm}
+              onChange={setSearchTerm}
+              onScan={() => {}}
+            />
+          </div>
+          <Select value={invCategoryFilter} onValueChange={setInvCategoryFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map(cat => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
+            </SelectContent>
+          </Select>
+          <Select value={invStatusFilter} onValueChange={setInvStatusFilter}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="paused">Paused</SelectItem>
+            </SelectContent>
+          </Select>
+          <TablePagination
+            page={invPage}
+            pageSize={invPageSize}
+            total={investmentsTotal}
+            onPageChange={setInvPage}
+            onPageSizeChange={(v) => { setInvPageSize(v); setInvPage(1); }}
+          />
+        </div>
+
+        {/* Investments list */}
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-semibold">Investments</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">{investmentsTotal} total</p>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground py-4">Loading...</p>
+            ) : filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">No investments found</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {filtered.map((inv) => {
+                  const paid = allContributions.filter(c => c.investmentId === inv.id).reduce((s, c) => s + Number(c.amount), 0);
+                  const remaining = Math.max(0, Number(inv.amount) - paid);
+                  return (
+                    <Card key={inv.id} className="overflow-hidden">
+                      <CardContent className="p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{inv.title}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{inv.category}</p>
+                            <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mt-1">${fmt(Number(inv.amount))}</p>
+                            <Badge variant="outline" className={`mt-1 text-[10px] ${inv.status === "active" ? "bg-emerald-500/10" : "bg-slate-500/10"}`}>{inv.status}</Badge>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setViewInvestment(inv)}>
+                                <Eye className="h-4 w-4 mr-2" /> View
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEdit(inv)}>
+                                <Pencil className="h-4 w-4 mr-2" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openContributionDialog(inv.id)}>
+                                <CreditCard className="h-4 w-4 mr-2" /> Record Payment
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive" onClick={() => { setDeleteConfirm({ open: true, id: inv.id }); }}>
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 pt-2 border-t text-xs">
+                          <span className="text-muted-foreground">Paid: ${fmt(paid)}</span>
+                          {remaining > 0 && <span className="text-amber-600 dark:text-amber-400">Due: ${fmt(remaining)}</span>}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Top KPI Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Card
             className="cursor-pointer hover-elevate"
             onClick={() => {
-              setEditCapitalAmounts(investments.map(inv => ({ id: inv.id, title: inv.title, amount: String(inv.amount) })));
+              setEditCapitalAmounts(investmentsAll.map(inv => ({ id: inv.id, title: inv.title, amount: String(inv.amount) })));
               setEditTotalCapitalOpen(true);
             }}
             data-testid="stat-total-capital"
@@ -1379,7 +1531,7 @@ export default function InvestmentsPage() {
                   </thead>
                   <tbody>
                     {paginatedContributions.map((c) => {
-                      const inv = investments.find(i => i.id === c.investmentId);
+                      const inv = investmentsAll.find(i => i.id === c.investmentId) ?? investments.find(i => i.id === c.investmentId);
                       return (
                         <tr
                           key={c.id}
@@ -1443,7 +1595,7 @@ export default function InvestmentsPage() {
               <>
               <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {paginatedContributions.map((c) => {
-                  const inv = investments.find(i => i.id === c.investmentId);
+                  const inv = investmentsAll.find(i => i.id === c.investmentId) ?? investments.find(i => i.id === c.investmentId);
                   return (
                     <Card
                       key={c.id}
@@ -1585,7 +1737,7 @@ export default function InvestmentsPage() {
               <Select value={String(contributionForm.investmentId)} onValueChange={(v) => setContributionForm(f => ({ ...f, investmentId: Number(v), investorName: "" }))}>
                 <SelectTrigger data-testid="select-contribution-investment"><SelectValue placeholder="Select investment" /></SelectTrigger>
                 <SelectContent>
-                  {investments.map(inv => (
+                  {investmentsAll.map(inv => (
                     <SelectItem key={inv.id} value={String(inv.id)}>{inv.title} (${fmt(Number(inv.amount))})</SelectItem>
                   ))}
                 </SelectContent>
@@ -1725,7 +1877,7 @@ export default function InvestmentsPage() {
             <DialogDescription className="sr-only">View contribution details</DialogDescription>
           </DialogHeader>
           {viewContribution && (() => {
-            const inv = investments.find(i => i.id === viewContribution.investmentId);
+            const inv = investmentsAll.find(i => i.id === viewContribution.investmentId) ?? investments.find(i => i.id === viewContribution.investmentId);
             const allImages = [
               ...(viewContribution.paymentSlip ? [viewContribution.paymentSlip] : []),
               ...(viewContribution.images || []),
@@ -2148,14 +2300,14 @@ export default function InvestmentsPage() {
               <Label>Investment *</Label>
               <Select value={String(capitalForm.investmentId)} onValueChange={(v) => {
                 const newInvId = Number(v);
-                const inv = investments.find(i => i.id === newInvId);
+                const inv = investmentsAll.find(i => i.id === newInvId) ?? investments.find(i => i.id === newInvId);
                 const total = Number(inv?.amount) || 0;
                 const amt = capitalForm.sharePercentage > 0 ? ((total * capitalForm.sharePercentage) / 100).toFixed(2) : "";
                 setCapitalForm(f => ({ ...f, investmentId: newInvId, capitalAmount: amt }));
               }} disabled={!!capitalEditTarget}>
                 <SelectTrigger data-testid="select-capital-investment"><SelectValue placeholder="Select investment" /></SelectTrigger>
                 <SelectContent>
-                  {investments.map(inv => (
+                  {investmentsAll.map(inv => (
                     <SelectItem key={inv.id} value={String(inv.id)}>{inv.title} (${fmt(Number(inv.amount))})</SelectItem>
                   ))}
                 </SelectContent>
@@ -2201,7 +2353,7 @@ export default function InvestmentsPage() {
                 value={capitalForm.capitalAmount}
                 onChange={(e) => {
                   const amt = e.target.value;
-                  const inv = investments.find(i => i.id === capitalForm.investmentId);
+                  const inv = investmentsAll.find(i => i.id === capitalForm.investmentId) ?? investments.find(i => i.id === capitalForm.investmentId);
                   const total = Number(inv?.amount) || 0;
                   const pct = total > 0 ? Math.round((Number(amt) / total) * 10000) / 100 : 0;
                   setCapitalForm(f => ({ ...f, capitalAmount: amt, sharePercentage: Math.min(100, pct) }));
@@ -2219,7 +2371,7 @@ export default function InvestmentsPage() {
                 value={capitalForm.sharePercentage || ""}
                 onChange={(e) => {
                   const pct = Number(e.target.value) || 0;
-                  const inv = investments.find(i => i.id === capitalForm.investmentId);
+                  const inv = investmentsAll.find(i => i.id === capitalForm.investmentId) ?? investments.find(i => i.id === capitalForm.investmentId);
                   const total = Number(inv?.amount) || 0;
                   const amt = ((total * pct) / 100).toFixed(2);
                   setCapitalForm(f => ({ ...f, sharePercentage: pct, capitalAmount: amt }));
@@ -2227,7 +2379,7 @@ export default function InvestmentsPage() {
                 data-testid="input-capital-percentage"
               />
               {capitalForm.investmentId > 0 && capitalForm.sharePercentage > 0 && (() => {
-                const inv = investments.find(i => i.id === capitalForm.investmentId);
+                const inv = investmentsAll.find(i => i.id === capitalForm.investmentId) ?? investments.find(i => i.id === capitalForm.investmentId);
                 if (!inv) return null;
                 const total = Number(inv.amount) || 0;
                 const currentInvestors = [...((inv as any).investors ?? [])] as InvestmentInvestor[];
@@ -2287,7 +2439,7 @@ export default function InvestmentsPage() {
               onClick={() => {
                 let pending = editCapitalAmounts.length;
                 editCapitalAmounts.forEach((item) => {
-                  const inv = investments.find(i => i.id === item.id);
+                  const inv = investmentsAll.find(i => i.id === item.id) ?? investments.find(i => i.id === item.id);
                   if (!inv) { pending--; return; }
                   const oldTotal = Number(inv.amount) || 0;
                   const newTotal = Number(item.amount) || 0;
