@@ -2193,19 +2193,14 @@ export async function registerRoutes(
         acc[cat].push(p);
         return acc;
       }, {});
-      const categoryOrder = Object.keys(byCategory).sort((a, b) =>
-        a === "\x00" ? -1 : b === "\x00" ? 1 : a.localeCompare(b));
+      // Preserve order as added in services (first occurrence of each category)
+      const categoryOrder = Array.from(new Set(allParams.map((p) => p.category || "\x00")));
       const reportParametersByCategory = categoryOrder.map((category) => ({
         category: category === "\x00" ? "Other" : category,
         parameters: byCategory[category],
       }));
       res.json({
-        reportParameters: allParams.sort((a, b) => {
-          const ca = a.category || "\x00";
-          const cb = b.category || "\x00";
-          if (ca !== cb) return categoryOrder.indexOf(ca) - categoryOrder.indexOf(cb);
-          return (a.parameter || "").localeCompare(b.parameter || "");
-        }),
+        reportParameters: allParams,
         reportParametersByCategory,
       });
     } catch (err: any) {

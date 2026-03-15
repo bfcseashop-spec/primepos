@@ -69,7 +69,7 @@ export function TablePagination({
       <div className="flex items-center">
         {totalPages > 1 ? (
           <Pagination>
-            <PaginationContent className="flex-wrap justify-center">
+            <PaginationContent className="flex-wrap justify-center [&_a]:border-0">
               <PaginationItem>
                 <PaginationPrevious
                   href="#"

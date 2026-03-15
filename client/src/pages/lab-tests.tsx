@@ -189,6 +189,12 @@ function selectRelevantRange(normalRange: string, patientGender?: string | null,
 
 /** Check if a numeric result is outside the normal/reference range. Returns true if out of range. Supports multiple ranges (e.g. "70-99, 4.0-5.6"), <X, >X, and categorical values. */
 function isResultOutOfRange(result: string, normalRange: string, patientGender?: string | null, patientAge?: number | null): boolean {
+  const dir = getResultOutOfRangeDirection(result, normalRange, patientGender, patientAge);
+  return dir !== false;
+}
+
+/** Returns "above" | "below" | false. Below normal = black, above normal = red. */
+function getResultOutOfRangeDirection(result: string, normalRange: string, patientGender?: string | null, patientAge?: number | null): "above" | "below" | false {
   const rangeToUse = selectRelevantRange(normalRange, patientGender, patientAge);
   if (!result?.trim() || !rangeToUse?.trim()) return false;
   const r = result.trim();
@@ -196,7 +202,7 @@ function isResultOutOfRange(result: string, normalRange: string, patientGender?:
   const num = parseFloat(r.replace(/[^\d.\-]/g, ""));
   if (Number.isNaN(num)) {
     const opts = nr.split(/[,;\/]|\bor\b/i).map((s) => s.trim().toLowerCase()).filter(Boolean);
-    if (opts.length > 0) return !opts.some((o) => r.toLowerCase().includes(o) || o.includes(r.toLowerCase()));
+    if (opts.length > 0) return !opts.some((o) => r.toLowerCase().includes(o) || o.includes(r.toLowerCase())) ? "above" : false;
     return false;
   }
   const rangeRegex = /(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/g;
@@ -206,11 +212,23 @@ function isResultOutOfRange(result: string, normalRange: string, patientGender?:
     const high = parseFloat(rangeMatch[2]);
     if (num >= low && num <= high) return false;
   }
-  if (/\d+\s*-\s*\d+/.test(nr)) return true;
+  if (/\d+\s*-\s*\d+/.test(nr)) {
+    const ranges: [number, number][] = [];
+    const rangeRegex2 = /(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/g;
+    let m;
+    while ((m = rangeRegex2.exec(nr)) !== null) {
+      ranges.push([parseFloat(m[1]), parseFloat(m[2])]);
+    }
+    const belowAll = ranges.every(([low]) => num < low);
+    const aboveAll = ranges.every(([, high]) => num > high);
+    if (belowAll) return "below";
+    if (aboveAll) return "above";
+    return "above";
+  }
   const ltMatch = nr.match(/<\s*(\d+(?:\.\d+)?)/);
-  if (ltMatch) return num >= parseFloat(ltMatch[1]);
+  if (ltMatch) return num >= parseFloat(ltMatch[1]) ? "above" : false;
   const gtMatch = nr.match(/>\s*(\d+(?:\.\d+)?)/);
-  if (gtMatch) return num <= parseFloat(gtMatch[1]);
+  if (gtMatch) return num <= parseFloat(gtMatch[1]) ? "below" : false;
   return false;
 }
 
@@ -631,7 +649,7 @@ export default function LabTestsPage() {
               acc[cat].push(r);
               return acc;
             }, {});
-            const cats = Object.keys(byCat).sort((a, b) => (a === "\x00" ? -1 : b === "\x00" ? 1 : a.localeCompare(b)));
+            const cats = Array.from(new Set((reportResults as R[]).map((r) => r.category || "\x00")));
             const formatNormalRange = (s: string) => {
               const raw = String(s || "").trim();
               // Split by newlines OR double comma (,,) — each segment becomes a line; support ^2 ^3 for superscript, _2 for subscript
@@ -640,8 +658,8 @@ export default function LabTestsPage() {
               return lines.map(l => `<span style="display:block;">${formatSupSub(l)}</span>`).join("");
             };
             const rowHtml = (r: R) => {
-              const outOfRange = isResultOutOfRange(r.result, r.normalRange, rowExt.patientGender, rowExt.patientAge);
-              const resultColor = outOfRange ? "#dc2626" : "#059669";
+              const dir = getResultOutOfRangeDirection(r.result, r.normalRange, rowExt.patientGender, rowExt.patientAge);
+              const resultColor = dir === "above" ? "#dc2626" : dir === "below" ? "#0f172a" : "#059669";
               return `
               <tr style="border-bottom:1px solid ${border};">
                 <td style="padding:${padSm};font-size:${fSm}px;font-weight:600;color:${accent};">${escapeHtml(r.parameter)}</td>
@@ -1384,7 +1402,7 @@ export default function LabTestsPage() {
                               acc[cat].push(r);
                               return acc;
                             }, {});
-                            const cats = Object.keys(byCat).sort((a, b) => (a === "\x00" ? -1 : b === "\x00" ? 1 : a.localeCompare(b)));
+                            const cats = Array.from(new Set(reportResults.map((r) => r.category || "\x00")));
                             const rows: React.ReactNode[] = [];
                             cats.forEach((cat) => {
                               const items = byCat[cat] || [];
@@ -1397,14 +1415,15 @@ export default function LabTestsPage() {
                               }
                               items.forEach((r, i) => {
                                 const normalRange = paramsByName.has(r.parameter) ? paramsByName.get(r.parameter)! : (r.normalRange || "—");
-                                const outOfRange = isResultOutOfRange(r.result, normalRange, vTest.patientGender, vTest.patientAge);
+                                const dir = getResultOutOfRangeDirection(r.result, normalRange, vTest.patientGender, vTest.patientAge);
+                                const resultColorClass = dir === "above" ? "text-red-600 dark:text-red-400" : dir === "below" ? "text-foreground" : "text-emerald-600 dark:text-emerald-400";
                                 const rangeFormatted = (normalRange || "—").split(/\r?\n|,\s*,/).map(l => formatSupSub(l.trim())).filter(Boolean).join("<br/>") || "—";
                                 const unitRaw = unitsByName.has(r.parameter) ? unitsByName.get(r.parameter)! : (r.unit || "—");
                                 const unitFormatted = unitRaw ? formatSupSub(unitRaw) : "—";
                                 rows.push(
                                   <tr key={`${cat}-${i}-${r.parameter}`} className="border-t">
                                     <td className="p-2">{r.parameter}</td>
-                                    <td className={`p-2 font-medium ${outOfRange ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>{r.result}</td>
+                                    <td className={`p-2 font-medium ${resultColorClass}`}>{r.result}</td>
                                     <td className="p-2 text-muted-foreground" dangerouslySetInnerHTML={{ __html: unitFormatted }} />
                                     <td className="p-2 text-muted-foreground" dangerouslySetInnerHTML={{ __html: rangeFormatted }} />
                                   </tr>
@@ -1559,7 +1578,7 @@ export default function LabTestsPage() {
                             acc[cat].push(p);
                             return acc;
                           }, {});
-                          const cats = Object.keys(byCat).sort((a, b) => (a === "\x00" ? -1 : b === "\x00" ? 1 : a.localeCompare(b)));
+                          const cats = Array.from(new Set(params.map((p) => (p as { category?: string }).category || "\x00")));
                           return cats.flatMap(cat => {
                             const items = byCat[cat] || [];
                             const label = cat === "\x00" ? null : cat;
@@ -1580,16 +1599,17 @@ export default function LabTestsPage() {
                           const existing = (inputResultsTest as LabTestWithPatient & { reportResults?: Array<{ parameter: string; result: string; unit: string; normalRange: string }>; patientAge?: number; patientGender?: string }).reportResults?.find(r => r.parameter === p.parameter);
                           const value = inputResultsValues[p.parameter] ?? existing?.result ?? "";
                           const inTest = inputResultsTest as { patientAge?: number; patientGender?: string };
-                          const outOfRange = !!value && isResultOutOfRange(value, p.normalRange || "", inTest.patientGender, inTest.patientAge);
+                          const dir = !!value ? getResultOutOfRangeDirection(value, p.normalRange || "", inTest.patientGender, inTest.patientAge) : false;
+                          const isAboveRange = dir === "above";
                           const isDropdown = p.resultType === "dropdown" || (p as { unitType?: string }).unitType === "select";
                           const items = Array.from(new Set([...(p.dropdownItems || []).filter(Boolean), ...(value && !(p.dropdownItems || []).includes(value) ? [value] : [])]));
                           return (
-                            <tr key={`param-${idx}-${p.parameter}`} className={`border-b last:border-b-0 hover:bg-muted/20 transition-colors ${outOfRange ? "bg-red-50/30 dark:bg-red-950/20" : ""}`}>
+                            <tr key={`param-${idx}-${p.parameter}`} className={`border-b last:border-b-0 hover:bg-muted/20 transition-colors ${isAboveRange ? "bg-red-50/30 dark:bg-red-950/20" : ""}`}>
                               <td className="px-4 py-3 font-medium">{p.parameter}</td>
                               <td className="px-4 py-3">
                                 {isDropdown && items.length > 0 ? (
                                   <Select value={value || "__empty__"} onValueChange={v => setInputResultsValues(prev => ({ ...prev, [p.parameter]: v === "__empty__" ? "" : v }))}>
-                                    <SelectTrigger className={`h-9 w-full min-w-[140px] ${outOfRange ? "border-red-500 text-red-600 dark:text-red-400" : ""}`}><SelectValue placeholder="Select result" /></SelectTrigger>
+                                    <SelectTrigger className={`h-9 w-full min-w-[140px] ${isAboveRange ? "border-red-500 text-red-600 dark:text-red-400" : dir === "below" ? "text-foreground" : ""}`}><SelectValue placeholder="Select result" /></SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="__empty__">— Select —</SelectItem>
                                       {items.map((opt, j) => (
@@ -1598,7 +1618,7 @@ export default function LabTestsPage() {
                                     </SelectContent>
                                   </Select>
                                 ) : (
-                                  <Input value={value} onChange={e => setInputResultsValues(prev => ({ ...prev, [p.parameter]: e.target.value }))} placeholder="Enter result" className={`h-9 min-w-[140px] ${outOfRange ? "border-red-500 text-red-600 dark:text-red-400" : ""}`} />
+                                  <Input value={value} onChange={e => setInputResultsValues(prev => ({ ...prev, [p.parameter]: e.target.value }))} placeholder="Enter result" className={`h-9 min-w-[140px] ${isAboveRange ? "border-red-500 text-red-600 dark:text-red-400" : dir === "below" ? "text-foreground" : ""}`} />
                                 )}
                               </td>
                               <td

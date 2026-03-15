@@ -145,7 +145,7 @@ export function printPrescription(
       </div>
       <div class="rx-print-body">
       <div style="font-size:14px;font-weight:700;color:${teal};margin-bottom:10px;text-transform:uppercase;border-bottom:1px solid ${border};padding-bottom:4px;">Prescription</div>
-      <!-- Two-column like lab report: Patient info (left) | Visit ID + barcode (right), separated -->
+      <!-- Two-column: Patient info (left) | Barcode only (right), with Diagnosis/Symptoms below barcode -->
       <table style="width:100%;margin-bottom:10px;font-size:10px;border-collapse:collapse;">
         <tr>
           <td style="width:50%;vertical-align:top;padding:4px 10px 4px 0;">
@@ -156,15 +156,12 @@ export function printPrescription(
             <div><strong>Date:</strong> ${visitDate}</div>
           </td>
           <td style="width:50%;vertical-align:top;padding:4px 0 4px 10px;border-left:1px solid ${border};">
-            <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:3px;">
-              <div><strong>Visit ID:</strong> ${escapeHtml(visit.visitId)}</div>
-              <div id="rx-barcode" style="flex-shrink:0;"></div>
-            </div>
+            <div id="rx-barcode" style="margin-bottom:6px;"></div>
+            ${visit.diagnosis ? `<div style="margin-bottom:4px;font-size:10px;"><strong>Diagnosis:</strong> ${escapeHtml(visit.diagnosis)}</div>` : ""}
+            ${visit.symptoms ? `<div style="margin-bottom:4px;font-size:10px;"><strong>Symptoms:</strong> ${escapeHtml(visit.symptoms)}</div>` : ""}
           </td>
         </tr>
       </table>
-      ${visit.diagnosis ? `<div style="margin-bottom:8px;"><strong>Diagnosis:</strong> ${escapeHtml(visit.diagnosis)}</div>` : ""}
-      ${visit.symptoms ? `<div style="margin-bottom:8px;"><strong>Symptoms:</strong> ${escapeHtml(visit.symptoms)}</div>` : ""}
       <table style="margin-bottom:10px;">
         <thead>
           <tr style="background:${teal};color:#fff;">
