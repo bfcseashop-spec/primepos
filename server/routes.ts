@@ -4255,7 +4255,14 @@ export async function registerRoutes(
         billId: req.query.billId != null ? Number(req.query.billId) : undefined,
         labTestId: req.query.labTestId != null ? Number(req.query.labTestId) : undefined,
       });
-      res.json({ items: result.items || [], total: result.total, pendingCount: result.pendingCount, collectedCount: result.collectedCount });
+      const mapItem = (item: any) => {
+        const age = item.patientAge ?? item.age ?? null;
+        const gender = item.patientGender ?? item.gender ?? item.sex ?? null;
+        const dob = item.patientDateOfBirth ?? item.dateOfBirth ?? null;
+        return { ...item, patientAge: age, patientGender: gender, patientDateOfBirth: dob, age, sex: gender };
+      };
+      const items = (result.items || []).map(mapItem);
+      res.json({ items, total: result.total, pendingCount: result.pendingCount, collectedCount: result.collectedCount });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -4274,10 +4281,24 @@ export async function registerRoutes(
           billId: req.query.billId != null ? Number(req.query.billId) : undefined,
           labTestId: req.query.labTestId != null ? Number(req.query.labTestId) : undefined,
         });
-        res.json({ items: result.items || [], total: result.total, pendingCount: result.pendingCount, collectedCount: result.collectedCount });
+        const mapItem = (item: any) => {
+          const age = item.patientAge ?? item.age ?? null;
+          const gender = item.patientGender ?? item.gender ?? item.sex ?? null;
+          const dob = item.patientDateOfBirth ?? item.dateOfBirth ?? null;
+          return { ...item, patientAge: age, patientGender: gender, patientDateOfBirth: dob, age, sex: gender };
+        };
+        const items = (result.items || []).map(mapItem);
+        res.json({ items, total: result.total, pendingCount: result.pendingCount, collectedCount: result.collectedCount });
       } else {
         const result = await storage.getSampleCollections();
-        res.json(result);
+        const mapItem = (item: any) => {
+          const age = item.patientAge ?? item.age ?? null;
+          const gender = item.patientGender ?? item.gender ?? item.sex ?? null;
+          const dob = item.patientDateOfBirth ?? item.dateOfBirth ?? null;
+          return { ...item, patientAge: age, patientGender: gender, patientDateOfBirth: dob, age, sex: gender };
+        };
+        const items = Array.isArray(result) ? result.map(mapItem) : result;
+        res.json(items);
       }
     } catch (err: any) {
       res.status(500).json({ message: err.message });
