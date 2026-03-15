@@ -127,7 +127,6 @@ export default function InvestmentsPage() {
     debounceInvRef.current = setTimeout(() => setDebouncedInvSearch(searchTerm), 400);
     return () => { if (debounceInvRef.current) clearTimeout(debounceInvRef.current); };
   }, [searchTerm]);
-  useEffect(() => { setInvPage(1); }, [debouncedInvSearch, invCategoryFilter, invStatusFilter]);
 
   const handleScroll = useCallback(() => {
     if (scrollRef.current) {
