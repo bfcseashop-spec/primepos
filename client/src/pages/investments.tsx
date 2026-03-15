@@ -1095,7 +1095,8 @@ export default function InvestmentsPage() {
         }
       />
 
-      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto scroll-smooth p-4 space-y-5 relative">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto scroll-smooth p-4 space-y-5 relative">
         {/* Investments search and filters */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex-1 min-w-[200px] max-w-[320px]">
@@ -1126,13 +1127,6 @@ export default function InvestmentsPage() {
               <SelectItem value="paused">Paused</SelectItem>
             </SelectContent>
           </Select>
-          <TablePagination
-            page={invPage}
-            pageSize={invPageSize}
-            total={investmentsTotal}
-            onPageChange={setInvPage}
-            onPageSizeChange={(v) => { setInvPageSize(v); setInvPage(1); }}
-          />
         </div>
 
         {/* Investments list */}
@@ -1669,6 +1663,19 @@ export default function InvestmentsPage() {
           >
             <ChevronUp className="h-5 w-5" />
           </Button>
+        )}
+        </div>
+        {investmentsTotal > 0 && (
+          <div className="shrink-0 border-t bg-background px-4 py-3">
+            <TablePagination
+              page={invPage}
+              pageSize={invPageSize}
+              total={investmentsTotal}
+              onPageChange={setInvPage}
+              onPageSizeChange={(v) => { setInvPageSize(v); setInvPage(1); }}
+              fixedAtBottom
+            />
+          </div>
         )}
       </div>
 

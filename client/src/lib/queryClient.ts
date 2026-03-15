@@ -86,6 +86,40 @@ export function normalizePaginatedResponse<T>(data: unknown): { items: T[]; tota
   };
 }
 
+/** Build URLSearchParams from an object, omitting undefined/null/empty strings for optional params. */
+export function buildPaginatedParams(params: Record<string, string | number | undefined | null>): URLSearchParams {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null) continue;
+    const s = String(v).trim();
+    if (s === "" && (k === "search" || k === "dateFrom" || k === "dateTo" || k.startsWith("filter"))) continue;
+    sp.set(k, s);
+  }
+  return sp;
+}
+
+/** Fetch paginated API - uses cache: no-store to avoid stale responses, proper URL building. */
+export async function fetchPaginated<T>(
+  endpoint: string,
+  params: Record<string, string | number | undefined | null>
+): Promise<{ items: T[]; total: number }> {
+  const sp = buildPaginatedParams(params);
+  const url = getApiUrl(`${endpoint}?${sp}`);
+  const res = await fetch(url, { credentials: "include", cache: "no-store" });
+  if (!res.ok) throw new Error(await res.text() || res.statusText);
+  const raw = await res.json();
+  return normalizePaginatedResponse(raw) as { items: T[]; total: number };
+}
+
+/** Fetch stats API - same pattern as fetchPaginated. */
+export async function fetchStats<T>(endpoint: string, params: Record<string, string | undefined | null>): Promise<T> {
+  const sp = buildPaginatedParams(params as Record<string, string | number | undefined | null>);
+  const url = getApiUrl(`${endpoint}?${sp}`);
+  const res = await fetch(url, { credentials: "include", cache: "no-store" });
+  if (!res.ok) throw new Error(await res.text() || res.statusText);
+  return res.json();
+}
+
 /** Build absolute API URL to avoid 404s when app is served from subpath or behind proxy. */
 export function getApiUrl(path: string): string {
   if (typeof window === "undefined") return path;

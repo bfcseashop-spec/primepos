@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl, fetchPaginated, fetchStats } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag, Package, RotateCcw } from "lucide-react";
@@ -98,30 +98,26 @@ export default function BillingPage() {
   useEffect(() => { setBillsPage(1); }, [debouncedSearch, dateRange?.from, dateRange?.to]);
   const { data: billsData, isLoading } = useQuery<{ items: any[]; total: number }>({
     queryKey: ["/api/bills-paginated", billsPage, billsPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      params.set("page", String(billsPage));
-      params.set("limit", String(Math.max(1, billsPageSize)));
-      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
-      if (dateRange?.from) params.set("dateFrom", dateRange.from);
-      if (dateRange?.to) params.set("dateTo", dateRange.to);
-      const res = await fetch(getApiUrl(`/api/bills-paginated?${params}`), { credentials: "include" });
-      if (!res.ok) throw new Error(await res.text());
-      const raw = await res.json();
-      return normalizePaginatedResponse(raw) as typeof raw;
-    },
+    queryFn: () =>
+      fetchPaginated<any>("/api/bills-paginated", {
+        page: billsPage,
+        limit: Math.max(1, billsPageSize),
+        search: debouncedSearch.trim() || undefined,
+        dateFrom: dateRange?.from,
+        dateTo: dateRange?.to,
+      }),
   });
   const { data: billsStats } = useQuery<{ total: number; totalRevenue: number; totalPaid: number; paidCount: number; pendingCount: number }>({
     queryKey: ["/api/bills-stats", debouncedSearch, dateRange?.from, dateRange?.to],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
-      if (dateRange?.from) params.set("dateFrom", dateRange.from);
-      if (dateRange?.to) params.set("dateTo", dateRange.to);
-      const res = await fetch(getApiUrl(`/api/bills-stats?${params}`), { credentials: "include" });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    },
+    queryFn: () =>
+      fetchStats<{ total: number; totalRevenue: number; totalPaid: number; paidCount: number; pendingCount: number }>(
+        "/api/bills-stats",
+        {
+          search: debouncedSearch.trim() || undefined,
+          dateFrom: dateRange?.from,
+          dateTo: dateRange?.to,
+        }
+      ),
   });
   const bills = billsData?.items ?? [];
   const billsTotal = billsStats?.total ?? billsData?.total ?? 0;
@@ -1646,8 +1642,9 @@ export default function BillingPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-4 md:p-6 space-y-4">
-        <div className="rounded-md bg-gradient-to-r from-blue-600 via-violet-600 to-emerald-600 p-4 md:p-5" data-testid="billing-banner">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto p-4 md:p-6 space-y-4">
+          <div className="rounded-md bg-gradient-to-r from-blue-600 via-violet-600 to-emerald-600 p-4 md:p-5" data-testid="billing-banner">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-md bg-white/15 backdrop-blur-sm">
@@ -1742,15 +1739,19 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent className="p-0">
             <DataTable columns={billColumns} data={bills} isLoading={isLoading} emptyMessage={t("common.noData")} onRowClick={(row) => setViewBill(row)} />
-            <TablePagination
-              page={billsPage}
-              pageSize={billsPageSize}
-              total={billsTotal}
-              onPageChange={setBillsPage}
-              onPageSizeChange={(v) => { setBillsPageSize(v); setBillsPage(1); }}
-            />
           </CardContent>
         </Card>
+        </div>
+        <div className="shrink-0 border-t bg-background px-4 md:px-6 py-3">
+          <TablePagination
+            page={billsPage}
+            pageSize={billsPageSize}
+            total={billsTotal}
+            onPageChange={setBillsPage}
+            onPageSizeChange={(v) => { setBillsPageSize(v); setBillsPage(1); }}
+            fixedAtBottom
+          />
+        </div>
       </div>
 
       {/* View Invoice Dialog */}

@@ -19,6 +19,8 @@ export interface TablePaginationProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   pageSizeOptions?: readonly number[];
+  /** When true, pagination is fixed at bottom of main wrapper (no sticky, no negative margin). */
+  fixedAtBottom?: boolean;
 }
 
 export function TablePagination({
@@ -28,6 +30,7 @@ export function TablePagination({
   onPageChange,
   onPageSizeChange,
   pageSizeOptions = PAGE_SIZE_OPTIONS,
+  fixedAtBottom = false,
 }: TablePaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -52,7 +55,12 @@ export function TablePagination({
   };
 
   return (
-    <div className="sticky bottom-0 z-10 -mb-4 md:-mb-6 flex w-full flex-row flex-wrap items-center justify-between gap-2 border-t bg-background px-3 py-1.5 pb-4 md:pb-6">
+    <div
+      className={cn(
+        "flex w-full flex-row flex-wrap items-center justify-between gap-2 bg-background",
+        fixedAtBottom ? "border-t px-0 py-0" : "sticky bottom-0 z-10 -mb-4 md:-mb-6 border-t px-3 py-1.5 pb-4 md:pb-6"
+      )}
+    >
       {/* Left: Showing X-Y of Z */}
       <div className="text-xs text-muted-foreground">
         Showing {start}-{end} of {total}

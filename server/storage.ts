@@ -1633,6 +1633,7 @@ export class DatabaseStorage implements IStorage {
       billId: labTests.billId,
       serviceId: labTests.serviceId,
       serviceIds: labTests.serviceIds,
+      sampleCollectionRequired: labTests.sampleCollectionRequired,
       reportFileUrl: labTests.reportFileUrl,
       reportFileName: labTests.reportFileName,
       reportResults: labTests.reportResults,

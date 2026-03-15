@@ -476,7 +476,8 @@ export default function OpdPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card data-testid="stat-total-patients">
             <CardContent className="p-4">
@@ -751,16 +752,20 @@ export default function OpdPage() {
                 );
               })}
             </div>
-            <TablePagination page={page} pageSize={pageSize} total={patientsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
             </>
           )
         ) : (
           <Card>
             <CardContent className="p-0">
               <DataTable columns={listColumns} data={patients} isLoading={patientsLoading} emptyMessage="No patients found" />
-              <TablePagination page={page} pageSize={pageSize} total={patientsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
             </CardContent>
           </Card>
+        )}
+        </div>
+        {patientsTotal > 0 && (
+          <div className="shrink-0 border-t bg-background px-4 py-3">
+            <TablePagination page={page} pageSize={pageSize} total={patientsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} fixedAtBottom />
+          </div>
         )}
       </div>
 

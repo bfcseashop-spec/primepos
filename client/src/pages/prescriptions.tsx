@@ -358,7 +358,8 @@ export default function PrescriptionsPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto p-4 space-y-4">
         {/* Filters */}
         <Card>
           <CardHeader className="pb-2">
@@ -484,11 +485,16 @@ export default function PrescriptionsPage() {
               selectedIds={selectedVisitIds}
               onSelectionChange={setSelectedVisitIds}
             />
-            <TablePagination page={page} pageSize={pageSize} total={visitsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
             </>
             )}
             </CardContent>
         </Card>
+        </div>
+        {visitsTotal > 0 && (
+          <div className="shrink-0 border-t bg-background px-4 py-3">
+            <TablePagination page={page} pageSize={pageSize} total={visitsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} fixedAtBottom />
+          </div>
+        )}
       </div>
 
       {/* View prescription modal - layout matches billing view invoice */}

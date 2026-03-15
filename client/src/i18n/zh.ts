@@ -242,6 +242,8 @@ export const zh = {
     downloadReport: "下载报告",
     printReport: "打印报告",
     barcode: "条形码",
+    sampleBarcode: "样本条形码",
+    sampleBarcodes: "样本条形码",
     ageGender: "年龄 / 性别",
   },
   medicines: {

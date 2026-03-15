@@ -906,6 +906,83 @@ export default function LabTestsPage() {
 
   useGlobalBarcodeScanner(handleBarcodeSearch);
 
+  const printSampleBarcodes = async (labTestId: number) => {
+    try {
+      const res = await fetch(getApiUrl(`/api/sample-collections-paginated?labTestId=${labTestId}&limit=100&page=1`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      const samples = data.items ?? [];
+      if (samples.length === 0) {
+        toast({ title: t("labTests.sampleBarcode"), description: "No sample collections found for this lab test.", variant: "destructive" });
+        return;
+      }
+      const escape = (s: string) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      const pages: string[] = [];
+      for (const sample of samples) {
+        const barcodeValue = "SC" + sample.id;
+        const testName = escape(sample.testName || "");
+        const patientName = escape(sample.patientName || "-");
+        let barcodeSvgHtml = "";
+        try {
+          const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          JsBarcode(svg, barcodeValue, {
+            format: "CODE128",
+            width: 1.2,
+            height: 32,
+            displayValue: false,
+            margin: 3,
+            lineColor: "#000000",
+            background: "#ffffff",
+          });
+          barcodeSvgHtml = svg.outerHTML;
+        } catch {
+          barcodeSvgHtml = `<svg xmlns="http://www.w3.org/2000/svg"><text x="0" y="12" fill="#000" font-size="8">${barcodeValue}</text></svg>`;
+        }
+        pages.push(`
+        <div class="page-wrap">
+          <div class="sticker">
+            <div class="barcode-wrap">${barcodeSvgHtml}</div>
+            <div class="id">${barcodeValue}</div>
+            <div class="test-name">${testName}</div>
+            <div class="patient-name">${patientName}</div>
+          </div>
+        </div>`);
+      }
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) return;
+      printWindow.document.write(`
+      <!DOCTYPE html>
+      <html><head><title>Sample Barcodes</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: 1.5in 1in; margin: 0; }
+        @media print {
+          html, body { margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .page-wrap { width: 1.5in !important; height: 1in !important; max-height: 1in !important; min-height: 0 !important; margin: 0 !important; padding: 0.03in !important; page-break-after: always !important; page-break-inside: avoid !important; overflow: hidden !important; }
+          .page-wrap:last-child { page-break-after: avoid !important; }
+        }
+        html, body { margin: 0; padding: 0; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .page-wrap { display: flex; align-items: center; justify-content: center; width: 1.5in; height: 1in; max-height: 1in; padding: 0.03in; overflow: hidden; page-break-after: always; }
+        .page-wrap:last-child { page-break-after: avoid; }
+        .sticker { border: 1px dashed #888; width: 100%; height: 100%; max-height: 100%; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0.02in; box-sizing: border-box; overflow: hidden; flex: 1 1 0; }
+        .sticker .barcode-wrap { margin-bottom: 0.03in; }
+        .sticker .barcode-wrap svg { display: block; max-width: 100%; max-height: 0.58in; }
+        .sticker .barcode-wrap svg path, .sticker .barcode-wrap svg line { stroke: #000 !important; fill: #000 !important; }
+        .sticker .id { font-family: monospace; font-size: 8pt; font-weight: bold; color: #000; margin-bottom: 0.02in; }
+        .sticker .test-name { font-size: 8pt; font-weight: bold; line-height: 1.15; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .patient-name { font-size: 8pt; font-weight: bold; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      </style></head><body>
+      ${pages.join("")}
+      <script>setTimeout(function(){ window.print(); window.close(); }, 100);<\/script>
+      </body></html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+    } catch (err: any) {
+      toast({ title: t("labTests.sampleBarcode"), description: err.message, variant: "destructive" });
+    }
+  };
+
   const uniqueCategories = Array.from(new Set(labTests.flatMap(t => t.category.split(",").map(s => s.trim()))));
 
   const statusBadgeConfig: Record<string, { dot: string; bg: string; text: string; border: string }> = {
@@ -1063,6 +1140,17 @@ export default function LabTestsPage() {
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBarcodeTest(row); }} className="gap-2" data-testid={`action-barcode-${row.id}`}>
             <Barcode className="h-4 w-4 text-purple-500" /> {t("labTests.barcode")}
           </DropdownMenuItem>
+          {row.sampleCollectionRequired && (
+            (row as { serviceIds?: number[] }).serviceIds && Array.isArray((row as { serviceIds?: number[] }).serviceIds) && ((row as { serviceIds: number[] }).serviceIds?.length ?? 0) > 1 ? (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printSampleBarcodes(row.id); }} className="gap-2" data-testid={`action-sample-barcodes-${row.id}`}>
+                <Barcode className="h-4 w-4 text-teal-500" /> {t("labTests.sampleBarcodes")}
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printSampleBarcodes(row.id); }} className="gap-2" data-testid={`action-sample-barcode-${row.id}`}>
+                <Barcode className="h-4 w-4 text-teal-500" /> {t("labTests.sampleBarcode")}
+              </DropdownMenuItem>
+            )
+          )}
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printLabReport(row, "compact"); }} className="gap-2" data-testid={`action-print-compact-${row.id}`}>
             <Printer className="h-4 w-4 text-violet-500" /> Print (Compact)
           </DropdownMenuItem>
@@ -1559,7 +1647,8 @@ export default function LabTestsPage() {
         <LabTestBarcodePreview test={barcodeTest} onClose={() => setBarcodeTest(null)} t={t} />
       )}
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto p-4 space-y-4">
         <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} monthYear={monthYear} setMonthYear={setMonthYear} dateRange={dateRange} />
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
@@ -1622,9 +1711,14 @@ export default function LabTestsPage() {
               </div>
             )}
             <DataTable columns={columns} data={labTests} isLoading={isLoading} emptyMessage={t("labTests.noLabTests")} selectedIds={canDelete ? selectedIds : undefined} onSelectionChange={canDelete ? setSelectedIds : undefined} onRowClick={(row) => setViewTest(row)} />
-                <TablePagination page={page} pageSize={pageSize} total={labTestsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
           </CardContent>
         </Card>
+        </div>
+        {labTestsTotal > 0 && (
+          <div className="shrink-0 border-t bg-background px-4 py-3">
+            <TablePagination page={page} pageSize={pageSize} total={labTestsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} fixedAtBottom />
+          </div>
+        )}
       </div>
 
       <ConfirmDialog

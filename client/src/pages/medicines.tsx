@@ -1244,7 +1244,8 @@ export default function MedicinesPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="medicine-stats">
           {[
             { key: "total", label: t("medicines.totalItems"), gradient: "from-blue-500 to-blue-600", value: totalMeds, icon: Package, testId: "stat-total-meds" },
@@ -1469,11 +1470,16 @@ export default function MedicinesPage() {
                   );
                 })}
               </div>
-              <TablePagination page={page} pageSize={pageSize} total={medicinesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
             </>
             )}
           </CardContent>
         </Card>
+        </div>
+        {medicinesTotal > 0 && (
+          <div className="shrink-0 border-t bg-background px-4 py-3">
+            <TablePagination page={page} pageSize={pageSize} total={medicinesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} fixedAtBottom />
+          </div>
+        )}
       </div>
       {importDialog && (
         <Dialog open={importDialog} onOpenChange={(open) => { setImportDialog(open); if (!open) setImportResult(null); }}>

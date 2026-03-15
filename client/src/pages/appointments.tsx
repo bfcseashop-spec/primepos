@@ -365,7 +365,8 @@ export default function AppointmentsPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto p-4 space-y-4">
         <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} monthYear={monthYear} setMonthYear={setMonthYear} dateRange={dateRange} />
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {statCards.map((s) => (
@@ -462,8 +463,13 @@ export default function AppointmentsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {paginatedDisplayed.map(renderAppointmentCard)}
             </div>
-            <TablePagination page={page} pageSize={pageSize} total={totalAppointments} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
           </>
+        )}
+        </div>
+        {totalAppointments > 0 && (
+          <div className="shrink-0 border-t bg-background px-4 py-3">
+            <TablePagination page={page} pageSize={pageSize} total={totalAppointments} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} fixedAtBottom />
+          </div>
         )}
       </div>
 

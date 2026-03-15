@@ -218,7 +218,8 @@ export default function PackagesPage() {
           </Button>
         }
       />
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto p-4">
         <div className="flex items-center gap-3 mb-4 flex-wrap">
           <Input
             placeholder="Search packages..."
@@ -273,9 +274,6 @@ export default function PackagesPage() {
           ))}
         </div>
         )}
-        {packagesTotal > 0 && (
-          <TablePagination page={page} pageSize={pageSize} total={packagesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
-        )}
         {!isLoading && packagesList.length === 0 && (
           <Card>
             <CardContent className="p-8 text-center text-muted-foreground">
@@ -284,6 +282,12 @@ export default function PackagesPage() {
               <Button className="mt-4" onClick={openCreate}>Add Package</Button>
             </CardContent>
           </Card>
+        )}
+        </div>
+        {packagesTotal > 0 && (
+          <div className="shrink-0 border-t bg-background px-4 py-3">
+            <TablePagination page={page} pageSize={pageSize} total={packagesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} fixedAtBottom />
+          </div>
         )}
       </div>
 

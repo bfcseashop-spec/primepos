@@ -542,7 +542,8 @@ export default function DueManagementPage() {
         description="View patients with outstanding dues and record payments against bills."
       />
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Card>
             <CardContent className="p-4">
@@ -703,9 +704,6 @@ export default function DueManagementPage() {
                   </tbody>
                 </table>
               </div>
-              {summariesTotal > 0 && (
-                <TablePagination page={summariesPage} pageSize={summariesPageSize} total={summariesTotal} onPageChange={setSummariesPage} onPageSizeChange={(v) => { setSummariesPageSize(v); setSummariesPage(1); }} />
-              )}
             </>
             )) : activeTab === "payments" ? (
               <div className="space-y-4">
@@ -747,15 +745,23 @@ export default function DueManagementPage() {
                         </tbody>
                       </table>
                     </div>
-                    {paymentsTotal > 0 && (
-                      <TablePagination page={paymentsPage} pageSize={paymentsPageSize} total={paymentsTotal} onPageChange={setPaymentsPage} onPageSizeChange={(v) => { setPaymentsPageSize(v); setPaymentsPage(1); }} />
-                    )}
                   </>
                 )}
               </div>
             ) : null}
           </CardContent>
         </Card>
+        </div>
+        {activeTab === "patients" && summariesTotal > 0 && (
+          <div className="shrink-0 border-t bg-background px-4 py-3">
+            <TablePagination page={summariesPage} pageSize={summariesPageSize} total={summariesTotal} onPageChange={setSummariesPage} onPageSizeChange={(v) => { setSummariesPageSize(v); setSummariesPage(1); }} fixedAtBottom />
+          </div>
+        )}
+        {activeTab === "payments" && paymentsTotal > 0 && (
+          <div className="shrink-0 border-t bg-background px-4 py-3">
+            <TablePagination page={paymentsPage} pageSize={paymentsPageSize} total={paymentsTotal} onPageChange={setPaymentsPage} onPageSizeChange={(v) => { setPaymentsPageSize(v); setPaymentsPage(1); }} fixedAtBottom />
+          </div>
+        )}
       </div>
 
       <Dialog open={!!viewSummary} onOpenChange={(open) => { if (!open) setViewSummary(null); }}>

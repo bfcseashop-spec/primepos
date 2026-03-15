@@ -56,7 +56,8 @@ function HistoryTable() {
   const paginatedRows = rows.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="flex flex-col flex-1 min-h-0 w-full">
+      <div className="flex-1 overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-muted/40">
@@ -137,8 +138,11 @@ function HistoryTable() {
           )}
         </tbody>
       </table>
+      </div>
       {rows.length > 0 && !isLoading && (
-        <TablePagination page={page} pageSize={pageSize} total={rows.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+        <div className="shrink-0 border-t bg-background px-4 py-3">
+          <TablePagination page={page} pageSize={pageSize} total={rows.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} fixedAtBottom />
+        </div>
       )}
       <Dialog open={!!viewDay} onOpenChange={(open) => { if (!open) setViewDay(null); }}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-lg">

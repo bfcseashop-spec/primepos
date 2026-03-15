@@ -60,6 +60,24 @@ if (!fs.existsSync(userSignaturesDir)) {
   fs.mkdirSync(userSignaturesDir, { recursive: true });
 }
 
+/** Safely get string from req.query (handles string | string[] from repeated params). */
+function qStr(q: Record<string, unknown>, key: string): string | undefined {
+  const v = q[key];
+  if (v == null) return undefined;
+  if (typeof v === "string") return v.trim() || undefined;
+  if (Array.isArray(v) && v.length > 0) return (v[0] && String(v[0]).trim()) || undefined;
+  return String(v).trim() || undefined;
+}
+
+/** Safely get number from req.query with default. */
+function qInt(q: Record<string, unknown>, key: string, def: number): number {
+  const v = q[key];
+  if (v == null) return def;
+  const s = typeof v === "string" ? v : Array.isArray(v) ? String(v[0]) : String(v);
+  const n = parseInt(s, 10);
+  return isNaN(n) ? def : n;
+}
+
 const userSignatureUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, userSignaturesDir),
@@ -1538,16 +1556,16 @@ export async function registerRoutes(
   // Bills – paginated endpoint (always returns { items, total } with server-side pagination/filtering)
   app.get("/api/bills-paginated", async (req, res) => {
     try {
-      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
-      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const page = Math.max(1, qInt(req.query as Record<string, unknown>, "page", 1));
+      const limit = Math.min(500, Math.max(1, qInt(req.query as Record<string, unknown>, "limit", 10)));
       const offset = (page - 1) * limit;
       const result = await storage.getBillsPaginated({
         limit,
         offset,
-        search: (req.query.search as string)?.trim() || undefined,
-        dateFrom: (req.query.dateFrom as string) || undefined,
-        dateTo: (req.query.dateTo as string) || undefined,
-        statusFilter: (req.query.statusFilter as string) || undefined,
+        search: qStr(req.query as Record<string, unknown>, "search"),
+        dateFrom: qStr(req.query as Record<string, unknown>, "dateFrom"),
+        dateTo: qStr(req.query as Record<string, unknown>, "dateTo"),
+        statusFilter: qStr(req.query as Record<string, unknown>, "statusFilter"),
         patientId: req.query.patientId != null ? Number(req.query.patientId) : undefined,
       });
       res.json({ items: result.items, total: result.total });
@@ -1559,17 +1577,20 @@ export async function registerRoutes(
   // Bills – legacy endpoint (returns all when no pagination params; use /api/bills-paginated for list views)
   app.get("/api/bills", async (req, res) => {
     try {
-      const limit = req.query.limit != null ? Math.min(500, Math.max(1, Number(req.query.limit) || 10)) : undefined;
-      const offset = req.query.offset != null ? Math.max(0, Number(req.query.offset) || 0) : 0;
+      const q = req.query as Record<string, unknown>;
+      const limit = req.query.limit != null ? Math.min(500, Math.max(1, qInt(q, "limit", 10))) : undefined;
+      const offset = req.query.offset != null ? Math.max(0, qInt(q, "offset", 0)) : 0;
       if (limit != null && limit > 0) {
+        const pid = req.query.patientId;
+        const patientId = pid != null ? (typeof pid === "string" ? Number(pid) : Array.isArray(pid) ? Number(pid[0]) : Number(pid)) : undefined;
         const result = await storage.getBillsPaginated({
           limit,
           offset,
-          search: (req.query.search as string)?.trim() || undefined,
-          dateFrom: (req.query.dateFrom as string) || undefined,
-          dateTo: (req.query.dateTo as string) || undefined,
-          statusFilter: (req.query.statusFilter as string) || undefined,
-          patientId: req.query.patientId != null ? Number(req.query.patientId) : undefined,
+          search: qStr(q, "search"),
+          dateFrom: qStr(q, "dateFrom"),
+          dateTo: qStr(q, "dateTo"),
+          statusFilter: qStr(q, "statusFilter"),
+          patientId: !isNaN(patientId as number) ? patientId : undefined,
         });
         res.json({ items: result.items, total: result.total });
       } else {
@@ -1583,11 +1604,12 @@ export async function registerRoutes(
 
   const billsStatsHandler = async (req: express.Request, res: express.Response) => {
     try {
+      const q = req.query as Record<string, unknown>;
       const result = await storage.getBillsStats({
-        search: (req.query.search as string)?.trim() || undefined,
-        dateFrom: (req.query.dateFrom as string) || undefined,
-        dateTo: (req.query.dateTo as string) || undefined,
-        statusFilter: (req.query.statusFilter as string) || undefined,
+        search: qStr(q, "search"),
+        dateFrom: qStr(q, "dateFrom"),
+        dateTo: qStr(q, "dateTo"),
+        statusFilter: qStr(q, "statusFilter"),
       });
       res.json(result);
     } catch (err: any) {

@@ -285,7 +285,8 @@ export default function DoctorManagementPage() {
           </div>
         }
       />
-      <div className="flex-1 overflow-auto p-4 space-y-5">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto p-4 space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { key: "total", label: t("doctors.totalDoctors"), gradient: "from-blue-500 to-blue-600", value: doctorsTotal, icon: Users },
@@ -439,7 +440,6 @@ export default function DoctorManagementPage() {
             </Card>
           ))}
         </div>
-        <TablePagination page={page} pageSize={pageSize} total={doctorsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
         </>
       ) : (
         <>
@@ -514,9 +514,15 @@ export default function DoctorManagementPage() {
             </Card>
           ))}
         </div>
-        <TablePagination page={page} pageSize={pageSize} total={doctorsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
         </>
       )}
+        </div>
+        {doctorsTotal > 0 && (
+          <div className="shrink-0 border-t bg-background px-4 py-3">
+            <TablePagination page={page} pageSize={pageSize} total={doctorsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} fixedAtBottom />
+          </div>
+        )}
+      </div>
 
       <ConfirmDialog
         open={deleteConfirm.open}

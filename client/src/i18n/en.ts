@@ -282,6 +282,8 @@ export const en = {
     downloadReport: "Download Report",
     printReport: "Print Report",
     barcode: "Barcode",
+    sampleBarcode: "Sample Barcode",
+    sampleBarcodes: "Sample Barcodes",
     turnaroundTime: "Turnaround Time",
     selectCategories: "Select categories",
     selectSampleTypes: "Select sample types",

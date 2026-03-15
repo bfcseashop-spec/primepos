@@ -1605,7 +1605,9 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
   };
 
   return (
-    <div className="space-y-4">
+    <>
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex-1 overflow-auto space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 min-w-[200px]">
           <SearchInputWithBarcode placeholder="Search by staff name..." value={search} onChange={(e) => setSearch(e.target.value)} onSearch={(v) => setSearch(v)} data-testid="input-search-ledger" />
@@ -1742,13 +1744,17 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
                 </tbody>
               </table>
             </div>
-            {filtered.length > 0 && (
-              <TablePagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
-            )}
             </>
           )}
         </CardContent>
       </Card>
+      </div>
+      {filtered.length > 0 && (
+        <div className="shrink-0 border-t bg-background px-4 py-3">
+          <TablePagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} fixedAtBottom />
+        </div>
+      )}
+    </div>
 
       <ConfirmDialog
         open={deleteConfirm.open}
@@ -1866,6 +1872,7 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }
 
@@ -2004,7 +2011,8 @@ export default function SalaryPage() {
           </div>
         }
       />
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto p-4 space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full justify-start flex-wrap" data-testid="tabs-salary">
           <TabsTrigger value="dashboard" className="gap-1.5 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400" data-testid="tab-dashboard">
@@ -2040,10 +2048,11 @@ export default function SalaryPage() {
           <PayrollTab payrollRuns={payrollRuns} profiles={profiles} loans={loans} />
         </TabsContent>
 
-        <TabsContent value="ledger" className="mt-4">
+        <TabsContent value="ledger" className="mt-4 flex flex-col flex-1 min-h-0">
           <LedgerTab salaries={salaries} payrollRuns={payrollRuns} />
         </TabsContent>
       </Tabs>
+        </div>
       </div>
     </div>
   );

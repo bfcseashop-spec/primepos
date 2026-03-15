@@ -399,7 +399,9 @@ export default function SampleCollectionsPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col min-h-0 gap-4 overflow-auto p-4 md:p-6">
+    <>
+    <div className="flex flex-1 flex-col min-h-0">
+      <div className="flex-1 overflow-auto p-4 md:p-6 space-y-4">
       <PageHeader
         title="Sample Collection"
         description="Manage sample collection for lab tests. Mark samples as collected to allow tests to proceed."
@@ -485,9 +487,15 @@ export default function SampleCollectionsPage() {
             onSelectionChange={setSelectedIds}
             onRowClick={(row) => setViewSample(row)}
           />
-          <TablePagination page={page} pageSize={pageSize} total={samplesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
         </CardContent>
       </Card>
+      </div>
+      {samplesTotal > 0 && (
+        <div className="shrink-0 border-t bg-background px-4 md:px-6 py-3">
+          <TablePagination page={page} pageSize={pageSize} total={samplesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} fixedAtBottom />
+        </div>
+      )}
+    </div>
 
       {viewSample && (
         <Dialog open={!!viewSample} onOpenChange={(open) => { if (!open) setViewSample(null); }}>
@@ -653,5 +661,6 @@ export default function SampleCollectionsPage() {
         </Dialog>
       )}
     </div>
+    </>
   );
 }

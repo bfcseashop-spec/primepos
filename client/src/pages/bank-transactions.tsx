@@ -51,6 +51,7 @@ export default function BankTransactionsPage() {
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
   const [txPage, setTxPage] = useState(1);
   const [txPageSize, setTxPageSize] = useState(10);
+  const [bankActiveTab, setBankActiveTab] = useState("collections");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -349,7 +350,8 @@ export default function BankTransactionsPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto p-4 space-y-4">
         <DateFilterBar datePeriod={datePeriod} setDatePeriod={setDatePeriod} customFromDate={customFromDate} setCustomFromDate={setCustomFromDate} customToDate={customToDate} setCustomToDate={setCustomToDate} monthYear={monthYear} setMonthYear={setMonthYear} dateRange={dateRange} />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="bank-summary-stats">
@@ -433,7 +435,7 @@ export default function BankTransactionsPage() {
           </Card>
         </div>
 
-        <Tabs defaultValue="collections" className="space-y-4">
+        <Tabs value={bankActiveTab} onValueChange={setBankActiveTab} className="space-y-4">
           <TabsList className="bg-muted/60 p-1" data-testid="tabs-bank-transactions">
             <TabsTrigger value="collections" className="data-[state=active]:bg-violet-500/10 data-[state=active]:text-violet-700 dark:data-[state=active]:text-violet-400" data-testid="tab-collections">
               <Receipt className="h-4 w-4 mr-1.5 text-violet-500" /> {t("bank.billCollections")}
@@ -554,11 +556,16 @@ export default function BankTransactionsPage() {
                   </div>
                 )}
                 <DataTable columns={columns} data={transactions} isLoading={isLoading} emptyMessage={t("common.noData")} selectedIds={selectedTxIds} onSelectionChange={setSelectedTxIds} onRowClick={(row) => setViewTx(row)} />
-                <TablePagination page={txPage} pageSize={txPageSize} total={transactionsTotal} onPageChange={setTxPage} onPageSizeChange={(v) => { setTxPageSize(v); setTxPage(1); }} />
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
+        {bankActiveTab === "transactions" && transactionsTotal > 0 && (
+          <div className="shrink-0 border-t bg-background px-4 py-3">
+            <TablePagination page={txPage} pageSize={txPageSize} total={transactionsTotal} onPageChange={setTxPage} onPageSizeChange={(v) => { setTxPageSize(v); setTxPage(1); }} fixedAtBottom />
+          </div>
+        )}
       </div>
 
       <Dialog open={!!viewTx} onOpenChange={(open) => { if (!open) setViewTx(null); }}>
