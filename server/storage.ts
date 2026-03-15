@@ -1859,7 +1859,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSampleCollections(): Promise<any[]> {
-    return db.select({
+    const rows = await db.select({
       id: sampleCollections.id,
       labTestId: sampleCollections.labTestId,
       patientId: sampleCollections.patientId,
@@ -1877,6 +1877,10 @@ export class DatabaseStorage implements IStorage {
       patientGender: patients.gender,
       patientDateOfBirth: patients.dateOfBirth,
     }).from(sampleCollections).leftJoin(patients, eq(sampleCollections.patientId, patients.id)).orderBy(desc(sampleCollections.createdAt));
+    return rows.map((r: any) => {
+      const patientAge = r.patientAge != null ? r.patientAge : this._ageFromDob(r.patientDateOfBirth);
+      return { ...r, patientAge: patientAge ?? null, patientGender: r.patientGender ?? null, patientDateOfBirth: r.patientDateOfBirth ?? null };
+    });
   }
 
   async getSampleCollectionsPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string; billId?: number; labTestId?: number }): Promise<{ items: any[]; total: number }> {
@@ -1917,7 +1921,11 @@ export class DatabaseStorage implements IStorage {
     const sr = statsRes[0];
     const pendingCount = Number(sr?.pendingCount ?? 0);
     const collectedCount = Number(sr?.collectedCount ?? 0);
-    const items = await baseQ.where(whereClause ?? sql`true`).orderBy(desc(sampleCollections.createdAt)).limit(limit).offset(offset);
+    const rows = await baseQ.where(whereClause ?? sql`true`).orderBy(desc(sampleCollections.createdAt)).limit(limit).offset(offset);
+    const items = rows.map((r: any) => {
+      const patientAge = r.patientAge != null ? r.patientAge : this._ageFromDob(r.patientDateOfBirth);
+      return { ...r, patientAge: patientAge ?? null, patientGender: r.patientGender ?? null, patientDateOfBirth: r.patientDateOfBirth ?? null };
+    });
     return { items, total, pendingCount, collectedCount };
   }
 
@@ -1945,7 +1953,9 @@ export class DatabaseStorage implements IStorage {
       patientGender: patients.gender,
       patientDateOfBirth: patients.dateOfBirth,
     }).from(sampleCollections).leftJoin(patients, eq(sampleCollections.patientId, patients.id)).where(eq(sampleCollections.id, id));
-    return row;
+    if (!row) return undefined;
+    const patientAge = (row as any).patientAge != null ? (row as any).patientAge : this._ageFromDob((row as any).patientDateOfBirth);
+    return { ...row, patientAge: patientAge ?? null, patientGender: (row as any).patientGender ?? null, patientDateOfBirth: (row as any).patientDateOfBirth ?? null };
   }
 
   async createSampleCollection(s: InsertSampleCollection): Promise<SampleCollection> {

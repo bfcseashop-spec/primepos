@@ -175,17 +175,7 @@ export default function SampleCollectionsPage() {
       const res = await fetch(getApiUrl(`/api/sample-collections-paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
-      const normalized = normalizePaginatedResponse(raw);
-      const arr = normalized.items || [];
-      const items = arr.map((item: any) => ({
-        ...item,
-        patientAge: item.patientAge ?? item.age ?? null,
-        patientGender: item.patientGender ?? item.gender ?? item.sex ?? null,
-        patientDateOfBirth: item.patientDateOfBirth ?? item.dateOfBirth ?? null,
-        age: item.patientAge ?? item.age ?? null,
-        sex: item.patientGender ?? item.gender ?? item.sex ?? null,
-      }));
-      return { ...normalized, items };
+      return normalizePaginatedResponse(raw) as { items: SampleCollection[]; total: number; pendingCount?: number; collectedCount?: number };
     },
   });
   const samples = samplesData?.items ?? [];
@@ -446,18 +436,10 @@ export default function SampleCollectionsPage() {
     {
       header: "Sex | Age",
       accessor: (row: SampleCollection) => {
-        const r = row as SampleCollection & {
-          patientAge?: number | null;
-          patientGender?: string | null;
-          patientDateOfBirth?: string | null;
-          age?: number | null;
-          sex?: string | null;
-          gender?: string | null;
-          dateOfBirth?: string | null;
-        };
-        const age = r.patientAge != null ? r.patientAge : (r.age != null ? r.age : ageFromDob(r.patientDateOfBirth ?? r.dateOfBirth ?? null));
-        const genderStr = capitalizeGender(r.patientGender ?? r.gender ?? r.sex ?? null);
-        const dob = r.patientDateOfBirth ?? r.dateOfBirth ?? null;
+        const age = (row as { patientAge?: number | null; patientDateOfBirth?: string | null }).patientAge;
+        const dob = (row as { patientDateOfBirth?: string | null }).patientDateOfBirth;
+        const gender = (row as { patientGender?: string | null }).patientGender;
+        const genderStr = capitalizeGender(gender);
         const ageStr = formatAgeWithUnitStatic(age, dob);
         const display = (genderStr !== "-" || ageStr !== "-") ? `${genderStr} | ${ageStr}` : "- | -";
         return (
