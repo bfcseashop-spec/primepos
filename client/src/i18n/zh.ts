@@ -244,7 +244,7 @@ export const zh = {
     barcode: "条形码",
     sampleBarcode: "样本条形码",
     sampleBarcodes: "样本条形码",
-    ageGender: "年龄 / 性别",
+    ageGender: "性别 | 年龄",
   },
   medicines: {
     title: "药品管理",

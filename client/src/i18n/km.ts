@@ -244,7 +244,7 @@ export const km = {
     barcode: "បាកូដ",
     sampleBarcode: "បាកូដគំរូ",
     sampleBarcodes: "បាកូដគំរូ",
-    ageGender: "អាយុ / ភេទ",
+    ageGender: "ភេទ | អាយុ",
   },
   medicines: {
     title: "គ្រប់គ្រងឱសថ",
