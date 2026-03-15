@@ -1360,7 +1360,6 @@ export default function MedicinesPage() {
                   </div>
                 )}
                 <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No medicines yet" selectedIds={selectedIds} onSelectionChange={setSelectedIds} onRowClick={(row) => setViewMed(row)} />
-                <TablePagination page={page} pageSize={pageSize} total={medicinesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
               </>
             ) : (
               <>

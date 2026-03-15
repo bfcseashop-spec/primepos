@@ -436,10 +436,11 @@ export default function SampleCollectionsPage() {
     {
       header: "Sex | Age",
       accessor: (row: SampleCollection) => {
-        const age = row.patientAge != null ? row.patientAge : ageFromDob(row.patientDateOfBirth);
-        const genderStr = capitalizeGender(row.patientGender);
-        const ageStr = formatAgeWithUnitStatic(age, row.patientDateOfBirth);
-        const display = genderStr !== "-" || ageStr !== "-" ? `${genderStr} | ${ageStr}` : "- | -";
+        const r = row as SampleCollection & { patientAge?: number | null; patientGender?: string | null; patientDateOfBirth?: string | null };
+        const age = r.patientAge != null ? r.patientAge : ageFromDob(r.patientDateOfBirth ?? null);
+        const genderStr = capitalizeGender(r.patientGender ?? null);
+        const ageStr = formatAgeWithUnitStatic(age, r.patientDateOfBirth ?? null);
+        const display = (genderStr !== "-" || ageStr !== "-") ? `${genderStr} | ${ageStr}` : "- | -";
         return (
           <span className="text-sm text-muted-foreground" data-testid={`text-sex-age-${row.id}`}>
             {display}
