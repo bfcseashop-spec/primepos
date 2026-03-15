@@ -660,7 +660,6 @@ export default function SampleCollectionsPage() {
           </DialogContent>
         </Dialog>
       )}
-    </div>
     </>
   );
 }

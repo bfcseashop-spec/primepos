@@ -1871,7 +1871,6 @@ function LedgerTab({ salaries, payrollRuns }: { salaries: Salary[]; payrollRuns:
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
     </>
   );
 }

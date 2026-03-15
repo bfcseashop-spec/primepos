@@ -867,6 +867,5 @@ export default function DoctorManagementPage() {
         </Dialog>
       )}
       </div>
-    </div>
   );
 }
