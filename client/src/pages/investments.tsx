@@ -117,8 +117,6 @@ export default function InvestmentsPage() {
   const [editCapitalAmounts, setEditCapitalAmounts] = useState<{ id: number; title: string; amount: string }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const [invPage, setInvPage] = useState(1);
-  const [invPageSize, setInvPageSize] = useState(10);
   const [invCategoryFilter, setInvCategoryFilter] = useState("all");
   const [invStatusFilter, setInvStatusFilter] = useState("all");
   const [debouncedInvSearch, setDebouncedInvSearch] = useState("");
@@ -143,13 +141,13 @@ export default function InvestmentsPage() {
 
   const { data: investorsList = [] } = useQuery<Investor[]>({ queryKey: ["/api/investors"] });
   const { data: investmentsAll = [] } = useQuery<Investment[]>({ queryKey: ["/api/investments"] });
-  const investmentsPaginatedQueryKey = ["/api/investments-paginated", invPage, invPageSize, debouncedInvSearch, invCategoryFilter, invStatusFilter];
+  const investmentsPaginatedQueryKey = ["/api/investments-paginated", debouncedInvSearch, invCategoryFilter, invStatusFilter];
   const { data: investmentsPaginated, isLoading } = useQuery<{ items: Investment[]; total: number }>({
     queryKey: investmentsPaginatedQueryKey,
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.set("page", String(invPage));
-      params.set("limit", String(Math.max(1, invPageSize)));
+      params.set("page", "1");
+      params.set("limit", "500");
       if (debouncedInvSearch.trim()) params.set("search", debouncedInvSearch.trim());
       if (invCategoryFilter !== "all") params.set("categoryFilter", invCategoryFilter);
       if (invStatusFilter !== "all") params.set("statusFilter", invStatusFilter);
@@ -1186,17 +1184,6 @@ export default function InvestmentsPage() {
                     </Card>
                   );
                 })}
-              </div>
-            )}
-            {investmentsTotal > 0 && (
-              <div className="px-4 pt-2 pb-2 border-t mt-2">
-                <TablePagination
-                  page={invPage}
-                  pageSize={invPageSize}
-                  total={investmentsTotal}
-                  onPageChange={setInvPage}
-                  onPageSizeChange={(v) => { setInvPageSize(v); setInvPage(1); }}
-                />
               </div>
             )}
           </CardContent>

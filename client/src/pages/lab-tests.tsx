@@ -28,6 +28,33 @@ import { capitalizeGender } from "@/lib/utils";
 import JsBarcode from "jsbarcode";
 import type { LabTest, Patient, ClinicSettings } from "@shared/schema";
 
+/** Format age with unit suffix: y (years), m (months), d (days). */
+function formatAgeWithUnit(age: number | null | undefined, dateOfBirth?: string | null): string {
+  if (age == null) {
+    if (!dateOfBirth) return "-";
+    const d = new Date(dateOfBirth);
+    if (isNaN(d.getTime())) return "-";
+    const today = new Date();
+    const months = (today.getFullYear() - d.getFullYear()) * 12 + (today.getMonth() - d.getMonth());
+    if (months >= 12) return `${Math.floor(months / 12)}y`;
+    if (months >= 1) return `${months}m`;
+    const days = Math.floor((today.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
+    return `${days}d`;
+  }
+  if (age >= 1) return `${age}y`;
+  if (age === 0 && dateOfBirth) {
+    const d = new Date(dateOfBirth);
+    if (!isNaN(d.getTime())) {
+      const today = new Date();
+      const months = (today.getFullYear() - d.getFullYear()) * 12 + (today.getMonth() - d.getMonth());
+      if (months >= 1) return `${months}m`;
+      const days = Math.floor((today.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
+      return `${days}d`;
+    }
+  }
+  return age === 0 ? "0y" : `${age}y`;
+}
+
 const LAB_CATEGORIES = [
   "Hematology", "Biochemistry", "Microbiology", "Immunology",
   "Pathology", "Radiology", "Cardiology", "Endocrinology",
@@ -937,13 +964,21 @@ export default function LabTestsPage() {
 
   const printSampleBarcodes = async (labTestId: number) => {
     try {
-      const res = await fetch(getApiUrl(`/api/sample-collections-paginated?labTestId=${labTestId}&limit=100&page=1`), { credentials: "include" });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
+      const [samplesRes, labTestRes] = await Promise.all([
+        fetch(getApiUrl(`/api/sample-collections-paginated?labTestId=${labTestId}&limit=100&page=1`), { credentials: "include" }),
+        fetch(getApiUrl(`/api/lab-tests/${labTestId}`), { credentials: "include" }),
+      ]);
+      if (!samplesRes.ok) throw new Error(await samplesRes.text());
+      const data = await samplesRes.json();
       const samples = data.items ?? [];
       if (samples.length === 0) {
         toast({ title: t("labTests.sampleBarcode"), description: "No sample collections found for this lab test.", variant: "destructive" });
         return;
+      }
+      let labTestPatient: { patientAge?: number | null; patientGender?: string | null; patientDateOfBirth?: string | null } | null = null;
+      if (labTestRes.ok) {
+        const lt = await labTestRes.json();
+        labTestPatient = { patientAge: lt.patientAge, patientGender: lt.patientGender, patientDateOfBirth: lt.patientDateOfBirth };
       }
       const escape = (s: string) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
       const pages: string[] = [];
@@ -951,9 +986,10 @@ export default function LabTestsPage() {
         const barcodeValue = "SC" + sample.id;
         const testName = escape(sample.testName || "");
         const patientName = escape(sample.patientName || "-");
-        const age = sample.patientAge != null ? sample.patientAge : ageFromDob(sample.patientDateOfBirth);
-        const sex = escape(sample.patientGender || "-");
-        const ageStr = age != null ? String(age) : "-";
+        const age = sample.patientAge != null ? sample.patientAge : (labTestPatient?.patientAge != null ? labTestPatient.patientAge : ageFromDob(sample.patientDateOfBirth ?? labTestPatient?.patientDateOfBirth));
+        const genderStr = capitalizeGender(sample.patientGender ?? labTestPatient?.patientGender);
+        const ageStr = age != null ? `${age}y` : "-";
+        const sexAgeLine = genderStr !== "-" || ageStr !== "-" ? `${genderStr} | ${ageStr}` : "- | -";
         let barcodeSvgHtml = "";
         try {
           const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -977,7 +1013,7 @@ export default function LabTestsPage() {
             <div class="id">${barcodeValue}</div>
             <div class="test-name">${testName}</div>
             <div class="patient-name">${patientName}</div>
-            <div class="patient-sex-age">Sex: ${sex} | Age: ${ageStr}</div>
+            <div class="patient-sex-age">${escape(sexAgeLine)}</div>
           </div>
         </div>`);
       }
@@ -1001,10 +1037,10 @@ export default function LabTestsPage() {
         .sticker .barcode-wrap { margin-bottom: 0.03in; }
         .sticker .barcode-wrap svg { display: block; max-width: 100%; max-height: 0.58in; }
         .sticker .barcode-wrap svg path, .sticker .barcode-wrap svg line { stroke: #000 !important; fill: #000 !important; }
-        .sticker .id { font-family: monospace; font-size: 8pt; font-weight: bold; color: #000; margin-bottom: 0.02in; }
-        .sticker .test-name { font-size: 8pt; font-weight: bold; line-height: 1.15; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sticker .patient-name { font-size: 8pt; font-weight: bold; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sticker .patient-sex-age { font-size: 7pt; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .id { font-family: monospace; font-size: 6pt; font-weight: bold; color: #000; margin-bottom: 0.02in; }
+        .sticker .test-name { font-size: 6pt; font-weight: bold; line-height: 1.15; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .patient-name { font-size: 6pt; font-weight: bold; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .patient-sex-age { font-size: 6pt; font-weight: bold; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       </style></head><body>
       ${pages.join("")}
       <script>setTimeout(function(){ window.print(); window.close(); }, 100);<\/script>
@@ -1052,13 +1088,15 @@ export default function LabTestsPage() {
       </span>
     )},
     { header: t("labTests.ageGender"), accessor: (row: LabTestWithPatient) => {
-      const age = (row as { patientAge?: number | null }).patientAge;
+      const age = (row as { patientAge?: number | null; patientDateOfBirth?: string | null }).patientAge;
+      const dob = (row as { patientDateOfBirth?: string | null }).patientDateOfBirth;
       const gender = (row as { patientGender?: string | null }).patientGender;
-      const ageStr = age != null ? String(age) : "-";
-      const genderStr = gender?.trim() || "-";
+      const genderStr = capitalizeGender(gender);
+      const ageStr = formatAgeWithUnit(age, dob);
+      const display = genderStr !== "-" || ageStr !== "-" ? `${genderStr} | ${ageStr}` : "- | -";
       return (
         <span className="text-sm text-muted-foreground" data-testid={`text-age-gender-${row.id}`}>
-          {ageStr} / {genderStr}
+          {display}
         </span>
       );
     }},

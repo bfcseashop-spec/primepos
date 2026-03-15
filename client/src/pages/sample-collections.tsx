@@ -18,6 +18,7 @@ import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { TestTubes, CheckCircle2, Clock, Beaker, Barcode, Printer, Eye, Pencil, Trash2, MoreHorizontal } from "lucide-react";
+import { capitalizeGender } from "@/lib/utils";
 import JsBarcode from "jsbarcode";
 
 type SampleCollection = {
@@ -269,8 +270,9 @@ export default function SampleCollectionsPage() {
     const testName = esc(sample.testName || "");
     const patientName = esc(sample.patientName || "-");
     const age = sample.patientAge != null ? sample.patientAge : ageFromDob(sample.patientDateOfBirth);
-    const sex = esc(sample.patientGender || "-");
-    const ageStr = age != null ? String(age) : "-";
+    const genderStr = capitalizeGender(sample.patientGender);
+    const ageStr = age != null ? `${age}y` : "-";
+    const sexAgeLine = genderStr !== "-" || ageStr !== "-" ? `${genderStr} | ${ageStr}` : "- | -";
     // Generate scannable CODE128 barcode in main window so it is present in print HTML (no CDN/timing in popup)
     let barcodeSvgHtml = "";
     try {
@@ -306,10 +308,10 @@ export default function SampleCollectionsPage() {
         .sticker .barcode-wrap { margin-bottom: 0.03in; }
         .sticker .barcode-wrap svg { display: block; max-width: 100%; max-height: 0.58in; }
         .sticker .barcode-wrap svg path, .sticker .barcode-wrap svg line { stroke: #000 !important; fill: #000 !important; }
-        .sticker .id { font-family: monospace; font-size: 8pt; font-weight: bold; color: #000; margin-bottom: 0.02in; }
-        .sticker .test-name { font-size: 8pt; font-weight: bold; line-height: 1.15; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sticker .patient-name { font-size: 8pt; font-weight: bold; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sticker .patient-sex-age { font-size: 7pt; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .id { font-family: monospace; font-size: 6pt; font-weight: bold; color: #000; margin-bottom: 0.02in; }
+        .sticker .test-name { font-size: 6pt; font-weight: bold; line-height: 1.15; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .patient-name { font-size: 6pt; font-weight: bold; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .patient-sex-age { font-size: 6pt; font-weight: bold; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       </style></head><body>
       <div class="page-wrap">
         <div class="sticker">
@@ -317,7 +319,7 @@ export default function SampleCollectionsPage() {
           <div class="id">${barcodeValue}</div>
           <div class="test-name">${testName}</div>
           <div class="patient-name">${patientName}</div>
-          <div class="patient-sex-age">Sex: ${sex} | Age: ${ageStr}</div>
+          <div class="patient-sex-age">${esc(sexAgeLine)}</div>
         </div>
       </div>
       <script>setTimeout(function(){ window.print(); window.close(); }, 100);<\/script>

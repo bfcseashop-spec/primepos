@@ -1682,6 +1682,7 @@ export class DatabaseStorage implements IStorage {
         ...rest,
         patientPatientId,
         patientAge: resolvedAge,
+        patientDateOfBirth,
         patientGender,
         labTechnologist: r.labTechnologistId && r.technologistFullName ? {
           id: r.labTechnologistId,
