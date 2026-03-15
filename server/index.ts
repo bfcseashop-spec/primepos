@@ -42,6 +42,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// If BASE_PATH is set (e.g. /primepos), strip it so /primepos/api/... matches routes at /api/...
+// Use when the app is behind a proxy that forwards the full path without stripping the base.
+const basePath = (process.env.BASE_PATH || "").replace(/\/$/, "");
+if (basePath) {
+  app.use((req, res, next) => {
+    const url = req.originalUrl.split("?")[0];
+    if (url === basePath || url.startsWith(basePath + "/")) {
+      req.url = (url === basePath ? "/" : url.slice(basePath.length)) + (req.originalUrl.includes("?") ? "?" + req.originalUrl.split("?")[1] : "");
+    }
+    next();
+  });
+}
+
 app.use(
   express.json({
     limit: "5mb",

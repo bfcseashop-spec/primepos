@@ -139,7 +139,12 @@ export const getQueryFn: <T>(options: {
     const parts = Array.isArray(queryKey)
       ? queryKey.filter((k): k is string | number => (typeof k === "string" || typeof k === "number") && String(k) !== "")
       : [];
-    const path = parts.join("/").replace(/\/+/g, "/"); // collapse multiple slashes
+    // For /api/*-paginated and /api/*-stats, use only the first part as path. Extra parts are cache keys, not path segments.
+    // Joining them would produce wrong URLs like /api/bills-paginated/1/10/... causing 404.
+    const first = parts[0];
+    const path = (typeof first === "string" && parts.length > 1 && /\/api\/[^/]+-(?:paginated|stats)$/.test(first))
+      ? first
+      : parts.join("/").replace(/\/+/g, "/");
     const url = path.startsWith("/api") ? getApiUrl(path) : path;
     const res = await fetch(url, {
       credentials: "include",

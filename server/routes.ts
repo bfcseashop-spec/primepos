@@ -238,6 +238,17 @@ export async function registerRoutes(
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // Diagnostic: verify path routing (no auth). Hit /api/debug-path to see what the server receives.
+  app.get("/api/debug-path", (req, res) => {
+    res.json({
+      path: req.path,
+      url: req.url,
+      originalUrl: req.originalUrl,
+      baseUrl: req.baseUrl,
+      method: req.method,
+    });
+  });
+
   // --- HRM / Attendance (per clinic user + ADMS device integration) ---
 
   function isAdminLikeRoleName(roleName: string | null | undefined): boolean {
