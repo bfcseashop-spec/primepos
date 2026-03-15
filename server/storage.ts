@@ -1924,7 +1924,26 @@ export class DatabaseStorage implements IStorage {
     const rows = await baseQ.where(whereClause ?? sql`true`).orderBy(desc(sampleCollections.createdAt)).limit(limit).offset(offset);
     const items = rows.map((r: any) => {
       const patientAge = r.patientAge != null ? r.patientAge : this._ageFromDob(r.patientDateOfBirth);
-      return { ...r, patientAge: patientAge ?? null, patientGender: r.patientGender ?? null, patientDateOfBirth: r.patientDateOfBirth ?? null };
+      const patientGender = r.patientGender ?? null;
+      const patientDateOfBirth = r.patientDateOfBirth ?? null;
+      return {
+        id: r.id,
+        labTestId: r.labTestId,
+        patientId: r.patientId,
+        billId: r.billId,
+        testName: r.testName,
+        sampleType: r.sampleType,
+        status: r.status,
+        collectedAt: r.collectedAt,
+        collectedBy: r.collectedBy,
+        notes: r.notes,
+        createdAt: r.createdAt,
+        patientName: r.patientName,
+        patientIdCode: r.patientIdCode,
+        patientAge: patientAge ?? null,
+        patientGender,
+        patientDateOfBirth,
+      };
     });
     return { items, total, pendingCount, collectedCount };
   }
