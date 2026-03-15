@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,10 +19,8 @@ import { Calendar, Clock, Search, MoreVertical, Trash2, Edit, User, CalendarChec
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
-import { DateFilterBar, useDateFilter, isDateInRange } from "@/components/date-filter";
+import { DateFilterBar, useDateFilter } from "@/components/date-filter";
 import { TablePagination } from "@/components/table-pagination";
-import type { Patient } from "@shared/schema"; // used for patients query type
-
 const statusConfig: Record<string, { bg: string; text: string; border: string; dot: string; icon: any; gradient: string }> = {
   scheduled: {
     bg: "bg-blue-500/10 dark:bg-blue-400/10", text: "text-blue-700 dark:text-blue-300",
@@ -80,10 +78,48 @@ export default function AppointmentsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { datePeriod, setDatePeriod, customFromDate, setCustomFromDate, customToDate, setCustomToDate, monthYear, setMonthYear, dateRange } = useDateFilter();
 
-  const { data: appointments = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/appointments"] });
-  const { data: patients = [] } = useQuery<Patient[]>({ queryKey: ["/api/patients"] });
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, dateRange?.from, dateRange?.to]);
+
+  const { data: appointmentsData, isLoading } = useQuery<{ items: any[]; total: number }>({
+    queryKey: ["/api/appointments/paginated", page, pageSize, debouncedSearch, statusFilter, dateRange?.from, dateRange?.to],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", String(Math.max(1, pageSize)));
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
+      if (dateRange?.from) params.set("fromDate", dateRange.from);
+      if (dateRange?.to) params.set("toDate", dateRange.to);
+      const res = await fetch(getApiUrl(`/api/appointments/paginated?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      const raw = await res.json();
+      return normalizePaginatedResponse(raw) as { items: any[]; total: number };
+    },
+  });
+  const { data: appointmentsStats } = useQuery<{ total: number; scheduled: number; confirmed: number; completed: number; cancelled: number; noShow: number }>({
+    queryKey: ["/api/appointments/stats", debouncedSearch, statusFilter, dateRange?.from, dateRange?.to],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
+      if (dateRange?.from) params.set("fromDate", dateRange.from);
+      if (dateRange?.to) params.set("toDate", dateRange.to);
+      const res = await fetch(getApiUrl(`/api/appointments/stats?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+  });
+  const appointments = appointmentsData?.items ?? [];
+  const totalAppointments = appointmentsData?.total ?? 0;
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
@@ -91,6 +127,8 @@ export default function AppointmentsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/stats"] });
       toast({ title: "Appointment updated" });
       setEditDialog(false);
     },
@@ -102,6 +140,8 @@ export default function AppointmentsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/stats"] });
       toast({ title: "Appointment deleted" });
       setDeleteAppointment(null);
     },
@@ -113,6 +153,8 @@ export default function AppointmentsPage() {
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/stats"] });
       setSelectedIds(new Set());
       toast({ title: `${ids.length} appointment(s) deleted` });
     },
@@ -135,24 +177,17 @@ export default function AppointmentsPage() {
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/appointments/paginated"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/appointments/stats"] });
     toast({ title: "Data refreshed" });
   };
 
-  const filtered = appointments.filter((a: any) => {
-    const matchSearch = !search || a.patientName?.toLowerCase().includes(search.toLowerCase()) ||
-      a.department?.toLowerCase().includes(search.toLowerCase()) ||
-      a.doctorName?.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || a.status === statusFilter;
-    const matchDate = isDateInRange(a.appointmentDate, dateRange);
-    return matchSearch && matchStatus && matchDate;
-  });
-
   const stats: Record<string, number> = {
-    total: filtered.length,
-    scheduled: filtered.filter((a: any) => a.status === "scheduled").length,
-    confirmed: filtered.filter((a: any) => a.status === "confirmed").length,
-    completed: filtered.filter((a: any) => a.status === "completed").length,
-    cancelled: filtered.filter((a: any) => a.status === "cancelled").length,
+    total: appointmentsStats?.total ?? 0,
+    scheduled: appointmentsStats?.scheduled ?? 0,
+    confirmed: appointmentsStats?.confirmed ?? 0,
+    completed: appointmentsStats?.completed ?? 0,
+    cancelled: appointmentsStats?.cancelled ?? 0,
   };
 
   const statCards = [
@@ -170,14 +205,12 @@ export default function AppointmentsPage() {
   const getAvatarGradient = (id: number) => avatarGradients[id % avatarGradients.length];
 
   const todayStr = new Date().toISOString().split("T")[0];
-  const todayAppointments = filtered.filter((a: any) => a.appointmentDate === todayStr);
-  const upcomingAppointments = filtered.filter((a: any) => a.appointmentDate > todayStr);
-  const pastAppointments = filtered.filter((a: any) => !a.appointmentDate || a.appointmentDate < todayStr);
+  const todayAppointments = appointments.filter((a: any) => a.appointmentDate === todayStr);
+  const upcomingAppointments = appointments.filter((a: any) => a.appointmentDate > todayStr);
+  const pastAppointments = appointments.filter((a: any) => !a.appointmentDate || a.appointmentDate < todayStr);
   const allDisplayed = todayAppointments.length > 0 || upcomingAppointments.length > 0 || pastAppointments.length > 0
     ? [...todayAppointments, ...upcomingAppointments, ...pastAppointments]
-    : filtered;
-  const paginatedDisplayed = allDisplayed.slice((page - 1) * pageSize, page * pageSize);
-  useEffect(() => { setPage(1); }, [search, statusFilter, dateRange?.from, dateRange?.to]);
+    : appointments;
 
   const renderAppointmentCard = (apt: any) => {
     const style = statusConfig[apt.status] || statusConfig.scheduled;
@@ -380,7 +413,7 @@ export default function AppointmentsPage() {
                 </Select>
               </div>
               <div className="text-xs text-muted-foreground">
-                Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {appointments.length} appointments
+                Showing <span className="font-semibold text-foreground">{appointments.length}</span> of {totalAppointments} appointments
               </div>
             </div>
           </CardContent>
@@ -414,7 +447,7 @@ export default function AppointmentsPage() {
               </Card>
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : totalAppointments === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
@@ -429,7 +462,7 @@ export default function AppointmentsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {paginatedDisplayed.map(renderAppointmentCard)}
             </div>
-            <TablePagination page={page} pageSize={pageSize} total={allDisplayed.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+            <TablePagination page={page} pageSize={pageSize} total={totalAppointments} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
           </>
         )}
       </div>

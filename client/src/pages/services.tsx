@@ -978,7 +978,7 @@ export default function ServicesPage() {
       return normalizePaginatedResponse(raw) as { items: Service[]; total: number };
     },
   });
-  const { data: servicesStats } = useQuery<{ total: number; activeCount: number; inactiveCount: number; categoriesCount: number; totalValue: number; categories: string[] }>({
+  const { data: servicesStats } = useQuery<{ total: number; activeCount: number; inactiveCount: number; categoriesCount: number; totalValue: number; categories: string[]; categoryCounts?: Record<string, number> }>({
     queryKey: ["/api/services/stats", debouncedSearch, categoryFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -1879,7 +1879,7 @@ export default function ServicesPage() {
                   <div className="max-h-60 overflow-y-auto space-y-1">
                     {categoriesToShowInModal.map(cat => {
                       const cc = getCatColor(cat);
-                      const usedBy = servicesUsingCategory(cat);
+                      const countForCat = (servicesStats?.categoryCounts ?? {})[cat] ?? 0;
                       const isEditing = editingCategory === cat;
                       return (
                         <div key={cat} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md hover-elevate">
@@ -1900,8 +1900,8 @@ export default function ServicesPage() {
                             ) : (
                               <>
                                 <span className="text-sm truncate">{cat}</span>
-                                {usedBy.length > 0 && (
-                                  <span className="text-[10px] text-muted-foreground shrink-0">({usedBy.length} services)</span>
+                                {countForCat > 0 && (
+                                  <span className="text-[10px] text-muted-foreground shrink-0">({countForCat} services)</span>
                                 )}
                               </>
                             )}
@@ -1938,8 +1938,8 @@ export default function ServicesPage() {
                   title={t("common.delete") + " category"}
                   description={
                     deleteCategoryConfirm.category
-                      ? servicesUsingCategory(deleteCategoryConfirm.category).length > 0
-                        ? `"${deleteCategoryConfirm.category}" is used by ${servicesUsingCategory(deleteCategoryConfirm.category).length} service(s). They will be updated to use "Other".`
+                      ? ((servicesStats?.categoryCounts ?? {})[deleteCategoryConfirm.category] ?? 0) > 0
+                        ? `"${deleteCategoryConfirm.category}" is used by ${(servicesStats?.categoryCounts ?? {})[deleteCategoryConfirm.category]} service(s). They will be updated to use "Other".`
                         : `Remove "${deleteCategoryConfirm.category}" from categories?`
                       : ""
                   }

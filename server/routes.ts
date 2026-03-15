@@ -4233,6 +4233,39 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/appointments/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "12"), 10) || 12));
+      const offset = (page - 1) * limit;
+      const result = await storage.getAppointmentsPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        statusFilter: (req.query.statusFilter as string) || undefined,
+        fromDate: (req.query.fromDate as string) || undefined,
+        toDate: (req.query.toDate as string) || undefined,
+      });
+      res.json({ items: result.items, total: result.total });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/appointments/stats", async (req, res) => {
+    try {
+      const result = await storage.getAppointmentsStats({
+        search: (req.query.search as string)?.trim() || undefined,
+        statusFilter: (req.query.statusFilter as string) || undefined,
+        fromDate: (req.query.fromDate as string) || undefined,
+        toDate: (req.query.toDate as string) || undefined,
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/appointments", async (req, res) => {
     try {
       const data = validateBody(insertAppointmentSchema, req.body);

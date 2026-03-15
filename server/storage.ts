@@ -65,7 +65,7 @@ export interface IStorage {
 
   getServices(): Promise<Service[]>;
   getServicesPaginated(opts: { limit: number; offset: number; search?: string; categoryFilter?: string; statusFilter?: string }): Promise<{ items: Service[]; total: number }>;
-  getServicesStats(opts?: { search?: string; categoryFilter?: string; statusFilter?: string }): Promise<{ total: number; activeCount: number; inactiveCount: number; categoriesCount: number; totalValue: number; categories: string[] }>;
+  getServicesStats(opts?: { search?: string; categoryFilter?: string; statusFilter?: string }): Promise<{ total: number; activeCount: number; inactiveCount: number; categoriesCount: number; totalValue: number; categories: string[]; categoryCounts: Record<string, number> }>;
   getService(id: number): Promise<Service | undefined>;
   createService(service: InsertService): Promise<Service>;
   updateService(id: number, data: Partial<InsertService>): Promise<Service | undefined>;
@@ -192,6 +192,8 @@ export interface IStorage {
   bulkDeleteSampleCollections(ids: number[]): Promise<void>;
 
   getAppointments(): Promise<any[]>;
+  getAppointmentsPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string; fromDate?: string; toDate?: string }): Promise<{ items: any[]; total: number }>;
+  getAppointmentsStats(opts?: { search?: string; statusFilter?: string; fromDate?: string; toDate?: string }): Promise<{ total: number; scheduled: number; confirmed: number; completed: number; cancelled: number; noShow: number }>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: number, data: Partial<InsertAppointment>): Promise<Appointment | undefined>;
   deleteAppointment(id: number): Promise<void>;
@@ -458,7 +460,7 @@ export class DatabaseStorage implements IStorage {
     return { items, total };
   }
 
-  async getServicesStats(opts?: { search?: string; categoryFilter?: string; statusFilter?: string }): Promise<{ total: number; activeCount: number; inactiveCount: number; categoriesCount: number; totalValue: number }> {
+  async getServicesStats(opts?: { search?: string; categoryFilter?: string; statusFilter?: string }): Promise<{ total: number; activeCount: number; inactiveCount: number; categoriesCount: number; totalValue: number; categories: string[]; categoryCounts: Record<string, number> }> {
     const conds: ReturnType<typeof sql>[] = [];
     if (opts?.search?.trim()) {
       const s = "%" + opts.search.trim() + "%";
@@ -473,9 +475,13 @@ export class DatabaseStorage implements IStorage {
     const all = await db.select().from(services).where(baseWhere);
     const parseCats = (s: string) => s.split(",").map((c) => c.trim()).filter(Boolean);
     const uniqueCats = new Set<string>();
+    const categoryCounts: Record<string, number> = {};
     let totalValue = 0;
     for (const svc of all) {
-      for (const c of parseCats(svc.category)) uniqueCats.add(c);
+      for (const c of parseCats(svc.category)) {
+        uniqueCats.add(c);
+        categoryCounts[c] = (categoryCounts[c] ?? 0) + 1;
+      }
       totalValue += parseFloat(String(svc.price || 0));
     }
     const [totalR] = await db.select({ count: count() }).from(services).where(baseWhere);
@@ -488,6 +494,7 @@ export class DatabaseStorage implements IStorage {
       categoriesCount: uniqueCats.size,
       totalValue,
       categories: Array.from(uniqueCats).sort(),
+      categoryCounts,
     };
   }
 
@@ -1880,6 +1887,87 @@ export class DatabaseStorage implements IStorage {
       ...a,
       patientName: patientMap.get(a.patientId)?.name || "Unknown",
     }));
+  }
+
+  async getAppointmentsPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string; fromDate?: string; toDate?: string }): Promise<{ items: any[]; total: number }> {
+    const { limit, offset, search, statusFilter, fromDate, toDate } = opts;
+    const conditions: ReturnType<typeof sql>[] = [];
+    if (search?.trim()) {
+      const s = "%" + search.trim() + "%";
+      conditions.push(or(
+        ilike(patients.name, s),
+        ilike(appointments.department, s),
+        ilike(appointments.doctorName, s),
+      )!);
+    }
+    if (statusFilter && statusFilter !== "all") conditions.push(eq(appointments.status, statusFilter));
+    if (fromDate) conditions.push(gte(appointments.appointmentDate, fromDate));
+    if (toDate) conditions.push(lte(appointments.appointmentDate, toDate));
+    const whereClause = conditions.length > 0 ? and(...conditions) : sql`true`;
+
+    const baseQ = db.select({
+      id: appointments.id,
+      patientId: appointments.patientId,
+      patientType: appointments.patientType,
+      department: appointments.department,
+      doctorName: appointments.doctorName,
+      consultationMode: appointments.consultationMode,
+      appointmentDate: appointments.appointmentDate,
+      startTime: appointments.startTime,
+      endTime: appointments.endTime,
+      reason: appointments.reason,
+      notes: appointments.notes,
+      paymentMode: appointments.paymentMode,
+      status: appointments.status,
+      createdAt: appointments.createdAt,
+      patientName: patients.name,
+    }).from(appointments).leftJoin(patients, eq(appointments.patientId, patients.id));
+
+    const countRes = await db.select({ count: count() }).from(appointments).leftJoin(patients, eq(appointments.patientId, patients.id)).where(whereClause);
+    const total = Number(countRes[0]?.count ?? 0);
+    const items = await baseQ.where(whereClause).orderBy(desc(appointments.createdAt)).limit(limit).offset(offset);
+    return {
+      items: items.map(r => ({ ...r, patientName: r.patientName || "Unknown" })),
+      total,
+    };
+  }
+
+  async getAppointmentsStats(opts?: { search?: string; statusFilter?: string; fromDate?: string; toDate?: string }): Promise<{ total: number; scheduled: number; confirmed: number; completed: number; cancelled: number; noShow: number }> {
+    const { search, statusFilter, fromDate, toDate } = opts ?? {};
+    const conditions: ReturnType<typeof sql>[] = [];
+    if (search?.trim()) {
+      const s = "%" + search.trim() + "%";
+      conditions.push(or(
+        ilike(patients.name, s),
+        ilike(appointments.department, s),
+        ilike(appointments.doctorName, s),
+      )!);
+    }
+    if (statusFilter && statusFilter !== "all") conditions.push(eq(appointments.status, statusFilter));
+    if (fromDate) conditions.push(gte(appointments.appointmentDate, fromDate));
+    if (toDate) conditions.push(lte(appointments.appointmentDate, toDate));
+    const whereClause = conditions.length > 0 ? and(...conditions) : sql`true`;
+
+    const [totalR] = await db.select({ count: count() }).from(appointments).leftJoin(patients, eq(appointments.patientId, patients.id)).where(whereClause);
+    const total = Number(totalR?.count ?? 0);
+
+    const statusCounts = await db.select({
+      status: appointments.status,
+      cnt: count(),
+    }).from(appointments).leftJoin(patients, eq(appointments.patientId, patients.id)).where(whereClause).groupBy(appointments.status);
+
+    const byStatus: Record<string, number> = {};
+    for (const r of statusCounts as { status: string; cnt: number }[]) {
+      byStatus[r.status] = Number(r.cnt ?? 0);
+    }
+    return {
+      total,
+      scheduled: byStatus.scheduled ?? 0,
+      confirmed: byStatus.confirmed ?? 0,
+      completed: byStatus.completed ?? 0,
+      cancelled: byStatus.cancelled ?? 0,
+      noShow: byStatus["no-show"] ?? 0,
+    };
   }
 
   async createAppointment(appointment: InsertAppointment): Promise<Appointment> {
