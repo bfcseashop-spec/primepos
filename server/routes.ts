@@ -4255,13 +4255,19 @@ export async function registerRoutes(
         billId: req.query.billId != null ? Number(req.query.billId) : undefined,
         labTestId: req.query.labTestId != null ? Number(req.query.labTestId) : undefined,
       });
-      const mapItem = (item: any) => {
+      const items = (result.items || []).map((item: any) => {
         const age = item.patientAge ?? item.age ?? null;
         const gender = item.patientGender ?? item.gender ?? item.sex ?? null;
         const dob = item.patientDateOfBirth ?? item.dateOfBirth ?? null;
-        return { ...item, patientAge: age, patientGender: gender, patientDateOfBirth: dob, age, sex: gender };
-      };
-      const items = (result.items || []).map(mapItem);
+        return {
+          ...item,
+          patientAge: age,
+          patientGender: gender,
+          patientDateOfBirth: dob,
+          age: age,
+          sex: gender,
+        };
+      });
       res.json({ items, total: result.total, pendingCount: result.pendingCount, collectedCount: result.collectedCount });
     } catch (err: any) {
       res.status(500).json({ message: err.message });

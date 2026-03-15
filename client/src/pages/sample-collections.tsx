@@ -175,7 +175,17 @@ export default function SampleCollectionsPage() {
       const res = await fetch(getApiUrl(`/api/sample-collections-paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
-      return normalizePaginatedResponse(raw) as typeof raw;
+      const normalized = normalizePaginatedResponse(raw);
+      const arr = normalized.items || [];
+      const items = arr.map((item: any) => ({
+        ...item,
+        patientAge: item.patientAge ?? item.age ?? null,
+        patientGender: item.patientGender ?? item.gender ?? item.sex ?? null,
+        patientDateOfBirth: item.patientDateOfBirth ?? item.dateOfBirth ?? null,
+        age: item.patientAge ?? item.age ?? null,
+        sex: item.patientGender ?? item.gender ?? item.sex ?? null,
+      }));
+      return { ...normalized, items };
     },
   });
   const samples = samplesData?.items ?? [];
