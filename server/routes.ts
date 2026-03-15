@@ -1003,6 +1003,11 @@ export async function registerRoutes(
   const requirePermission = createRequirePermission(storage);
   app.use("/api", requireAuth, requirePermission);
 
+  // IMPORTANT: Paginated and stats routes MUST be registered BEFORE :id routes for each resource.
+  // Otherwise Express matches /paginated or /stats as :id and returns 404.
+  // Registered order: patients, prescriptions, bills, services, packages, medicines, expenses,
+  // bank-transactions, lab-tests, sample-collections, appointments, doctors, dues.
+
   // Dashboard
   app.get("/api/dashboard/stats", async (_req, res) => {
     try {
@@ -1270,6 +1275,60 @@ export async function registerRoutes(
       const numericIds = ids.map((id: unknown) => Number(id)).filter((n: number) => !Number.isNaN(n));
       await storage.bulkDeleteOpdVisits(numericIds);
       res.json({ success: true, deleted: numericIds.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Prescriptions – dedicated paginated endpoint for prescriptions page (always hasPrescription=true)
+  app.get("/api/prescriptions/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const result = await storage.getOpdVisitsPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        fromDate: (req.query.fromDate as string) || undefined,
+        toDate: (req.query.toDate as string) || undefined,
+        doctorName: (req.query.doctorName as string) || undefined,
+        hasPrescription: true,
+      });
+      const users = await storage.getUsers();
+      const doctorUserByFullName = new Map<string, { fullName: string; qualification?: string | null; signatureUrl?: string | null }>();
+      for (const u of users) {
+        const name = (u.fullName || "").trim();
+        if (name) doctorUserByFullName.set(name, { fullName: u.fullName, qualification: u.qualification ?? null, signatureUrl: u.signatureUrl ?? null });
+      }
+      const enriched = result.items.map((v: any) => {
+        const dName = (v.doctorName || "").trim();
+        const doctorUser = dName ? doctorUserByFullName.get(dName) ?? { fullName: dName, qualification: null, signatureUrl: null } : undefined;
+        return { ...v, doctorUser };
+      });
+      res.json({ items: enriched, total: result.total });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Prescriptions – dedicated stats endpoint for prescriptions page
+  app.get("/api/prescriptions/stats", async (req, res) => {
+    try {
+      const fromDate = req.query.fromDate as string | undefined;
+      const toDate = req.query.toDate as string | undefined;
+      const doctorName = req.query.doctorName as string | undefined;
+      const visits = await storage.getOpdVisitsFiltered({ fromDate, toDate, doctorName, hasPrescription: true });
+      const byDoctor = new Map<string, number>();
+      for (const v of visits) {
+        const name = v.doctorName || "Unassigned";
+        byDoctor.set(name, (byDoctor.get(name) || 0) + 1);
+      }
+      res.json({
+        total: visits.length,
+        byDoctor: Array.from(byDoctor.entries()).map(([doctorName, count]) => ({ doctorName, count })).sort((a, b) => b.count - a.count),
+        recentVisits: visits.slice(0, 10),
+      });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

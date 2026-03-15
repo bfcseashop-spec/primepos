@@ -913,6 +913,7 @@ export default function ServicesPage() {
   const [deleteService, setDeleteService] = useState<Service | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [form, setForm] = useState(defaultForm);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -944,7 +945,7 @@ export default function ServicesPage() {
     debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm]);
-  useEffect(() => { setPage(1); }, [debouncedSearch, categoryFilter]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, categoryFilter, statusFilter]);
 
   const { data: settings } = useQuery<{ reportCategories?: string[] }>({ queryKey: ["/api/settings"] });
   const reportCategories = settings?.reportCategories && settings.reportCategories.length > 0 ? settings.reportCategories : DEFAULT_REPORT_CATEGORIES;
@@ -965,13 +966,14 @@ export default function ServicesPage() {
   });
 
   const { data: servicesData, isLoading } = useQuery<{ items: Service[]; total: number }>({
-    queryKey: ["/api/services/paginated", page, pageSize, debouncedSearch, categoryFilter],
+    queryKey: ["/api/services/paginated", page, pageSize, debouncedSearch, categoryFilter, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("page", String(page));
       params.set("limit", String(Math.max(1, pageSize)));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (categoryFilter && categoryFilter !== "all") params.set("categoryFilter", categoryFilter);
+      if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       const res = await fetch(getApiUrl(`/api/services/paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
@@ -979,11 +981,12 @@ export default function ServicesPage() {
     },
   });
   const { data: servicesStats } = useQuery<{ total: number; activeCount: number; inactiveCount: number; categoriesCount: number; totalValue: number; categories: string[]; categoryCounts?: Record<string, number> }>({
-    queryKey: ["/api/services/stats", debouncedSearch, categoryFilter],
+    queryKey: ["/api/services/stats", debouncedSearch, categoryFilter, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (categoryFilter && categoryFilter !== "all") params.set("categoryFilter", categoryFilter);
+      if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       const res = await fetch(getApiUrl(`/api/services/stats?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -2071,6 +2074,16 @@ export default function ServicesPage() {
                     {categoriesToShowInModal.map(cat => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[160px]" data-testid="select-status-filter">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("common.all")}</SelectItem>
+                    <SelectItem value="active">{t("common.active")}</SelectItem>
+                    <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button

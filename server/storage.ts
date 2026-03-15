@@ -132,7 +132,7 @@ export interface IStorage {
   updateDuePayment(id: number, updates: Partial<InsertDuePayment>): Promise<DuePayment | undefined>;
   deleteDuePayment(id: number): Promise<boolean>;
   getPatientsDueSummary(limit?: number, offset?: number, search?: string, statusFilter?: string, dateFrom?: Date, dateTo?: Date): Promise<{ summaries: Array<{ patient: Patient; totalDue: number; totalPaid: number; balance: number; credit: number; billsCount: number }>; total: number }>;
-  getPatientsDueSummaryStats(dateFrom?: Date, dateTo?: Date, search?: string, statusFilter?: string): Promise<{ totalBalance: number; totalPatients: number }>;
+  getPatientsDueSummaryStats(dateFrom?: Date, dateTo?: Date, search?: string, statusFilter?: string): Promise<{ totalBalance: number; totalPatients: number; totalCollected: number }>;
 
   getExpenses(): Promise<Expense[]>;
   getExpensesPaginated(opts: { limit: number; offset: number; search?: string; categoryFilter?: string; statusFilter?: string; dateFrom?: string; dateTo?: string }): Promise<{ items: Expense[]; total: number }>;

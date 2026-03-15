@@ -91,6 +91,8 @@ export default function RegisterPatientPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients/stats"] });
       toast({ title: "Patient registered successfully" });
       navigate("/opd");
     },
