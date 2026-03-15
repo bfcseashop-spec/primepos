@@ -111,6 +111,31 @@ If you see 404s for API requests (e.g. `/api/dues`, `/api/bills`, `/api/medicine
 3. **Verify**: `curl -I https://pos.primeclinic24.com/api/dues` (with session cookie) should return 200 or 401, not 404.
 4. **Custom API base**: If the API is on a different origin, set `VITE_API_BASE` at build time (e.g. `VITE_API_BASE=https://api.example.com npm run build`). All API requests use absolute URLs via `getApiUrl()`.
 
+**404 on new API routes after deploy (e.g. `/api/debug-path`, `/api/*-paginated`)**
+
+If some APIs work (e.g. `/api/injections`) but new ones return 404:
+
+1. **Test directly on the server** (bypasses proxy/Cloudflare):
+   ```bash
+   curl -s http://localhost:5010/api/debug-path
+   ```
+   - If this returns JSON `{"path":"/api/debug-path",...}` → the backend is fine; the issue is **proxy or Cloudflare**.
+   - If this returns `{"message":"Not found"}` → the backend isn’t matching the route; check that `dist/index.cjs` was rebuilt (`ls -la dist/index.cjs`) and PM2 was restarted as the correct user.
+
+2. **Cloudflare cache**: New or previously-404 paths can be cached. Purge cache for `/api/*` or add a Cache Rule: *Bypass cache* for `pos.primeclinic24.com/api/*`.
+
+3. **Nginx**: Ensure `proxy_pass` forwards the full path. Example:
+   ```nginx
+   location / {
+     proxy_pass http://127.0.0.1:5010;
+     proxy_http_version 1.1;
+     proxy_set_header Host $host;
+     proxy_set_header X-Real-IP $remote_addr;
+     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+     proxy_set_header X-Forwarded-Proto $scheme;
+   }
+   ```
+
 **404s for `e.css`, `exex`, or other odd paths**
 
 These often come from browser extensions (e.g. React DevTools, ad blockers) or third-party scripts, not from the app. Try in an incognito window or with extensions disabled. The app does not request these paths.

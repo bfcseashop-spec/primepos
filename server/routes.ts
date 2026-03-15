@@ -238,17 +238,6 @@ export async function registerRoutes(
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  // Diagnostic: verify path routing (no auth). Hit /api/debug-path to see what the server receives.
-  app.get("/api/debug-path", (req, res) => {
-    res.json({
-      path: req.path,
-      url: req.url,
-      originalUrl: req.originalUrl,
-      baseUrl: req.baseUrl,
-      method: req.method,
-    });
-  });
-
   // --- HRM / Attendance (per clinic user + ADMS device integration) ---
 
   function isAdminLikeRoleName(roleName: string | null | undefined): boolean {
@@ -5111,7 +5100,8 @@ export async function registerRoutes(
   });
 
   // Unmatched /api routes -> 404 JSON (avoid SPA fallback)
-  app.use("/api", (_req, res) => {
+  app.use("/api", (req, res) => {
+    console.warn(`[api] 404 unmatched: method=${req.method} path=${req.path} url=${req.url} originalUrl=${req.originalUrl}`);
     res.status(404).json({ message: "Not found" });
   });
 
