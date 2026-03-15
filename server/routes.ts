@@ -4241,19 +4241,8 @@ export async function registerRoutes(
     }
   });
 
-  // Sample Collections – paginated endpoint (always returns { items, total, ... })
-  // Demographics (patientAge, patientGender, patientDateOfBirth) are always loaded in this route from the patients table.
+  // Sample Collections – paginated (same pattern as lab-tests: storage does join + age resolution, route passes through)
   app.get("/api/sample-collections-paginated", async (req, res) => {
-    function ageFromDob(dob: string | null | undefined): number | null {
-      if (!dob || typeof dob !== "string") return null;
-      const birth = new Date(dob);
-      if (isNaN(birth.getTime())) return null;
-      const today = new Date();
-      let age = today.getFullYear() - birth.getFullYear();
-      const m = today.getMonth() - birth.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-      return age >= 0 ? age : null;
-    }
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
@@ -4266,38 +4255,7 @@ export async function registerRoutes(
         billId: req.query.billId != null ? Number(req.query.billId) : undefined,
         labTestId: req.query.labTestId != null ? Number(req.query.labTestId) : undefined,
       });
-      const rawItems = result.items || [];
-      const patientIds = Array.from(new Set(rawItems.map((it: any) => it.patientId).filter((id: any) => id != null)));
-      const patientMap = new Map<number, any>();
-      for (const pid of patientIds) {
-        const p = await storage.getPatient(pid);
-        if (p) patientMap.set(pid, p);
-      }
-      const out = rawItems.map((it: any) => {
-        const p = it.patientId != null ? patientMap.get(it.patientId) : null;
-        const patientAge = p != null ? (p.age != null ? p.age : ageFromDob(p.dateOfBirth)) : null;
-        const patientGender = p != null ? (p.gender ?? null) : null;
-        const patientDateOfBirth = p != null ? (p.dateOfBirth ?? null) : null;
-        return {
-          id: it.id,
-          labTestId: it.labTestId,
-          patientId: it.patientId,
-          billId: it.billId,
-          testName: it.testName,
-          sampleType: it.sampleType,
-          status: it.status,
-          collectedAt: it.collectedAt,
-          collectedBy: it.collectedBy,
-          notes: it.notes,
-          createdAt: it.createdAt,
-          patientName: it.patientName,
-          patientIdCode: it.patientIdCode,
-          patientAge: patientAge ?? null,
-          patientGender: patientGender ?? null,
-          patientDateOfBirth: patientDateOfBirth ?? null,
-        };
-      });
-      res.json({ items: out, total: result.total, pendingCount: result.pendingCount, collectedCount: result.collectedCount });
+      res.json({ items: result.items || [], total: result.total, pendingCount: result.pendingCount, collectedCount: result.collectedCount });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

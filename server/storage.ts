@@ -1878,8 +1878,9 @@ export class DatabaseStorage implements IStorage {
       patientDateOfBirth: patients.dateOfBirth,
     }).from(sampleCollections).leftJoin(patients, eq(sampleCollections.patientId, patients.id)).orderBy(desc(sampleCollections.createdAt));
     return rows.map((r: any) => {
-      const patientAge = r.patientAge != null ? r.patientAge : this._ageFromDob(r.patientDateOfBirth);
-      return { ...r, patientAge: patientAge ?? null, patientGender: r.patientGender ?? null, patientDateOfBirth: r.patientDateOfBirth ?? null };
+      const { patientAge, patientDateOfBirth, patientGender, ...rest } = r;
+      const resolvedAge = patientAge != null ? patientAge : this._ageFromDob(patientDateOfBirth);
+      return { ...rest, patientAge: resolvedAge, patientDateOfBirth, patientGender };
     });
   }
 
@@ -1921,28 +1922,15 @@ export class DatabaseStorage implements IStorage {
     const sr = statsRes[0];
     const pendingCount = Number(sr?.pendingCount ?? 0);
     const collectedCount = Number(sr?.collectedCount ?? 0);
-    const rows = await baseQ.where(whereClause ?? sql`true`).orderBy(desc(sampleCollections.createdAt)).limit(limit).offset(offset);
-    const items = rows.map((r: any) => {
-      const patientAge = r.patientAge != null ? r.patientAge : this._ageFromDob(r.patientDateOfBirth);
-      const patientGender = r.patientGender ?? null;
-      const patientDateOfBirth = r.patientDateOfBirth ?? null;
+    const result = await baseQ.where(whereClause ?? sql`true`).orderBy(desc(sampleCollections.createdAt)).limit(limit).offset(offset);
+    const items = result.map((r: any) => {
+      const { patientAge, patientDateOfBirth, patientGender, ...rest } = r;
+      const resolvedAge = patientAge != null ? patientAge : this._ageFromDob(patientDateOfBirth);
       return {
-        id: r.id,
-        labTestId: r.labTestId,
-        patientId: r.patientId,
-        billId: r.billId,
-        testName: r.testName,
-        sampleType: r.sampleType,
-        status: r.status,
-        collectedAt: r.collectedAt,
-        collectedBy: r.collectedBy,
-        notes: r.notes,
-        createdAt: r.createdAt,
-        patientName: r.patientName,
-        patientIdCode: r.patientIdCode,
-        patientAge: patientAge ?? null,
-        patientGender,
+        ...rest,
+        patientAge: resolvedAge,
         patientDateOfBirth,
+        patientGender,
       };
     });
     return { items, total, pendingCount, collectedCount };
@@ -1973,8 +1961,9 @@ export class DatabaseStorage implements IStorage {
       patientDateOfBirth: patients.dateOfBirth,
     }).from(sampleCollections).leftJoin(patients, eq(sampleCollections.patientId, patients.id)).where(eq(sampleCollections.id, id));
     if (!row) return undefined;
-    const patientAge = (row as any).patientAge != null ? (row as any).patientAge : this._ageFromDob((row as any).patientDateOfBirth);
-    return { ...row, patientAge: patientAge ?? null, patientGender: (row as any).patientGender ?? null, patientDateOfBirth: (row as any).patientDateOfBirth ?? null };
+    const { patientAge, patientDateOfBirth, patientGender, ...rest } = row as any;
+    const resolvedAge = patientAge != null ? patientAge : this._ageFromDob(patientDateOfBirth);
+    return { ...rest, patientAge: resolvedAge, patientDateOfBirth, patientGender };
   }
 
   async createSampleCollection(s: InsertSampleCollection): Promise<SampleCollection> {
