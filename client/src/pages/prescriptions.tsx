@@ -141,13 +141,14 @@ export default function PrescriptionsPage() {
     },
   });
 
+  const needsModalData = !!editVisit || !!viewVisit;
   const { data: patients = [] } = useQuery<Patient[]>({ queryKey: ["/api/patients"] });
   const { data: doctors = [] } = useQuery<Doctor[]>({ queryKey: ["/api/doctors"] });
   const { data: settings } = useQuery<ClinicSettings | null>({ queryKey: ["/api/settings"] });
-  const { data: services = [] } = useQuery<Service[]>({ queryKey: ["/api/services"] });
-  const { data: injections = [] } = useQuery<Injection[]>({ queryKey: ["/api/injections"] });
-  const { data: medicines = [] } = useQuery<Medicine[]>({ queryKey: ["/api/medicines"] });
-  const { data: packagesList = [] } = useQuery<PackageType[]>({ queryKey: ["/api/packages"] });
+  const { data: services = [] } = useQuery<Service[]>({ queryKey: ["/api/services"], enabled: needsModalData });
+  const { data: injections = [] } = useQuery<Injection[]>({ queryKey: ["/api/injections"], enabled: needsModalData });
+  const { data: medicines = [] } = useQuery<Medicine[]>({ queryKey: ["/api/medicines"], enabled: needsModalData });
+  const { data: packagesList = [] } = useQuery<PackageType[]>({ queryKey: ["/api/packages"], enabled: needsModalData });
 
   const handlePrint = (row: any) => {
     const patient = patients.find((p) => p.id === row.patientId);

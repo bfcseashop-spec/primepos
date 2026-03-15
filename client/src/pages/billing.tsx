@@ -72,6 +72,9 @@ export default function BillingPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewBill, setViewBill] = useState<any>(null);
+  const [editingBill, setEditingBill] = useState<any | null>(null);
+  const [returnBill, setReturnBill] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [billItems, setBillItems] = useState<BillItem[]>([]);
   const [selectedPatient, setSelectedPatient] = useState("");
@@ -123,8 +126,10 @@ export default function BillingPage() {
   const bills = billsData?.items ?? [];
   const billsTotal = billsStats?.total ?? billsData?.total ?? 0;
 
+  const needsModalData = dialogOpen || !!viewBill || !!editingBill || !!returnBill;
   const { data: patients = [] } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
+    enabled: needsModalData,
   });
 
   const { data: settings } = useQuery<ClinicSettings>({
@@ -133,22 +138,27 @@ export default function BillingPage() {
 
   const { data: services = [] } = useQuery<Service[]>({
     queryKey: ["/api/services"],
+    enabled: needsModalData,
   });
 
   const { data: medicines = [] } = useQuery<Medicine[]>({
     queryKey: ["/api/medicines"],
+    enabled: needsModalData,
   });
 
   const { data: injectionsList = [] } = useQuery<Injection[]>({
     queryKey: ["/api/injections"],
+    enabled: needsModalData,
   });
 
   const { data: packagesList = [] } = useQuery<PackageType[]>({
     queryKey: ["/api/packages"],
+    enabled: needsModalData,
   });
 
   const { data: doctorsList = [] } = useQuery<Doctor[]>({
     queryKey: ["/api/doctors"],
+    enabled: needsModalData,
   });
 
   const doctorOptions = [
@@ -164,8 +174,6 @@ export default function BillingPage() {
 
   const [billAction, setBillAction] = useState<"create" | "print" | "payment">("create");
   const [showPreview, setShowPreview] = useState(false);
-  const [viewBill, setViewBill] = useState<any>(null);
-  const [editingBill, setEditingBill] = useState<any | null>(null);
   const [editingBillId, setEditingBillId] = useState<number | null>(null);
   const [statusValue, setStatusValue] = useState<string>("paid");
   const [medicineQty, setMedicineQty] = useState(1);
@@ -174,7 +182,6 @@ export default function BillingPage() {
   const [customItemPrice, setCustomItemPrice] = useState("");
   const [customItemQty, setCustomItemQty] = useState(1);
   const [deleteBillConfirm, setDeleteBillConfirm] = useState<{ open: boolean; billId?: number }>({ open: false });
-  const [returnBill, setReturnBill] = useState<any>(null);
   const [returnQuantities, setReturnQuantities] = useState<Record<number, number>>({});
   const [amountPaid, setAmountPaid] = useState("");
   const [paymentSplits, setPaymentSplits] = useState<Array<{ method: string; amount: number }>>([]);

@@ -35,7 +35,7 @@ if [ -f .env ]; then
 fi
 
 # --- 1. Backup code ---
-echo "[1/7] Backing up code to $TAR_FILE"
+echo "[1/8] Backing up code to $TAR_FILE"
 tar --exclude='node_modules' --exclude='dist' --exclude='.git' --exclude='backups' \
   --exclude='*.zip' --exclude='*.tar.gz' --exclude='*.sql' --exclude='.env' \
   --exclude='*.log' -czf "$TAR_FILE" .
@@ -43,7 +43,7 @@ echo "  Code backup: $TAR_FILE"
 
 # --- 2. Backup database ---
 if [ -n "$DATABASE_URL" ]; then
-  echo "[2/7] Backing up database to $SQL_FILE"
+  echo "[2/8] Backing up database to $SQL_FILE"
   if command -v pg_dump >/dev/null 2>&1; then
     if pg_dump "$DATABASE_URL" -F p -f "$SQL_FILE" 2>"$BACKUP_DIR/.pg_dump_err"; then
       echo "  Database backup: $SQL_FILE"
@@ -65,7 +65,7 @@ if [ -n "$DATABASE_URL" ]; then
     echo "  Skipping DB backup."
   fi
 else
-  echo "[2/7] Skipping DB backup (DATABASE_URL not set)"
+  echo "[2/8] Skipping DB backup (DATABASE_URL not set)"
 fi
 
 # --- Check if deploy requested ---
@@ -77,31 +77,38 @@ fi
 
 # --- 3. Git pull ---
 echo ""
-echo "[3/7] git pull"
+echo "[3/8] git pull"
 git pull
 
-# --- 4. npm install ---
-echo "[4/7] npm install"
+# --- 4. Clean caches and old build ---
+echo "[4/8] Cleaning caches and dist"
+rm -rf dist
+rm -rf node_modules/.cache
+rm -rf client/node_modules/.cache
+npm cache clean --force 2>/dev/null || true
+
+# --- 5. npm install ---
+echo "[5/8] npm install"
 npm install
 
-# --- 5. Build ---
-echo "[5/7] npm run build"
+# --- 6. Build ---
+echo "[6/8] npm run build"
 npm run build
 
-# --- 6. DB push ---
+# --- 7. DB push ---
 # Session table is in schema so it is not dropped; sessions persist if SESSION_SECRET is set in .env (see .env.example).
-echo "[6/7] npm run db:push (--force for non-interactive)"
+echo "[7/8] npm run db:push (--force for non-interactive)"
 npx drizzle-kit push --force
 
-# --- 6b. Due management migration (ensures due_payments tables exist) ---
+# --- 7b. Due management migration (ensures due_payments tables exist) ---
 if [ -f "scripts/run-due-migration.js" ] && [ -f "migrations/0001_due_management.sql" ]; then
-  echo "[6b/7] Running due management migration..."
+  echo "[7b/8] Running due management migration..."
   node scripts/run-due-migration.js || echo "  (migration skipped or already applied)"
 fi
 
-# --- 7. PM2 restart ---
-echo "[7/7] pm2 restart"
-npm run pm2:restart
+# --- 8. PM2 restart (full restart, no cache) ---
+echo "[8/8] pm2 restart"
+pm2 restart primepos --update-env 2>/dev/null || npm run pm2:restart
 
 echo ""
 echo "=== Deploy complete ==="

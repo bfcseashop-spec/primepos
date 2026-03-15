@@ -141,16 +141,13 @@ export default function OpdPage() {
   const inPatientCount = patientsStats?.inPatientCount ?? 0;
   const emergencyPatientCount = patientsStats?.emergencyPatientCount ?? 0;
 
-  const { data: visits = [] } = useQuery<any[]>({
-    queryKey: ["/api/opd-visits"],
-  });
-
-  const { data: doctors = [] } = useQuery<any[]>({ queryKey: ["/api/doctors"] });
+  const needsModalData = !!consultationPatient || appointmentDialogOpen;
+  const { data: doctors = [] } = useQuery<any[]>({ queryKey: ["/api/doctors"], enabled: needsModalData });
   const { data: settings } = useQuery<any>({ queryKey: ["/api/settings"] });
-  const { data: services = [] } = useQuery<Service[]>({ queryKey: ["/api/services"] });
-  const { data: injections = [] } = useQuery<Injection[]>({ queryKey: ["/api/injections"] });
-  const { data: medicines = [] } = useQuery<Medicine[]>({ queryKey: ["/api/medicines"] });
-  const { data: packagesList = [] } = useQuery<PackageType[]>({ queryKey: ["/api/packages"] });
+  const { data: services = [] } = useQuery<Service[]>({ queryKey: ["/api/services"], enabled: needsModalData });
+  const { data: injections = [] } = useQuery<Injection[]>({ queryKey: ["/api/injections"], enabled: needsModalData });
+  const { data: medicines = [] } = useQuery<Medicine[]>({ queryKey: ["/api/medicines"], enabled: needsModalData });
+  const { data: packagesList = [] } = useQuery<PackageType[]>({ queryKey: ["/api/packages"], enabled: needsModalData });
 
   const deletePatientMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -373,9 +370,7 @@ export default function OpdPage() {
 
   const getLastVisit = (patient: Patient & { lastVisitDate?: string | null }) => {
     if (patient.lastVisitDate) return { visitDate: patient.lastVisitDate };
-    const patientVisits = visits.filter((v: any) => v.patientId === patient.id);
-    if (patientVisits.length === 0) return null;
-    return patientVisits.sort((a: any, b: any) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime())[0];
+    return null;
   };
 
   const getInitials = (patient: Patient) => {
