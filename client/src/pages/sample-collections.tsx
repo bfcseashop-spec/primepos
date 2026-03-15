@@ -84,15 +84,14 @@ export default function SampleCollectionsPage() {
   useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
 
   const { data: samplesData, isLoading } = useQuery<{ items: SampleCollection[]; total: number; pendingCount?: number; collectedCount?: number }>({
-    queryKey: ["/api/sample-collections", "paginated", page, pageSize, debouncedSearch, statusFilter],
+    queryKey: ["/api/sample-collections/paginated", page, pageSize, debouncedSearch, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
-      const limit = Math.max(1, pageSize);
-      params.set("limit", String(limit));
-      params.set("offset", String((page - 1) * limit));
+      params.set("page", String(page));
+      params.set("limit", String(Math.max(1, pageSize)));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter !== "all") params.set("statusFilter", statusFilter);
-      const res = await fetch(getApiUrl(`/api/sample-collections?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/sample-collections/paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse(raw) as typeof raw;
@@ -127,7 +126,7 @@ export default function SampleCollectionsPage() {
       if (billRes.ok) {
         const bill = await billRes.json();
         setSearchTerm(v);
-        const samplesRes = await fetch(getApiUrl(`/api/sample-collections?limit=10&offset=0&billId=${bill.id}`), { credentials: "include" });
+        const samplesRes = await fetch(getApiUrl(`/api/sample-collections/paginated?page=1&limit=10&billId=${bill.id}`), { credentials: "include" });
         if (samplesRes.ok) {
           const data = await samplesRes.json();
           const byBill = data.items || [];
@@ -145,7 +144,7 @@ export default function SampleCollectionsPage() {
         if (ltRes.ok) {
           const lt = await ltRes.json();
           setSearchTerm(testCode);
-          const samplesRes = await fetch(getApiUrl(`/api/sample-collections?limit=10&offset=0&labTestId=${lt.id}`), { credentials: "include" });
+          const samplesRes = await fetch(getApiUrl(`/api/sample-collections/paginated?page=1&limit=10&labTestId=${lt.id}`), { credentials: "include" });
           if (samplesRes.ok) {
             const data = await samplesRes.json();
             const byLab = data.items || [];
@@ -170,6 +169,7 @@ export default function SampleCollectionsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sample-collections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sample-collections/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
       setMarkingId(null);
       toast({ title: "Sample marked as collected" });
@@ -197,6 +197,7 @@ export default function SampleCollectionsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sample-collections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sample-collections/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
       setEditSample(null);
       toast({ title: "Sample collection updated" });
@@ -212,6 +213,7 @@ export default function SampleCollectionsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sample-collections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sample-collections/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
       setDeleteConfirm({ open: false, sample: null });
       toast({ title: "Sample collection deleted" });
@@ -227,6 +229,7 @@ export default function SampleCollectionsPage() {
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sample-collections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sample-collections/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
       setSelectedIds(new Set());
       setDeleteBulkConfirm(false);

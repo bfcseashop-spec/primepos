@@ -132,6 +132,7 @@ export default function MedicinesPage() {
       if (res.ok) {
         setImportResult(data);
         queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/medicines/paginated"] });
         toast({ title: t("medicines.importedCount", { count: data.imported }), description: data.skipped > 0 ? t("medicines.rowsSkipped", { count: data.skipped }) : undefined });
       } else {
         toast({ title: t("medicines.importFailed"), description: data.message, variant: "destructive" });
@@ -145,16 +146,15 @@ export default function MedicinesPage() {
   };
 
   const { data: medicinesData, isLoading } = useQuery<{ items: Medicine[]; total: number; inStockCount?: number; lowStockCount?: number; outOfStockCount?: number }>({
-    queryKey: ["/api/medicines", "paginated", page, pageSize, debouncedSearch, categoryFilter, statusFilter],
+    queryKey: ["/api/medicines/paginated", page, pageSize, debouncedSearch, categoryFilter, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
-      const limit = Math.max(1, pageSize);
-      params.set("limit", String(limit));
-      params.set("offset", String((page - 1) * limit));
+      params.set("page", String(page));
+      params.set("limit", String(Math.max(1, pageSize)));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (categoryFilter && categoryFilter !== "all") params.set("categoryFilter", categoryFilter);
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
-      const res = await fetch(getApiUrl(`/api/medicines?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/medicines/paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse(raw) as typeof raw;
@@ -182,6 +182,7 @@ export default function MedicinesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/medicines/paginated"] });
       setDialogOpen(false);
       setForm(defaultForm);
       toast({ title: t("medicines.createdSuccess") });
@@ -198,6 +199,7 @@ export default function MedicinesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/medicines/paginated"] });
       setEditMed(null);
       setForm(defaultForm);
       toast({ title: t("medicines.updatedSuccess") });
@@ -213,6 +215,7 @@ export default function MedicinesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/medicines/paginated"] });
       toast({ title: t("medicines.deleted") });
     },
     onError: (err: Error) => {
@@ -227,6 +230,7 @@ export default function MedicinesPage() {
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/medicines/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/medicines", String(id), "stock-history"] });
       setAdjustStockMed(null);
       setAdjustStockValue("");
@@ -244,6 +248,7 @@ export default function MedicinesPage() {
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/medicines/paginated"] });
       setSelectedIds(new Set());
       toast({ title: `${ids.length} medicine(s) deleted` });
     },
@@ -290,6 +295,7 @@ export default function MedicinesPage() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/medicines/paginated"] });
     setTimeout(() => setIsRefreshing(false), 600);
     toast({ title: t("medicines.refreshed") });
   };

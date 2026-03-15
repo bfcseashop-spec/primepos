@@ -1040,6 +1040,26 @@ export async function registerRoutes(
     }
   });
 
+  // Patients – paginated endpoint (always returns { items, total })
+  app.get("/api/patients/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const result = await storage.getPatientsPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        patientTypeFilter: (req.query.patientTypeFilter as string) || undefined,
+      });
+      const lastVisits = await storage.getLastVisitDatesByPatientIds(result.items.map((p: any) => p.id));
+      const enriched = result.items.map((p: any) => ({ ...p, lastVisitDate: lastVisits[p.id] || null }));
+      res.json({ items: enriched, total: result.total });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Patients
   app.get("/api/patients", async (req, res) => {
     try {
@@ -1146,6 +1166,39 @@ export async function registerRoutes(
     try {
       const visitId = await storage.getNextVisitId();
       res.json({ visitId });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // OPD Visits – paginated endpoint (always returns { items, total })
+  app.get("/api/opd-visits/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const result = await storage.getOpdVisitsPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        typeFilter: (req.query.typeFilter as string) || undefined,
+        fromDate: (req.query.fromDate as string) || undefined,
+        toDate: (req.query.toDate as string) || undefined,
+        doctorName: (req.query.doctorName as string) || undefined,
+        hasPrescription: req.query.hasPrescription === "true" || req.query.hasPrescription === "1",
+      });
+      const users = await storage.getUsers();
+      const doctorUserByFullName = new Map<string, { fullName: string; qualification?: string | null; signatureUrl?: string | null }>();
+      for (const u of users) {
+        const name = (u.fullName || "").trim();
+        if (name) doctorUserByFullName.set(name, { fullName: u.fullName, qualification: u.qualification ?? null, signatureUrl: u.signatureUrl ?? null });
+      }
+      const enriched = result.items.map((v: any) => {
+        const dName = (v.doctorName || "").trim();
+        const doctorUser = dName ? doctorUserByFullName.get(dName) ?? { fullName: dName, qualification: null, signatureUrl: null } : undefined;
+        return { ...v, doctorUser };
+      });
+      res.json({ items: enriched, total: result.total });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -1423,16 +1476,36 @@ export async function registerRoutes(
     }
   });
 
-  // Bills
+  // Bills – paginated endpoint (always returns { items, total } with server-side pagination/filtering)
+  app.get("/api/bills/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const result = await storage.getBillsPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        dateFrom: (req.query.dateFrom as string) || undefined,
+        dateTo: (req.query.dateTo as string) || undefined,
+        statusFilter: (req.query.statusFilter as string) || undefined,
+        patientId: req.query.patientId != null ? Number(req.query.patientId) : undefined,
+      });
+      res.json({ items: result.items, total: result.total });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Bills – legacy endpoint (returns all when no pagination params; use /api/bills/paginated for list views)
   app.get("/api/bills", async (req, res) => {
     try {
-      const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
-      const limit = (rawLimit != null && rawLimit > 0) ? rawLimit : (req.query.limit != null ? 10 : undefined);
-      const offset = req.query.offset != null ? Number(req.query.offset) : undefined;
-      if (limit != null) {
+      const limit = req.query.limit != null ? Math.min(500, Math.max(1, Number(req.query.limit) || 10)) : undefined;
+      const offset = req.query.offset != null ? Math.max(0, Number(req.query.offset) || 0) : 0;
+      if (limit != null && limit > 0) {
         const result = await storage.getBillsPaginated({
           limit,
-          offset: offset ?? 0,
+          offset,
           search: (req.query.search as string)?.trim() || undefined,
           dateFrom: (req.query.dateFrom as string) || undefined,
           dateTo: (req.query.dateTo as string) || undefined,
@@ -1488,7 +1561,7 @@ export async function registerRoutes(
       if (item?.type === "service" && (item.serviceId != null || item.name)) {
         const serv = item.serviceId != null
           ? allServices.find((s: any) => s.id === Number(item.serviceId))
-          : allServices.find((s: any) => s.name === item.name);
+          : allServices.find((s: any) => (s.name || "").trim() === (item.name || "").trim());
         if (serv && (serv as any).isLabTest) labItems.push({ serv, item });
       }
     }
@@ -1576,7 +1649,8 @@ export async function registerRoutes(
       const patientId = Number(data.patientId);
       const referrerName = (data.referenceDoctor as string) || null;
       // Create lab test and sample collection for draft and non-draft when bill has lab services
-      await createLabTestAndSampleFromBillItems(bill, items, patientId, referrerName);
+      const itemsToUse = items.length > 0 ? items : (Array.isArray((bill as any).items) ? (bill as any).items : []);
+      await createLabTestAndSampleFromBillItems(bill, itemsToUse, patientId, referrerName);
       if (!isDraft) {
         for (const [medIdStr, totalQty] of Object.entries(medQtyMap)) {
           const med = await storage.getMedicine(Number(medIdStr));
@@ -2572,6 +2646,25 @@ export async function registerRoutes(
     }
   });
 
+  // Medicines – paginated endpoint (always returns { items, total, ... })
+  app.get("/api/medicines/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const result = await storage.getMedicinesPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        categoryFilter: (req.query.categoryFilter as string) || undefined,
+        statusFilter: (req.query.statusFilter as string) || undefined,
+      });
+      res.json({ items: result.items || [], total: result.total, inStockCount: result.inStockCount, lowStockCount: result.lowStockCount, outOfStockCount: result.outOfStockCount });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/medicines", async (req, res) => {
     try {
       const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
@@ -2871,6 +2964,29 @@ export async function registerRoutes(
     }
   });
 
+  // Expenses – paginated endpoint (always returns { items, total, ... })
+  app.get("/api/expenses/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const cat = (req.query.categoryFilter as string)?.trim();
+      const st = (req.query.statusFilter as string)?.trim();
+      const result = await storage.getExpensesPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        categoryFilter: cat && cat !== "all" ? cat : undefined,
+        statusFilter: st && st !== "all" ? st : undefined,
+        dateFrom: (req.query.dateFrom as string) || undefined,
+        dateTo: (req.query.dateTo as string) || undefined,
+      });
+      res.json({ items: result.items || [], total: result.total, totalAmount: result.totalAmount, approvedAmount: result.approvedAmount, pendingAmount: result.pendingAmount });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/expenses", async (req, res) => {
     try {
       const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
@@ -2934,6 +3050,25 @@ export async function registerRoutes(
       }
       await storage.bulkDeleteExpenses(ids);
       res.json({ success: true, deleted: ids.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Bank Transactions – paginated endpoint (always returns { items, total, ... })
+  app.get("/api/bank-transactions/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const result = await storage.getBankTransactionsPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        dateFrom: (req.query.dateFrom as string) || undefined,
+        dateTo: (req.query.dateTo as string) || undefined,
+      });
+      res.json({ items: result.items || [], total: result.total, totalDeposits: result.totalDeposits, totalWithdrawals: result.totalWithdrawals });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -3664,6 +3799,29 @@ export async function registerRoutes(
     }
   });
 
+  // Lab Tests – paginated endpoint (always returns { items, total, ... })
+  app.get("/api/lab-tests/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const result = await storage.getLabTestsPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        statusFilter: (req.query.statusFilter as string) || undefined,
+        categoryFilter: (req.query.categoryFilter as string) || undefined,
+        dateFrom: (req.query.dateFrom as string) || undefined,
+        dateTo: (req.query.dateTo as string) || undefined,
+        billId: req.query.billId != null ? Number(req.query.billId) : undefined,
+        patientId: req.query.patientId != null ? Number(req.query.patientId) : undefined,
+      });
+      res.json({ items: result.items || [], total: result.total, processingCount: result.processingCount, completeCount: result.completeCount, withReportsCount: result.withReportsCount });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Lab Tests
   app.get("/api/lab-tests", async (req, res) => {
     try {
@@ -3863,6 +4021,26 @@ export async function registerRoutes(
       }
       await storage.bulkDeleteLabTests(ids);
       res.json({ success: true, deleted: ids.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Sample Collections – paginated endpoint (always returns { items, total, ... })
+  app.get("/api/sample-collections/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const result = await storage.getSampleCollectionsPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        statusFilter: (req.query.statusFilter as string) || undefined,
+        billId: req.query.billId != null ? Number(req.query.billId) : undefined,
+        labTestId: req.query.labTestId != null ? Number(req.query.labTestId) : undefined,
+      });
+      res.json({ items: result.items || [], total: result.total, pendingCount: result.pendingCount, collectedCount: result.collectedCount });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -4614,6 +4792,24 @@ export async function registerRoutes(
       await storage.deleteMedicinePurchase(id);
       res.json({ message: "Deleted" });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Dues – paginated endpoint (always returns { summaries, total })
+  app.get("/api/dues/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const search = (req.query.search as string)?.trim() || undefined;
+      const statusFilter = (req.query.statusFilter as string) && req.query.statusFilter !== "all" ? req.query.statusFilter : undefined;
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined;
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : undefined;
+      const result = await storage.getPatientsDueSummary(limit, offset, search, statusFilter, dateFrom, dateTo);
+      res.json(result);
+    } catch (err: any) {
+      console.error("[due] getPatientsDueSummary (dues paginated) error:", err?.message ?? err);
+      res.status(500).json({ message: err?.message ?? "Failed to load patients summary" });
+    }
   });
 
   // Alias: /api/dues -> /api/due/patients-summary (for clients/proxies that use plural)

@@ -979,7 +979,13 @@ export class DatabaseStorage implements IStorage {
       if (!billDateFilter(b)) return false;
       const total = Number(b.total ?? 0);
       const paid = Number(b.paidAmount ?? 0);
-      const isDue = (b.paymentMethod === "due" || b.status === "unpaid" || b.status === "partial") && paid < total;
+      const hasOutstandingBalance = paid < total;
+      const isDue = hasOutstandingBalance && (
+        b.paymentMethod === "due" ||
+        b.status === "unpaid" ||
+        b.status === "partial" ||
+        b.status === "draft"
+      );
       return isDue;
     });
     const patientIds = Array.from(new Set(dueBills.map((b) => b.patientId)));

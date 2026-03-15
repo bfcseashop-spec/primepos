@@ -107,20 +107,19 @@ export default function PrescriptionsPage() {
     return p.toString();
   }, [fromDate, toDate, doctorFilter]);
 
-  const visitsQueryKey = ["/api/opd-visits", "paginated", page, pageSize, fromDate, toDate, doctorFilter, debouncedSearch];
+  const visitsQueryKey = ["/api/opd-visits/paginated", page, pageSize, fromDate, toDate, doctorFilter, debouncedSearch];
   const { data: visitsData, isLoading: visitsLoading } = useQuery<{ items: any[]; total: number }>({
     queryKey: visitsQueryKey,
     queryFn: async () => {
       const params = new URLSearchParams();
-      const limit = Math.max(1, pageSize);
-      params.set("limit", String(limit));
-      params.set("offset", String((page - 1) * limit));
+      params.set("page", String(page));
+      params.set("limit", String(Math.max(1, pageSize)));
       params.set("fromDate", fromDate);
       params.set("toDate", toDate);
       params.set("hasPrescription", "true");
       if (doctorFilter && doctorFilter !== "all") params.set("doctorName", doctorFilter);
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
-      const res = await fetch(getApiUrl(`/api/opd-visits?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/opd-visits/paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse(raw);
@@ -179,6 +178,7 @@ export default function PrescriptionsPage() {
     },
     onSuccess: (updated: any, variables: { id: number; data: Record<string, string>; printAfterSave?: boolean }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/opd-visits/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/reports/prescription-stats"] });
       if (variables.printAfterSave && editVisit) {
@@ -211,6 +211,7 @@ export default function PrescriptionsPage() {
     },
     onSuccess: (_data: { deleted: number }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/opd-visits"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/opd-visits/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/reports/prescription-stats"] });
       setSelectedVisitIds(new Set());

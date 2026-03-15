@@ -94,16 +94,15 @@ export default function BillingPage() {
   const dateRange = getDateRange(datePeriod, customFromDate, customToDate, monthYear);
   useEffect(() => { setBillsPage(1); }, [debouncedSearch, dateRange?.from, dateRange?.to]);
   const { data: billsData, isLoading } = useQuery<{ items: any[]; total: number }>({
-    queryKey: ["/api/bills", "paginated", billsPage, billsPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
+    queryKey: ["/api/bills/paginated", billsPage, billsPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       const params = new URLSearchParams();
-      const limit = Math.max(1, billsPageSize);
-      params.set("limit", String(limit));
-      params.set("offset", String((billsPage - 1) * limit));
+      params.set("page", String(billsPage));
+      params.set("limit", String(Math.max(1, billsPageSize)));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (dateRange?.from) params.set("dateFrom", dateRange.from);
       if (dateRange?.to) params.set("dateTo", dateRange.to);
-      const res = await fetch(getApiUrl(`/api/bills?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/bills/paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse(raw) as typeof raw;
@@ -225,8 +224,10 @@ export default function BillingPage() {
     },
     onSuccess: (bill: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
       queryClient.invalidateQueries({ queryKey: ["/api/sample-collections"] });
@@ -256,6 +257,7 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       toast({ title: "Bill deleted successfully" });
@@ -272,8 +274,10 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
       setEditingBill(null);
       setEditingBillId(null);
       setDialogOpen(false);
@@ -292,6 +296,7 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["/api/medicines"] });
@@ -798,7 +803,7 @@ export default function BillingPage() {
       if (patRes.ok) {
         const pat = await patRes.json();
         setSearchTerm(pat.name || val);
-        const billRes2 = await fetch(getApiUrl(`/api/bills?limit=10&offset=0&patientId=${pat.id}`), { credentials: "include" });
+        const billRes2 = await fetch(getApiUrl(`/api/bills/paginated?page=1&limit=10&patientId=${pat.id}`), { credentials: "include" });
         if (billRes2.ok) {
           const data = await billRes2.json();
           const byPatient = data.items || [];
@@ -1419,7 +1424,7 @@ export default function BillingPage() {
                     <>
                         {!isSplitMode && paymentSplits.length === 0 && (
                           <div className="space-y-2 pt-2">
-                            <Label className="text-sm">{t("billing.amountPaid") ?? "Amount Paid"}</Label>
+                            <Label className="text-sm">{t("billing.amountPaid")}</Label>
                             <Input
                               type="number"
                               step="0.01"
@@ -1432,7 +1437,7 @@ export default function BillingPage() {
                             />
                             {parseFloat(amountPaid || "0") < total && parseFloat(amountPaid || "0") > 0 && (
                               <p className="text-xs text-amber-600 dark:text-amber-400">
-                                {t("billing.partialPaymentHint") ?? "Partial payment – remaining will show in Due Management"}
+                                {t("billing.partialPaymentHint")}
                               </p>
                             )}
                             <Button
@@ -1591,16 +1596,7 @@ export default function BillingPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <Button
-                      onClick={() => { setBillAction("create"); handleCreateBill(); }}
-                      disabled={createBillMutation.isPending}
-                      className="bg-emerald-600 hover:bg-emerald-600 text-white border-emerald-700"
-                      data-testid="button-submit-bill"
-                    >
-                      <FileText className="h-4 w-4 mr-1.5" />
-                      {createBillMutation.isPending && billAction === "create" ? t("common.creating") : t("billing.createBill")}
-                    </Button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <Button
                       variant="outline"
                       onClick={() => { handleSaveDraft(); }}

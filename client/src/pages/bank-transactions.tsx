@@ -61,16 +61,15 @@ export default function BankTransactionsPage() {
   useEffect(() => { setTxPage(1); }, [debouncedSearch, dateRange?.from, dateRange?.to]);
 
   const { data: transactionsData, isLoading } = useQuery<{ items: BankTransaction[]; total: number; totalDeposits?: number; totalWithdrawals?: number }>({
-    queryKey: ["/api/bank-transactions", "paginated", txPage, txPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
+    queryKey: ["/api/bank-transactions/paginated", txPage, txPageSize, debouncedSearch, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       const params = new URLSearchParams();
-      const limit = Math.max(1, txPageSize);
-      params.set("limit", String(limit));
-      params.set("offset", String((txPage - 1) * limit));
+      params.set("page", String(txPage));
+      params.set("limit", String(Math.max(1, txPageSize)));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (dateRange?.from) params.set("dateFrom", dateRange.from);
       if (dateRange?.to) params.set("dateTo", dateRange.to);
-      const res = await fetch(getApiUrl(`/api/bank-transactions?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/bank-transactions/paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse(raw) as typeof raw;
@@ -90,6 +89,7 @@ export default function BankTransactionsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions/paginated"] });
       setDialogOpen(false);
       toast({ title: "Transaction recorded successfully" });
     },
@@ -118,6 +118,7 @@ export default function BankTransactionsPage() {
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions/paginated"] });
       setSelectedTxIds(new Set());
       toast({ title: `${ids.length} transaction(s) deleted` });
     },
@@ -137,6 +138,7 @@ export default function BankTransactionsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bank-transactions/paginated"] });
       toast({ title: "Transaction deleted successfully" });
     },
     onError: (err: Error) => {

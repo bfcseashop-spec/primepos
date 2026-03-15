@@ -23,6 +23,16 @@ function getNestedValue(obj: any, path: string): string {
   return typeof current === "string" ? current : path;
 }
 
+/** Convert translation key to human-readable fallback (e.g. "billing.amountPaid" -> "Amount Paid"). */
+function keyToFallback(key: string): string {
+  const last = key.split(".").pop() || key;
+  return last
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (c) => c.toUpperCase())
+    .replace(/_/g, " ")
+    .trim();
+}
+
 interface I18nContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
@@ -51,6 +61,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     let value = getNestedValue(translations[language], key);
     if (value === key) {
       value = getNestedValue(translations.en, key);
+    }
+    if (value === key) {
+      value = keyToFallback(key);
     }
     if (params) {
       Object.entries(params).forEach(([k, v]) => {

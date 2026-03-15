@@ -239,6 +239,8 @@ export const en = {
     returnMedicineDesc: "Select quantities to return. Stock and bill total will be updated.",
     returnQty: "Return qty",
     processReturn: "Process return",
+    amountPaid: "Amount Paid",
+    partialPaymentHint: "Partial payment – remaining will show in Due Management",
   },
   services: {
     title: "Service Management",

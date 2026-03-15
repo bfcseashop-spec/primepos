@@ -206,6 +206,8 @@ export const zh = {
     returnMedicineDesc: "选择要退回的数量。库存和账单金额将更新。",
     returnQty: "退药数量",
     processReturn: "确认退货",
+    amountPaid: "已付金额",
+    partialPaymentHint: "部分支付 – 剩余金额将显示在欠款管理中。",
   },
   services: {
     title: "服务管理",

@@ -363,19 +363,18 @@ export default function LabTestsPage() {
   }, [searchTerm, invoiceFilter]);
   useEffect(() => { setPage(1); }, [debouncedSearch, categoryFilter, dateRange?.from, dateRange?.to]);
 
-  const labTestsQueryKey = ["/api/lab-tests", "paginated", page, pageSize, debouncedSearch, categoryFilter, dateRange?.from, dateRange?.to];
+  const labTestsQueryKey = ["/api/lab-tests/paginated", page, pageSize, debouncedSearch, categoryFilter, dateRange?.from, dateRange?.to];
   const { data: labTestsData, isLoading } = useQuery<{ items: LabTestWithPatient[]; total: number; processingCount?: number; completeCount?: number; withReportsCount?: number }>({
     queryKey: labTestsQueryKey,
     queryFn: async () => {
       const params = new URLSearchParams();
-      const limit = Math.max(1, pageSize);
-      params.set("limit", String(limit));
-      params.set("offset", String((page - 1) * limit));
+      params.set("page", String(page));
+      params.set("limit", String(Math.max(1, pageSize)));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (categoryFilter !== "all") params.set("categoryFilter", categoryFilter);
       if (dateRange?.from) params.set("dateFrom", dateRange.from);
       if (dateRange?.to) params.set("dateTo", dateRange.to);
-      const res = await fetch(getApiUrl(`/api/lab-tests?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/lab-tests/paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const raw = await res.json();
       return normalizePaginatedResponse<LabTestWithPatient>(raw) as typeof raw;
@@ -440,6 +439,7 @@ export default function LabTestsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests/paginated"] });
       setDialogOpen(false);
       setForm(defaultForm);
       toast({ title: t("labTests.createdSuccess") });
@@ -456,6 +456,7 @@ export default function LabTestsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests/paginated"] });
       setEditTest(null);
       setForm(defaultForm);
       setFieldErrors({});
@@ -472,6 +473,7 @@ export default function LabTestsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests/paginated"] });
       toast({ title: t("labTests.deleted") });
     },
   });
@@ -482,6 +484,7 @@ export default function LabTestsPage() {
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests/paginated"] });
       setSelectedIds(new Set());
       toast({ title: `${ids.length} lab test(s) deleted` });
     },
@@ -497,6 +500,7 @@ export default function LabTestsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests/paginated"] });
       toast({ title: "Test results saved" });
       setInputResultsTest(null);
       setInputResultsValues({});
@@ -803,6 +807,7 @@ export default function LabTestsPage() {
         throw new Error(err.message);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/lab-tests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-tests/paginated"] });
       toast({ title: t("labTests.reportUploaded") });
       setUploadTest(null);
       setUploadReferrer("");
@@ -823,7 +828,7 @@ export default function LabTestsPage() {
       const billRes = await fetch(getApiUrl(`/api/bills/by-billno?billNo=${encodeURIComponent(v)}`), { credentials: "include" });
       if (billRes.ok) {
         const bill = await billRes.json();
-        const ltRes = await fetch(getApiUrl(`/api/lab-tests?limit=10&offset=0&billId=${bill.id}`), { credentials: "include" });
+        const ltRes = await fetch(getApiUrl(`/api/lab-tests/paginated?page=1&limit=10&billId=${bill.id}`), { credentials: "include" });
         if (ltRes.ok) {
           const data = await ltRes.json();
           const byBill = data.items || [];
@@ -840,7 +845,7 @@ export default function LabTestsPage() {
       const patRes = await fetch(getApiUrl(`/api/patients/by-patient-id?patientId=${encodeURIComponent(v)}`), { credentials: "include" });
       if (patRes.ok) {
         const pat = await patRes.json();
-        const ltRes = await fetch(getApiUrl(`/api/lab-tests?limit=10&offset=0&patientId=${pat.id}`), { credentials: "include" });
+        const ltRes = await fetch(getApiUrl(`/api/lab-tests/paginated?page=1&limit=10&patientId=${pat.id}`), { credentials: "include" });
         if (ltRes.ok) {
           const data = await ltRes.json();
           const byPatient = data.items || [];

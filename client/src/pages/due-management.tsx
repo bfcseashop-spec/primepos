@@ -108,17 +108,16 @@ export default function DueManagementPage() {
   useEffect(() => { setSummariesPage(1); }, [debouncedSearch, statusFilter, dateFrom, dateTo]);
 
   const { data: summaryData, isLoading, isError: summaryError, error: summaryErr, refetch: refetchSummary } = useQuery<{ summaries: PatientDueSummary[]; total: number }>({
-    queryKey: ["/api/dues", debouncedSearch, statusFilter, dateFrom, dateTo, summariesPage, summariesPageSize],
+    queryKey: ["/api/dues/paginated", debouncedSearch, statusFilter, dateFrom, dateTo, summariesPage, summariesPageSize],
     queryFn: async () => {
       const params = new URLSearchParams();
-      const limit = Math.max(1, summariesPageSize);
-      params.set("limit", String(limit));
-      params.set("offset", String((summariesPage - 1) * limit));
+      params.set("page", String(summariesPage));
+      params.set("limit", String(Math.max(1, summariesPageSize)));
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
-      const res = await fetch(getApiUrl(`/api/dues?${params}`), { credentials: "include" });
+      const res = await fetch(getApiUrl(`/api/dues/paginated?${params}`), { credentials: "include" });
       if (!res.ok) throw new Error(await parseApiError(res));
       return res.json();
     },
@@ -269,6 +268,7 @@ export default function DueManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       setPaymentDialogOpen(false);
@@ -292,6 +292,7 @@ export default function DueManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/due/payments"] });
@@ -309,6 +310,7 @@ export default function DueManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/due/payments"] });
@@ -327,6 +329,7 @@ export default function DueManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       setShowCreateDue(false);
@@ -464,6 +467,7 @@ export default function DueManagementPage() {
         success++;
       }
       queryClient.invalidateQueries({ queryKey: ["/api/dues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dues/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dues/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       setShowImportDialog(false);
