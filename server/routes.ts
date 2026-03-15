@@ -1581,7 +1581,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/bills-stats", async (req, res) => {
+  const billsStatsHandler = async (req: express.Request, res: express.Response) => {
     try {
       const result = await storage.getBillsStats({
         search: (req.query.search as string)?.trim() || undefined,
@@ -1593,7 +1593,9 @@ export async function registerRoutes(
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
-  });
+  };
+  app.get("/api/bills-stats", billsStatsHandler);
+  app.get("/api/bills-state", billsStatsHandler); // alias for legacy/cached clients
 
   app.get("/api/bills/by-billno", async (req, res) => {
     try {

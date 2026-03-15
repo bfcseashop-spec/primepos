@@ -106,9 +106,12 @@ if [ -f "scripts/run-due-migration.js" ] && [ -f "migrations/0001_due_management
   node scripts/run-due-migration.js || echo "  (migration skipped or already applied)"
 fi
 
-# --- 8. PM2 restart (full restart, no cache) ---
+# --- 8. PM2 restart (delete + start ensures fresh process loads new dist/schema) ---
 echo "[8/8] pm2 restart"
-pm2 restart primepos --update-env 2>/dev/null || npm run pm2:restart
+# delete + start (not just restart) forces Node to load fresh dist/index.cjs - no module cache
+pm2 delete primepos 2>/dev/null || true
+cd "$SCRIPT_DIR" && pm2 start ecosystem.config.cjs
+pm2 save 2>/dev/null || true
 
 echo ""
 echo "=== Deploy complete ==="

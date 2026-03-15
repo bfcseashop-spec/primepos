@@ -61,6 +61,25 @@ To enable database backups:
 
 ## Troubleshooting
 
+**Backend not picking up new routes/schema after deploy**
+
+The deploy uses `pm2 delete` + `pm2 start` (not just restart) to force a fresh Node process that loads the new `dist/index.cjs`. If you still see old behavior:
+
+1. **Run deploy as the PM2 owner** – PM2 processes are per-user. If you use `sudo ./deploy.sh` but PM2 was started by `admin93`, run instead:
+   ```bash
+   sudo -u admin93 bash deploy.sh
+   ```
+   Or run without sudo: `bash deploy.sh` (as the user that owns PM2).
+
+2. **Verify dist was rebuilt** – After deploy, check: `ls -la /var/www/primepos/dist/index.cjs` (timestamp should be recent).
+
+3. **Manual PM2 refresh** – From the project directory:
+   ```bash
+   pm2 delete primepos
+   pm2 start ecosystem.config.cjs
+   pm2 save
+   ```
+
 **"Permission denied" when writing to backups/**
 
 If backups were created by root (from a previous `sudo` run), run once:
