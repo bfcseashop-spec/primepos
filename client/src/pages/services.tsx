@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, downloadFile, getApiUrl } from "@/lib/queryClient";
+import { apiRequest, queryClient, downloadFile, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
 import {
   Plus, Search, MoreVertical, Eye, Pencil, Trash2, ImagePlus, X, Check,
   FolderPlus, Activity, CheckCircle2, XCircle, DollarSign, Layers,
@@ -28,6 +28,7 @@ import {
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
+import { TablePagination } from "@/components/table-pagination";
 import type { Service, Injection } from "@shared/schema";
 
 const DEFAULT_SERVICE_CATEGORIES = [
@@ -934,6 +935,16 @@ export default function ServicesPage() {
   const [reportCategoryNew, setReportCategoryNew] = useState("");
   const [rangesModalParamIndex, setRangesModalParamIndex] = useState<number | null>(null);
   const [rangesModalRanges, setRangesModalRanges] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchTerm]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, categoryFilter]);
 
   const { data: settings } = useQuery<{ reportCategories?: string[] }>({ queryKey: ["/api/settings"] });
   const reportCategories = settings?.reportCategories && settings.reportCategories.length > 0 ? settings.reportCategories : DEFAULT_REPORT_CATEGORIES;
@@ -953,9 +964,33 @@ export default function ServicesPage() {
     },
   });
 
-  const { data: services = [], isLoading } = useQuery<Service[]>({
-    queryKey: ["/api/services"],
+  const { data: servicesData, isLoading } = useQuery<{ items: Service[]; total: number }>({
+    queryKey: ["/api/services/paginated", page, pageSize, debouncedSearch, categoryFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", String(Math.max(1, pageSize)));
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (categoryFilter && categoryFilter !== "all") params.set("categoryFilter", categoryFilter);
+      const res = await fetch(getApiUrl(`/api/services/paginated?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      const raw = await res.json();
+      return normalizePaginatedResponse(raw) as { items: Service[]; total: number };
+    },
   });
+  const { data: servicesStats } = useQuery<{ total: number; activeCount: number; inactiveCount: number; categoriesCount: number; totalValue: number; categories: string[] }>({
+    queryKey: ["/api/services/stats", debouncedSearch, categoryFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (categoryFilter && categoryFilter !== "all") params.set("categoryFilter", categoryFilter);
+      const res = await fetch(getApiUrl(`/api/services/stats?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+  });
+  const services = servicesData?.items ?? [];
+  const servicesTotal = servicesStats?.total ?? servicesData?.total ?? 0;
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -964,6 +999,8 @@ export default function ServicesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
       setDialogOpen(false);
       setForm(defaultForm);
       toast({ title: t("services.createdSuccess") });
@@ -980,6 +1017,8 @@ export default function ServicesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
       setEditService(null);
       setForm(defaultForm);
       toast({ title: t("services.updatedSuccess") });
@@ -995,6 +1034,8 @@ export default function ServicesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
       toast({ title: t("services.deleted") });
       setDeleteService(null);
     },
@@ -1006,6 +1047,8 @@ export default function ServicesPage() {
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
       setSelectedIds(new Set());
       toast({ title: `${ids.length} service(s) deleted` });
     },
@@ -1044,6 +1087,8 @@ export default function ServicesPage() {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
       setImportResult(result);
       setImportFile(null);
       toast({ title: `${result.imported} service(s) imported successfully` });
@@ -1150,26 +1195,20 @@ export default function ServicesPage() {
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
     toast({ title: t("common.dataRefreshed") });
   };
 
   const parseCategories = (cat: string) => cat.split(",").map(c => c.trim()).filter(Boolean);
-  const filtered = services.filter(s => {
-    const matchSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.description || "").toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCategory = categoryFilter === "all" || parseCategories(s.category).includes(categoryFilter);
-    return matchSearch && matchCategory;
-  });
-
-  const activeCount = services.filter(s => s.isActive).length;
-  const inactiveCount = services.filter(s => !s.isActive).length;
-  const uniqueCategories = Array.from(new Set(services.flatMap(s => parseCategories(s.category)))).sort();
+  const filtered = services;
+  const uniqueCategories = servicesStats?.categories ?? [];
   const allCategoriesForForm = Array.from(new Set([...categories, ...uniqueCategories, ...services.map(s => s.category).filter(Boolean)])).sort();
   const categoriesToShowInModal = Array.from(new Set([...categories, ...uniqueCategories])).sort();
-  const totalValue = services.reduce((sum, s) => sum + parseFloat(s.price || "0"), 0);
+  const activeCount = servicesStats?.activeCount ?? 0;
+  const inactiveCount = servicesStats?.inactiveCount ?? 0;
+  const totalValue = servicesStats?.totalValue ?? 0;
 
-  const servicesUsingCategory = (cat: string) => services.filter(s => parseCategories(s.category).includes(cat));
   const handleRenameCategory = async (oldName: string, newName: string) => {
     const trimmed = newName.trim();
     if (!trimmed || trimmed === oldName) {
@@ -1183,37 +1222,33 @@ export default function ServicesPage() {
     const updatedCats = categories.map(c => c === oldName ? trimmed : c).sort();
     setCategories(updatedCats);
     saveServiceCategories(updatedCats);
-    const toUpdate = services.filter(s => parseCategories(s.category).includes(oldName));
-    for (const svc of toUpdate) {
-      const cats = parseCategories(svc.category);
-      const updated = cats.map(c => c === oldName ? trimmed : c).join(", ");
-      await apiRequest("PATCH", `/api/services/${svc.id}`, { category: updated });
+    try {
+      const res = await apiRequest("POST", "/api/services/bulk-update-category", { oldCategory: oldName, newCategory: trimmed });
+      const data = (await res.json()) as { updated?: number };
+      const updated = data?.updated ?? 0;
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
+      setEditingCategory(null);
+      toast({ title: t("common.saved") || "Category updated", description: updated > 0 ? `${updated} service(s) updated` : undefined });
+    } catch (err: any) {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
     }
-    if (toUpdate.length > 0) queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-    setEditingCategory(null);
-    toast({ title: t("common.saved") || "Category updated" });
   };
   const handleDeleteCategory = (cat: string) => {
-    const usedBy = servicesUsingCategory(cat);
-    if (usedBy.length > 0) {
-      const fallback = "Other";
-      const updatedCats = categories.filter(c => c !== cat);
-      setCategories(updatedCats);
-      saveServiceCategories(updatedCats);
-      Promise.all(usedBy.map(svc => {
-        const cats = parseCategories(svc.category).filter(c => c !== cat);
-        const newCat = cats.length > 0 ? cats.join(", ") : fallback;
-        return apiRequest("PATCH", `/api/services/${svc.id}`, { category: newCat });
-      })).then(() => {
+    const updatedCats = categories.filter(c => c !== cat);
+    setCategories(updatedCats);
+    saveServiceCategories(updatedCats);
+    apiRequest("POST", "/api/services/bulk-remove-category", { oldCategory: cat, fallbackCategory: "Other" })
+      .then((res) => res.json())
+      .then((data) => {
+        const updated = data?.updated ?? 0;
         queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-        toast({ title: t("common.categoryRemoved"), description: usedBy.length > 0 ? `${usedBy.length} service(s) updated` : undefined });
-      });
-    } else {
-      const updated = categories.filter(c => c !== cat);
-      setCategories(updated);
-      saveServiceCategories(updated);
-      toast({ title: t("common.categoryRemoved") });
-    }
+        queryClient.invalidateQueries({ queryKey: ["/api/services/paginated"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/services/stats"] });
+        toast({ title: t("common.categoryRemoved"), description: updated > 0 ? `${updated} service(s) updated` : undefined });
+      })
+      .catch((err) => toast({ title: t("common.error"), description: err.message, variant: "destructive" }));
     setDeleteCategoryConfirm({ open: false });
   };
 
@@ -1222,7 +1257,7 @@ export default function ServicesPage() {
   const getInitials = (name: string) => name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
 
   const statCards = [
-    { label: t("services.totalServices"), value: services.length, gradient: "from-blue-500 to-blue-600", icon: Activity },
+    { label: t("services.totalServices"), value: servicesTotal, gradient: "from-blue-500 to-blue-600", icon: Activity },
     { label: t("common.active"), value: activeCount, gradient: "from-emerald-500 to-emerald-600", icon: CheckCircle2 },
     { label: t("common.inactive"), value: inactiveCount, gradient: "from-red-500 to-red-600", icon: XCircle },
     { label: t("services.categories"), value: uniqueCategories.length, gradient: "from-violet-500 to-violet-600", icon: Layers },
@@ -2058,7 +2093,7 @@ export default function ServicesPage() {
                 </Button>
               </div>
               <div className="text-xs text-muted-foreground">
-                {t("common.showing")} <span className="font-semibold text-foreground">{filtered.length}</span> {t("common.of")} {services.length} {t("sidebar.services")}
+                {t("common.showing")} <span className="font-semibold text-foreground">{filtered.length}</span> {t("common.of")} {servicesTotal} {t("sidebar.services")}
               </div>
             </div>
           </CardContent>
@@ -2119,6 +2154,9 @@ export default function ServicesPage() {
           <div className="space-y-2">
             {filtered.map(renderServiceListItem)}
           </div>
+        )}
+        {servicesTotal > 0 && (
+          <TablePagination page={page} pageSize={pageSize} total={servicesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
         )}
       </div>
 

@@ -64,11 +64,16 @@ export interface IStorage {
   deletePatient(id: number): Promise<void>;
 
   getServices(): Promise<Service[]>;
+  getServicesPaginated(opts: { limit: number; offset: number; search?: string; categoryFilter?: string; statusFilter?: string }): Promise<{ items: Service[]; total: number }>;
+  getServicesStats(opts?: { search?: string; categoryFilter?: string; statusFilter?: string }): Promise<{ total: number; activeCount: number; inactiveCount: number; categoriesCount: number; totalValue: number; categories: string[] }>;
   getService(id: number): Promise<Service | undefined>;
   createService(service: InsertService): Promise<Service>;
   updateService(id: number, data: Partial<InsertService>): Promise<Service | undefined>;
   deleteService(id: number): Promise<void>;
   bulkDeleteServices(ids: number[]): Promise<void>;
+  bulkUpdateServiceCategory(oldCategory: string, newCategory: string): Promise<number>;
+  bulkRemoveServiceCategory(oldCategory: string, fallbackCategory: string): Promise<number>;
+  getServicesByCategoryContaining(categorySubstring: string): Promise<Service[]>;
 
   getInjections(): Promise<Injection[]>;
   getInjection(id: number): Promise<Injection | undefined>;
@@ -88,6 +93,7 @@ export interface IStorage {
   getStockAdjustmentsByMedicineId(medicineId: number): Promise<StockAdjustment[]>;
 
   getPackages(): Promise<Package[]>;
+  getPackagesPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string }): Promise<{ items: Package[]; total: number }>;
   getPackage(id: number): Promise<Package | undefined>;
   createPackage(pkg: InsertPackage): Promise<Package>;
   updatePackage(id: number, data: Partial<InsertPackage>): Promise<Package | undefined>;
@@ -206,6 +212,8 @@ export interface IStorage {
   updateHrmAttendance(id: number, data: Partial<InsertHrmAttendance>): Promise<HrmAttendance | undefined>;
 
   getDoctors(): Promise<Doctor[]>;
+  getDoctorsPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string; departmentFilter?: string }): Promise<{ items: Doctor[]; total: number }>;
+  getDoctorsStats(opts?: { search?: string; statusFilter?: string; departmentFilter?: string }): Promise<{ total: number; activeCount: number; onLeaveCount: number; inactiveCount: number }>;
   getDoctor(id: number): Promise<Doctor | undefined>;
   createDoctor(doctor: InsertDoctor): Promise<Doctor>;
   updateDoctor(id: number, data: Partial<InsertDoctor>): Promise<Doctor | undefined>;
@@ -433,6 +441,56 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(services).orderBy(services.name);
   }
 
+  async getServicesPaginated(opts: { limit: number; offset: number; search?: string; categoryFilter?: string; statusFilter?: string }): Promise<{ items: Service[]; total: number }> {
+    const { limit, offset, search, categoryFilter, statusFilter } = opts;
+    const conds: ReturnType<typeof sql>[] = [];
+    if (search?.trim()) conds.push(or(ilike(services.name, "%" + search.trim() + "%"), ilike(services.category, "%" + search.trim() + "%"))!);
+    if (categoryFilter?.trim() && categoryFilter !== "all") conds.push(ilike(services.category, "%" + categoryFilter.trim() + "%"));
+    if (statusFilter && statusFilter !== "all") {
+      if (statusFilter === "active") conds.push(eq(services.isActive, true));
+      else if (statusFilter === "inactive") conds.push(eq(services.isActive, false));
+    }
+    const whereClause = conds.length > 0 ? and(...conds) : undefined;
+    const baseWhere = whereClause ?? sql`true`;
+    const totalRes = await db.select({ count: count() }).from(services).where(baseWhere);
+    const total = Number(totalRes[0]?.count ?? 0);
+    const items = await db.select().from(services).where(baseWhere).orderBy(services.name).limit(limit).offset(offset);
+    return { items, total };
+  }
+
+  async getServicesStats(opts?: { search?: string; categoryFilter?: string; statusFilter?: string }): Promise<{ total: number; activeCount: number; inactiveCount: number; categoriesCount: number; totalValue: number }> {
+    const conds: ReturnType<typeof sql>[] = [];
+    if (opts?.search?.trim()) {
+      const s = "%" + opts.search.trim() + "%";
+      conds.push(or(ilike(services.name, s), ilike(services.category, s))!);
+    }
+    if (opts?.categoryFilter?.trim() && opts.categoryFilter !== "all") conds.push(ilike(services.category, "%" + opts.categoryFilter.trim() + "%"));
+    if (opts?.statusFilter && opts.statusFilter !== "all") {
+      if (opts.statusFilter === "active") conds.push(eq(services.isActive, true));
+      else if (opts.statusFilter === "inactive") conds.push(eq(services.isActive, false));
+    }
+    const baseWhere = conds.length > 0 ? and(...conds) : sql`true`;
+    const all = await db.select().from(services).where(baseWhere);
+    const parseCats = (s: string) => s.split(",").map((c) => c.trim()).filter(Boolean);
+    const uniqueCats = new Set<string>();
+    let totalValue = 0;
+    for (const svc of all) {
+      for (const c of parseCats(svc.category)) uniqueCats.add(c);
+      totalValue += parseFloat(String(svc.price || 0));
+    }
+    const [totalR] = await db.select({ count: count() }).from(services).where(baseWhere);
+    const [activeR] = await db.select({ count: count() }).from(services).where(and(baseWhere, eq(services.isActive, true)));
+    const [inactiveR] = await db.select({ count: count() }).from(services).where(and(baseWhere, eq(services.isActive, false)));
+    return {
+      total: Number(totalR?.count ?? 0),
+      activeCount: Number(activeR?.count ?? 0),
+      inactiveCount: Number(inactiveR?.count ?? 0),
+      categoriesCount: uniqueCats.size,
+      totalValue,
+      categories: Array.from(uniqueCats).sort(),
+    };
+  }
+
   async getService(id: number): Promise<Service | undefined> {
     const [service] = await db.select().from(services).where(eq(services.id, id));
     return service;
@@ -454,6 +512,48 @@ export class DatabaseStorage implements IStorage {
 
   async bulkDeleteServices(ids: number[]): Promise<void> {
     await db.delete(services).where(inArray(services.id, ids));
+  }
+
+  async getServicesByCategoryContaining(categorySubstring: string): Promise<Service[]> {
+    if (!categorySubstring?.trim()) return [];
+    const pattern = "%" + categorySubstring.trim() + "%";
+    return db.select().from(services).where(ilike(services.category, pattern));
+  }
+
+  async bulkUpdateServiceCategory(oldCategory: string, newCategory: string): Promise<number> {
+    const oldTrim = oldCategory?.trim();
+    const newTrim = newCategory?.trim();
+    if (!oldTrim || !newTrim) return 0;
+    const all = await this.getServicesByCategoryContaining(oldTrim);
+    const parseCats = (s: string) => s.split(",").map((c) => c.trim()).filter(Boolean);
+    let updated = 0;
+    for (const svc of all) {
+      const cats = parseCats(svc.category);
+      if (!cats.includes(oldTrim)) continue;
+      const newCats = cats.map((c) => (c === oldTrim ? newTrim : c));
+      const newCategoryStr = newCats.join(", ");
+      await db.update(services).set({ category: newCategoryStr }).where(eq(services.id, svc.id));
+      updated++;
+    }
+    return updated;
+  }
+
+  async bulkRemoveServiceCategory(oldCategory: string, fallbackCategory: string): Promise<number> {
+    const oldTrim = oldCategory?.trim();
+    const fallback = fallbackCategory?.trim() || "Other";
+    if (!oldTrim) return 0;
+    const all = await this.getServicesByCategoryContaining(oldTrim);
+    const parseCats = (s: string) => s.split(",").map((c) => c.trim()).filter(Boolean);
+    let updated = 0;
+    for (const svc of all) {
+      const cats = parseCats(svc.category);
+      if (!cats.includes(oldTrim)) continue;
+      const newCats = cats.filter((c) => c !== oldTrim);
+      const newCategoryStr = newCats.length > 0 ? newCats.join(", ") : fallback;
+      await db.update(services).set({ category: newCategoryStr }).where(eq(services.id, svc.id));
+      updated++;
+    }
+    return updated;
   }
 
   async getInjections(): Promise<Injection[]> {
@@ -569,6 +669,22 @@ export class DatabaseStorage implements IStorage {
 
   async getPackages(): Promise<Package[]> {
     return db.select().from(packages).orderBy(packages.name);
+  }
+
+  async getPackagesPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string }): Promise<{ items: Package[]; total: number }> {
+    const { limit, offset, search, statusFilter } = opts;
+    const conds: ReturnType<typeof sql>[] = [];
+    if (search?.trim()) conds.push(or(ilike(packages.name, "%" + search.trim() + "%"), ilike(packages.description, "%" + search.trim() + "%"))!);
+    if (statusFilter && statusFilter !== "all") {
+      if (statusFilter === "active") conds.push(eq(packages.isActive, true));
+      else if (statusFilter === "inactive") conds.push(eq(packages.isActive, false));
+    }
+    const whereClause = conds.length > 0 ? and(...conds) : undefined;
+    const baseWhere = whereClause ?? sql`true`;
+    const totalRes = await db.select({ count: count() }).from(packages).where(baseWhere);
+    const total = Number(totalRes[0]?.count ?? 0);
+    const items = await db.select().from(packages).where(baseWhere).orderBy(packages.name).limit(limit).offset(offset);
+    return { items, total };
   }
 
   async getPackage(id: number): Promise<Package | undefined> {
@@ -1866,9 +1982,55 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(doctors).orderBy(desc(doctors.createdAt));
   }
 
+  async getDoctorsPaginated(opts: { limit: number; offset: number; search?: string; statusFilter?: string; departmentFilter?: string }): Promise<{ items: Doctor[]; total: number }> {
+    const { limit, offset, search, statusFilter, departmentFilter } = opts;
+    const conds: ReturnType<typeof sql>[] = [];
+    if (search?.trim()) {
+      const s = "%" + search.trim() + "%";
+      conds.push(or(ilike(doctors.name, s), ilike(doctors.specialization, s), ilike(doctors.department, s), ilike(doctors.doctorId, s))!);
+    }
+    if (statusFilter && statusFilter !== "all") {
+      if (statusFilter === "active") conds.push(eq(doctors.status, "active"));
+      else if (statusFilter === "inactive") conds.push(eq(doctors.status, "inactive"));
+      else if (statusFilter === "on_leave" || statusFilter === "on-leave") conds.push(eq(doctors.status, "on_leave"));
+    }
+    if (departmentFilter?.trim() && departmentFilter !== "all") conds.push(ilike(doctors.department, "%" + departmentFilter.trim() + "%"));
+    const whereClause = conds.length > 0 ? and(...conds) : undefined;
+    const baseWhere = whereClause ?? sql`true`;
+    const totalRes = await db.select({ count: count() }).from(doctors).where(baseWhere);
+    const total = Number(totalRes[0]?.count ?? 0);
+    const items = await db.select().from(doctors).where(baseWhere).orderBy(desc(doctors.createdAt)).limit(limit).offset(offset);
+    return { items, total };
+  }
+
   async getDoctor(id: number): Promise<Doctor | undefined> {
     const [doc] = await db.select().from(doctors).where(eq(doctors.id, id));
     return doc;
+  }
+
+  async getDoctorsStats(opts?: { search?: string; statusFilter?: string; departmentFilter?: string }): Promise<{ total: number; activeCount: number; onLeaveCount: number; inactiveCount: number }> {
+    const conds: ReturnType<typeof sql>[] = [];
+    if (opts?.search?.trim()) {
+      const s = "%" + opts.search.trim() + "%";
+      conds.push(or(ilike(doctors.name, s), ilike(doctors.specialization, s), ilike(doctors.department, s), ilike(doctors.doctorId, s))!);
+    }
+    if (opts?.statusFilter && opts.statusFilter !== "all") {
+      if (opts.statusFilter === "active") conds.push(eq(doctors.status, "active"));
+      else if (opts.statusFilter === "inactive") conds.push(eq(doctors.status, "inactive"));
+      else if (opts.statusFilter === "on_leave" || opts.statusFilter === "on-leave") conds.push(eq(doctors.status, "on_leave"));
+    }
+    if (opts?.departmentFilter?.trim() && opts.departmentFilter !== "all") conds.push(ilike(doctors.department, "%" + opts.departmentFilter.trim() + "%"));
+    const baseWhere = conds.length > 0 ? and(...conds) : sql`true`;
+    const [totalR] = await db.select({ count: count() }).from(doctors).where(baseWhere);
+    const [activeR] = await db.select({ count: count() }).from(doctors).where(and(baseWhere, eq(doctors.status, "active")));
+    const [onLeaveR] = await db.select({ count: count() }).from(doctors).where(and(baseWhere, eq(doctors.status, "on_leave")));
+    const [inactiveR] = await db.select({ count: count() }).from(doctors).where(and(baseWhere, eq(doctors.status, "inactive")));
+    return {
+      total: Number(totalR?.count ?? 0),
+      activeCount: Number(activeR?.count ?? 0),
+      onLeaveCount: Number(onLeaveR?.count ?? 0),
+      inactiveCount: Number(inactiveR?.count ?? 0),
+    };
   }
 
   async createDoctor(doctor: InsertDoctor): Promise<Doctor> {

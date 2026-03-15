@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
 import { Plus, Pencil, Trash2, Package, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { TablePagination } from "@/components/table-pagination";
@@ -26,6 +26,17 @@ export default function PackagesPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchTerm]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [items, setItems] = useState<PackageItem[]>([]);
@@ -35,7 +46,22 @@ export default function PackagesPage() {
   const [newItemQty, setNewItemQty] = useState(1);
   const [newItemPrice, setNewItemPrice] = useState("");
 
-  const { data: packagesList = [] } = useQuery<PackageType[]>({ queryKey: ["/api/packages"] });
+  const { data: packagesData, isLoading } = useQuery<{ items: PackageType[]; total: number }>({
+    queryKey: ["/api/packages/paginated", page, pageSize, debouncedSearch, statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", String(Math.max(1, pageSize)));
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
+      const res = await fetch(getApiUrl(`/api/packages/paginated?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      const raw = await res.json();
+      return normalizePaginatedResponse(raw) as { items: PackageType[]; total: number };
+    },
+  });
+  const packagesList = packagesData?.items ?? [];
+  const packagesTotal = packagesData?.total ?? 0;
   const { data: services = [] } = useQuery<Service[]>({ queryKey: ["/api/services"] });
   const { data: injections = [] } = useQuery<Injection[]>({ queryKey: ["/api/injections"] });
   const { data: medicines = [] } = useQuery<Medicine[]>({ queryKey: ["/api/medicines"] });
@@ -125,6 +151,7 @@ export default function PackagesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/packages/paginated"] });
       setDialogOpen(false);
       toast({ title: "Package created" });
     },
@@ -138,6 +165,7 @@ export default function PackagesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/packages/paginated"] });
       setDialogOpen(false);
       setEditPkg(null);
       toast({ title: "Package updated" });
@@ -149,6 +177,7 @@ export default function PackagesPage() {
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/packages/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/packages/paginated"] });
       setDeleteConfirm(null);
       toast({ title: "Package deleted" });
     },
@@ -178,9 +207,6 @@ export default function PackagesPage() {
     return list.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0).toFixed(2);
   };
 
-  const activePackages = packagesList.filter(p => p.isActive);
-  const paginatedPackages = activePackages.slice((page - 1) * pageSize, page * pageSize);
-
   return (
     <div className="flex flex-col h-full">
       <PageHeader
@@ -193,8 +219,29 @@ export default function PackagesPage() {
         }
       />
       <div className="flex-1 overflow-auto p-4">
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          <Input
+            placeholder="Search packages..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-xs"
+          />
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {isLoading ? (
+          <div className="p-8 text-center text-muted-foreground">Loading packages...</div>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {paginatedPackages.map((pkg) => (
+          {packagesList.map((pkg) => (
             <Card key={pkg.id} className="cursor-pointer hover:ring-2 hover:ring-primary/20 transition-shadow" data-testid={`card-package-${pkg.id}`} onClick={() => setViewPkg(pkg)}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
@@ -225,10 +272,11 @@ export default function PackagesPage() {
             </Card>
           ))}
         </div>
-        {activePackages.length > 0 && (
-          <TablePagination page={page} pageSize={pageSize} total={activePackages.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
         )}
-        {packagesList.length === 0 && (
+        {packagesTotal > 0 && (
+          <TablePagination page={page} pageSize={pageSize} total={packagesTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+        )}
+        {!isLoading && packagesList.length === 0 && (
           <Card>
             <CardContent className="p-8 text-center text-muted-foreground">
               <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />

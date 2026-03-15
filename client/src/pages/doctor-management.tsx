@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/page-header";
-import { queryClient, apiRequest, getApiUrl } from "@/lib/queryClient";
+import { queryClient, apiRequest, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -85,8 +85,44 @@ export default function DoctorManagementPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, departmentFilter]);
 
-  const { data: doctors = [], isLoading } = useQuery<Doctor[]>({ queryKey: ["/api/doctors"] });
+  const { data: doctorsData, isLoading } = useQuery<{ items: Doctor[]; total: number }>({
+    queryKey: ["/api/doctors/paginated", page, pageSize, debouncedSearch, statusFilter, departmentFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", String(Math.max(1, pageSize)));
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
+      if (departmentFilter && departmentFilter !== "all") params.set("departmentFilter", departmentFilter);
+      const res = await fetch(getApiUrl(`/api/doctors/paginated?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      const raw = await res.json();
+      return normalizePaginatedResponse(raw) as { items: Doctor[]; total: number };
+    },
+  });
+  const { data: doctorsStats } = useQuery<{ total: number; activeCount: number; onLeaveCount: number; inactiveCount: number }>({
+    queryKey: ["/api/doctors/stats", debouncedSearch, statusFilter, departmentFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (statusFilter && statusFilter !== "all") params.set("statusFilter", statusFilter);
+      if (departmentFilter && departmentFilter !== "all") params.set("departmentFilter", departmentFilter);
+      const res = await fetch(getApiUrl(`/api/doctors/stats?${params}`), { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+  });
+  const doctors = doctorsData?.items ?? [];
+  const doctorsTotal = doctorsStats?.total ?? doctorsData?.total ?? 0;
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -100,6 +136,8 @@ export default function DoctorManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/doctors"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/doctors/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/doctors/stats"] });
       toast({ title: "Doctor added successfully" });
       setAddDialog(false);
       resetForm();
@@ -113,6 +151,8 @@ export default function DoctorManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/doctors"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/doctors/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/doctors/stats"] });
       toast({ title: "Doctor updated" });
       setEditDialog(false);
     },
@@ -122,6 +162,8 @@ export default function DoctorManagementPage() {
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/doctors/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/doctors"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/doctors/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/doctors/stats"] });
       toast({ title: "Doctor deleted" });
     },
   });
@@ -151,17 +193,6 @@ export default function DoctorManagementPage() {
     }
   };
 
-  const filtered = doctors.filter((d) => {
-    const matchSearch = !search || d.name.toLowerCase().includes(search.toLowerCase()) ||
-      d.specialization.toLowerCase().includes(search.toLowerCase()) ||
-      (d.department && d.department.toLowerCase().includes(search.toLowerCase())) ||
-      d.doctorId.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || d.status === statusFilter;
-    const matchDept = departmentFilter === "all" || d.department === departmentFilter;
-    return matchSearch && matchStatus && matchDept;
-  });
-  const paginatedDoctors = filtered.slice((page - 1) * pageSize, page * pageSize);
-  useEffect(() => { setPage(1); }, [search, statusFilter, departmentFilter]);
 
   const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
   const getAvatarGradient = (id: number) => avatarGradients[id % avatarGradients.length];
@@ -226,7 +257,7 @@ export default function DoctorManagementPage() {
             >
               <List className="h-4 w-4" />
             </Button>
-            <Button size="icon" variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/doctors"] })} data-testid="button-refresh">
+            <Button size="icon" variant="outline" onClick={() => { queryClient.invalidateQueries({ queryKey: ["/api/doctors"] }); queryClient.invalidateQueries({ queryKey: ["/api/doctors/paginated"] }); queryClient.invalidateQueries({ queryKey: ["/api/doctors/stats"] }); }} data-testid="button-refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -257,10 +288,10 @@ export default function DoctorManagementPage() {
       <div className="flex-1 overflow-auto p-4 space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { key: "total", label: t("doctors.totalDoctors"), gradient: "from-blue-500 to-blue-600", value: doctors.length, icon: Users },
-          { key: "active", label: t("doctors.activeDoctors"), gradient: "from-emerald-500 to-emerald-600", value: doctors.filter(d => d.status === "active").length, icon: CircleCheck },
-          { key: "onleave", label: "On Leave", gradient: "from-amber-500 to-amber-600", value: doctors.filter(d => d.status === "on_leave").length, icon: CalendarOff },
-          { key: "inactive", label: t("common.inactive"), gradient: "from-red-500 to-red-600", value: doctors.filter(d => d.status === "inactive").length, icon: CircleOff },
+          { key: "total", label: t("doctors.totalDoctors"), gradient: "from-blue-500 to-blue-600", value: doctorsTotal, icon: Users },
+          { key: "active", label: t("doctors.activeDoctors"), gradient: "from-emerald-500 to-emerald-600", value: doctorsStats?.activeCount ?? 0, icon: CircleCheck },
+          { key: "onleave", label: "On Leave", gradient: "from-amber-500 to-amber-600", value: doctorsStats?.onLeaveCount ?? 0, icon: CalendarOff },
+          { key: "inactive", label: t("common.inactive"), gradient: "from-red-500 to-red-600", value: doctorsStats?.inactiveCount ?? 0, icon: CircleOff },
         ].map((s) => (
           <Card key={s.key} data-testid={`stat-${s.key}-doctors`}>
             <CardContent className="p-4">
@@ -295,12 +326,12 @@ export default function DoctorManagementPage() {
 
       {isLoading ? (
         <div className="p-8 text-center text-muted-foreground">Loading doctors...</div>
-      ) : filtered.length === 0 ? (
+      ) : doctors.length === 0 ? (
         <div className="p-8 text-center text-muted-foreground">No doctors found. Click "Add New Doctor" to get started.</div>
       ) : viewMode === "grid" ? (
         <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {paginatedDoctors.map((doc) => (
+          {doctors.map((doc) => (
             <Card key={doc.id} className="overflow-visible hover-elevate cursor-pointer" data-testid={`card-doctor-${doc.id}`} onClick={() => { setViewingDoctor(doc); setViewDialog(true); }}>
               <CardContent className="p-0">
                 <div className="h-1 rounded-t-md bg-gradient-to-r from-blue-500 to-violet-500" />
@@ -408,12 +439,12 @@ export default function DoctorManagementPage() {
             </Card>
           ))}
         </div>
-        <TablePagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+        <TablePagination page={page} pageSize={pageSize} total={doctorsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
         </>
       ) : (
         <>
         <div className="space-y-2">
-          {paginatedDoctors.map((doc) => (
+          {doctors.map((doc) => (
             <Card key={doc.id} className="overflow-visible hover-elevate cursor-pointer" data-testid={`card-doctor-${doc.id}`} onClick={() => { setViewingDoctor(doc); setViewDialog(true); }}>
               <CardContent className="p-0">
                 <div className="h-1 rounded-t-md bg-gradient-to-r from-blue-500 to-violet-500" />
@@ -483,7 +514,7 @@ export default function DoctorManagementPage() {
             </Card>
           ))}
         </div>
-        <TablePagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
+        <TablePagination page={page} pageSize={pageSize} total={doctorsTotal} onPageChange={setPage} onPageSizeChange={(v) => { setPageSize(v); setPage(1); }} />
         </>
       )}
 

@@ -2035,6 +2035,39 @@ export async function registerRoutes(
     }
   });
 
+  // Services – paginated endpoint (always returns { items, total })
+  app.get("/api/services/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const result = await storage.getServicesPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        categoryFilter: (req.query.categoryFilter as string) || undefined,
+        statusFilter: (req.query.statusFilter as string) || undefined,
+      });
+      res.json({ items: result.items, total: result.total });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Services – stats endpoint
+  app.get("/api/services/stats", async (req, res) => {
+    try {
+      const result = await storage.getServicesStats({
+        search: (req.query.search as string)?.trim() || undefined,
+        categoryFilter: (req.query.categoryFilter as string) || undefined,
+        statusFilter: (req.query.statusFilter as string) || undefined,
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Services
   app.get("/api/services", async (_req, res) => {
     try {
@@ -2316,6 +2349,33 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/services/bulk-update-category", async (req, res) => {
+    try {
+      const { oldCategory, newCategory } = req.body;
+      if (!oldCategory || typeof oldCategory !== "string" || !newCategory || typeof newCategory !== "string") {
+        return res.status(400).json({ message: "oldCategory and newCategory required" });
+      }
+      const updated = await storage.bulkUpdateServiceCategory(oldCategory, newCategory);
+      res.json({ success: true, updated });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/services/bulk-remove-category", async (req, res) => {
+    try {
+      const { oldCategory, fallbackCategory } = req.body;
+      if (!oldCategory || typeof oldCategory !== "string") {
+        return res.status(400).json({ message: "oldCategory required" });
+      }
+      const fallback = (fallbackCategory && typeof fallbackCategory === "string") ? fallbackCategory : "Other";
+      const updated = await storage.bulkRemoveServiceCategory(oldCategory, fallback);
+      res.json({ success: true, updated });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Medicines
   app.get("/api/medicines/export/:format", async (req, res) => {
     try {
@@ -2493,6 +2553,24 @@ export async function registerRoutes(
     quantity: z.coerce.number().min(1),
     unitPrice: z.coerce.number().min(0),
   });
+  // Packages – paginated endpoint (always returns { items, total })
+  app.get("/api/packages/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const result = await storage.getPackagesPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        statusFilter: (req.query.statusFilter as string) || undefined,
+      });
+      res.json({ items: result.items, total: result.total });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/packages", async (_req, res) => {
     try {
       const result = await storage.getPackages();
@@ -4286,10 +4364,42 @@ export async function registerRoutes(
     }
   }
 
+  // Doctors – paginated endpoint (always returns { items, total })
+  app.get("/api/doctors/paginated", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+      const offset = (page - 1) * limit;
+      const result = await storage.getDoctorsPaginated({
+        limit,
+        offset,
+        search: (req.query.search as string)?.trim() || undefined,
+        statusFilter: (req.query.statusFilter as string) || undefined,
+        departmentFilter: (req.query.departmentFilter as string) || undefined,
+      });
+      res.json({ items: result.items, total: result.total });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Doctors
   app.get("/api/doctors", async (_req, res) => {
     try {
       const result = await storage.getDoctors();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/doctors/stats", async (req, res) => {
+    try {
+      const result = await storage.getDoctorsStats({
+        search: (req.query.search as string)?.trim() || undefined,
+        statusFilter: (req.query.statusFilter as string) || undefined,
+        departmentFilter: (req.query.departmentFilter as string) || undefined,
+      });
       res.json(result);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
