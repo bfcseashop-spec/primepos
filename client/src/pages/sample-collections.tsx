@@ -51,9 +51,47 @@ function ageFromDob(dob: string | null | undefined): number | null {
   return age;
 }
 
+function formatAgeWithUnitStatic(age: number | null | undefined, dob?: string | null): string {
+  if (age == null) {
+    if (!dob) return "-";
+    const d = new Date(dob);
+    if (isNaN(d.getTime())) return "-";
+    const today = new Date();
+    const months = (today.getFullYear() - d.getFullYear()) * 12 + (today.getMonth() - d.getMonth());
+    if (months >= 12) return `${Math.floor(months / 12)}y`;
+    if (months >= 1) return `${months}m`;
+    const days = Math.floor((today.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
+    return `${days}d`;
+  }
+  if (age >= 1) return `${age}y`;
+  if (age === 0 && dob) {
+    const d = new Date(dob);
+    if (!isNaN(d.getTime())) {
+      const today = new Date();
+      const months = (today.getFullYear() - d.getFullYear()) * 12 + (today.getMonth() - d.getMonth());
+      if (months >= 1) return `${months}m`;
+      const days = Math.floor((today.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
+      return `${days}d`;
+    }
+  }
+  return age === 0 ? "0y" : `${age}y`;
+}
+
 function BarcodePreview({ sample }: { sample: SampleCollection }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const barcodeValue = "SC" + sample.id;
+  const age = sample.patientAge != null ? sample.patientAge : (sample.patientDateOfBirth ? (() => {
+    const d = new Date(sample.patientDateOfBirth);
+    if (isNaN(d.getTime())) return null;
+    const today = new Date();
+    let a = today.getFullYear() - d.getFullYear();
+    const m = today.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) a--;
+    return a;
+  })() : null);
+  const genderStr = capitalizeGender(sample.patientGender);
+  const ageStr = formatAgeWithUnitStatic(age, sample.patientDateOfBirth);
+  const sexAgeLine = genderStr !== "-" || ageStr !== "-" ? `${genderStr} | ${ageStr}` : "- | -";
   useEffect(() => {
     if (svgRef.current && sample) {
       try {
@@ -68,7 +106,8 @@ function BarcodePreview({ sample }: { sample: SampleCollection }) {
       <div className="flex flex-col items-center text-center gap-2">
         <svg ref={svgRef} className="w-full max-w-[200px]" data-testid="img-sample-barcode" />
         <p className="font-mono text-sm font-bold">{barcodeValue}</p>
-        <p className="text-xs text-muted-foreground">{sample.testName} • {sample.patientName || "-"}</p>
+        <p className="text-xs font-bold text-foreground">{sample.testName} • {sample.patientName || "-"}</p>
+        <p className="text-xs font-bold text-foreground">{sexAgeLine}</p>
       </div>
     </div>
   );
@@ -81,6 +120,7 @@ export default function SampleCollectionsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [markingId, setMarkingId] = useState<number | null>(null);
   const [barcodeSample, setBarcodeSample] = useState<SampleCollection | null>(null);
+  const [barcodeSampleEnriched, setBarcodeSampleEnriched] = useState<SampleCollection | null>(null);
   const [viewSample, setViewSample] = useState<SampleCollection | null>(null);
   const [editSample, setEditSample] = useState<SampleCollection | null>(null);
   const [editForm, setEditForm] = useState<{ status: string; notes: string; collectedBy: string }>({ status: "pending", notes: "", collectedBy: "" });
@@ -97,6 +137,32 @@ export default function SampleCollectionsPage() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm]);
   useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
+  useEffect(() => {
+    if (!barcodeSample) {
+      setBarcodeSampleEnriched(null);
+      return;
+    }
+    const needsEnrichment = (barcodeSample.patientAge == null && !barcodeSample.patientGender) && barcodeSample.labTestId;
+    if (!needsEnrichment) {
+      setBarcodeSampleEnriched(barcodeSample);
+      return;
+    }
+    let cancelled = false;
+    fetch(getApiUrl(`/api/lab-tests/${barcodeSample.labTestId}`), { credentials: "include" })
+      .then((res) => res.ok ? res.json() : null)
+      .then((lt) => {
+        if (cancelled || !lt) return;
+        setBarcodeSampleEnriched({
+          ...barcodeSample,
+          patientAge: barcodeSample.patientAge ?? lt.patientAge,
+          patientGender: barcodeSample.patientGender ?? lt.patientGender,
+          patientDateOfBirth: barcodeSample.patientDateOfBirth ?? lt.patientDateOfBirth,
+        });
+      })
+      .catch(() => setBarcodeSampleEnriched(barcodeSample));
+    return () => { cancelled = true; };
+  }, [barcodeSample]);
 
   const { data: samplesData, isLoading } = useQuery<{ items: SampleCollection[]; total: number; pendingCount?: number; collectedCount?: number }>({
     queryKey: ["/api/sample-collections-paginated", page, pageSize, debouncedSearch, statusFilter],
@@ -264,14 +330,28 @@ export default function SampleCollectionsPage() {
     });
   };
 
-  const printBarcode = (sample: SampleCollection) => {
+  const printBarcode = async (sample: SampleCollection) => {
+    let patientAge = sample.patientAge;
+    let patientGender = sample.patientGender;
+    let patientDateOfBirth = sample.patientDateOfBirth;
+    if ((patientAge == null && patientGender == null) && sample.labTestId) {
+      try {
+        const res = await fetch(getApiUrl(`/api/lab-tests/${sample.labTestId}`), { credentials: "include" });
+        if (res.ok) {
+          const lt = await res.json();
+          patientAge = patientAge ?? lt.patientAge;
+          patientGender = patientGender ?? lt.patientGender;
+          patientDateOfBirth = patientDateOfBirth ?? lt.patientDateOfBirth;
+        }
+      } catch { /* ignore */ }
+    }
     const barcodeValue = "SC" + sample.id;
     const esc = (s: string) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const testName = esc(sample.testName || "");
     const patientName = esc(sample.patientName || "-");
-    const age = sample.patientAge != null ? sample.patientAge : ageFromDob(sample.patientDateOfBirth);
-    const genderStr = capitalizeGender(sample.patientGender);
-    const ageStr = age != null ? `${age}y` : "-";
+    const age = patientAge != null ? patientAge : ageFromDob(patientDateOfBirth);
+    const genderStr = capitalizeGender(patientGender);
+    const ageStr = formatAgeWithUnitStatic(age, patientDateOfBirth);
     const sexAgeLine = genderStr !== "-" || ageStr !== "-" ? `${genderStr} | ${ageStr}` : "- | -";
     // Generate scannable CODE128 barcode in main window so it is present in print HTML (no CDN/timing in popup)
     let barcodeSvgHtml = "";
@@ -352,6 +432,20 @@ export default function SampleCollectionsPage() {
           {row.patientName || "-"} {row.patientIdCode && `(${row.patientIdCode})`}
         </span>
       ),
+    },
+    {
+      header: "Sex | Age",
+      accessor: (row: SampleCollection) => {
+        const age = row.patientAge != null ? row.patientAge : ageFromDob(row.patientDateOfBirth);
+        const genderStr = capitalizeGender(row.patientGender);
+        const ageStr = formatAgeWithUnitStatic(age, row.patientDateOfBirth);
+        const display = genderStr !== "-" || ageStr !== "-" ? `${genderStr} | ${ageStr}` : "- | -";
+        return (
+          <span className="text-sm text-muted-foreground" data-testid={`text-sex-age-${row.id}`}>
+            {display}
+          </span>
+        );
+      },
     },
     {
       header: "Status",
@@ -669,10 +763,10 @@ export default function SampleCollectionsPage() {
               <DialogDescription className="sr-only">Print barcode label for this sample collection (Code 128, landscape)</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col items-center gap-3 py-4">
-              <BarcodePreview sample={barcodeSample} />
+              <BarcodePreview sample={barcodeSampleEnriched ?? barcodeSample} />
               <Button
                 className="w-full"
-                onClick={() => printBarcode(barcodeSample)}
+                onClick={() => printBarcode(barcodeSampleEnriched ?? barcodeSample)}
                 data-testid="button-print-barcode"
               >
                 <Printer className="h-4 w-4 mr-2" />
