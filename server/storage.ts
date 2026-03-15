@@ -1872,6 +1872,9 @@ export class DatabaseStorage implements IStorage {
       createdAt: sampleCollections.createdAt,
       patientName: patients.name,
       patientIdCode: patients.patientId,
+      patientAge: patients.age,
+      patientGender: patients.gender,
+      patientDateOfBirth: patients.dateOfBirth,
     }).from(sampleCollections).leftJoin(patients, eq(sampleCollections.patientId, patients.id)).orderBy(desc(sampleCollections.createdAt));
   }
 
@@ -1900,6 +1903,9 @@ export class DatabaseStorage implements IStorage {
       createdAt: sampleCollections.createdAt,
       patientName: patients.name,
       patientIdCode: patients.patientId,
+      patientAge: patients.age,
+      patientGender: patients.gender,
+      patientDateOfBirth: patients.dateOfBirth,
     }).from(sampleCollections).leftJoin(patients, eq(sampleCollections.patientId, patients.id));
     const countRes = await db.select({ count: count() }).from(sampleCollections).leftJoin(patients, eq(sampleCollections.patientId, patients.id)).where(whereClause ?? sql`true`);
     const total = Number(countRes[0]?.count ?? 0);
@@ -1917,6 +1923,28 @@ export class DatabaseStorage implements IStorage {
   async getSampleCollection(id: number): Promise<SampleCollection | undefined> {
     const [s] = await db.select().from(sampleCollections).where(eq(sampleCollections.id, id));
     return s;
+  }
+
+  async getSampleCollectionWithPatient(id: number): Promise<any | undefined> {
+    const [row] = await db.select({
+      id: sampleCollections.id,
+      labTestId: sampleCollections.labTestId,
+      patientId: sampleCollections.patientId,
+      billId: sampleCollections.billId,
+      testName: sampleCollections.testName,
+      sampleType: sampleCollections.sampleType,
+      status: sampleCollections.status,
+      collectedAt: sampleCollections.collectedAt,
+      collectedBy: sampleCollections.collectedBy,
+      notes: sampleCollections.notes,
+      createdAt: sampleCollections.createdAt,
+      patientName: patients.name,
+      patientIdCode: patients.patientId,
+      patientAge: patients.age,
+      patientGender: patients.gender,
+      patientDateOfBirth: patients.dateOfBirth,
+    }).from(sampleCollections).leftJoin(patients, eq(sampleCollections.patientId, patients.id)).where(eq(sampleCollections.id, id));
+    return row;
   }
 
   async createSampleCollection(s: InsertSampleCollection): Promise<SampleCollection> {

@@ -1188,6 +1188,17 @@ export default function InvestmentsPage() {
                 })}
               </div>
             )}
+            {investmentsTotal > 0 && (
+              <div className="px-4 pt-2 pb-2 border-t mt-2">
+                <TablePagination
+                  page={invPage}
+                  pageSize={invPageSize}
+                  total={investmentsTotal}
+                  onPageChange={setInvPage}
+                  onPageSizeChange={(v) => { setInvPageSize(v); setInvPage(1); }}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1573,17 +1584,6 @@ export default function InvestmentsPage() {
                   </tbody>
                 </table>
               </div>
-              {filteredContributions.length > 0 && (
-                <div className="px-4 py-3">
-                  <TablePagination
-                    page={contributionPage}
-                    pageSize={contributionPageSize}
-                    total={filteredContributions.length}
-                    onPageChange={setContributionPage}
-                    onPageSizeChange={(v) => { setContributionPageSize(v); setContributionPage(1); }}
-                  />
-                </div>
-              )}
               </>
             ) : (
               <>
@@ -1637,17 +1637,6 @@ export default function InvestmentsPage() {
                   );
                 })}
               </div>
-              {filteredContributions.length > 0 && (
-                <div className="px-4 pb-4">
-                  <TablePagination
-                    page={contributionPage}
-                    pageSize={contributionPageSize}
-                    total={filteredContributions.length}
-                    onPageChange={setContributionPage}
-                    onPageSizeChange={(v) => { setContributionPageSize(v); setContributionPage(1); }}
-                  />
-                </div>
-              )}
               </>
             )}
           </CardContent>
@@ -1665,14 +1654,14 @@ export default function InvestmentsPage() {
           </Button>
         )}
         </div>
-        {investmentsTotal > 0 && (
+        {filteredContributions.length > 0 && (
           <div className="shrink-0 bg-background px-4 py-3">
             <TablePagination
-              page={invPage}
-              pageSize={invPageSize}
-              total={investmentsTotal}
-              onPageChange={setInvPage}
-              onPageSizeChange={(v) => { setInvPageSize(v); setInvPage(1); }}
+              page={contributionPage}
+              pageSize={contributionPageSize}
+              total={filteredContributions.length}
+              onPageChange={setContributionPage}
+              onPageSizeChange={(v) => { setContributionPageSize(v); setContributionPage(1); }}
               fixedAtBottom
             />
           </div>

@@ -34,7 +34,21 @@ type SampleCollection = {
   createdAt: string;
   patientName?: string | null;
   patientIdCode?: string | null;
+  patientAge?: number | null;
+  patientGender?: string | null;
+  patientDateOfBirth?: string | null;
 };
+
+function ageFromDob(dob: string | null | undefined): number | null {
+  if (!dob) return null;
+  const d = new Date(dob);
+  if (isNaN(d.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - d.getFullYear();
+  const m = today.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+  return age;
+}
 
 function BarcodePreview({ sample }: { sample: SampleCollection }) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -251,8 +265,12 @@ export default function SampleCollectionsPage() {
 
   const printBarcode = (sample: SampleCollection) => {
     const barcodeValue = "SC" + sample.id;
-    const testName = (sample.testName || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const patientName = (sample.patientName || "-").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const esc = (s: string) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const testName = esc(sample.testName || "");
+    const patientName = esc(sample.patientName || "-");
+    const age = sample.patientAge != null ? sample.patientAge : ageFromDob(sample.patientDateOfBirth);
+    const sex = esc(sample.patientGender || "-");
+    const ageStr = age != null ? String(age) : "-";
     // Generate scannable CODE128 barcode in main window so it is present in print HTML (no CDN/timing in popup)
     let barcodeSvgHtml = "";
     try {
@@ -291,6 +309,7 @@ export default function SampleCollectionsPage() {
         .sticker .id { font-family: monospace; font-size: 8pt; font-weight: bold; color: #000; margin-bottom: 0.02in; }
         .sticker .test-name { font-size: 8pt; font-weight: bold; line-height: 1.15; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .sticker .patient-name { font-size: 8pt; font-weight: bold; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .patient-sex-age { font-size: 7pt; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       </style></head><body>
       <div class="page-wrap">
         <div class="sticker">
@@ -298,6 +317,7 @@ export default function SampleCollectionsPage() {
           <div class="id">${barcodeValue}</div>
           <div class="test-name">${testName}</div>
           <div class="patient-name">${patientName}</div>
+          <div class="patient-sex-age">Sex: ${sex} | Age: ${ageStr}</div>
         </div>
       </div>
       <script>setTimeout(function(){ window.print(); window.close(); }, 100);<\/script>

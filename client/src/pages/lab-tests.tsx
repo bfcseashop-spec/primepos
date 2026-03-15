@@ -924,6 +924,17 @@ export default function LabTestsPage() {
 
   useGlobalBarcodeScanner(handleBarcodeSearch);
 
+  const ageFromDob = (dob: string | null | undefined): number | null => {
+    if (!dob) return null;
+    const d = new Date(dob);
+    if (isNaN(d.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - d.getFullYear();
+    const m = today.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+    return age;
+  };
+
   const printSampleBarcodes = async (labTestId: number) => {
     try {
       const res = await fetch(getApiUrl(`/api/sample-collections-paginated?labTestId=${labTestId}&limit=100&page=1`), { credentials: "include" });
@@ -940,6 +951,9 @@ export default function LabTestsPage() {
         const barcodeValue = "SC" + sample.id;
         const testName = escape(sample.testName || "");
         const patientName = escape(sample.patientName || "-");
+        const age = sample.patientAge != null ? sample.patientAge : ageFromDob(sample.patientDateOfBirth);
+        const sex = escape(sample.patientGender || "-");
+        const ageStr = age != null ? String(age) : "-";
         let barcodeSvgHtml = "";
         try {
           const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -963,6 +977,7 @@ export default function LabTestsPage() {
             <div class="id">${barcodeValue}</div>
             <div class="test-name">${testName}</div>
             <div class="patient-name">${patientName}</div>
+            <div class="patient-sex-age">Sex: ${sex} | Age: ${ageStr}</div>
           </div>
         </div>`);
       }
@@ -989,6 +1004,7 @@ export default function LabTestsPage() {
         .sticker .id { font-family: monospace; font-size: 8pt; font-weight: bold; color: #000; margin-bottom: 0.02in; }
         .sticker .test-name { font-size: 8pt; font-weight: bold; line-height: 1.15; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .sticker .patient-name { font-size: 8pt; font-weight: bold; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sticker .patient-sex-age { font-size: 7pt; color: #000; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       </style></head><body>
       ${pages.join("")}
       <script>setTimeout(function(){ window.print(); window.close(); }, 100);<\/script>

@@ -1781,16 +1781,44 @@ export async function registerRoutes(
     try {
       const id = Number(req.params.id);
       const data = req.body as Record<string, unknown>;
+      const existingBill = await storage.getBill(id);
+      if (!existingBill) return res.status(404).json({ message: "Bill not found" });
+      const allServices = await storage.getServices();
+      const getServiceIdsFromItems = (items: any[]): Set<number> => {
+        const ids = new Set<number>();
+        for (const it of items || []) {
+          if (it?.type !== "service") continue;
+          const sid = it.serviceId != null ? Number(it.serviceId) : null;
+          const serv = sid != null ? allServices.find((s: any) => s.id === sid) : allServices.find((s: any) => (s.name || "").trim() === (it.name || "").trim());
+          if (serv) ids.add(serv.id);
+        }
+        return ids;
+      };
+      const oldItems = Array.isArray(existingBill.items) ? existingBill.items : [];
+      const newItems = Array.isArray(data.items) ? data.items : [];
+      const oldServiceIds = getServiceIdsFromItems(oldItems);
+      const newServiceIds = getServiceIdsFromItems(newItems);
+      const removedServiceIds = new Set(Array.from(oldServiceIds).filter((sid) => !newServiceIds.has(sid)));
       const bill = await storage.updateBill(id, data);
       if (!bill) return res.status(404).json({ message: "Bill not found" });
+      // Auto-remove lab tests and sample collections when services are removed from the bill
+      if (removedServiceIds.size > 0) {
+        const { items: labTestsForBill } = await storage.getLabTestsPaginated({ billId: id, limit: 500, offset: 0 });
+        for (const lt of labTestsForBill) {
+          const ltServiceId = lt.serviceId != null ? Number(lt.serviceId) : null;
+          const ltServiceIds = Array.isArray(lt.serviceIds) ? lt.serviceIds.map((x: any) => Number(x)) : [];
+          const hasRemoved = (ltServiceId != null && removedServiceIds.has(ltServiceId))
+            || ltServiceIds.some((sid: number) => removedServiceIds.has(sid));
+          if (hasRemoved) await storage.deleteLabTest(lt.id);
+        }
+      }
       // Create lab tests/samples when bill has lab items but none exist yet (e.g. draft updated with lab services)
-      const items = Array.isArray(data.items) ? data.items : [];
+      const items = newItems;
       const labItems = items.filter((it: any) => it?.type === "service" && (it.serviceId != null || it.name));
       if (labItems.length > 0) {
         const allLabTests = await storage.getLabTests();
         const existingForBill = allLabTests.filter((t: any) => t.billId === id);
         if (existingForBill.length === 0) {
-          const allServices = await storage.getServices();
           const hasLabServices = labItems.some((item: any) => {
             const serv = item.serviceId != null
               ? allServices.find((s: any) => s.id === Number(item.serviceId))
@@ -4260,7 +4288,7 @@ export async function registerRoutes(
     try {
       const id = Number(req.params.id);
       if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid sample collection id" });
-      const sc = await storage.getSampleCollection(id);
+      const sc = await storage.getSampleCollectionWithPatient(id);
       if (!sc) return res.status(404).json({ message: "Sample collection not found" });
       res.json(sc);
     } catch (err: any) {
