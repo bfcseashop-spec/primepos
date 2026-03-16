@@ -4256,14 +4256,11 @@ export async function registerRoutes(
         labTestId: req.query.labTestId != null ? Number(req.query.labTestId) : undefined,
       });
       const rawItems = result.items || [];
-      const needPatient = rawItems.some((it: any) => it.patientId != null && (it.patientAge === undefined || it.patientGender === undefined));
-      let patientMap = new Map<number, any>();
-      if (needPatient) {
-        const pids = Array.from(new Set(rawItems.map((it: any) => it.patientId).filter((id: any) => id != null)));
-        for (const pid of pids) {
-          const p = await storage.getPatient(pid);
-          if (p) patientMap.set(pid, p);
-        }
+      const pids = Array.from(new Set(rawItems.map((it: any) => it.patientId).filter((id: any) => id != null)));
+      const patientMap = new Map<number, any>();
+      for (const pid of pids) {
+        const p = await storage.getPatient(pid);
+        if (p) patientMap.set(pid, p);
       }
       const ageFromDob = (dob: string | null | undefined): number | null => {
         if (!dob || typeof dob !== "string") return null;
@@ -4276,17 +4273,10 @@ export async function registerRoutes(
         return age >= 0 ? age : null;
       };
       const items = rawItems.map((it: any) => {
-        let patientAge = it.patientAge;
-        let patientGender = it.patientGender;
-        let patientDateOfBirth = it.patientDateOfBirth;
-        if ((patientAge === undefined || patientGender === undefined) && it.patientId != null) {
-          const p = patientMap.get(it.patientId);
-          if (p) {
-            if (patientAge === undefined) patientAge = p.age != null ? p.age : ageFromDob(p.dateOfBirth);
-            if (patientGender === undefined) patientGender = p.gender ?? null;
-            if (patientDateOfBirth === undefined) patientDateOfBirth = p.dateOfBirth ?? null;
-          }
-        }
+        const p = it.patientId != null ? patientMap.get(it.patientId) : null;
+        const patientAge = p != null ? (p.age != null ? p.age : ageFromDob(p.dateOfBirth)) : (it.patientAge ?? null);
+        const patientGender = p != null ? (p.gender ?? null) : (it.patientGender ?? null);
+        const patientDateOfBirth = p != null ? (p.dateOfBirth ?? null) : (it.patientDateOfBirth ?? null);
         return {
           id: it.id,
           labTestId: it.labTestId,
