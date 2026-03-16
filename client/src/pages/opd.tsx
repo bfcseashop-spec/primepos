@@ -31,6 +31,9 @@ import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
 import { SearchableSelect } from "@/components/searchable-select";
 import { printPrescription } from "@/lib/prescription-print";
+import { printPatientDetails } from "@/lib/patient-print";
+import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
+import JsBarcode from "jsbarcode";
 import type { Patient, Service, Injection, Medicine, Package as PackageType } from "@shared/schema";
 import { useAuth } from "@/contexts/auth-context";
 import type { PrescriptionLine } from "@/lib/prescription-print";
@@ -102,12 +105,26 @@ export default function OpdPage() {
   const [pageSize, setPageSize] = useState(10);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const patientBarcodeRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm]);
   useEffect(() => { setPage(1); }, [debouncedSearch, typeFilter]);
+
+  useEffect(() => {
+    const el = patientBarcodeRef.current;
+    if (!el || !viewPatient) return;
+    el.innerHTML = "";
+    const barcodeVal = (viewPatient.patientId || "").replace(/\s/g, "").replace(/[^A-Za-z0-9\-]/g, "") || "P";
+    if (!barcodeVal) return;
+    try {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      el.appendChild(svg);
+      JsBarcode(svg, barcodeVal, { format: "CODE128", width: 1, height: 28, displayValue: false, margin: 2 });
+    } catch (_) {}
+  }, [viewPatient]);
 
   const patientsQueryKey = ["/api/patients-paginated", page, pageSize, debouncedSearch, typeFilter];
   const { data: patientsData, isLoading: patientsLoading } = useQuery<{ items: (Patient & { lastVisitDate?: string | null })[]; total: number }>({
@@ -266,6 +283,22 @@ export default function OpdPage() {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
+
+  const handleBarcodeSearch = async (val: string) => {
+    const trimmed = (val || "").trim();
+    if (!trimmed || trimmed.length < 2) return;
+    try {
+      const res = await fetch(getApiUrl(`/api/patients/by-patient-id?patientId=${encodeURIComponent(trimmed)}`), { credentials: "include" });
+      if (res.ok) {
+        const patient = await res.json();
+        setViewPatient(patient);
+        setSearchTerm(trimmed);
+        return;
+      }
+    } catch (_) {}
+    toast({ title: "Patient not found", description: `No patient for ID: ${trimmed}`, variant: "destructive" });
+  };
+  useGlobalBarcodeScanner(handleBarcodeSearch);
 
   const openConsultation = (patient: Patient) => {
     setConsultationPatient(patient);
@@ -630,8 +663,15 @@ export default function OpdPage() {
                         "from-emerald-500 to-teal-400"
                       }`} />
 
-                      <div className="p-4">
-                        <div className="flex items-start justify-between gap-2 mb-3">
+                      <div
+                        className="p-4 cursor-pointer"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setViewPatient(patient)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setViewPatient(patient); } }}
+                        data-testid={`card-patient-content-${patient.id}`}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-3" onClick={(e) => e.stopPropagation()}>
                           <Badge
                             variant="outline"
                             className={`text-[10px] font-medium no-default-hover-elevate no-default-active-elevate ${typeBadge.bg} ${typeBadge.text} ${typeBadge.border}`}
@@ -715,18 +755,7 @@ export default function OpdPage() {
                         )}
                       </div>
 
-                      <div className="border-t p-2.5 grid grid-cols-1 sm:grid-cols-3 gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 min-w-0 px-1.5 text-xs"
-                          onClick={() => setViewPatient(patient)}
-                          data-testid={`button-view-patient-${patient.id}`}
-                          title={t("common.view")}
-                        >
-                          <Eye className="h-3.5 w-3.5 shrink-0 text-blue-500 dark:text-blue-400 sm:mr-1" />
-                          <span className="hidden truncate sm:inline">{t("common.view")}</span>
-                        </Button>
+                      <div className="border-t p-2.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5" onClick={(e) => e.stopPropagation()}>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -775,17 +804,17 @@ export default function OpdPage() {
       <Dialog open={!!viewPatient} onOpenChange={(open) => { if (!open) setViewPatient(null); }}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-xl sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle data-testid="text-view-patient-title">{t("opd.totalPatients")}</DialogTitle>
+            <DialogTitle data-testid="text-view-patient-title">{t("opd.patientDetails")}</DialogTitle>
             <DialogDescription>{t("opd.subtitle")}</DialogDescription>
           </DialogHeader>
           {viewPatient && (
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
+              <div className="flex items-center gap-4 flex-wrap">
+                <Avatar className="h-16 w-16 shrink-0">
                   <AvatarImage src={viewPatient.photoUrl || undefined} />
                   <AvatarFallback className={`text-lg font-bold bg-gradient-to-br ${getAvatarGradient(viewPatient.id)} text-white`}>{getInitials(viewPatient)}</AvatarFallback>
                 </Avatar>
-                <div>
+                <div className="min-w-0 flex-1">
                   <h3 className="text-lg font-semibold" data-testid="text-view-patient-name">{getDisplayName(viewPatient)}</h3>
                   <p className="text-sm text-muted-foreground font-mono">#{viewPatient.patientId}</p>
                   {(() => {
@@ -797,6 +826,10 @@ export default function OpdPage() {
                       </Badge>
                     );
                   })()}
+                </div>
+                <div className="shrink-0 flex flex-col items-center gap-1">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Patient ID</p>
+                  <div ref={patientBarcodeRef} className="min-h-[28px] flex items-center justify-center" aria-hidden />
                 </div>
               </div>
               <Separator />
@@ -914,7 +947,10 @@ export default function OpdPage() {
                   </div>
                 </>
               )}
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-2 flex-wrap">
+                <Button variant="outline" onClick={() => { printPatientDetails(viewPatient, settings ? { clinicName: settings.clinicName ?? undefined, address: settings.address ?? undefined, phone: settings.phone ?? undefined, email: settings.email ?? undefined, logo: settings.logo ?? undefined } : null); }} data-testid="button-view-print">
+                  <Printer className="h-4 w-4 mr-1 text-muted-foreground" /> Print
+                </Button>
                 <Button variant="outline" onClick={() => { setViewPatient(null); openConsultation(viewPatient); }} data-testid="button-view-prescription">
                   <FileText className="h-4 w-4 mr-1 text-teal-500" /> Prescription
                 </Button>

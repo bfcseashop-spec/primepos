@@ -191,6 +191,7 @@ export const en = {
     addPatient: "Add Patient",
     addAppointment: "Add Appointment",
     totalPatients: "Total Patients",
+    patientDetails: "Patient Details",
     activeVisits: "Active Visits",
     completedToday: "Completed Today",
     pendingFollow: "Pending Follow-up",

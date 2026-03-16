@@ -158,6 +158,7 @@ export const zh = {
     addPatient: "添加患者",
     addAppointment: "添加预约",
     totalPatients: "总患者数",
+    patientDetails: "患者详情",
     activeVisits: "活跃就诊",
     completedToday: "今日完成",
     pendingFollow: "待随访",

@@ -158,6 +158,7 @@ export const km = {
     addPatient: "បន្ថែមអ្នកជំងឺ",
     addAppointment: "បន្ថែមការណាត់ជួប",
     totalPatients: "អ្នកជំងឺសរុប",
+    patientDetails: "ព័ត៌មានអ្នកជំងឺ",
     activeVisits: "ការមកពិនិត្យសកម្ម",
     completedToday: "បានបញ្ចប់ថ្ងៃនេះ",
     pendingFollow: "រង់ចាំតាមដាន",
