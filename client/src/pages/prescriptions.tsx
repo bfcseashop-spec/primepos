@@ -159,7 +159,7 @@ export default function PrescriptionsPage() {
     const printedAtStr = new Date().toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
     const specStr = getDoctorSpec(row.doctorName || "").join(", ") || undefined;
     const doctorOption = row.doctorUser
-      ? { ...row.doctorUser, specialization: specStr || row.doctorUser.specialization ?? null }
+      ? { ...row.doctorUser, specialization: (specStr || row.doctorUser.specialization) ?? null }
       : (row.doctorName ? { fullName: row.doctorName, qualification: null, signatureUrl: null, specialization: specStr || null } : undefined);
     printPrescription(
       {
@@ -196,7 +196,7 @@ export default function PrescriptionsPage() {
         const printedAtStr = new Date().toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
         const specStr = getDoctorSpec(updated.doctorName || "").join(", ") || undefined;
         const doctorOption = editVisit.doctorUser
-          ? { ...editVisit.doctorUser, specialization: specStr || (editVisit.doctorUser as any).specialization ?? null }
+          ? { ...editVisit.doctorUser, specialization: (specStr || (editVisit.doctorUser as any).specialization) ?? null }
           : (updated.doctorName ? { fullName: updated.doctorName, qualification: null, signatureUrl: null, specialization: specStr || null } : undefined);
         printPrescription(
           { visitId: editVisit.visitId, doctorName: updated.doctorName, visitDate: updated.visitDate, prescription: updated.prescription, diagnosis: updated.diagnosis, symptoms: updated.symptoms },
