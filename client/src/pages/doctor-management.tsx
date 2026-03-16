@@ -11,9 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw, LayoutGrid, List, Eye, Camera, X, UserCheck, UserX, Activity, BedDouble, Building2, Briefcase, Users, CircleCheck, CircleOff, CalendarOff, Stethoscope, DollarSign, GraduationCap, MapPin, CalendarDays, FileText } from "lucide-react";
+import { Search, Plus, MoreVertical, Trash2, Edit, Phone, Mail, Clock, RefreshCw, LayoutGrid, List, Eye, Camera, X, UserCheck, UserX, Activity, BedDouble, Building2, Briefcase, Users, CircleCheck, CircleOff, CalendarOff, Stethoscope, DollarSign, GraduationCap, MapPin, CalendarDays, FileText, ChevronDown } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
@@ -75,8 +77,13 @@ export default function DoctorManagementPage() {
   const [newDeptName, setNewDeptName] = useState("");
   const [newPosName, setNewPosName] = useState("");
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
-  const [form, setForm] = useState({
-    name: "", specialization: "", department: "", experience: "",
+  const [form, setForm] = useState<{
+    name: string; specializations: string[]; department: string; experience: string;
+    qualification: string; phone: string; email: string; address: string;
+    consultationFee: string; schedule: string; status: string;
+    joiningDate: string; notes: string; photoUrl: string;
+  }>({
+    name: "", specializations: [], department: "", experience: "",
     qualification: "", phone: "", email: "", address: "",
     consultationFee: "0", schedule: "", status: "active",
     joiningDate: "", notes: "", photoUrl: "",
@@ -169,7 +176,7 @@ export default function DoctorManagementPage() {
   });
 
   const resetForm = () => {
-    setForm({ name: "", specialization: "", department: "", experience: "", qualification: "", phone: "", email: "", address: "", consultationFee: "0", schedule: "", status: "active", joiningDate: "", notes: "", photoUrl: "" });
+    setForm({ name: "", specializations: [], department: "", experience: "", qualification: "", phone: "", email: "", address: "", consultationFee: "0", schedule: "", status: "active", joiningDate: "", notes: "", photoUrl: "" });
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,10 +223,12 @@ export default function DoctorManagementPage() {
     updateMutation.mutate({ id, data: { status } });
   };
 
+  const specList = (s: string) => (s || "").split(",").map(x => x.trim()).filter(Boolean);
+
   const openEdit = (doc: Doctor) => {
     setEditingDoctor(doc);
     setForm({
-      name: doc.name, specialization: doc.specialization,
+      name: doc.name, specializations: specList(doc.specialization),
       department: doc.department || "", experience: doc.experience || "",
       qualification: doc.qualification || "", phone: doc.phone || "",
       email: doc.email || "", address: doc.address || "",
@@ -229,8 +238,6 @@ export default function DoctorManagementPage() {
     });
     setEditDialog(true);
   };
-
-  const specList = (s: string) => s.split(",").map(x => x.trim()).filter(Boolean);
 
   return (
     <div className="flex flex-col h-full">
@@ -624,14 +631,39 @@ export default function DoctorManagementPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-1 block">{t("doctors.specialization")} *</label>
-                  <Select value={form.specialization} onValueChange={(v) => setForm({ ...form, specialization: v })}>
-                    <SelectTrigger data-testid="select-specialization">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {positions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between font-normal h-9 text-sm" data-testid="select-specialization">
+                        {form.specializations.length > 0 ? (
+                          <span className="truncate">{form.specializations.join(", ")}</span>
+                        ) : (
+                          <span className="text-muted-foreground">Select specializations</span>
+                        )}
+                        <ChevronDown className="h-3.5 w-3.5 ml-1 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-2" align="start">
+                      <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {positions.map((opt) => (
+                          <label key={opt} className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer hover:bg-accent text-sm">
+                            <Checkbox
+                              checked={form.specializations.includes(opt)}
+                              onCheckedChange={() => {
+                                setForm((f) => ({
+                                  ...f,
+                                  specializations: f.specializations.includes(opt)
+                                    ? f.specializations.filter((s) => s !== opt)
+                                    : [...f.specializations, opt],
+                                }));
+                              }}
+                              data-testid={`checkbox-spec-${opt.toLowerCase().replace(/\s/g, "-")}`}
+                            />
+                            {opt}
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -708,12 +740,14 @@ export default function DoctorManagementPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => { setAddDialog(false); setEditDialog(false); }} data-testid="button-cancel-doctor">{t("common.cancel")}</Button>
               <Button
-                disabled={!form.name || !form.specialization || createMutation.isPending || updateMutation.isPending}
+                disabled={!form.name || form.specializations.length === 0 || createMutation.isPending || updateMutation.isPending}
                 onClick={() => {
+                  const { specializations, ...rest } = form;
+                  const payload = { ...rest, specialization: specializations.join(", ") };
                   if (editDialog && editingDoctor) {
-                    updateMutation.mutate({ id: editingDoctor.id, data: form });
+                    updateMutation.mutate({ id: editingDoctor.id, data: payload });
                   } else {
-                    createMutation.mutate(form);
+                    createMutation.mutate(payload);
                   }
                 }}
                 data-testid="button-save-doctor"

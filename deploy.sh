@@ -1,6 +1,9 @@
 #!/bin/bash
 # PrimePOS deployment script with backup
 # Usage: ./deploy.sh [--no-deploy]  (--no-deploy = backup only, skip git/build/restart)
+#
+# When run with sudo, step 8 runs PM2 as the project directory owner (so the same
+# PM2 instance that serves the app is restarted). Override with: PM2_USER=admin93 ./deploy.sh
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -107,11 +110,18 @@ if [ -f "scripts/run-due-migration.js" ] && [ -f "migrations/0001_due_management
 fi
 
 # --- 8. PM2 restart (delete + start ensures fresh process loads new dist/schema) ---
-echo "[8/8] pm2 restart"
-# delete + start (not just restart) forces Node to load fresh dist/index.cjs - no module cache
-pm2 delete primepos 2>/dev/null || true
-cd "$SCRIPT_DIR" && pm2 start ecosystem.config.cjs
-pm2 save 2>/dev/null || true
+# When run with sudo, run PM2 as the directory owner so we restart the same PM2 instance
+# that is serving the app (e.g. admin93's PM2, not root's). Set PM2_USER to override.
+RUN_USER="${PM2_USER:-$(stat -c '%U' "$SCRIPT_DIR" 2>/dev/null || stat -f '%Su' "$SCRIPT_DIR" 2>/dev/null || whoami)}"
+if [ "$(id -u)" = "0" ] && [ "$RUN_USER" != "root" ]; then
+  echo "[8/8] pm2 restart (as user: $RUN_USER)"
+  sudo -u "$RUN_USER" bash -c "cd '$SCRIPT_DIR' && (pm2 delete primepos 2>/dev/null || true) && pm2 start ecosystem.config.cjs && (pm2 save 2>/dev/null || true)"
+else
+  echo "[8/8] pm2 restart"
+  (cd "$SCRIPT_DIR" && pm2 delete primepos 2>/dev/null || true)
+  cd "$SCRIPT_DIR" && pm2 start ecosystem.config.cjs
+  pm2 save 2>/dev/null || true
+fi
 
 echo ""
 echo "=== Deploy complete ==="

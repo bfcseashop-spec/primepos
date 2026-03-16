@@ -143,6 +143,11 @@ export default function PrescriptionsPage() {
   const needsModalData = !!editVisit || !!viewVisit;
   const { data: patients = [] } = useQuery<Patient[]>({ queryKey: ["/api/patients"] });
   const { data: doctors = [] } = useQuery<Doctor[]>({ queryKey: ["/api/doctors"] });
+  const doctorsList = (doctors as Doctor[]) || [];
+  const getDoctorSpec = (doctorName: string) => {
+    const d = doctorsList.find((doc) => doc.name === doctorName);
+    return d?.specialization ? (d.specialization as string).split(",").map((x) => x.trim()).filter(Boolean) : [];
+  };
   const { data: settings } = useQuery<ClinicSettings | null>({ queryKey: ["/api/settings"] });
   const { data: services = [] } = useQuery<Service[]>({ queryKey: ["/api/services"], enabled: needsModalData });
   const { data: injections = [] } = useQuery<Injection[]>({ queryKey: ["/api/injections"], enabled: needsModalData });
@@ -313,7 +318,20 @@ export default function PrescriptionsPage() {
     { header: "Visit ID", accessor: (row: any) => <span className="font-mono text-xs font-medium">{row.visitId}</span> },
     { header: "Date", accessor: (row: any) => <span className="text-sm">{row.visitDate ? new Date(row.visitDate).toLocaleDateString() : "-"}</span> },
     { header: "Patient", accessor: (row: any) => <span className="font-medium">{row.patientName || "-"}</span> },
-    { header: "Doctor", accessor: (row: any) => <span className="text-muted-foreground">{row.doctorName || "-"}</span> },
+    {
+      header: "Doctor",
+      accessor: (row: any) => {
+        const name = row.doctorName || "-";
+        const specs = getDoctorSpec(row.doctorName || "");
+        if (specs.length === 0) return <span className="text-muted-foreground">{name}</span>;
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-muted-foreground font-medium">{name}</span>
+            <span className="text-[11px] text-muted-foreground/80">{specs.join(", ")}</span>
+          </div>
+        );
+      },
+    },
     { header: "Diagnosis", accessor: (row: any) => <span className="text-sm text-muted-foreground max-w-[180px] truncate block" title={row.diagnosis || ""}>{row.diagnosis || "-"}</span> },
     {
       header: "Actions",
@@ -384,8 +402,10 @@ export default function PrescriptionsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All doctors</SelectItem>
-                  {(doctors as Doctor[]).map((d) => (
-                    <SelectItem key={d.id} value={d.name || ""}>{d.name}</SelectItem>
+                  {doctorsList.map((d) => (
+                    <SelectItem key={d.id} value={d.name || ""}>
+                      {d.specialization ? `${d.name} (${(d.specialization as string).trim()})` : d.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -527,6 +547,9 @@ export default function PrescriptionsPage() {
                       <p className="text-sm"><span className="text-teal-600 dark:text-teal-400 font-bold uppercase text-[11px] tracking-wide">Prescription No #:</span> <span className="font-bold font-mono text-sm">{viewVisit.visitId || "-"}</span></p>
                       <p className="text-sm"><span className="text-teal-600 dark:text-teal-400 font-bold uppercase text-[11px] tracking-wide">Date:</span> <span className="font-semibold">{new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span></p>
                       <p className="text-sm text-muted-foreground">Prescribed by: <span className="font-semibold text-foreground">{viewVisit.doctorName || "-"}</span></p>
+                      {getDoctorSpec(viewVisit.doctorName || "").length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{getDoctorSpec(viewVisit.doctorName || "").join(", ")}</p>
+                      )}
                     </div>
                     {prescriptionBarcodeValue && (
                       <div className="text-right shrink-0">
@@ -550,6 +573,9 @@ export default function PrescriptionsPage() {
                     <div className="text-right">
                       <p className="text-base font-extrabold text-teal-600 dark:text-teal-400 mb-1.5">Doctor :</p>
                       <p className="font-bold text-sm">{viewVisit.doctorName || "-"}</p>
+                      {getDoctorSpec(viewVisit.doctorName || "").length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{getDoctorSpec(viewVisit.doctorName || "").join(", ")}</p>
+                      )}
                     </div>
                   </div>
 
@@ -644,8 +670,10 @@ export default function PrescriptionsPage() {
                   <Select value={editDoctor} onValueChange={setEditDoctor}>
                     <SelectTrigger><SelectValue placeholder="Select doctor" /></SelectTrigger>
                     <SelectContent>
-                      {(doctors as Doctor[]).map((d) => (
-                        <SelectItem key={d.id} value={d.name || ""}>{d.name}</SelectItem>
+                      {doctorsList.map((d) => (
+                        <SelectItem key={d.id} value={d.name || ""}>
+                          {d.specialization ? `${d.name} (${(d.specialization as string).trim()})` : d.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
