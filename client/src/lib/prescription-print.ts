@@ -60,6 +60,8 @@ export type PrescriptionPrintDoctor = {
   fullName: string;
   qualification?: string | null;
   signatureUrl?: string | null;
+  /** Comma-separated or single specialization for print (e.g. "General Physician, Cardiologist") */
+  specialization?: string | null;
 };
 
 export function printPrescription(
@@ -96,7 +98,8 @@ export function printPrescription(
   const border = "#e2e8f0";
   const muted = "#475569";
   const accent = "#0f172a";
-  const doctor = options?.doctor ?? (visit.doctorName ? { fullName: visit.doctorName, qualification: null, signatureUrl: null } : null);
+  const doctor = options?.doctor ?? (visit.doctorName ? { fullName: visit.doctorName, qualification: null, signatureUrl: null, specialization: null } : null);
+  const doctorSpecStr = doctor?.specialization?.trim() || "";
   const printedBy = options?.printedBy ?? "—";
   const printedAtStr = options?.printedAt ?? new Date().toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const fSm = 10;
@@ -153,6 +156,7 @@ export function printPrescription(
             <div style="margin-bottom:3px;"><strong>UHID:</strong> ${escapeHtml(patient?.patientId || "-")}</div>
             <div style="margin-bottom:3px;"><strong>Age / Gender:</strong> ${patientAge ?? "-"} / ${patientGender}</div>
             <div style="margin-bottom:3px;"><strong>Doctor:</strong> ${escapeHtml(visit.doctorName || "-")}</div>
+            ${doctorSpecStr ? `<div style="margin-bottom:3px;"><strong>Specialization:</strong> ${escapeHtml(doctorSpecStr)}</div>` : ""}
             <div><strong>Date:</strong> ${visitDate}</div>
           </td>
           <td style="width:50%;vertical-align:top;padding:4px 0 4px 10px;border-left:1px solid ${border};">
@@ -186,10 +190,12 @@ export function printPrescription(
             const name = escapeHtml(doctor.fullName);
             const qualRaw = doctor.qualification || "";
             const qual = qualRaw ? qualRaw.split(/,\s*,/).map((s: string) => escapeHtml(s.trim())).filter(Boolean).join("<br/>") : "";
+            const spec = doctor.specialization?.trim() ? escapeHtml(doctor.specialization.trim()) : "";
             return `
           <div style="text-align:center;font-size:${fSm}px;line-height:1.3;">
             ${sigHref ? `<img src="${sigHref}" alt="Signature" style="max-height:36px;max-width:120px;object-contain;display:block;margin:0 auto 2px;" onerror="this.style.display='none'" />` : ""}
             <div style="font-weight:700;color:${accent};">${name}</div>
+            ${spec ? `<div style="color:${muted};">${spec}</div>` : ""}
             ${qual ? `<div style="color:${muted};">${qual}</div>` : ""}
             <div style="font-size:9px;color:${muted};margin-top:1px;">Prescribing Doctor</div>
           </div>`;

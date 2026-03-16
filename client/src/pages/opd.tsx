@@ -252,10 +252,13 @@ export default function OpdPage() {
       setConsultNotes("");
       toast({ title: "Prescription saved" });
       if (patient && settings) {
+        const doc = (doctors as any[])?.find((d: any) => d.name === visit.doctorName);
+        const specStr = doc?.specialization ? (typeof doc.specialization === "string" ? doc.specialization : String(doc.specialization)).trim() : "";
         printPrescription(
           { visitId: visit.visitId, doctorName: visit.doctorName, visitDate: visit.visitDate, prescription: visit.prescription, diagnosis: visit.diagnosis, symptoms: visit.symptoms },
           patient,
-          settings
+          settings,
+          { doctor: { fullName: visit.doctorName ?? "", qualification: null, signatureUrl: null, specialization: specStr || null } }
         );
       }
     },
