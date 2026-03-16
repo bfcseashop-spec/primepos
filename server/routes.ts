@@ -4256,7 +4256,10 @@ export async function registerRoutes(
         labTestId: req.query.labTestId != null ? Number(req.query.labTestId) : undefined,
       });
       const rawItems = result.items || [];
-      const pids = Array.from(new Set(rawItems.map((it: any) => it.patientId).filter((id: any) => id != null)));
+      const numericPids = rawItems
+        .map((it: any) => (it.patientId != null ? Number(it.patientId) : NaN))
+        .filter((id: number) => !isNaN(id) && id > 0);
+      const pids = Array.from(new Set(numericPids));
       const patientMap = new Map<number, any>();
       for (const pid of pids) {
         const p = await storage.getPatient(pid);
@@ -4273,7 +4276,8 @@ export async function registerRoutes(
         return age >= 0 ? age : null;
       };
       const items = rawItems.map((it: any) => {
-        const p = it.patientId != null ? patientMap.get(it.patientId) : null;
+        const pid = it.patientId != null ? Number(it.patientId) : NaN;
+        const p = !isNaN(pid) && pid > 0 ? patientMap.get(pid) : null;
         const patientAge = p != null ? (p.age != null ? p.age : ageFromDob(p.dateOfBirth)) : (it.patientAge ?? null);
         const patientGender = p != null ? (p.gender ?? null) : (it.patientGender ?? null);
         const patientDateOfBirth = p != null ? (p.dateOfBirth ?? null) : (it.patientDateOfBirth ?? null);
@@ -4296,6 +4300,7 @@ export async function registerRoutes(
           patientDateOfBirth: patientDateOfBirth ?? null,
         };
       });
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
       res.json({ items, total: result.total, pendingCount: result.pendingCount, collectedCount: result.collectedCount });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
