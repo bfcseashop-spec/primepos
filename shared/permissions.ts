@@ -75,7 +75,7 @@ export function mergePermissions(saved: unknown): PermissionMap {
   return defaults;
 }
 
-/** Check if user has permission. Admin-like roles (Admin, Super Admin, Administrator) bypass all checks. */
+/** Check if user has permission. Only Super Admin bypasses all checks. */
 export function hasPermission(
   permissions: PermissionMap | null | undefined,
   moduleKey: string,
@@ -83,7 +83,7 @@ export function hasPermission(
   roleName?: string
 ): boolean {
   const r = roleName?.toLowerCase().trim();
-  if (r === "admin" || (r && r.includes("admin"))) return true;
+  if (r === "super admin" || r === "superadmin") return true;
   if (!permissions || !permissions[moduleKey]) return false;
   return !!permissions[moduleKey][action];
 }
