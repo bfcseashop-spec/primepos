@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
+import { usePermissions } from "@/contexts/auth-context";
 import { billNoMatches } from "@/lib/bill-utils";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
@@ -67,6 +68,7 @@ interface PatientDueSummary {
 export default function DueManagementPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { canView, canAdd, canEdit, canDelete } = usePermissions("due");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -687,7 +689,7 @@ export default function DueManagementPage() {
                   </thead>
                   <tbody>
                     {summaries.map((s) => (
-                      <tr key={s.patient.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => setViewSummary(s)}>
+                      <tr key={s.patient.id} className={`border-b hover:bg-muted/30 ${canView ? "cursor-pointer" : ""}`} onClick={() => { if (canView) setViewSummary(s); }}>
                         <td className="p-3 font-medium">{s.patient.name ?? "-"}</td>
                         <td className="p-3 text-muted-foreground">{s.patient.patientId ?? "-"}</td>
                         <td className="p-3 text-right">${s.totalDue.toFixed(2)}</td>
@@ -726,18 +728,18 @@ export default function DueManagementPage() {
                           {allPayments.map((p) => {
                             const patient = (patientsList as Patient[]).find((x) => x.id === p.patientId) ?? summaries.find((s) => s.patient.id === p.patientId)?.patient;
                             return (
-                              <tr key={p.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => setViewPayment(p)}>
+                              <tr key={p.id} className={`border-b hover:bg-muted/30 ${canView ? "cursor-pointer" : ""}`} onClick={() => { if (canView) setViewPayment(p); }}>
                                 <td className="p-3">{format(new Date(p.paymentDate), "MMM d, yyyy")}</td>
                                 <td className="p-3">{patient?.patientId ?? patient?.name ?? `#${p.patientId}`}</td>
                                 <td className="p-3 text-right font-medium">${Number(p.amount).toFixed(2)}</td>
                                 <td className="p-3">{PAYMENT_METHODS.find((pm) => pm.value === p.paymentMethod)?.label ?? p.paymentMethod}</td>
                                 <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
-                                  <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={() => { setEditPayment(p); setEditPaymentMethod(p.paymentMethod); setEditPaymentDate(format(new Date(p.paymentDate), "yyyy-MM-dd")); }}>
+                                  {canEdit && <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={() => { setEditPayment(p); setEditPaymentMethod(p.paymentMethod); setEditPaymentDate(format(new Date(p.paymentDate), "yyyy-MM-dd")); }}>
                                     <Edit2 className="h-3.5 w-3.5" /> Edit
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="h-7 gap-1 text-destructive hover:text-destructive" onClick={() => setDeletePaymentId(p.id)}>
+                                  </Button>}
+                                  {canDelete && <Button variant="ghost" size="sm" className="h-7 gap-1 text-destructive hover:text-destructive" onClick={() => setDeletePaymentId(p.id)}>
                                     <Trash2 className="h-3.5 w-3.5" /> Delete
-                                  </Button>
+                                  </Button>}
                                 </td>
                               </tr>
                             );
@@ -781,7 +783,7 @@ export default function DueManagementPage() {
                 <div><span className="text-muted-foreground">Bills:</span><p className="font-medium">{viewSummary.billsCount}</p></div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => { setViewSummary(null); openRecordPayment(viewSummary); }}><Plus className="h-4 w-4 mr-1" /> Record payment</Button>
+                {canAdd && <Button variant="outline" onClick={() => { setViewSummary(null); openRecordPayment(viewSummary); }}><Plus className="h-4 w-4 mr-1" /> Record payment</Button>}
                 <Button variant="outline" onClick={() => setViewSummary(null)}>Cancel</Button>
               </div>
             </div>
@@ -810,7 +812,7 @@ export default function DueManagementPage() {
                 );
               })()}
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => { setViewPayment(null); setEditPayment(viewPayment); setEditPaymentMethod(viewPayment.paymentMethod); setEditPaymentDate(format(new Date(viewPayment.paymentDate), "yyyy-MM-dd")); }}><Edit2 className="h-4 w-4 mr-1" /> Edit</Button>
+                {canEdit && <Button variant="outline" onClick={() => { setViewPayment(null); setEditPayment(viewPayment); setEditPaymentMethod(viewPayment.paymentMethod); setEditPaymentDate(format(new Date(viewPayment.paymentDate), "yyyy-MM-dd")); }}><Edit2 className="h-4 w-4 mr-1" /> Edit</Button>}
                 <Button variant="outline" onClick={() => setViewPayment(null)}>Cancel</Button>
               </div>
             </div>
@@ -958,8 +960,8 @@ export default function DueManagementPage() {
                       <div key={p.id} className="flex items-center justify-between text-sm py-1.5 px-2 rounded bg-muted/50">
                         <span>{format(new Date(p.paymentDate), "MMM d, yyyy")} — ${Number(p.amount).toFixed(2)} ({PAYMENT_METHODS.find((pm) => pm.value === p.paymentMethod)?.label ?? p.paymentMethod})</span>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" className="h-6 px-1.5" onClick={() => { setEditPayment(p); setEditPaymentMethod(p.paymentMethod); setEditPaymentDate(format(new Date(p.paymentDate), "yyyy-MM-dd")); setPaymentDialogOpen(false); }}><Edit2 className="h-3 w-3" /></Button>
-                          <Button variant="ghost" size="sm" className="h-6 px-1.5 text-destructive hover:text-destructive" onClick={() => setDeletePaymentId(p.id)}><Trash2 className="h-3 w-3" /></Button>
+                          {canEdit && <Button variant="ghost" size="sm" className="h-6 px-1.5" onClick={() => { setEditPayment(p); setEditPaymentMethod(p.paymentMethod); setEditPaymentDate(format(new Date(p.paymentDate), "yyyy-MM-dd")); setPaymentDialogOpen(false); }}><Edit2 className="h-3 w-3" /></Button>}
+                          {canDelete && <Button variant="ghost" size="sm" className="h-6 px-1.5 text-destructive hover:text-destructive" onClick={() => setDeletePaymentId(p.id)}><Trash2 className="h-3 w-3" /></Button>}
                         </div>
                       </div>
                     ))}

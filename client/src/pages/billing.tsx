@@ -20,6 +20,7 @@ import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCar
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
+import { usePermissions } from "@/contexts/auth-context";
 import { DateFilterBar, useDateFilter, getDateRange } from "@/components/date-filter";
 import { billNoMatches } from "@/lib/bill-utils";
 import { capitalizeGender } from "@/lib/utils";
@@ -71,6 +72,7 @@ const PAYMENT_METHODS = [
 export default function BillingPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { canView, canAdd, canEdit, canDelete } = usePermissions("make_payment");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewBill, setViewBill] = useState<any>(null);
   const [editingBill, setEditingBill] = useState<any | null>(null);
@@ -926,6 +928,7 @@ export default function BillingPage() {
     { header: t("billing.paymentMethod"), accessor: (row: any) => getPaymentBadge(row.paymentMethod) },
     { header: t("common.status"), accessor: (row: any) => getStatusBadge(row.status) },
     { header: t("common.actions"), accessor: (row: any) => (
+      (canView || canEdit || canDelete) ? (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" data-testid={`button-actions-${row.id}`} onClick={(e) => e.stopPropagation()}>
@@ -933,28 +936,39 @@ export default function BillingPage() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {canView && (
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewBill(row); }} data-testid={`action-view-${row.id}`} className="gap-2">
             <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" /> {t("common.view")}
           </DropdownMenuItem>
+          )}
+          {canView && (
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printReceipt(row, "compact"); }} data-testid={`action-print-compact-${row.id}`} className="gap-2">
             <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" /> Print (Compact)
           </DropdownMenuItem>
+          )}
+          {canView && (
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); printReceipt(row, "full"); }} data-testid={`action-print-full-${row.id}`} className="gap-2">
             <Printer className="h-4 w-4 text-violet-500 dark:text-violet-400" /> Print (Full size)
           </DropdownMenuItem>
+          )}
+          {canEdit && (
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); startEditBill(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
             <Pencil className="h-4 w-4 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
           </DropdownMenuItem>
-          {row.status === "paid" && (row.items || []).some((i: any) => i?.type === "medicine") && (
+          )}
+          {canEdit && row.status === "paid" && (row.items || []).some((i: any) => i?.type === "medicine") && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setReturnBill(row); setReturnQuantities({}); }} data-testid={`action-return-${row.id}`} className="gap-2">
               <RotateCcw className="h-4 w-4 text-teal-500 dark:text-teal-400" /> {t("billing.returnMedicine")}
             </DropdownMenuItem>
           )}
+          {canDelete && (
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDeleteBillConfirm({ open: true, billId: row.id }); }} className="text-red-600 dark:text-red-400 gap-2" data-testid={`action-delete-${row.id}`}>
             <Trash2 className="h-4 w-4" /> {t("common.delete")}
           </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
+      ) : <span className="text-xs text-muted-foreground">-</span>
     )},
   ];
 
@@ -964,6 +978,7 @@ export default function BillingPage() {
         title={t("billing.title")}
         description={t("billing.subtitle")}
         actions={
+          canAdd ? (
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button data-testid="button-new-bill">
@@ -1639,6 +1654,7 @@ export default function BillingPage() {
               )}
             </DialogContent>
           </Dialog>
+          ) : null
         }
       />
 

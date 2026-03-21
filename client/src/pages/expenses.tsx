@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
+import { usePermissions } from "@/contexts/auth-context";
 import type { Expense } from "@shared/schema";
 import { DateFilterBar, useDateFilter } from "@/components/date-filter";
 import { useTranslation } from "@/i18n";
@@ -91,6 +92,7 @@ function getPaymentBadgeClass(method: string | null): string {
 export default function ExpensesPage() {
   const { toast } = useToast();
   const { t } = useTranslation();
+  const { canView, canAdd, canEdit, canDelete } = usePermissions("expenses");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
   const [viewExpense, setViewExpense] = useState<Expense | null>(null);
@@ -335,6 +337,7 @@ export default function ExpensesPage() {
     )},
     { header: "Status", accessor: (row: Expense) => getStatusBadge(row.status) },
     { header: "Actions", accessor: (row: Expense) => (
+        (canView || canEdit || canDelete) ? (
         <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" data-testid={`button-expense-actions-${row.id}`} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
@@ -342,24 +345,29 @@ export default function ExpensesPage() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {canView && (
           <DropdownMenuItem onClick={() => setViewExpense(row)} data-testid={`button-view-expense-${row.id}`}>
             <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> {t("common.view")}
           </DropdownMenuItem>
+          )}
+          {canEdit && (
           <DropdownMenuItem onClick={() => setEditExpense(row)} data-testid={`button-edit-expense-${row.id}`}>
             <Pencil className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {(row.status !== "approved") && (
+          )}
+          {canEdit && <DropdownMenuSeparator />}
+          {canEdit && (row.status !== "approved") && (
             <DropdownMenuItem onClick={() => updateMutation.mutate({ id: row.id, data: { status: "approved" } })} data-testid={`button-approve-expense-${row.id}`}>
               <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-500 dark:text-emerald-400" /> Approve
             </DropdownMenuItem>
           )}
-          {(row.status !== "rejected") && (
+          {canEdit && (row.status !== "rejected") && (
             <DropdownMenuItem onClick={() => updateMutation.mutate({ id: row.id, data: { status: "rejected" } })} data-testid={`button-reject-expense-${row.id}`}>
               <X className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> Reject
             </DropdownMenuItem>
           )}
-          <DropdownMenuSeparator />
+          {canDelete && <DropdownMenuSeparator />}
+          {canDelete && (
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
             onClick={() => setDeleteConfirm({ open: true, id: row.id })}
@@ -367,8 +375,10 @@ export default function ExpensesPage() {
           >
             <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> {t("common.delete")}
           </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
+      ) : <span className="text-xs text-muted-foreground">-</span>
     )},
   ];
 
@@ -498,9 +508,9 @@ export default function ExpensesPage() {
               <FolderPlus className="h-4 w-4 mr-1" /> Add Category
             </Button>
 
-            <Button onClick={() => setDialogOpen(true)} data-testid="button-new-expense">
+            {canAdd && <Button onClick={() => setDialogOpen(true)} data-testid="button-new-expense">
               <Plus className="h-4 w-4 mr-1" /> {t("expenses.addExpense")}
-            </Button>
+            </Button>}
           </div>
         }
       />
@@ -602,7 +612,7 @@ export default function ExpensesPage() {
 
         {viewMode === "list" ? (
           <div>
-            {selectedIds.size > 0 && (
+            {canDelete && selectedIds.size > 0 && (
               <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border-b">
                 <span className="text-sm font-medium">{selectedIds.size} selected</span>
                 <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-delete-expenses">
@@ -620,7 +630,7 @@ export default function ExpensesPage() {
                     <p className="text-sm font-medium mb-1">No expenses recorded</p>
                     <p className="text-xs text-muted-foreground">Start tracking your expenses by adding a new entry</p>
                   </div>
-                } selectedIds={selectedIds} onSelectionChange={setSelectedIds} onRowClick={(row) => setViewExpense(row)} />
+                } selectedIds={selectedIds} onSelectionChange={setSelectedIds} onRowClick={canView ? (row) => setViewExpense(row) : undefined} />
               </CardContent>
             </Card>
           </div>
@@ -639,13 +649,14 @@ export default function ExpensesPage() {
               </div>
             ) : (
               expenses.map(exp => (
-                <Card key={exp.id} className="hover-elevate cursor-pointer" data-testid={`card-expense-${exp.id}`} onClick={() => setViewExpense(exp)}>
+                <Card key={exp.id} className={`hover-elevate ${canView ? "cursor-pointer" : ""}`} data-testid={`card-expense-${exp.id}`} onClick={() => { if (canView) setViewExpense(exp); }}>
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{exp.description}</p>
                         <p className="text-xs text-muted-foreground">{exp.date}</p>
                       </div>
+                      {(canView || canEdit || canDelete) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" data-testid={`button-expense-grid-actions-${exp.id}`} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
@@ -653,9 +664,13 @@ export default function ExpensesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {canView && (
                           <DropdownMenuItem onClick={() => setViewExpense(exp)} data-testid={`button-grid-view-expense-${exp.id}`}>
                             <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> {t("common.view")}
                           </DropdownMenuItem>
+                          )}
+                          {canEdit && (
+                          <>
                           <DropdownMenuItem onClick={() => setEditExpense(exp)} data-testid={`button-grid-edit-expense-${exp.id}`}>
                             <Pencil className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
                           </DropdownMenuItem>
@@ -670,6 +685,10 @@ export default function ExpensesPage() {
                               <X className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> Reject
                             </DropdownMenuItem>
                           )}
+                          </>
+                          )}
+                          {canDelete && (
+                          <>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
@@ -678,8 +697,11 @@ export default function ExpensesPage() {
                           >
                             <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> {t("common.delete")}
                           </DropdownMenuItem>
+                          </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">

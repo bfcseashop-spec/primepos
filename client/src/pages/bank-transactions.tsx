@@ -23,6 +23,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
+import { usePermissions } from "@/contexts/auth-context";
 import type { BankTransaction } from "@shared/schema";
 
 const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; bgColor: string; progressColor: string }> = {
@@ -38,6 +39,7 @@ const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: any; color: s
 export default function BankTransactionsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { canView, canAdd, canDelete } = usePermissions("bank_transactions");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [billSearchTerm, setBillSearchTerm] = useState("");
@@ -260,6 +262,7 @@ export default function BankTransactionsPage() {
     )},
     { header: t("common.date"), accessor: "date" as keyof BankTransaction },
     { header: "", accessor: (row: BankTransaction) => (
+      (canView || canDelete) ? (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" data-testid={`button-tx-actions-${row.id}`} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
@@ -267,10 +270,13 @@ export default function BankTransactionsPage() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {canView && (
           <DropdownMenuItem onClick={() => setViewTx(row)} data-testid={`button-view-tx-${row.id}`}>
             <Eye className="h-3.5 w-3.5 mr-2 text-blue-500 dark:text-blue-400" />
             {t("common.view")}
           </DropdownMenuItem>
+          )}
+          {canDelete && (
           <DropdownMenuItem
             className="text-red-600 dark:text-red-400"
             onClick={() => setDeleteTxConfirm({ open: true, id: row.id })}
@@ -279,8 +285,10 @@ export default function BankTransactionsPage() {
             <Trash2 className="h-3.5 w-3.5 mr-2" />
             {t("common.delete")}
           </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
+      ) : <span className="text-xs text-muted-foreground">-</span>
     )},
   ];
 
@@ -290,6 +298,7 @@ export default function BankTransactionsPage() {
         title={t("bank.title")}
         description={t("bank.subtitle")}
         actions={
+          canAdd ? (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-new-transaction">
@@ -347,6 +356,7 @@ export default function BankTransactionsPage() {
               </form>
             </DialogContent>
           </Dialog>
+          ) : null
         }
       />
 
@@ -547,7 +557,7 @@ export default function BankTransactionsPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                {selectedTxIds.size > 0 && (
+                  {canDelete && selectedTxIds.size > 0 && (
                   <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border-b">
                     <span className="text-sm font-medium">{selectedTxIds.size} selected</span>
                     <Button variant="destructive" size="sm" onClick={handleBulkDeleteTx} disabled={bulkDeleteTxMutation.isPending} data-testid="button-bulk-delete-transactions">
@@ -555,7 +565,7 @@ export default function BankTransactionsPage() {
                     </Button>
                   </div>
                 )}
-                <DataTable columns={columns} data={transactions} isLoading={isLoading} emptyMessage={t("common.noData")} selectedIds={selectedTxIds} onSelectionChange={setSelectedTxIds} onRowClick={(row) => setViewTx(row)} />
+                <DataTable columns={columns} data={transactions} isLoading={isLoading} emptyMessage={t("common.noData")} selectedIds={selectedTxIds} onSelectionChange={setSelectedTxIds} onRowClick={canView ? (row) => setViewTx(row) : undefined} />
               </CardContent>
             </Card>
           </TabsContent>

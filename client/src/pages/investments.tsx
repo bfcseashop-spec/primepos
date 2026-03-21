@@ -23,6 +23,7 @@ import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
+import { usePermissions } from "@/contexts/auth-context";
 import type { Investment, InvestmentInvestor, Investor, Contribution } from "@shared/schema";
 import { useTranslation } from "@/i18n";
 
@@ -77,6 +78,7 @@ function formatDateDisplay(value: string): string {
 export default function InvestmentsPage() {
   const { toast } = useToast();
   const { t } = useTranslation();
+  const { canView, canAdd, canEdit, canDelete } = usePermissions("investments");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewInvestment, setViewInvestment] = useState<Investment | null>(null);
   const [editInvestment, setEditInvestment] = useState<Investment | null>(null);
@@ -912,8 +914,8 @@ export default function InvestmentsPage() {
                           {(inv.email || inv.phone) && <span className="text-xs text-muted-foreground ml-2">{inv.email || inv.phone}</span>}
                         </div>
                         <div className="flex gap-1">
-                          <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingInvestor(inv); setInvestorForm({ name: inv.name, email: inv.email || "", phone: inv.phone || "", notes: inv.notes || "", sharePercentage: (inv as Investor & { sharePercentage?: string }).sharePercentage ?? "100" }); }}>Edit</Button>
-                          <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteInvestorConfirm(inv.id)}>Delete</Button>
+                          {canEdit && <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingInvestor(inv); setInvestorForm({ name: inv.name, email: inv.email || "", phone: inv.phone || "", notes: inv.notes || "", sharePercentage: (inv as Investor & { sharePercentage?: string }).sharePercentage ?? "100" }); }}>Edit</Button>}
+                          {canDelete && <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteInvestorConfirm(inv.id)}>Delete</Button>}
                         </div>
                       </div>
                     ))}
@@ -922,6 +924,7 @@ export default function InvestmentsPage() {
               </div>
             </DialogContent>
           </Dialog>
+          {canAdd && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-new-investment">
@@ -1085,6 +1088,7 @@ export default function InvestmentsPage() {
               </form>
             </DialogContent>
           </Dialog>
+          )}
           <Button variant="outline" onClick={() => openContributionDialog()} data-testid="button-record-contribution">
             <CreditCard className="h-4 w-4 mr-1" /> Record Contribution
           </Button>
@@ -1152,6 +1156,7 @@ export default function InvestmentsPage() {
                             <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mt-1">${fmt(Number(inv.amount))}</p>
                             <Badge variant="outline" className={`mt-1 text-[10px] ${inv.status === "active" ? "bg-emerald-500/10" : "bg-slate-500/10"}`}>{inv.status}</Badge>
                           </div>
+                          {(canView || canEdit || canDelete || canAdd) && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
@@ -1159,21 +1164,22 @@ export default function InvestmentsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setViewInvestment(inv)}>
+                              {canView && <DropdownMenuItem onClick={() => setViewInvestment(inv)}>
                                 <Eye className="h-4 w-4 mr-2" /> View
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openEdit(inv)}>
+                              </DropdownMenuItem>}
+                              {canEdit && <DropdownMenuItem onClick={() => openEdit(inv)}>
                                 <Pencil className="h-4 w-4 mr-2" /> Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openContributionDialog(inv.id)}>
+                              </DropdownMenuItem>}
+                              {canAdd && <DropdownMenuItem onClick={() => openContributionDialog(inv.id)}>
                                 <CreditCard className="h-4 w-4 mr-2" /> Record Payment
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-destructive" onClick={() => { setDeleteConfirm({ open: true, id: inv.id }); }}>
+                              </DropdownMenuItem>}
+                              {canDelete && <DropdownMenuSeparator />}
+                              {canDelete && <DropdownMenuItem className="text-destructive" onClick={() => { setDeleteConfirm({ open: true, id: inv.id }); }}>
                                 <Trash2 className="h-4 w-4 mr-2" /> Delete
-                              </DropdownMenuItem>
+                              </DropdownMenuItem>}
                             </DropdownMenuContent>
                           </DropdownMenu>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 mt-2 pt-2 border-t text-xs">
                           <span className="text-muted-foreground">Paid: ${fmt(paid)}</span>
@@ -1553,15 +1559,15 @@ export default function InvestmentsPage() {
                           <td className="p-2.5 text-muted-foreground max-w-[200px] truncate">{c.note || "-"}</td>
                           <td className="text-right p-2.5">
                             <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                              <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title="View" aria-label="View" data-testid={`button-contribution-view-${c.id}`} onClick={() => setViewContribution(c)}>
+                              {canView && <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title="View" aria-label="View" data-testid={`button-contribution-view-${c.id}`} onClick={() => setViewContribution(c)}>
                                 <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title="Edit" aria-label="Edit" data-testid={`button-contribution-edit-${c.id}`} onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editImages: c.images || [], _editNote: c.note || "" } as any)}>
+                              </Button>}
+                              {canEdit && <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title="Edit" aria-label="Edit" data-testid={`button-contribution-edit-${c.id}`} onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editImages: c.images || [], _editNote: c.note || "" } as any)}>
                                 <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10" title="Delete" aria-label="Delete" data-testid={`button-contribution-delete-${c.id}`} onClick={() => setDeleteContributionConfirm(c.id)}>
+                              </Button>}
+                              {canDelete && <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10" title="Delete" aria-label="Delete" data-testid={`button-contribution-delete-${c.id}`} onClick={() => setDeleteContributionConfirm(c.id)}>
                                 <Trash2 className="h-4 w-4" />
-                              </Button>
+                              </Button>}
                             </div>
                           </td>
                         </tr>
@@ -1580,7 +1586,7 @@ export default function InvestmentsPage() {
                     <Card
                       key={c.id}
                       className="overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
-                      onClick={() => setViewContribution(c)}
+                      onClick={() => { if (canView) setViewContribution(c); }}
                       data-testid={`card-contribution-${c.id}`}
                     >
                       <CardHeader className="p-3 pb-2">
@@ -1590,15 +1596,15 @@ export default function InvestmentsPage() {
                             <p className="text-xs text-muted-foreground mt-0.5">{c.investorName}</p>
                           </div>
                           <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => setViewContribution(c)} data-testid={`button-contribution-view-${c.id}`}>
+                            {canView && <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => setViewContribution(c)} data-testid={`button-contribution-view-${c.id}`}>
                               <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="Edit" onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editImages: c.images || [], _editNote: c.note || "" } as any)} data-testid={`button-contribution-edit-${c.id}`}>
+                            </Button>}
+                            {canEdit && <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="Edit" onClick={() => setEditContribution({ ...c, _editName: c.investorName, _editAmount: String(c.amount), _editDate: c.date, _editCategory: c.category || "", _editPaymentSlip: c.paymentSlip || "", _editImages: c.images || [], _editNote: c.note || "" } as any)} data-testid={`button-contribution-edit-${c.id}`}>
                               <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" title="Delete" onClick={() => setDeleteContributionConfirm(c.id)} data-testid={`button-contribution-delete-${c.id}`}>
+                            </Button>}
+                            {canDelete && <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" title="Delete" onClick={() => setDeleteContributionConfirm(c.id)} data-testid={`button-contribution-delete-${c.id}`}>
                               <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            </Button>}
                           </div>
                         </div>
                       </CardHeader>
@@ -1695,8 +1701,8 @@ export default function InvestmentsPage() {
                       {(inv.email || inv.phone) && <span className="text-xs text-muted-foreground ml-2">{inv.email || inv.phone}</span>}
                     </div>
                     <div className="flex gap-1">
-                      <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingInvestor(inv); setInvestorForm({ name: inv.name, email: inv.email || "", phone: inv.phone || "", notes: inv.notes || "", sharePercentage: (inv as any).sharePercentage ?? "100" }); }}>Edit</Button>
-                      <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteInvestorConfirm(inv.id)}>Delete</Button>
+                      {canEdit && <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingInvestor(inv); setInvestorForm({ name: inv.name, email: inv.email || "", phone: inv.phone || "", notes: inv.notes || "", sharePercentage: (inv as any).sharePercentage ?? "100" }); }}>Edit</Button>}
+                      {canDelete && <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteInvestorConfirm(inv.id)}>Delete</Button>}
                     </div>
                   </div>
                 ))}
@@ -2028,8 +2034,8 @@ export default function InvestmentsPage() {
                   <div><p className="text-xs text-muted-foreground">Notes</p><p className="text-sm">{viewInvestment.notes}</p></div>
                 )}
                 <div className="flex gap-2 pt-2 flex-wrap">
-                  <Button variant="outline" size="sm" onClick={() => { openEdit(viewInvestment); setViewInvestment(null); }}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
-                  <Button variant="outline" size="sm" onClick={() => openContributionDialog(viewInvestment.id)}><CreditCard className="h-3.5 w-3.5 mr-1" /> Record Payment</Button>
+                  {canEdit && <Button variant="outline" size="sm" onClick={() => { openEdit(viewInvestment); setViewInvestment(null); }}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>}
+                  {canAdd && <Button variant="outline" size="sm" onClick={() => openContributionDialog(viewInvestment.id)}><CreditCard className="h-3.5 w-3.5 mr-1" /> Record Payment</Button>}
                 </div>
               </div>
             );

@@ -26,6 +26,7 @@ import {
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { TablePagination } from "@/components/table-pagination";
+import { usePermissions } from "@/contexts/auth-context";
 import type { Medicine, StockAdjustment } from "@shared/schema";
 
 const MEDICINE_CATEGORIES = [
@@ -54,6 +55,7 @@ const defaultForm = {
 export default function MedicinesPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { canView, canAdd, canEdit, canDelete } = usePermissions("medicines");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editMed, setEditMed] = useState<Medicine | null>(null);
   const [viewMed, setViewMed] = useState<Medicine | null>(null);
@@ -597,6 +599,7 @@ export default function MedicinesPage() {
     }},
     { header: "Expiry Date", accessor: (row: Medicine) => getExpiryBadge(row.expiryDate) },
     { header: "Actions", accessor: (row: Medicine) => (
+      (canView || canEdit || canDelete) ? (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" data-testid={`button-actions-${row.id}`} onClick={(e) => e.stopPropagation()}>
@@ -604,9 +607,13 @@ export default function MedicinesPage() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {canView && (
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewMed(row); }} data-testid={`action-view-${row.id}`} className="gap-2">
             <Eye className="h-4 w-4 text-blue-500" /> {t("common.view")}
           </DropdownMenuItem>
+          )}
+          {canEdit && (
+          <>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); }} data-testid={`action-edit-${row.id}`} className="gap-2">
             <Pencil className="h-4 w-4 text-amber-500" /> {t("common.edit")}
           </DropdownMenuItem>
@@ -616,17 +623,26 @@ export default function MedicinesPage() {
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setStockHistoryMed(row); }} data-testid={`action-stock-history-${row.id}`} className="gap-2">
             <History className="h-4 w-4 text-slate-400" /> Stock history
           </DropdownMenuItem>
+          </>
+          )}
+          {canView && (
+          <>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handlePrint(row); }} data-testid={`action-print-${row.id}`} className="gap-2">
             <Printer className="h-4 w-4 text-purple-500" /> {t("medicines.printLabel")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleBarcode(row); }} data-testid={`action-barcode-${row.id}`} className="gap-2">
             <Barcode className="h-4 w-4 text-teal-500" /> {t("medicines.printBarcode")}
           </DropdownMenuItem>
+          </>
+          )}
+          {canDelete && (
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, id: row.id }); }} className="text-red-600 gap-2" data-testid={`action-delete-${row.id}`}>
             <Trash2 className="h-4 w-4" /> {t("common.delete")}
           </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
+      ) : <span className="text-xs text-muted-foreground">-</span>
     )},
   ];
 
@@ -926,6 +942,7 @@ export default function MedicinesPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {canAdd && (
             <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setForm(defaultForm); setFieldErrors({}); } }}>
               <DialogTrigger asChild>
                 <Button size="sm" data-testid="button-new-medicine">
@@ -946,6 +963,7 @@ export default function MedicinesPage() {
                 </Button>
               </DialogContent>
             </Dialog>
+            )}
           </div>
         }
       />
@@ -1351,7 +1369,7 @@ export default function MedicinesPage() {
           <CardContent className={viewMode === "grid" ? "p-4" : "p-0"}>
             {viewMode === "list" ? (
               <>
-                {selectedIds.size > 0 && (
+                {canDelete && selectedIds.size > 0 && (
                   <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border-b">
                     <span className="text-sm font-medium">{selectedIds.size} selected</span>
                     <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-delete-medicines">
@@ -1359,7 +1377,7 @@ export default function MedicinesPage() {
                     </Button>
                   </div>
                 )}
-                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No medicines yet" selectedIds={selectedIds} onSelectionChange={setSelectedIds} onRowClick={(row) => setViewMed(row)} />
+                <DataTable columns={columns} data={filtered} isLoading={isLoading} emptyMessage="No medicines yet" selectedIds={selectedIds} onSelectionChange={setSelectedIds} onRowClick={canView ? (row) => setViewMed(row) : undefined} />
               </>
             ) : (
               <>
@@ -1384,6 +1402,7 @@ export default function MedicinesPage() {
                           <div className="min-w-0">
                             <p className="font-semibold text-sm truncate">{med.name}</p>
                           </div>
+                          {(canView || canEdit || canDelete) && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="shrink-0" data-testid={`button-grid-actions-${med.id}`}>
@@ -1391,9 +1410,13 @@ export default function MedicinesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              {canView && (
                               <DropdownMenuItem onClick={() => setViewMed(med)} className="gap-2">
                                 <Eye className="h-4 w-4 text-blue-500" /> {t("common.view")}
                               </DropdownMenuItem>
+                              )}
+                              {canEdit && (
+                              <>
                               <DropdownMenuItem onClick={() => openEdit(med)} className="gap-2">
                                 <Pencil className="h-4 w-4 text-amber-500" /> {t("common.edit")}
                               </DropdownMenuItem>
@@ -1403,17 +1426,26 @@ export default function MedicinesPage() {
                               <DropdownMenuItem onClick={() => setStockHistoryMed(med)} className="gap-2">
                                 <History className="h-4 w-4 text-slate-400" /> Stock history
                               </DropdownMenuItem>
+                              </>
+                              )}
+                              {canView && (
+                              <>
                               <DropdownMenuItem onClick={() => handlePrint(med)} className="gap-2">
                                 <Printer className="h-4 w-4 text-purple-500" /> {t("medicines.printLabel")}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleBarcode(med)} className="gap-2">
                                 <Barcode className="h-4 w-4 text-teal-500" /> {t("medicines.printBarcode")}
                               </DropdownMenuItem>
+                              </>
+                              )}
+                              {canDelete && (
                               <DropdownMenuItem onClick={() => setDeleteConfirm({ open: true, id: med.id })} className="text-red-600 gap-2">
                                 <Trash2 className="h-4 w-4" /> {t("common.delete")}
                               </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1.5 flex-wrap">

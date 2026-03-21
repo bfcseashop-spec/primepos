@@ -29,6 +29,7 @@ import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
+import { usePermissions } from "@/contexts/auth-context";
 import type { Service, Injection } from "@shared/schema";
 
 const DEFAULT_SERVICE_CATEGORIES = [
@@ -127,6 +128,7 @@ const defaultInjForm = { name: "", category: "", price: "", description: "" };
 function InjectionManagement() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { canView: injCanView, canAdd: injCanAdd, canEdit: injCanEdit, canDelete: injCanDelete } = usePermissions("services");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editInj, setEditInj] = useState<Injection | null>(null);
   const [viewInj, setViewInj] = useState<Injection | null>(null);
@@ -467,6 +469,7 @@ function InjectionManagement() {
             </div>
           </DialogContent>
         </Dialog>
+        {injCanAdd && (
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setForm(defaultInjForm); setFieldErrors({}); } }}>
           <DialogTrigger asChild>
             <Button data-testid="button-new-injection">
@@ -484,6 +487,7 @@ function InjectionManagement() {
             </Button>
           </DialogContent>
         </Dialog>
+        )}
         </div>
       </div>
 
@@ -633,6 +637,7 @@ function InjectionManagement() {
                         <span className="text-xs text-muted-foreground line-clamp-1">{inj.description || "-"}</span>
                       </td>
                       <td className="p-3 text-right">
+                        {(injCanView || injCanEdit || injCanDelete) ? (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" data-testid={`button-inj-actions-${inj.id}`}>
@@ -640,17 +645,24 @@ function InjectionManagement() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            {injCanView && (
                             <DropdownMenuItem onClick={() => setViewInj(inj)} className="gap-2" data-testid={`action-view-inj-${inj.id}`}>
                               <Eye className="h-3.5 w-3.5 text-blue-500" /> View Details
                             </DropdownMenuItem>
+                            )}
+                            {injCanEdit && (
                             <DropdownMenuItem onClick={() => openEdit(inj)} className="gap-2" data-testid={`action-edit-inj-${inj.id}`}>
                               <Pencil className="h-3.5 w-3.5 text-amber-500" /> {t("common.edit")}
                             </DropdownMenuItem>
+                            )}
+                            {injCanDelete && (
                             <DropdownMenuItem onClick={() => setDeleteInj(inj)} className="text-destructive gap-2" data-testid={`action-delete-inj-${inj.id}`}>
                               <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
                             </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
+                        ) : <span className="text-xs text-muted-foreground">-</span>}
                       </td>
                     </tr>
                   );
@@ -688,6 +700,7 @@ function InjectionManagement() {
                         </Badge>
                       </div>
                     </div>
+                    {(injCanView || injCanEdit || injCanDelete) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" data-testid={`button-inj-actions-${inj.id}`}>
@@ -695,17 +708,24 @@ function InjectionManagement() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {injCanView && (
                         <DropdownMenuItem onClick={() => setViewInj(inj)} className="gap-2" data-testid={`action-view-inj-${inj.id}`}>
                           <Eye className="h-3.5 w-3.5 text-blue-500" /> View Details
                         </DropdownMenuItem>
+                        )}
+                        {injCanEdit && (
                         <DropdownMenuItem onClick={() => openEdit(inj)} className="gap-2" data-testid={`action-edit-inj-${inj.id}`}>
                           <Pencil className="h-3.5 w-3.5 text-amber-500" /> {t("common.edit")}
                         </DropdownMenuItem>
+                        )}
+                        {injCanDelete && (
                         <DropdownMenuItem onClick={() => setDeleteInj(inj)} className="text-destructive gap-2" data-testid={`action-delete-inj-${inj.id}`}>
                           <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
                         </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    )}
                   </div>
 
                   {inj.description && (
@@ -796,9 +816,11 @@ function InjectionManagement() {
                 </div>
               )}
               <div className="flex justify-end gap-2 pt-2">
+                {injCanEdit && (
                 <Button variant="outline" onClick={() => { setViewInj(null); openEdit(viewInj); }} data-testid="button-view-to-edit-inj">
                   <Pencil className="h-4 w-4 mr-1 text-amber-500" /> {t("common.edit")}
                 </Button>
+                )}
                 <Button variant="outline" onClick={() => setViewInj(null)} data-testid="button-close-view-inj">
                   {t("common.close")}
                 </Button>
@@ -906,6 +928,7 @@ function InjectionManagement() {
 export default function ServicesPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { canView, canAdd, canEdit, canDelete } = usePermissions("services");
   const [activeTab, setActiveTab] = useState<"services" | "injections">("services");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editService, setEditService] = useState<Service | null>(null);
@@ -1651,6 +1674,7 @@ export default function ServicesPage() {
                   </div>
                 </div>
               </div>
+              {(canView || canEdit || canDelete) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" data-testid={`button-actions-${svc.id}`}>
@@ -1658,17 +1682,24 @@ export default function ServicesPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {canView && (
                   <DropdownMenuItem onClick={() => setViewService(svc)} className="gap-2" data-testid={`action-view-${svc.id}`}>
                     <Eye className="h-3.5 w-3.5 text-blue-500" /> {t("services.viewDetails")}
                   </DropdownMenuItem>
+                  )}
+                  {canEdit && (
                   <DropdownMenuItem onClick={() => openEdit(svc)} className="gap-2" data-testid={`action-edit-${svc.id}`}>
                     <Pencil className="h-3.5 w-3.5 text-amber-500" /> {t("common.edit")}
                   </DropdownMenuItem>
+                  )}
+                  {canDelete && (
                   <DropdownMenuItem onClick={() => setDeleteService(svc)} className="text-destructive gap-2" data-testid={`action-delete-${svc.id}`}>
                     <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
                   </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
+              )}
             </div>
 
             {svc.description && (
@@ -1763,6 +1794,7 @@ export default function ServicesPage() {
                 <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${svc.isActive ? "bg-emerald-500" : "bg-red-500"}`} />
                 {svc.isActive ? t("common.active") : t("common.inactive")}
               </Badge>
+              {(canView || canEdit || canDelete) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" data-testid={`button-actions-${svc.id}`}>
@@ -1770,17 +1802,24 @@ export default function ServicesPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {canView && (
                   <DropdownMenuItem onClick={() => setViewService(svc)} className="gap-2" data-testid={`action-view-${svc.id}`}>
                     <Eye className="h-3.5 w-3.5 text-blue-500" /> {t("services.viewDetails")}
                   </DropdownMenuItem>
+                  )}
+                  {canEdit && (
                   <DropdownMenuItem onClick={() => openEdit(svc)} className="gap-2" data-testid={`action-edit-${svc.id}`}>
                     <Pencil className="h-3.5 w-3.5 text-amber-500" /> {t("common.edit")}
                   </DropdownMenuItem>
+                  )}
+                  {canDelete && (
                   <DropdownMenuItem onClick={() => setDeleteService(svc)} className="text-destructive gap-2" data-testid={`action-delete-${svc.id}`}>
                     <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
                   </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
+              )}
             </div>
           </div>
         </CardContent>
@@ -1987,6 +2026,7 @@ export default function ServicesPage() {
             <Button variant="outline" size="icon" onClick={handleRefresh} data-testid="button-refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
+            {canAdd && (
             <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setForm(defaultForm); setFieldErrors({}); } }}>
               <DialogTrigger asChild>
                 <Button data-testid="button-new-service">
@@ -2004,6 +2044,7 @@ export default function ServicesPage() {
                 </Button>
               </DialogContent>
             </Dialog>
+            )}
           </div>
         }
       />
@@ -2269,12 +2310,14 @@ export default function ServicesPage() {
                   </div>
                 )}
                 <div className="flex justify-end gap-2 pt-2">
+                  {canEdit && (
                   <Button variant="outline" onClick={() => {
                     setViewService(null);
                     openEdit(viewService);
                   }} data-testid="button-view-to-edit">
                     <Pencil className="h-4 w-4 mr-1 text-amber-500" /> {t("common.edit")}
                   </Button>
+                  )}
                   <Button variant="outline" onClick={() => setViewService(null)} data-testid="button-close-view">
                     {t("common.close")}
                   </Button>

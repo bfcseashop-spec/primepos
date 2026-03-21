@@ -35,7 +35,7 @@ import { printPatientDetails } from "@/lib/patient-print";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import JsBarcode from "jsbarcode";
 import type { Patient, Service, Injection, Medicine, Package as PackageType } from "@shared/schema";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth, usePermissions } from "@/contexts/auth-context";
 import type { PrescriptionLine } from "@/lib/prescription-print";
 
 function dateToYMD(d: Date): string {
@@ -79,6 +79,7 @@ export default function OpdPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const auth = useAuth();
+  const { canView, canAdd, canEdit, canDelete } = usePermissions("opd");
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -287,6 +288,7 @@ export default function OpdPage() {
   const handleBarcodeSearch = async (val: string) => {
     const trimmed = (val || "").trim();
     if (!trimmed || trimmed.length < 2) return;
+    if (!canView) return;
     try {
       const res = await fetch(getApiUrl(`/api/patients/by-patient-id?patientId=${encodeURIComponent(trimmed)}`), { credentials: "include" });
       if (res.ok) {
@@ -484,18 +486,26 @@ export default function OpdPage() {
     }},
     { header: t("common.actions"), accessor: (row: any) => (
       <div className="flex gap-1.5">
+        {canView && (
         <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setViewPatient(row); }} data-testid={`button-view-list-${row.id}`}>
           <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" />
         </Button>
+        )}
+        {canEdit && (
         <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditPatient(row); }} data-testid={`button-edit-list-${row.id}`}>
           <Pencil className="h-4 w-4 text-amber-500 dark:text-amber-400" />
         </Button>
+        )}
+        {canAdd && (
+        <>
         <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openAppointmentDialog(row); }} data-testid={`button-add-appointment-list-${row.id}`}>
           <CalendarPlus className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
         </Button>
         <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openConsultation(row); }} data-testid={`button-prescription-list-${row.id}`}>
           <FileText className="h-4 w-4 text-teal-500 dark:text-teal-400" />
         </Button>
+        </>
+        )}
       </div>
     )},
   ];
@@ -506,9 +516,11 @@ export default function OpdPage() {
         title={t("opd.title")}
         description={t("opd.subtitle")}
         actions={
+          canAdd ? (
           <Button variant="default" onClick={() => navigate("/register-patient")} className="bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-700 text-white" data-testid="button-register-patient">
             <UserPlus className="h-4 w-4 mr-1.5" /> {t("opd.addPatient")}
           </Button>
+          ) : null
         }
       />
 
@@ -664,11 +676,11 @@ export default function OpdPage() {
                       }`} />
 
                       <div
-                        className="p-4 cursor-pointer"
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setViewPatient(patient)}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setViewPatient(patient); } }}
+                        className={`p-4 ${canView ? "cursor-pointer" : ""}`}
+                        role={canView ? "button" : undefined}
+                        tabIndex={canView ? 0 : -1}
+                        onClick={() => { if (canView) setViewPatient(patient); }}
+                        onKeyDown={(e) => { if (canView && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setViewPatient(patient); } }}
                         data-testid={`card-patient-content-${patient.id}`}
                       >
                         <div className="flex items-start justify-between gap-2 mb-3" onClick={(e) => e.stopPropagation()}>
@@ -680,6 +692,7 @@ export default function OpdPage() {
                             <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${typeBadge.dot}`} />
                             {patient.patientType || "Out Patient"}
                           </Badge>
+                          {(canView || canEdit || canDelete) && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" data-testid={`button-patient-menu-${patient.id}`}>
@@ -687,12 +700,17 @@ export default function OpdPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              {canView && (
                               <DropdownMenuItem onClick={() => setViewPatient(patient)} data-testid={`menu-view-${patient.id}`}>
                                 <Eye className="h-3.5 w-3.5 mr-2 text-blue-500" /> {t("common.view")}
                               </DropdownMenuItem>
+                              )}
+                              {canEdit && (
                               <DropdownMenuItem onClick={() => openEditPatient(patient)} data-testid={`menu-edit-${patient.id}`}>
                                 <Pencil className="h-3.5 w-3.5 mr-2 text-amber-500" /> {t("common.edit")}
                               </DropdownMenuItem>
+                              )}
+                              {canDelete && (
                               <DropdownMenuItem
                                 className="text-destructive"
                                 onClick={() => setDeletePatient(patient)}
@@ -700,8 +718,10 @@ export default function OpdPage() {
                               >
                                 <Trash2 className="h-3.5 w-3.5 mr-2" /> {t("common.delete")}
                               </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
+                          )}
                         </div>
 
                         <div className="flex flex-col items-center mb-3">
@@ -755,7 +775,9 @@ export default function OpdPage() {
                         )}
                       </div>
 
+                      {canAdd && (
                       <div className="border-t p-2.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        {canAdd && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -767,6 +789,8 @@ export default function OpdPage() {
                           <CalendarPlus className="h-3.5 w-3.5 shrink-0 text-emerald-500 dark:text-emerald-400 sm:mr-1" />
                           <span className="hidden truncate sm:inline">{t("opd.addAppointment")}</span>
                         </Button>
+                        )}
+                        {canAdd && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -778,7 +802,9 @@ export default function OpdPage() {
                           <FileText className="h-3.5 w-3.5 shrink-0 text-teal-500 dark:text-teal-400 sm:mr-1" />
                           <span className="hidden truncate sm:inline">Prescription</span>
                         </Button>
+                        )}
                       </div>
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -948,15 +974,21 @@ export default function OpdPage() {
                 </>
               )}
               <div className="flex justify-end gap-2 pt-2 flex-wrap">
+                {canView && (
                 <Button variant="outline" onClick={() => { printPatientDetails(viewPatient, settings ? { clinicName: settings.clinicName ?? undefined, address: settings.address ?? undefined, phone: settings.phone ?? undefined, email: settings.email ?? undefined, logo: settings.logo ?? undefined } : null); }} data-testid="button-view-print">
                   <Printer className="h-4 w-4 mr-1 text-muted-foreground" /> Print
                 </Button>
+                )}
+                {canAdd && (
                 <Button variant="outline" onClick={() => { setViewPatient(null); openConsultation(viewPatient); }} data-testid="button-view-prescription">
                   <FileText className="h-4 w-4 mr-1 text-teal-500" /> Prescription
                 </Button>
+                )}
+                {canEdit && (
                 <Button variant="outline" onClick={() => { setViewPatient(null); openEditPatient(viewPatient); }} data-testid="button-view-to-edit">
                   <Pencil className="h-4 w-4 mr-1 text-amber-500" /> {t("common.edit")}
                 </Button>
+                )}
                 <Button variant="outline" onClick={() => setViewPatient(null)} data-testid="button-close-view">
                   {t("common.close")}
                 </Button>

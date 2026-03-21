@@ -17,6 +17,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
+import { usePermissions } from "@/contexts/auth-context";
 import { TestTubes, CheckCircle2, Clock, Beaker, Barcode, Printer, Eye, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import { capitalizeGender } from "@/lib/utils";
 import JsBarcode from "jsbarcode";
@@ -116,6 +117,7 @@ function BarcodePreview({ sample }: { sample: SampleCollection }) {
 export default function SampleCollectionsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { canView, canEdit, canDelete } = usePermissions("lab_tests");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [markingId, setMarkingId] = useState<number | null>(null);
@@ -184,6 +186,7 @@ export default function SampleCollectionsPage() {
   const collectedCount = samplesData?.collectedCount ?? 0;
 
   const handleBarcodeSearch = async (value: string) => {
+    if (!canView) return;
     const v = value?.trim() ?? "";
     if (!v) return;
     // Sample barcode: SC5 or plain 5
@@ -472,6 +475,7 @@ export default function SampleCollectionsPage() {
     {
       header: "Actions",
       accessor: (row: SampleCollection) => (
+        (canView || canEdit || canDelete) ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" data-testid={`button-actions-${row.id}`} onClick={(e) => e.stopPropagation()}>
@@ -479,16 +483,22 @@ export default function SampleCollectionsPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {canView && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewSample(row); }} className="gap-2" data-testid={`action-view-${row.id}`}>
               <Eye className="h-4 w-4 text-blue-500" /> View
             </DropdownMenuItem>
+            )}
+            {canEdit && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="gap-2" data-testid={`action-edit-${row.id}`}>
               <Pencil className="h-4 w-4 text-amber-500" /> Edit
             </DropdownMenuItem>
+            )}
+            {canView && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBarcodeSample(row); }} className="gap-2" data-testid={`action-barcode-${row.id}`}>
               <Barcode className="h-4 w-4 text-purple-500" /> Print Barcode
             </DropdownMenuItem>
-            {row.status === "pending" && (
+            )}
+            {canEdit && row.status === "pending" && (
               <DropdownMenuItem
                 onClick={(e) => { e.stopPropagation(); markCollected(row.id); }}
                 disabled={markingId === row.id}
@@ -498,6 +508,7 @@ export default function SampleCollectionsPage() {
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" /> {markingId === row.id ? "Marking..." : "Mark Collected"}
               </DropdownMenuItem>
             )}
+            {canDelete && (
             <DropdownMenuItem
               onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, sample: row }); }}
               className="text-red-600 gap-2"
@@ -505,8 +516,10 @@ export default function SampleCollectionsPage() {
             >
               <Trash2 className="h-4 w-4" /> Delete
             </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
+        ) : <span className="text-xs text-muted-foreground">-</span>
       ),
     },
   ];
@@ -581,7 +594,7 @@ export default function SampleCollectionsPage() {
             </div>
           </div>
 
-          {selectedIds.size > 0 && (
+          {canDelete && selectedIds.size > 0 && (
             <div className="flex items-center justify-between gap-2 px-4 py-2 bg-primary/5 border-b rounded-md mb-3">
               <span className="text-sm font-medium">{selectedIds.size} selected</span>
               <Button
@@ -603,7 +616,7 @@ export default function SampleCollectionsPage() {
             emptyMessage="No sample collections yet. They are created when a bill includes lab tests that require sample collection."
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
-            onRowClick={(row) => setViewSample(row)}
+            onRowClick={canView ? (row) => setViewSample(row) : undefined}
           />
         </CardContent>
       </Card>
@@ -651,13 +664,17 @@ export default function SampleCollectionsPage() {
                 </div>
               )}
               <div className="flex gap-2 pt-2">
+                {canView && (
                 <Button variant="outline" onClick={() => { setBarcodeSample(viewSample); setViewSample(null); }}>
                   <Barcode className="h-4 w-4 mr-2" /> Print Barcode
                 </Button>
+                )}
+                {canEdit && (
                 <Button variant="outline" onClick={() => { openEdit(viewSample); setViewSample(null); }}>
                   <Pencil className="h-4 w-4 mr-2" /> Edit
                 </Button>
-                {viewSample.status === "pending" && (
+                )}
+                {canEdit && viewSample.status === "pending" && (
                   <Button onClick={() => { markCollected(viewSample.id); setViewSample(null); }}>
                     <CheckCircle2 className="h-4 w-4 mr-2" /> Mark Collected
                   </Button>

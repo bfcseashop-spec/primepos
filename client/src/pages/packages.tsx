@@ -15,11 +15,13 @@ import { apiRequest, queryClient, getApiUrl, normalizePaginatedResponse } from "
 import { Plus, Pencil, Trash2, Package, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { TablePagination } from "@/components/table-pagination";
+import { usePermissions } from "@/contexts/auth-context";
 import type { Package as PackageType, PackageItem } from "@shared/schema";
 import type { Service, Injection, Medicine } from "@shared/schema";
 
 export default function PackagesPage() {
   const { toast } = useToast();
+  const { canView, canAdd, canEdit, canDelete } = usePermissions("services");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editPkg, setEditPkg] = useState<PackageType | null>(null);
   const [viewPkg, setViewPkg] = useState<PackageType | null>(null);
@@ -213,9 +215,11 @@ export default function PackagesPage() {
         title="Packages"
         description="Build packages from services, medicines, injections, or custom items. Add packages when creating bills."
         actions={
+          canAdd ? (
           <Button onClick={openCreate} data-testid="button-add-package">
             <Plus className="h-4 w-4 mr-1" /> Add Package
           </Button>
+          ) : null
         }
       />
       <div className="flex flex-col flex-1 min-h-0">
@@ -243,7 +247,7 @@ export default function PackagesPage() {
         ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {packagesList.map((pkg) => (
-            <Card key={pkg.id} className="cursor-pointer hover:ring-2 hover:ring-primary/20 transition-shadow" data-testid={`card-package-${pkg.id}`} onClick={() => setViewPkg(pkg)}>
+            <Card key={pkg.id} className={`hover:ring-2 hover:ring-primary/20 transition-shadow ${canView ? "cursor-pointer" : ""}`} data-testid={`card-package-${pkg.id}`} onClick={() => { if (canView) setViewPkg(pkg); }}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -261,12 +265,16 @@ export default function PackagesPage() {
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {canEdit && (
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEdit(pkg)} data-testid={`button-edit-package-${pkg.id}`}>
                       <Pencil className="h-4 w-4" />
                     </Button>
+                    )}
+                    {canDelete && (
                     <Button variant="outline" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(pkg.id)} data-testid={`button-delete-package-${pkg.id}`}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -279,7 +287,7 @@ export default function PackagesPage() {
             <CardContent className="p-8 text-center text-muted-foreground">
               <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
               <p>No packages yet. Create a package from services, medicines, injections, or custom items.</p>
-              <Button className="mt-4" onClick={openCreate}>Add Package</Button>
+              {canAdd && <Button className="mt-4" onClick={openCreate}>Add Package</Button>}
             </CardContent>
           </Card>
         )}
@@ -442,9 +450,11 @@ export default function PackagesPage() {
                 <p className="text-lg font-bold text-primary">${packageTotal(viewPkg)}</p>
               </div>
               <div className="flex justify-end gap-2 pt-2">
+                {canEdit && (
                 <Button variant="outline" onClick={() => { setViewPkg(null); openEdit(viewPkg); }}>
                   <Pencil className="h-4 w-4 mr-1" /> Edit
                 </Button>
+                )}
                 <Button variant="outline" onClick={() => setViewPkg(null)}>Cancel</Button>
               </div>
             </div>

@@ -18,6 +18,7 @@ import { apiRequest, queryClient, getApiUrl } from "@/lib/queryClient";
 import { Plus, Eye, Edit, Trash2, ShieldCheck, Check, X, Users, Shield, UserCheck } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { usePermissions } from "@/contexts/auth-context";
 import type { Role } from "@shared/schema";
 
 function getRoleBadgeClasses(roleName: string): string {
@@ -69,6 +70,7 @@ const avatarGradients = [
 
 export default function StaffPage() {
   const { toast } = useToast();
+  const { canView, canAdd, canEdit, canDelete } = usePermissions("user_role");
   const [staffDialogOpen, setStaffDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -391,6 +393,7 @@ export default function StaffPage() {
                   </td>
                   <td className="p-3 text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {canView && (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -399,6 +402,8 @@ export default function StaffPage() {
                       >
                         <Eye className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       </Button>
+                      )}
+                      {canEdit && (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -407,6 +412,8 @@ export default function StaffPage() {
                       >
                         <Edit className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       </Button>
+                      )}
+                      {canDelete && (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -415,6 +422,7 @@ export default function StaffPage() {
                       >
                         <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                       </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -520,6 +528,7 @@ export default function StaffPage() {
                     </td>
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {canEdit && (
                         <Button
                           size="icon"
                           variant="ghost"
@@ -528,6 +537,8 @@ export default function StaffPage() {
                         >
                           <Edit className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                         </Button>
+                        )}
+                        {canDelete && (
                         <Button
                           size="icon"
                           variant="ghost"
@@ -536,6 +547,7 @@ export default function StaffPage() {
                         >
                           <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                         </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

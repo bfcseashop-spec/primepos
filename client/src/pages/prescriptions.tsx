@@ -17,7 +17,7 @@ import { FileText, Printer, Pill, Stethoscope, MoreVertical, Filter, Pencil, Plu
 import { useLocation } from "wouter";
 import { apiRequest, queryClient, getApiUrl, normalizePaginatedResponse } from "@/lib/queryClient";
 import { printPrescription, type PrescriptionLine } from "@/lib/prescription-print";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth, usePermissions } from "@/contexts/auth-context";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -65,6 +65,7 @@ export default function PrescriptionsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const auth = useAuth();
+  const { canView, canAdd, canEdit, canDelete } = usePermissions("opd");
   const [, setLocation] = useLocation();
   const [fromDate, setFromDate] = useState(() => {
     const d = new Date();
@@ -296,6 +297,7 @@ export default function PrescriptionsPage() {
   };
 
   const handlePrescriptionBarcodeSearch = (v: string) => {
+    if (!canView) return;
     const val = (v || "").trim();
     if (!val) return;
     const byVisit = visits.find((row: any) => row.visitId && billNoMatches(val, row.visitId));
@@ -345,28 +347,38 @@ export default function PrescriptionsPage() {
       header: "Actions",
       accessor: (row: any) => (
         <div className="flex items-center gap-1">
+          {canView && (
           <Button variant="ghost" size="sm" className="gap-1.5" onClick={(e) => { e.stopPropagation(); setViewVisit(row); }} data-testid={`action-view-${row.id}`} title={t("common.view")}>
             <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" /> {t("common.view")}
           </Button>
+          )}
+          {(canView || canEdit || canDelete) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><MoreVertical className="h-4 w-4" /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {canView && (
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handlePrint(row); }} className="gap-2">
                 <Printer className="h-4 w-4" /> Print prescription
               </DropdownMenuItem>
+              )}
+              {canEdit && (
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(row); setViewVisit(null); }} className="gap-2">
                 <Pencil className="h-4 w-4" /> Edit prescription
               </DropdownMenuItem>
+              )}
+              {canDelete && (
               <DropdownMenuItem
                 onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ open: true, ids: [row.id] }); }}
                 className="gap-2 text-red-600 dark:text-red-400"
               >
                 <Trash2 className="h-4 w-4" /> Delete
               </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
         </div>
       ),
     },
@@ -378,9 +390,11 @@ export default function PrescriptionsPage() {
         title="Prescriptions"
         description="View and print prescriptions. Use filters for date range and doctor."
         actions={
+          canAdd ? (
           <Button variant="default" onClick={() => setLocation("/opd")} className="bg-gradient-to-r from-emerald-600 to-teal-600">
             <FileText className="h-4 w-4 mr-1.5" /> New prescription (OPD)
           </Button>
+          ) : null
         }
       />
 
@@ -476,7 +490,7 @@ export default function PrescriptionsPage() {
               <FileText className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-semibold">Prescriptions</CardTitle>
               <Badge variant="secondary" className="text-[10px]">{visitsTotal}</Badge>
-              {selectedVisitIds.size > 0 && (
+              {canDelete && selectedVisitIds.size > 0 && (
                 <Button
                   variant="destructive"
                   size="sm"
@@ -646,12 +660,16 @@ export default function PrescriptionsPage() {
                   <Button variant="outline" onClick={() => setViewVisit(null)} data-testid="button-view-cancel">
                     Cancel
                   </Button>
+                  {canEdit && (
                   <Button onClick={() => { openEdit(viewVisit); setViewVisit(null); }} className="bg-teal-600 hover:bg-teal-700" data-testid="button-view-edit">
                     <Pencil className="h-4 w-4 mr-1.5" /> Edit
                   </Button>
+                  )}
+                  {canView && (
                   <Button onClick={() => { handlePrint(viewVisit); setViewVisit(null); }} variant="secondary" data-testid="button-view-print">
                     <Printer className="h-4 w-4 mr-1.5" /> Print
                   </Button>
+                  )}
                 </div>
               </div>
             );

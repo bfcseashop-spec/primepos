@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { DateFilterBar, useDateFilter } from "@/components/date-filter";
 import { TablePagination } from "@/components/table-pagination";
+import { usePermissions } from "@/contexts/auth-context";
 const statusConfig: Record<string, { bg: string; text: string; border: string; dot: string; icon: any; gradient: string }> = {
   scheduled: {
     bg: "bg-blue-500/10 dark:bg-blue-400/10", text: "text-blue-700 dark:text-blue-300",
@@ -67,6 +68,7 @@ const avatarGradients = [
 export default function AppointmentsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { canView, canEdit, canDelete } = usePermissions("appointments");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [editDialog, setEditDialog] = useState(false);
@@ -219,7 +221,7 @@ export default function AppointmentsPage() {
     const ModeIcon = modeConfig?.icon || User;
 
     return (
-      <Card key={apt.id} className="overflow-visible hover-elevate cursor-pointer" data-testid={`card-appointment-${apt.id}`} onClick={() => setViewAppointment(apt)}>
+      <Card key={apt.id} className={`overflow-visible hover-elevate ${canView ? "cursor-pointer" : ""}`} data-testid={`card-appointment-${apt.id}`} onClick={() => { if (canView) setViewAppointment(apt); }}>
         <CardContent className="p-0">
           <div className={`h-1 rounded-t-md bg-gradient-to-r ${style.gradient}`} />
           <div className="p-4">
@@ -242,6 +244,7 @@ export default function AppointmentsPage() {
                   <p className="text-[11px] text-muted-foreground">{apt.patientType || "Out Patient"}</p>
                 </div>
               </div>
+              {(canView || canEdit || canDelete) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" data-testid={`button-actions-${apt.id}`} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
@@ -249,9 +252,12 @@ export default function AppointmentsPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {canView && (
                   <DropdownMenuItem onClick={() => setViewAppointment(apt)} data-testid={`button-view-${apt.id}`}>
                     <CalendarCheck className="h-3.5 w-3.5 mr-2 text-blue-500" /> {t("common.view")}
                   </DropdownMenuItem>
+                  )}
+                  {canEdit && (
                   <DropdownMenuItem onClick={() => {
                     setEditingAppointment(apt);
                     setEditStatus(apt.status);
@@ -259,6 +265,8 @@ export default function AppointmentsPage() {
                   }} data-testid={`button-edit-${apt.id}`}>
                     <Edit className="h-3.5 w-3.5 mr-2 text-amber-500" /> {t("common.edit")}
                   </DropdownMenuItem>
+                  )}
+                  {canDelete && (
                   <DropdownMenuItem
                     className="text-destructive"
                     onClick={() => setDeleteAppointment(apt)}
@@ -266,8 +274,10 @@ export default function AppointmentsPage() {
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-2" /> {t("common.delete")}
                   </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
+              )}
             </div>
 
             <div className="space-y-2 mb-3">
@@ -420,7 +430,7 @@ export default function AppointmentsPage() {
           </CardContent>
         </Card>
 
-        {selectedIds.size > 0 && (
+        {canDelete && selectedIds.size > 0 && (
           <div className="flex items-center justify-between gap-2 p-3 rounded-md bg-primary/5 border">
             <span className="text-sm font-medium">{selectedIds.size} selected</span>
             <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-delete-appointments">
@@ -578,6 +588,7 @@ export default function AppointmentsPage() {
                   </div>
                 )}
                 <div className="flex justify-end gap-2 pt-2">
+                  {canEdit && (
                   <Button variant="outline" onClick={() => {
                     setViewAppointment(null);
                     setEditingAppointment(viewAppointment);
@@ -586,6 +597,7 @@ export default function AppointmentsPage() {
                   }} data-testid="button-view-to-edit">
                     <Edit className="h-4 w-4 mr-1 text-amber-500" /> {t("common.edit")}
                   </Button>
+                  )}
                   <Button variant="outline" onClick={() => setViewAppointment(null)} data-testid="button-close-view">
                     {t("common.close")}
                   </Button>

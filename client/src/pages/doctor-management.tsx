@@ -20,6 +20,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
+import { usePermissions } from "@/contexts/auth-context";
 import type { Doctor } from "@shared/schema";
 
 const defaultPositions = [
@@ -62,6 +63,7 @@ const avatarGradients = [
 export default function DoctorManagementPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { canView, canAdd, canEdit, canDelete } = usePermissions("doctors");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
@@ -286,9 +288,11 @@ export default function DoctorManagementPage() {
             <Button variant="outline" size="sm" onClick={() => setPosDialog(true)} data-testid="button-add-position">
               <Briefcase className="h-4 w-4 mr-1" /> + Position
             </Button>
+            {canAdd && (
             <Button size="sm" onClick={() => { resetForm(); setAddDialog(true); }} data-testid="button-add-doctor">
               <Plus className="h-4 w-4 mr-1" /> {t("doctors.addDoctor")}
             </Button>
+            )}
           </div>
         }
       />
@@ -340,7 +344,7 @@ export default function DoctorManagementPage() {
         <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {doctors.map((doc) => (
-            <Card key={doc.id} className="overflow-visible hover-elevate cursor-pointer" data-testid={`card-doctor-${doc.id}`} onClick={() => { setViewingDoctor(doc); setViewDialog(true); }}>
+            <Card key={doc.id} className={`overflow-visible hover-elevate ${canView ? "cursor-pointer" : ""}`} data-testid={`card-doctor-${doc.id}`} onClick={() => { if (canView) { setViewingDoctor(doc); setViewDialog(true); } }}>
               <CardContent className="p-0">
                 <div className="h-1 rounded-t-md bg-gradient-to-r from-blue-500 to-violet-500" />
                 <div className="p-5">
@@ -348,6 +352,7 @@ export default function DoctorManagementPage() {
                   <Badge className={`no-default-hover-elevate no-default-active-elevate text-xs ${getStatusBadge(doc.status)}`}>
                     {getStatusLabel(doc.status)}
                   </Badge>
+                  {(canView || canEdit || canDelete) && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="icon" variant="ghost" data-testid={`button-menu-${doc.id}`} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
@@ -355,12 +360,18 @@ export default function DoctorManagementPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      {canView && (
                       <DropdownMenuItem onClick={() => { setViewingDoctor(doc); setViewDialog(true); }} data-testid={`button-view-${doc.id}`}>
                         <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> {t("common.view")}
                       </DropdownMenuItem>
+                      )}
+                      {canEdit && (
                       <DropdownMenuItem onClick={() => openEdit(doc)} data-testid={`button-edit-${doc.id}`}>
                         <Edit className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
                       </DropdownMenuItem>
+                      )}
+                      {canEdit && (
+                      <>
                       <Separator className="my-1" />
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "active")} data-testid={`button-set-available-${doc.id}`}>
                         <UserCheck className="h-4 w-4 mr-2 text-emerald-600" /> {t("common.active")}
@@ -374,12 +385,19 @@ export default function DoctorManagementPage() {
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "on_leave")} data-testid={`button-set-leave-${doc.id}`}>
                         <BedDouble className="h-4 w-4 mr-2 text-amber-600" /> On Leave
                       </DropdownMenuItem>
+                      </>
+                      )}
+                      {canDelete && (
+                      <>
                       <Separator className="my-1" />
                       <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirm({ open: true, id: doc.id })} data-testid={`button-delete-${doc.id}`}>
                         <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> {t("common.delete")}
                       </DropdownMenuItem>
+                      </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  )}
                 </div>
 
                 <div className="flex flex-col items-center mt-2 mb-3">
@@ -433,6 +451,7 @@ export default function DoctorManagementPage() {
                   )}
                 </div>
 
+                {canView && (
                 <div className="mt-3 pt-3 border-t text-center">
                   <button
                     className="text-xs font-medium text-primary"
@@ -442,6 +461,7 @@ export default function DoctorManagementPage() {
                     {t("common.view")}
                   </button>
                 </div>
+                )}
                 </div>
               </CardContent>
             </Card>
@@ -452,7 +472,7 @@ export default function DoctorManagementPage() {
         <>
         <div className="space-y-2">
           {doctors.map((doc) => (
-            <Card key={doc.id} className="overflow-visible hover-elevate cursor-pointer" data-testid={`card-doctor-${doc.id}`} onClick={() => { setViewingDoctor(doc); setViewDialog(true); }}>
+            <Card key={doc.id} className={`overflow-visible hover-elevate ${canView ? "cursor-pointer" : ""}`} data-testid={`card-doctor-${doc.id}`} onClick={() => { if (canView) { setViewingDoctor(doc); setViewDialog(true); } }}>
               <CardContent className="p-0">
                 <div className="h-1 rounded-t-md bg-gradient-to-r from-blue-500 to-violet-500" />
                 <div className="p-4 flex items-center gap-4 flex-wrap">
@@ -483,6 +503,7 @@ export default function DoctorManagementPage() {
                 </div>
                 {doc.phone && <div className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="h-3 w-3 text-blue-500 dark:text-blue-400" />{doc.phone}</div>}
                 <div className="flex items-center gap-1" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                  {(canView || canEdit || canDelete) && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="icon" variant="ghost" data-testid={`button-menu-${doc.id}`}>
@@ -490,12 +511,18 @@ export default function DoctorManagementPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      {canView && (
                       <DropdownMenuItem onClick={() => { setViewingDoctor(doc); setViewDialog(true); }} data-testid={`button-view-${doc.id}`}>
                         <Eye className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" /> {t("common.view")}
                       </DropdownMenuItem>
+                      )}
+                      {canEdit && (
                       <DropdownMenuItem onClick={() => openEdit(doc)} data-testid={`button-edit-${doc.id}`}>
                         <Edit className="h-4 w-4 mr-2 text-amber-500 dark:text-amber-400" /> {t("common.edit")}
                       </DropdownMenuItem>
+                      )}
+                      {canEdit && (
+                      <>
                       <Separator className="my-1" />
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "active")}>
                         <UserCheck className="h-4 w-4 mr-2 text-emerald-600" /> {t("common.active")}
@@ -509,12 +536,19 @@ export default function DoctorManagementPage() {
                       <DropdownMenuItem onClick={() => setDoctorStatus(doc.id, "on_leave")}>
                         <BedDouble className="h-4 w-4 mr-2 text-amber-600" /> On Leave
                       </DropdownMenuItem>
+                      </>
+                      )}
+                      {canDelete && (
+                      <>
                       <Separator className="my-1" />
                       <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirm({ open: true, id: doc.id })} data-testid={`button-delete-${doc.id}`}>
                         <Trash2 className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" /> {t("common.delete")}
                       </DropdownMenuItem>
+                      </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  )}
                 </div>
                 </div>
               </CardContent>
@@ -582,7 +616,9 @@ export default function DoctorManagementPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setViewDialog(false)}>{t("common.close")}</Button>
+              {canEdit && (
               <Button onClick={() => { setViewDialog(false); openEdit(viewingDoctor); }}>{t("common.edit")}</Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
