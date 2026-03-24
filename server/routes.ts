@@ -1589,20 +1589,34 @@ export async function registerRoutes(
         patientId: !isNaN(patientId as number) ? patientId : undefined,
       });
       const billsRows = (result.items || []).map((b: any) => {
+        const items = Array.isArray(b.items) ? b.items : [];
+        const medQty = items
+          .filter((i: any) => (i?.type === "medicine" || i?.medicineId != null))
+          .reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0);
+        const svcTotal = items
+          .filter((i: any) => i?.type === "service" && i?.packageId == null && i?.packageName == null)
+          .reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
+        const injTotal = items
+          .filter((i: any) => i?.type === "injection" && i?.packageId == null && i?.packageName == null)
+          .reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
+        const pkgTotal = items
+          .filter((i: any) => i?.packageId != null || i?.packageName != null || i?.type === "package")
+          .reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
         const total = Number(b.total || 0);
         const paid = Number(b.paidAmount || 0);
-        const balance = Math.max(0, total - paid);
+        const medQtyLabel = medQty > 0 ? `${medQty} pcs` : "-";
         return {
           "Bill No": b.billNo || "",
           Date: b.paymentDate || (b.createdAt ? new Date(b.createdAt).toISOString().slice(0, 10) : ""),
           Patient: b.patientName || "",
-          "Items Count": Array.isArray(b.items) ? b.items.length : 0,
+          "Qty (Med)": medQtyLabel,
+          Services: svcTotal > 0 ? svcTotal.toFixed(2) : "-",
+          Injection: injTotal > 0 ? injTotal.toFixed(2) : "-",
+          Packages: pkgTotal > 0 ? pkgTotal.toFixed(2) : "-",
           Total: total.toFixed(2),
           Paid: paid.toFixed(2),
-          Balance: balance.toFixed(2),
           "Payment Method": b.paymentMethod || "",
           Status: b.status || "",
-          "Ref Doctor": b.referenceDoctor || "",
         };
       });
 
@@ -1632,8 +1646,8 @@ export async function registerRoutes(
         doc.moveDown(0.4);
         doc.fontSize(8).fillColor("#666").text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
         doc.moveDown(0.8);
-        const headers = ["Bill No", "Date", "Patient", "Total", "Paid", "Balance", "Method", "Status"];
-        const colWidths = [90, 78, 165, 70, 70, 70, 90, 70];
+        const headers = ["Bill No", "Date", "Patient", "Qty (Med)", "Services", "Injection", "Packages", "Total", "Paid", "Method", "Status"];
+        const colWidths = [72, 64, 140, 60, 66, 66, 66, 66, 66, 78, 58];
         let y = doc.y;
         let x = 28;
         headers.forEach((h, i) => {
@@ -1649,7 +1663,19 @@ export async function registerRoutes(
           }
           x = 28;
           const bg = idx % 2 === 0 ? "#f8fafc" : "#ffffff";
-          const vals = [r["Bill No"], r.Date, r.Patient, `$${r.Total}`, `$${r.Paid}`, `$${r.Balance}`, r["Payment Method"], r.Status];
+          const vals = [
+            r["Bill No"],
+            r.Date,
+            r.Patient,
+            String(r["Qty (Med)"]),
+            r.Services === "-" ? "-" : `$${r.Services}`,
+            r.Injection === "-" ? "-" : `$${r.Injection}`,
+            r.Packages === "-" ? "-" : `$${r.Packages}`,
+            `$${r.Total}`,
+            `$${r.Paid}`,
+            r["Payment Method"],
+            r.Status,
+          ];
           vals.forEach((v, i) => {
             doc.rect(x, y, colWidths[i], 16).fill(bg);
             doc.fillColor("#111827").fontSize(7.5).text(String(v ?? ""), x + 4, y + 4, { width: colWidths[i] - 8, ellipsis: true });
