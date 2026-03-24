@@ -13,10 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { SearchableSelect } from "@/components/searchable-select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, getApiUrl, fetchPaginated, fetchStats } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiUrl, fetchPaginated, fetchStats, downloadFile } from "@/lib/queryClient";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag, Package, RotateCcw } from "lucide-react";
+import { Plus, Search, Trash2, DollarSign, Percent, FileText, Printer, CreditCard, ArrowLeft, X, MoreHorizontal, Eye, Pencil, Receipt, TrendingUp, Clock, CheckCircle2, Banknote, Wallet, Building2, Globe, Smartphone, Barcode, User as UserIcon, Stethoscope, ShoppingBag, Pill, CalendarDays, Hash, Tag, Package, RotateCcw, Download, FileSpreadsheet } from "lucide-react";
 import { SearchInputWithBarcode } from "@/components/search-input-with-barcode";
 import { TablePagination } from "@/components/table-pagination";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
@@ -202,6 +202,21 @@ export default function BillingPage() {
         {found.label}
       </Badge>
     );
+  };
+
+  const handleExport = async (format: "xlsx" | "csv" | "pdf") => {
+    try {
+      const params = new URLSearchParams();
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (dateRange?.from) params.set("dateFrom", dateRange.from);
+      if (dateRange?.to) params.set("dateTo", dateRange.to);
+      const suffix = params.toString() ? `?${params.toString()}` : "";
+      const filename = format === "pdf" ? "bills.pdf" : format === "csv" ? "bills.csv" : "bills.xlsx";
+      await downloadFile(`/api/bills/export/${format}${suffix}`, filename);
+      toast({ title: "Export completed", description: `Downloaded ${filename}` });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err?.message || "Please try again.", variant: "destructive" });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -978,13 +993,34 @@ export default function BillingPage() {
         title={t("billing.title")}
         description={t("billing.subtitle")}
         actions={
-          canAdd ? (
-          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-new-bill">
-                <Plus className="h-4 w-4 mr-1" /> {t("billing.createBill")}
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            {canView && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" data-testid="button-export-bills">
+                    <Download className="h-4 w-4 mr-1" /> {t("common.export")}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleExport("xlsx")} data-testid="button-export-bills-excel">
+                    <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("csv")} data-testid="button-export-bills-csv">
+                    <FileText className="h-4 w-4 mr-2" /> CSV (.csv)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("pdf")} data-testid="button-export-bills-pdf">
+                    <FileText className="h-4 w-4 mr-2" /> PDF (.pdf)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {canAdd ? (
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-new-bill">
+                  <Plus className="h-4 w-4 mr-1" /> {t("billing.createBill")}
+                </Button>
+              </DialogTrigger>
             <DialogContent className="w-[calc(100%-2rem)] max-w-5xl lg:max-w-6xl max-h-[92vh] overflow-y-auto p-6 sm:p-8">
               <DialogHeader className="pb-4 border-b border-border/50">
                 <DialogTitle className="text-xl sm:text-2xl font-bold tracking-tight">
@@ -1653,8 +1689,9 @@ export default function BillingPage() {
               </div>
               )}
             </DialogContent>
-          </Dialog>
-          ) : null
+            </Dialog>
+            ) : null}
+          </div>
         }
       />
 

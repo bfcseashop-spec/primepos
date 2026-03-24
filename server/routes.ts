@@ -1574,6 +1574,106 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/bills/export/:format", async (req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const q = req.query as Record<string, unknown>;
+      const patientId = req.query.patientId != null ? Number(req.query.patientId) : undefined;
+      const result = await storage.getBillsPaginated({
+        limit: 100000,
+        offset: 0,
+        search: qStr(q, "search"),
+        dateFrom: qStr(q, "dateFrom"),
+        dateTo: qStr(q, "dateTo"),
+        statusFilter: qStr(q, "statusFilter"),
+        patientId: !isNaN(patientId as number) ? patientId : undefined,
+      });
+      const billsRows = (result.items || []).map((b: any) => {
+        const total = Number(b.total || 0);
+        const paid = Number(b.paidAmount || 0);
+        const balance = Math.max(0, total - paid);
+        return {
+          "Bill No": b.billNo || "",
+          Date: b.paymentDate || (b.createdAt ? new Date(b.createdAt).toISOString().slice(0, 10) : ""),
+          Patient: b.patientName || "",
+          "Items Count": Array.isArray(b.items) ? b.items.length : 0,
+          Total: total.toFixed(2),
+          Paid: paid.toFixed(2),
+          Balance: balance.toFixed(2),
+          "Payment Method": b.paymentMethod || "",
+          Status: b.status || "",
+          "Ref Doctor": b.referenceDoctor || "",
+        };
+      });
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(billsRows);
+      XLSX.utils.book_append_sheet(wb, ws, "Bills");
+      const format = String(req.params.format || "").toLowerCase();
+      if (format === "csv") {
+        const csv = XLSX.utils.sheet_to_csv(ws);
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", "attachment; filename=bills.csv");
+        res.send(csv);
+        return;
+      }
+      if (format === "pdf") {
+        const PDFDocument = (await import("pdfkit")).default;
+        const doc = new PDFDocument({ margin: 28, size: "A4", layout: "landscape" });
+        const chunks: Buffer[] = [];
+        doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+        doc.on("end", () => {
+          const pdfBuf = Buffer.concat(chunks);
+          res.setHeader("Content-Type", "application/pdf");
+          res.setHeader("Content-Disposition", "attachment; filename=bills.pdf");
+          res.send(pdfBuf);
+        });
+        doc.fontSize(16).text("Billing Report", { align: "center" });
+        doc.moveDown(0.4);
+        doc.fontSize(8).fillColor("#666").text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
+        doc.moveDown(0.8);
+        const headers = ["Bill No", "Date", "Patient", "Total", "Paid", "Balance", "Method", "Status"];
+        const colWidths = [90, 78, 165, 70, 70, 70, 90, 70];
+        let y = doc.y;
+        let x = 28;
+        headers.forEach((h, i) => {
+          doc.rect(x, y, colWidths[i], 18).fill("#2563eb");
+          doc.fillColor("#fff").fontSize(8).text(h, x + 4, y + 5, { width: colWidths[i] - 8 });
+          x += colWidths[i];
+        });
+        y += 18;
+        billsRows.forEach((r: any, idx: number) => {
+          if (y > 540) {
+            doc.addPage({ size: "A4", layout: "landscape", margin: 28 });
+            y = 28;
+          }
+          x = 28;
+          const bg = idx % 2 === 0 ? "#f8fafc" : "#ffffff";
+          const vals = [r["Bill No"], r.Date, r.Patient, `$${r.Total}`, `$${r.Paid}`, `$${r.Balance}`, r["Payment Method"], r.Status];
+          vals.forEach((v, i) => {
+            doc.rect(x, y, colWidths[i], 16).fill(bg);
+            doc.fillColor("#111827").fontSize(7.5).text(String(v ?? ""), x + 4, y + 4, { width: colWidths[i] - 8, ellipsis: true });
+            x += colWidths[i];
+          });
+          y += 16;
+        });
+        const totalAmount = billsRows.reduce((s: number, r: any) => s + Number(r.Total || 0), 0);
+        doc.moveDown(0.8);
+        doc.fontSize(9).fillColor("#111827").text(`Total Bills: ${billsRows.length} | Total Amount: $${totalAmount.toFixed(2)}`, 28, y + 8);
+        doc.end();
+        return;
+      }
+      const raw = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = Buffer.from(raw);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=bills.xlsx");
+      res.setHeader("Content-Length", String(buf.length));
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Bills – legacy endpoint (returns all when no pagination params; use /api/bills-paginated for list views)
   app.get("/api/bills", async (req, res) => {
     try {
